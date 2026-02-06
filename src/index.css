@@ -1,0 +1,848 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:wght@600;700&display=swap');
+
+:root {
+  color-scheme: light;
+  --bg: #f6f2ea;
+  --bg-deep: #efe6d8;
+  --ink: #1e1b16;
+  --muted: #6c6258;
+  --accent: #f07c4a;
+  --accent-deep: #d2552f;
+  --teal: #1f5f59;
+  --danger: #b93829;
+  --success: #1b7a39;
+  --card: rgba(255, 255, 255, 0.82);
+  --stroke: rgba(30, 27, 22, 0.08);
+  --shadow: 0 20px 45px rgba(30, 27, 22, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+}
+
+h1,
+h2 {
+  font-family: 'Fraunces', serif;
+  margin: 0 0 0.4rem;
+  letter-spacing: -0.02em;
+}
+
+p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+.page {
+  position: relative;
+  padding: 24px 18px 48px;
+  overflow: hidden;
+}
+
+.gradient {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, #fbd7c2 0, transparent 55%),
+    radial-gradient(circle at 85% 10%, #b9d8d3 0, transparent 45%),
+    radial-gradient(circle at 80% 80%, #f8c4ae 0, transparent 50%);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.hero {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  color: var(--teal);
+  font-weight: 600;
+}
+
+.hero h1 {
+  font-size: clamp(2rem, 6vw, 3.1rem);
+  line-height: 1.05;
+  color: var(--ink);
+}
+
+.subtitle {
+  font-size: 1rem;
+  max-width: 560px;
+}
+
+.nav {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nav a {
+  text-decoration: none;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 999px;
+  transition: all 0.2s ease;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.nav a.active {
+  background: var(--teal);
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(31, 95, 89, 0.2);
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 20px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+  display: grid;
+  gap: 16px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.card-header h2 {
+  font-size: 1.35rem;
+}
+
+.card-header .select-wrap {
+  width: 100%;
+}
+
+.card-header .select-wrap select,
+.card-header .select-wrap .text-input {
+  width: 100%;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.pill {
+  background: var(--teal);
+  color: #fff;
+  font-size: 0.72rem;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
+.tag {
+  font-size: 0.72rem;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--bg-deep);
+  color: var(--teal);
+  font-weight: 600;
+}
+
+.select-wrap select {
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 600;
+  min-width: 160px;
+}
+
+.text-input,
+.field input,
+.field textarea {
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.text-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.upload-form,
+.range-form {
+  display: grid;
+  gap: 12px;
+}
+
+.file-input {
+  border: 1px dashed var(--teal);
+  border-radius: 14px;
+  padding: 14px;
+  display: grid;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.file-input input {
+  display: none;
+}
+
+.file-input span {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+button {
+  border: none;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(240, 124, 74, 0.35);
+}
+
+button.secondary {
+  background: var(--teal);
+  color: #fff;
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--teal);
+  border: 1px solid var(--stroke);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.status {
+  font-size: 0.9rem;
+  color: var(--teal);
+}
+
+.status.error {
+  color: #b93829;
+}
+
+.empty {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.upload-result,
+.range-result {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 14px;
+}
+
+.upload-result div,
+.range-result div,
+.stat-grid div,
+.table-row div {
+  display: grid;
+  gap: 4px;
+}
+
+.upload-result span,
+.range-result span,
+.stat-grid span,
+.label,
+.table-row span {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+}
+
+.stat-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.grid {
+  display: grid;
+  gap: 20px;
+}
+
+.range-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.friend-form {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(31, 95, 89, 0.08);
+}
+
+.form-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.friend-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.friend-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.friend-row-actions button {
+  flex: 1 1 120px;
+}
+
+.friends-grid {
+  display: grid;
+  gap: 14px;
+  align-items: start;
+}
+
+.friend-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(31, 95, 89, 0.12);
+  align-content: start;
+  min-width: 0;
+}
+
+.friend-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.friend-header > div:first-child {
+  min-width: 0;
+}
+
+.friend-header p {
+  overflow-wrap: anywhere;
+}
+
+.friend-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.friend-link:hover {
+  color: var(--teal);
+}
+
+.friend-meta {
+  display: grid;
+  gap: 10px;
+}
+
+.friend-meta strong {
+  overflow-wrap: anywhere;
+}
+
+.friend-meta span,
+.friend-summary span {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+}
+
+.friend-summary {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(31, 95, 89, 0.08);
+}
+
+.friend-transactions {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(31, 95, 89, 0.1);
+}
+
+.friend-transactions-header h3 {
+  margin: 0 0 4px;
+  font-family: 'Fraunces', serif;
+}
+
+.friend-transactions-list {
+  display: grid;
+  gap: 10px;
+}
+
+.friend-transaction-head {
+  display: none;
+}
+
+.friend-transaction-row {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(31, 95, 89, 0.05);
+  min-width: 0;
+}
+
+.friend-transaction-row strong {
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+.friend-transaction-cell {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.friend-transaction-row > div {
+  min-width: 0;
+}
+
+.friend-transaction-narration,
+.friend-transaction-note {
+  grid-column: 1 / -1;
+}
+
+.friend-transaction-row span {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+}
+
+.friend-cell-label {
+  display: block;
+}
+
+.friend-direction-owe,
+.friend-amount-owe {
+  color: var(--danger);
+}
+
+.friend-direction-receivable,
+.friend-amount-receivable {
+  color: var(--success);
+}
+
+input[type='date'] {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+  font-size: 0.95rem;
+}
+
+.imports-list {
+  display: grid;
+  gap: 12px;
+}
+
+.imports-head {
+  display: none;
+}
+
+.import-row {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(31, 95, 89, 0.08);
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.transactions-table {
+  max-height: none;
+  overflow: visible;
+  border-radius: 14px;
+}
+
+.table {
+  display: grid;
+  gap: 10px;
+}
+
+.table-row {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(31, 95, 89, 0.1);
+}
+
+.table-cell {
+  min-width: 0;
+}
+
+.table-cell strong {
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+.table-narration strong {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+.amount-withdrawal {
+  color: var(--danger);
+}
+
+.amount-deposit {
+  color: var(--success);
+}
+
+.table-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.friend-tags-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(31, 95, 89, 0.12);
+}
+
+.friend-tags-header h3 {
+  margin: 0 0 4px;
+  font-family: 'Fraunces', serif;
+}
+
+.friend-tags-form {
+  display: grid;
+  gap: 10px;
+}
+
+.friend-tags-form select,
+.friend-tags-form input {
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.friend-tags-list {
+  display: grid;
+  gap: 10px;
+}
+
+.friend-tag-row {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(31, 95, 89, 0.06);
+  min-width: 0;
+}
+
+.friend-tag-row span {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+}
+
+.friend-tag-row strong {
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 720px) {
+  .page {
+    padding: 40px 48px 70px;
+  }
+
+  .upload-form {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .card-header .select-wrap {
+    width: auto;
+  }
+
+  .range-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+    align-items: end;
+  }
+
+  .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .upload-result,
+  .range-result {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .import-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: center;
+  }
+
+  .imports-head {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: center;
+    padding: 0 12px;
+  }
+
+  .imports-head span {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .import-row .label {
+    display: none;
+  }
+
+  .friend-tags-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .friend-tag-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .friends-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .friend-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .friend-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .friend-transaction-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .friend-transaction-narration,
+  .friend-transaction-note {
+    grid-column: 1 / -1;
+  }
+
+  .friend-tag-row button {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1024px) {
+  .content {
+    gap: 28px;
+  }
+
+  .card {
+    padding: 22px 24px;
+  }
+
+  .form-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .transactions-table {
+    max-height: 420px;
+    overflow: auto;
+  }
+}
+
+@media (min-width: 1100px) {
+  .table-row {
+    grid-template-columns: 120px 190px minmax(360px, 1fr) 120px 120px 140px auto;
+    align-items: center;
+  }
+
+  .table-cell strong {
+    white-space: nowrap;
+  }
+
+  .table-actions {
+    grid-column: auto;
+    justify-content: flex-end;
+  }
+
+  .table-narration {
+    grid-column: auto;
+  }
+
+  .table-narration strong {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+  }
+
+  .friend-tags-form {
+    grid-template-columns: 1.2fr 0.7fr 0.9fr 1.4fr auto;
+    align-items: center;
+  }
+
+  .friend-tag-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+    align-items: center;
+  }
+
+  .friend-tag-row button {
+    grid-column: auto;
+  }
+
+  .friend-transaction-row {
+    grid-template-columns: 140px minmax(0, 1fr) 180px 140px minmax(140px, 220px);
+    align-items: center;
+    gap: 14px;
+  }
+
+  .friend-transaction-cell strong {
+    display: block;
+    max-width: 100%;
+    white-space: nowrap;
+  }
+
+  .friend-transaction-head {
+    display: grid;
+    grid-template-columns: 140px minmax(0, 1fr) 180px 140px minmax(140px, 220px);
+    gap: 14px;
+    padding: 2px 10px 0;
+  }
+
+  .friend-transaction-head span {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .friend-cell-label {
+    display: none;
+  }
+
+  .friend-transaction-narration,
+  .friend-transaction-note {
+    grid-column: auto;
+  }
+
+  .friend-transaction-narration strong,
+  .friend-transaction-note strong {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+  }
+}

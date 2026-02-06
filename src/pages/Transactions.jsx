@@ -1,0 +1,414 @@
+import { useEffect, useMemo, useState } from 'react';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://00bnq4gw-3000.inc1.devtunnels.ms';
+
+function formatDate(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatNumber(value) {
+  if (value === null || value === undefined) return '—';
+  const num = Number(value);
+  if (Number.isNaN(num)) return String(value);
+  return new Intl.NumberFormat('en-IN').format(num);
+}
+
+function getCurrentMonthRange() {
+  const now = new Date();
+  const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
+  const end = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0));
+  const startIso = start.toISOString().slice(0, 10);
+  const endIso = end.toISOString().slice(0, 10);
+  return { startIso, endIso };
+}
+
+export default function Transactions() {
+  const [accounts, setAccounts] = useState([]);
+  const [accountsStatus, setAccountsStatus] = useState('');
+  const [friends, setFriends] = useState([]);
+  const [friendsStatus, setFriendsStatus] = useState('');
+
+  const monthRange = useMemo(() => getCurrentMonthRange(), []);
+  const [rangeStart, setRangeStart] = useState(monthRange.startIso);
+  const [rangeEnd, setRangeEnd] = useState(monthRange.endIso);
+  const [rangeAccount, setRangeAccount] = useState('');
+  const [rangeResult, setRangeResult] = useState(null);
+  const [rangeStatus, setRangeStatus] = useState('');
+  const [transactions, setTransactions] = useState([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [tagsByTransaction, setTagsByTransaction] = useState({});
+  const [tagsStatusByTransaction, setTagsStatusByTransaction] = useState({});
+  const [expandedTransactionId, setExpandedTransactionId] = useState(null);
+  const [tagFormByTransaction, setTagFormByTransaction] = useState({});
+
+  const canFetchRange = useMemo(() => rangeStart && rangeEnd, [rangeStart, rangeEnd]);
+
+  useEffect(() => {
+    async function fetchAccounts() {
+      setAccountsStatus('');
+      try {
+        const res = await fetch(`${API_BASE}/imports/accounts`);
+        if (!res.ok) throw new Error('Failed to fetch accounts');
+        const data = await res.json();
+        setAccounts(data.data || []);
+      } catch (error) {
+        setAccountsStatus(error.message || 'Failed to fetch accounts');
+      }
+    }
+
+    fetchAccounts();
+  }, []);
+
+  useEffect(() => {
+    async function fetchFriends() {
+      setFriendsStatus('');
+      try {
+        const res = await fetch(`${API_BASE}/friends`);
+        if (!res.ok) throw new Error('Failed to fetch friends');
+        const data = await res.json();
+        setFriends(data.data || []);
+      } catch (error) {
+        setFriendsStatus(error.message || 'Failed to fetch friends');
+      }
+    }
+
+    fetchFriends();
+  }, []);
+
+  useEffect(() => {
+    if (!canFetchRange) return;
+    handleRangeFetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeStart, rangeEnd, rangeAccount]);
+
+  async function handleRangeFetch(event) {
+    if (event) event.preventDefault();
+    if (!canFetchRange) return;
+
+    setRangeStatus('Loading...');
+    setRangeResult(null);
+    setTransactionsLoading(true);
+    try {
+      const accountQuery = rangeAccount ? `&accountNumber=${encodeURIComponent(rangeAccount)}` : '';
+      const res = await fetch(
+        `${API_BASE}/imports/transactions/range?start=${rangeStart}&end=${rangeEnd}${accountQuery}`,
+      );
+      if (!res.ok) throw new Error('Failed to fetch transactions');
+      const data = await res.json();
+      setRangeResult(data);
+      setTransactions(data.data || []);
+      setExpandedTransactionId(null);
+      setTagsByTransaction({});
+      setTagsStatusByTransaction({});
+      setTagFormByTransaction({});
+      setRangeStatus('');
+    } catch (error) {
+      setRangeStatus(error.message || 'Failed to fetch transactions');
+    } finally {
+      setTransactionsLoading(false);
+    }
+  }
+
+  async function toggleTags(transactionId) {
+    if (expandedTransactionId === transactionId) {
+      setExpandedTransactionId(null);
+      return;
+    }
+
+    setExpandedTransactionId(transactionId);
+    if (!tagsByTransaction[transactionId]) {
+      await fetchTags(transactionId);
+    }
+  }
+
+  async function fetchTags(transactionId) {
+    setTagsStatusByTransaction((prev) => ({ ...prev, [transactionId]: 'Loading tags...' }));
+    try {
+      const res = await fetch(`${API_BASE}/transactions/${transactionId}/friends`);
+      if (!res.ok) throw new Error('Failed to fetch tags');
+      const data = await res.json();
+      setTagsByTransaction((prev) => ({ ...prev, [transactionId]: data.data || [] }));
+      setTagsStatusByTransaction((prev) => ({ ...prev, [transactionId]: '' }));
+    } catch (error) {
+      setTagsStatusByTransaction((prev) => ({
+        ...prev,
+        [transactionId]: error.message || 'Failed to fetch tags',
+      }));
+    }
+  }
+
+  function updateTagForm(transactionId, patch) {
+    setTagFormByTransaction((prev) => ({
+      ...prev,
+      [transactionId]: {
+        friendId: '',
+        amount: '',
+        direction: 'I_OWE',
+        note: '',
+        ...(prev[transactionId] || {}),
+        ...patch,
+      },
+    }));
+  }
+
+  async function addTag(transactionId) {
+    const form = tagFormByTransaction[transactionId] || {};
+    if (!form.friendId || !form.amount || Number(form.amount) <= 0) {
+      setTagsStatusByTransaction((prev) => ({
+        ...prev,
+        [transactionId]: 'Select friend and valid amount.',
+      }));
+      return;
+    }
+
+    setTagsStatusByTransaction((prev) => ({ ...prev, [transactionId]: 'Adding tag...' }));
+    try {
+      const res = await fetch(`${API_BASE}/transactions/${transactionId}/friends`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          friendId: Number(form.friendId),
+          amount: Number(form.amount),
+          direction: form.direction || 'I_OWE',
+          note: form.note?.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add tag');
+      updateTagForm(transactionId, { amount: '', note: '' });
+      await fetchTags(transactionId);
+    } catch (error) {
+      setTagsStatusByTransaction((prev) => ({
+        ...prev,
+        [transactionId]: error.message || 'Failed to add tag',
+      }));
+    }
+  }
+
+  async function deleteTag(transactionId, tagId) {
+    setTagsStatusByTransaction((prev) => ({ ...prev, [transactionId]: 'Removing tag...' }));
+    try {
+      const res = await fetch(`${API_BASE}/transactions/${transactionId}/friends/${tagId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete tag');
+      await fetchTags(transactionId);
+    } catch (error) {
+      setTagsStatusByTransaction((prev) => ({
+        ...prev,
+        [transactionId]: error.message || 'Failed to delete tag',
+      }));
+    }
+  }
+
+  return (
+    <section className="card">
+      <div className="card-header">
+        <div>
+          <h2>Transactions</h2>
+          <p>Filter by date range. Defaults to the current month.</p>
+        </div>
+        <div className="select-wrap">
+          <select value={rangeAccount} onChange={(e) => setRangeAccount(e.target.value)}>
+            <option value="">All accounts</option>
+            {accounts.map((account) => (
+              <option value={account} key={account}>
+                {account}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      {accountsStatus && <p className="status">{accountsStatus}</p>}
+      {friendsStatus && <p className="status">{friendsStatus}</p>}
+      <form className="range-form" onSubmit={handleRangeFetch}>
+        <label>
+          <span>Start date</span>
+          <input
+            type="date"
+            value={rangeStart}
+            onChange={(event) => setRangeStart(event.target.value)}
+          />
+        </label>
+        <label>
+          <span>End date</span>
+          <input
+            type="date"
+            value={rangeEnd}
+            onChange={(event) => setRangeEnd(event.target.value)}
+          />
+        </label>
+        <button className="secondary" type="submit" disabled={!canFetchRange}>
+          Refresh
+        </button>
+      </form>
+      {rangeStatus && <p className="status">{rangeStatus}</p>}
+      {rangeResult && (
+        <div className="range-result">
+          <div>
+            <span>Transactions</span>
+            <strong>{formatNumber(rangeResult.count)}</strong>
+          </div>
+          <div>
+            <span>Start</span>
+            <strong>{formatDate(rangeStart)}</strong>
+          </div>
+          <div>
+            <span>End</span>
+            <strong>{formatDate(rangeEnd)}</strong>
+          </div>
+        </div>
+      )}
+      <div className="transactions-table">
+        {transactionsLoading ? (
+          <p className="status">Loading transactions...</p>
+        ) : transactions.length === 0 ? (
+          <p className="empty">No transactions in this range.</p>
+        ) : (
+          <div className="table">
+            {transactions.map((row) => (
+              <div className="table-row" key={row.id}>
+                <div className="table-cell">
+                  <span>Date</span>
+                  <strong>{formatDate(row.transactionDate)}</strong>
+                </div>
+                <div className="table-cell">
+                  <span>Account</span>
+                  <strong>{row.accountNumber || 'unknown'}</strong>
+                </div>
+                <div className="table-cell table-narration">
+                  <span>Narration</span>
+                  <strong title={row.narration}>{row.narration}</strong>
+                </div>
+                <div className="table-cell">
+                  <span>Withdrawal</span>
+                  <strong
+                    className={Number(row.withdrawal) > 0 ? 'amount-withdrawal' : undefined}
+                  >
+                    {formatNumber(row.withdrawal)}
+                  </strong>
+                </div>
+                <div className="table-cell">
+                  <span>Deposit</span>
+                  <strong className={Number(row.deposit) > 0 ? 'amount-deposit' : undefined}>
+                    {formatNumber(row.deposit)}
+                  </strong>
+                </div>
+                <div className="table-cell">
+                  <span>Balance</span>
+                  <strong>{formatNumber(row.balance)}</strong>
+                </div>
+                <div className="table-actions">
+                  <button
+                    className="ghost"
+                    type="button"
+                    onClick={() => toggleTags(row.id)}
+                  >
+                    {expandedTransactionId === row.id ? 'Hide tags' : 'Tag friends'}
+                  </button>
+                </div>
+                {expandedTransactionId === row.id && (
+                  <div className="friend-tags-panel">
+                    <div className="friend-tags-header">
+                      <h3>Friend tags</h3>
+                      <p>Track who owes whom for this transaction.</p>
+                    </div>
+                    <div className="friend-tags-form">
+                      <select
+                        value={tagFormByTransaction[row.id]?.friendId || ''}
+                        onChange={(event) =>
+                          updateTagForm(row.id, { friendId: event.target.value })
+                        }
+                      >
+                        <option value="">Select friend</option>
+                        {friends.map((friend) => (
+                          <option key={friend.id} value={friend.id}>
+                            {friend.name}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Amount"
+                        value={tagFormByTransaction[row.id]?.amount || ''}
+                        onChange={(event) =>
+                          updateTagForm(row.id, { amount: event.target.value })
+                        }
+                      />
+                      <select
+                        value={tagFormByTransaction[row.id]?.direction || 'I_OWE'}
+                        onChange={(event) =>
+                          updateTagForm(row.id, { direction: event.target.value })
+                        }
+                      >
+                        <option value="I_OWE">I owe</option>
+                        <option value="OWES_ME">They owe me</option>
+                      </select>
+                      <input
+                        type="text"
+                        placeholder="Note (optional)"
+                        value={tagFormByTransaction[row.id]?.note || ''}
+                        onChange={(event) =>
+                          updateTagForm(row.id, { note: event.target.value })
+                        }
+                      />
+                      <button className="secondary" type="button" onClick={() => addTag(row.id)}>
+                        Add tag
+                      </button>
+                    </div>
+                    {tagsStatusByTransaction[row.id] && (
+                      <p className="status">{tagsStatusByTransaction[row.id]}</p>
+                    )}
+                    <div className="friend-tags-list">
+                      {(tagsByTransaction[row.id] || []).length === 0 ? (
+                        <p className="empty">No friend tags for this transaction.</p>
+                      ) : (
+                        (tagsByTransaction[row.id] || []).map((tag) => (
+                          <div className="friend-tag-row" key={tag.id}>
+                            <div>
+                              <span>Friend</span>
+                              <strong>{tag.friend?.name || tag.friendId}</strong>
+                            </div>
+                            <div>
+                              <span>Direction</span>
+                              <strong>{tag.direction === 'I_OWE' ? 'I owe' : 'They owe me'}</strong>
+                            </div>
+                            <div>
+                              <span>Amount</span>
+                              <strong>{formatNumber(tag.amount)}</strong>
+                            </div>
+                            <div>
+                              <span>Note</span>
+                              <strong>{tag.note || '—'}</strong>
+                            </div>
+                            <button
+                              className="ghost"
+                              type="button"
+                              onClick={() => deleteTag(row.id, tag.id)}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
