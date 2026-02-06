@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://00bnq4gw-3000.inc1.devtunnels.ms';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -47,6 +48,7 @@ export default function Transactions() {
   const [tagsStatusByTransaction, setTagsStatusByTransaction] = useState({});
   const [expandedTransactionId, setExpandedTransactionId] = useState(null);
   const [tagFormByTransaction, setTagFormByTransaction] = useState({});
+  const [confirmState, setConfirmState] = useState({ open: false });
 
   const canFetchRange = useMemo(() => rangeStart && rangeEnd, [rangeStart, rangeEnd]);
 
@@ -122,6 +124,24 @@ export default function Transactions() {
       return;
     }
 
+    if (!tagFormByTransaction[transactionId]) {
+      const transaction = transactions.find((row) => row.id === transactionId);
+      if (transaction) {
+        const withdrawal = Number(transaction.withdrawal || 0);
+        const deposit = Number(transaction.deposit || 0);
+        const defaultAmount = withdrawal > 0 ? withdrawal : deposit > 0 ? deposit : '';
+        updateTagForm(transactionId, {
+          direction: 'NOTHING_OUTSTANDING',
+          amount: defaultAmount === '' ? '' : String(defaultAmount),
+        });
+      } else {
+        updateTagForm(transactionId, {
+          direction: 'NOTHING_OUTSTANDING',
+          amount: '',
+        });
+      }
+    }
+
     setExpandedTransactionId(transactionId);
     if (!tagsByTransaction[transactionId]) {
       await fetchTags(transactionId);
@@ -150,7 +170,7 @@ export default function Transactions() {
       [transactionId]: {
         friendId: '',
         amount: '',
-        direction: 'I_OWE',
+        direction: 'NOTHING_OUTSTANDING',
         note: '',
         ...(prev[transactionId] || {}),
         ...patch,
@@ -160,7 +180,19 @@ export default function Transactions() {
 
   async function addTag(transactionId) {
     const form = tagFormByTransaction[transactionId] || {};
-    if (!form.friendId || !form.amount || Number(form.amount) <= 0) {
+    const direction = form.direction || 'NOTHING_OUTSTANDING';
+    const rawAmount = form.amount;
+    const amountValue = Number(rawAmount || 0);
+
+    if (!form.friendId) {
+      setTagsStatusByTransaction((prev) => ({
+        ...prev,
+        [transactionId]: 'Select a friend.',
+      }));
+      return;
+    }
+
+    if (direction !== 'NOTHING_OUTSTANDING' && (!rawAmount || amountValue <= 0)) {
       setTagsStatusByTransaction((prev) => ({
         ...prev,
         [transactionId]: 'Select friend and valid amount.',
@@ -175,14 +207,14 @@ export default function Transactions() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           friendId: Number(form.friendId),
-          amount: Number(form.amount),
-          direction: form.direction || 'I_OWE',
+          amount: direction === 'NOTHING_OUTSTANDING' ? 0 : amountValue,
+          direction,
           note: form.note?.trim() || undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to add tag');
-      updateTagForm(transactionId, { amount: '', note: '' });
+      updateTagForm(transactionId, { amount: '', note: '', direction: 'NOTHING_OUTSTANDING' });
       await fetchTags(transactionId);
     } catch (error) {
       setTagsStatusByTransaction((prev) => ({
@@ -193,6 +225,20 @@ export default function Transactions() {
   }
 
   async function deleteTag(transactionId, tagId) {
+    setConfirmState({
+      open: true,
+      title: 'Remove tag?',
+      message: 'This will remove the friend tag from this transaction.',
+      confirmLabel: 'Remove',
+      onConfirm: async () => {
+        setConfirmState({ open: false });
+        await runDeleteTag(transactionId, tagId);
+      },
+      onCancel: () => setConfirmState({ open: false }),
+    });
+  }
+
+  async function runDeleteTag(transactionId, tagId) {
     setTagsStatusByTransaction((prev) => ({ ...prev, [transactionId]: 'Removing tag...' }));
     try {
       const res = await fetch(`${API_BASE}/transactions/${transactionId}/friends/${tagId}`, {
@@ -210,6 +256,16 @@ export default function Transactions() {
   }
 
   return (
+    <>
+    <ConfirmDialog
+      open={confirmState.open}
+      title={confirmState.title}
+      message={confirmState.message}
+      confirmLabel={confirmState.confirmLabel}
+      cancelLabel={confirmState.cancelLabel}
+      onConfirm={confirmState.onConfirm}
+      onCancel={confirmState.onCancel}
+    />
     <section className="card">
       <div className="card-header">
         <div>
@@ -274,22 +330,31 @@ export default function Transactions() {
           <p className="empty">No transactions in this range.</p>
         ) : (
           <div className="table">
+            <div className="table-head" aria-hidden="true">
+              <span>Date</span>
+              <span>Account</span>
+              <span>Narration</span>
+              <span>Withdrawal</span>
+              <span>Deposit</span>
+              <span>Balance</span>
+              <span>Actions</span>
+            </div>
             {transactions.map((row) => (
               <div className="table-row" key={row.id}>
                 <div className="table-cell">
-                  <span>Date</span>
+                  <span className="table-cell-label">Date</span>
                   <strong>{formatDate(row.transactionDate)}</strong>
                 </div>
                 <div className="table-cell">
-                  <span>Account</span>
+                  <span className="table-cell-label">Account</span>
                   <strong>{row.accountNumber || 'unknown'}</strong>
                 </div>
                 <div className="table-cell table-narration">
-                  <span>Narration</span>
+                  <span className="table-cell-label">Narration</span>
                   <strong title={row.narration}>{row.narration}</strong>
                 </div>
                 <div className="table-cell">
-                  <span>Withdrawal</span>
+                  <span className="table-cell-label">Withdrawal</span>
                   <strong
                     className={Number(row.withdrawal) > 0 ? 'amount-withdrawal' : undefined}
                   >
@@ -297,13 +362,13 @@ export default function Transactions() {
                   </strong>
                 </div>
                 <div className="table-cell">
-                  <span>Deposit</span>
+                  <span className="table-cell-label">Deposit</span>
                   <strong className={Number(row.deposit) > 0 ? 'amount-deposit' : undefined}>
                     {formatNumber(row.deposit)}
                   </strong>
                 </div>
                 <div className="table-cell">
-                  <span>Balance</span>
+                  <span className="table-cell-label">Balance</span>
                   <strong>{formatNumber(row.balance)}</strong>
                 </div>
                 <div className="table-actions">
@@ -311,8 +376,11 @@ export default function Transactions() {
                     className="ghost"
                     type="button"
                     onClick={() => toggleTags(row.id)}
+                    aria-label={
+                      expandedTransactionId === row.id ? 'Close tags panel' : 'Manage friends'
+                    }
                   >
-                    {expandedTransactionId === row.id ? 'Hide tags' : 'Tag friends'}
+                    {expandedTransactionId === row.id ? '⌃' : 'Manage'}
                   </button>
                 </div>
                 {expandedTransactionId === row.id && (
@@ -346,11 +414,12 @@ export default function Transactions() {
                         }
                       />
                       <select
-                        value={tagFormByTransaction[row.id]?.direction || 'I_OWE'}
+                        value={tagFormByTransaction[row.id]?.direction || 'NOTHING_OUTSTANDING'}
                         onChange={(event) =>
                           updateTagForm(row.id, { direction: event.target.value })
                         }
                       >
+                        <option value="NOTHING_OUTSTANDING">Nothing outstanding</option>
                         <option value="I_OWE">I owe</option>
                         <option value="OWES_ME">They owe me</option>
                       </select>
@@ -381,7 +450,13 @@ export default function Transactions() {
                             </div>
                             <div>
                               <span>Direction</span>
-                              <strong>{tag.direction === 'I_OWE' ? 'I owe' : 'They owe me'}</strong>
+                              <strong>
+                                {tag.direction === 'I_OWE'
+                                  ? 'I owe'
+                                  : tag.direction === 'OWES_ME'
+                                    ? 'They owe me'
+                                    : 'Nothing outstanding'}
+                              </strong>
                             </div>
                             <div>
                               <span>Amount</span>
@@ -410,5 +485,6 @@ export default function Transactions() {
         )}
       </div>
     </section>
+    </>
   );
 }

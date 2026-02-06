@@ -9,12 +9,8 @@ export default function App() {
       <div className="page">
         <div className="gradient" aria-hidden="true" />
         <header className="hero">
-          <p className="eyebrow">HDFC Statement Control</p>
-          <h1>Track every account, every day.</h1>
-          <p className="subtitle">
-            Upload statements, verify imports, and browse transaction ranges with a focused
-            mobile-first workflow.
-          </p>
+          <p className="eyebrow">Fintrack</p>
+          <h1>Track every account with precision.</h1>
         </header>
 
         <nav className="nav">

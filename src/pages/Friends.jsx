@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://00bnq4gw-3000.inc1.devtunnels.ms';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -46,6 +47,7 @@ export default function Friends() {
   const [transactionsByFriend, setTransactionsByFriend] = useState({});
   const [transactionsStatusByFriend, setTransactionsStatusByFriend] = useState({});
   const [expandedFriendId, setExpandedFriendId] = useState(null);
+  const [confirmState, setConfirmState] = useState({ open: false });
 
   const canCreate = useMemo(() => createForm.name.trim().length > 0, [createForm]);
 
@@ -142,6 +144,20 @@ export default function Friends() {
 
   async function handleDelete(friendId) {
     if (!friendId) return;
+    setConfirmState({
+      open: true,
+      title: 'Delete friend?',
+      message: 'This will fail if the friend has tagged transactions.',
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        setConfirmState({ open: false });
+        await runDelete(friendId);
+      },
+      onCancel: () => setConfirmState({ open: false }),
+    });
+  }
+
+  async function runDelete(friendId) {
     setFormStatus('Deleting...');
     try {
       const res = await fetch(`${API_BASE}/friends/${friendId}`, { method: 'DELETE' });
@@ -197,6 +213,16 @@ export default function Friends() {
   }
 
   return (
+    <>
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
+        cancelLabel={confirmState.cancelLabel}
+        onConfirm={confirmState.onConfirm}
+        onCancel={confirmState.onCancel}
+      />
     <section className="card">
       <div className="card-header">
         <div>
@@ -373,10 +399,16 @@ export default function Friends() {
                                 className={
                                   tag.direction === 'I_OWE'
                                     ? 'friend-direction-owe'
-                                    : 'friend-direction-receivable'
+                                    : tag.direction === 'OWES_ME'
+                                      ? 'friend-direction-receivable'
+                                      : undefined
                                 }
                               >
-                                {tag.direction === 'I_OWE' ? 'I owe' : 'They owe me'}
+                                {tag.direction === 'I_OWE'
+                                  ? 'I owe'
+                                  : tag.direction === 'OWES_ME'
+                                    ? 'They owe me'
+                                    : 'Nothing outstanding'}
                               </strong>
                             </div>
                             <div className="friend-transaction-cell">
@@ -385,7 +417,9 @@ export default function Friends() {
                                 className={
                                   tag.direction === 'I_OWE'
                                     ? 'friend-amount-owe'
-                                    : 'friend-amount-receivable'
+                                    : tag.direction === 'OWES_ME'
+                                      ? 'friend-amount-receivable'
+                                      : undefined
                                 }
                               >
                                 {formatNumber(tag.amount)}
@@ -423,5 +457,6 @@ export default function Friends() {
         )}
       </div>
     </section>
+    </>
   );
 }

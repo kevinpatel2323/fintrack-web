@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://00bnq4gw-3000.inc1.devtunnels.ms';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -32,10 +33,20 @@ export default function Dashboard() {
   const [importsAccount, setImportsAccount] = useState('');
   const [importsLoading, setImportsLoading] = useState(false);
   const [importsError, setImportsError] = useState('');
+  const [importsStatus, setImportsStatus] = useState('');
+  const [revertingImportId, setRevertingImportId] = useState(null);
+  const [confirmState, setConfirmState] = useState({ open: false });
 
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadStatus, setUploadStatus] = useState('');
   const [uploadResult, setUploadResult] = useState(null);
+  const [uploadPreview, setUploadPreview] = useState(null);
+  const [previewFileKey, setPreviewFileKey] = useState('');
+
+  function getFileKey(file) {
+    if (!file) return '';
+    return `${file.name}-${file.size}-${file.lastModified}`;
+  }
 
   useEffect(() => {
     async function fetchAccounts() {
@@ -101,6 +112,11 @@ export default function Dashboard() {
       setUploadStatus('Please select a statement file.');
       return;
     }
+    const currentFileKey = getFileKey(uploadFile);
+    if (!uploadPreview || previewFileKey !== currentFileKey) {
+      setUploadStatus('Please preview this statement before importing.');
+      return;
+    }
 
     setUploadStatus('Uploading...');
     setUploadResult(null);
@@ -116,11 +132,40 @@ export default function Dashboard() {
         throw new Error(data.error || 'Upload failed');
       }
       setUploadResult(data);
+      setUploadPreview(null);
+      setPreviewFileKey('');
       setUploadStatus('Import completed.');
       setUploadFile(null);
       await refreshAfterUpload();
     } catch (error) {
       setUploadStatus(error.message || 'Upload failed');
+    }
+  }
+
+  async function handlePreview() {
+    if (!uploadFile) {
+      setUploadStatus('Please select a statement file.');
+      return;
+    }
+
+    setUploadStatus('Preparing preview...');
+    setUploadResult(null);
+    try {
+      const formData = new FormData();
+      formData.append('statement', uploadFile);
+      const res = await fetch(`${API_BASE}/imports/hdfc/preview`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Preview failed');
+      }
+      setUploadPreview(data);
+      setPreviewFileKey(getFileKey(uploadFile));
+      setUploadStatus('Preview ready. Verify entries and click Import now.');
+    } catch (error) {
+      setUploadStatus(error.message || 'Preview failed');
     }
   }
 
@@ -157,14 +202,60 @@ export default function Dashboard() {
     }
   }
 
+  async function runRevertImport(importId) {
+    setImportsError('');
+    setImportsStatus('Reverting import...');
+    setRevertingImportId(importId);
+    try {
+      const res = await fetch(`${API_BASE}/imports/${importId}/revert`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || data.error || 'Failed to revert import');
+      }
+      setImportsStatus(
+        `Import #${importId} reverted. Removed ${formatNumber(data.removedTransactions)} transactions.`,
+      );
+      await refreshAfterUpload();
+    } catch (error) {
+      setImportsStatus('');
+      setImportsError(error.message || 'Failed to revert import');
+    } finally {
+      setRevertingImportId(null);
+    }
+  }
+
+  function handleRevertImport(importId) {
+    setConfirmState({
+      open: true,
+      title: 'Revert import?',
+      message: 'This will remove all transactions created by it.',
+      confirmLabel: 'Revert',
+      onConfirm: async () => {
+        setConfirmState({ open: false });
+        await runRevertImport(importId);
+      },
+      onCancel: () => setConfirmState({ open: false }),
+    });
+  }
+
   return (
     <>
-      <section className="grid">
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
+        cancelLabel={confirmState.cancelLabel}
+        onConfirm={confirmState.onConfirm}
+        onCancel={confirmState.onCancel}
+      />
+      <section className="dashboard-top">
         <div className="card upload-card">
           <div className="card-header">
             <div>
               <h2>Upload statement</h2>
-              <p>We extract the account number from cell E15 and import only new rows.</p>
             </div>
             <div className="pill">XLS only</div>
           </div>
@@ -174,16 +265,104 @@ export default function Dashboard() {
               <input
                 type="file"
                 accept=".xls"
-                onChange={(event) => setUploadFile(event.target.files?.[0] || null)}
+                onChange={(event) => {
+                  const nextFile = event.target.files?.[0] || null;
+                  setUploadFile(nextFile);
+                  setUploadPreview(null);
+                  setPreviewFileKey('');
+                  setUploadResult(null);
+                  setUploadStatus('');
+                }}
               />
               <span>{uploadFile ? uploadFile.name : 'Choose statement file'}</span>
             </label>
-            <button className="primary" type="submit">
-              Import now
-            </button>
+            <div className="upload-actions">
+              <button className="secondary" type="button" onClick={handlePreview} disabled={!uploadFile}>
+                Preview import
+              </button>
+              <button className="primary" type="submit" disabled={!uploadFile}>
+                Import now
+              </button>
+            </div>
           </form>
 
           {uploadStatus && <p className="status">{uploadStatus}</p>}
+          {uploadPreview && (
+            <div className="upload-preview">
+              <div className="upload-result">
+                <div>
+                  <span>Account</span>
+                  <strong>{uploadPreview.accountNumber || 'unknown'}</strong>
+                </div>
+                <div>
+                  <span>Will insert</span>
+                  <strong>{formatNumber(uploadPreview.willInsert)}</strong>
+                </div>
+                <div>
+                  <span>Skipped</span>
+                  <strong>{formatNumber(uploadPreview.skippedRows)}</strong>
+                </div>
+                <div>
+                  <span>Total parsed</span>
+                  <strong>{formatNumber(uploadPreview.totalParsed)}</strong>
+                </div>
+                <div>
+                  <span>Last date before</span>
+                  <strong>{formatDate(uploadPreview.lastDateBefore)}</strong>
+                </div>
+                <div>
+                  <span>Period</span>
+                  <strong>
+                    {formatDate(uploadPreview.periodStart)} → {formatDate(uploadPreview.periodEnd)}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="imports-list preview-list">
+                <div className="imports-head preview-head" aria-hidden="true">
+                  <span>Date</span>
+                  <span>Narration</span>
+                  <span>Withdrawal</span>
+                  <span>Deposit</span>
+                  <span>Balance</span>
+                </div>
+                {uploadPreview.previewRows.length === 0 ? (
+                  <p className="empty">No new entries will be inserted from this statement.</p>
+                ) : (
+                  uploadPreview.previewRows.map((row, idx) => (
+                    <article className="import-row preview-row" key={`${row.transactionDate}-${idx}`}>
+                      <div>
+                        <span className="label">Date</span>
+                        <strong>{formatDate(row.transactionDate)}</strong>
+                      </div>
+                      <div className="preview-narration">
+                        <span className="label">Narration</span>
+                        <strong title={row.narration}>{row.narration}</strong>
+                      </div>
+                      <div>
+                        <span className="label">Withdrawal</span>
+                        <strong
+                          className={Number(row.withdrawal) > 0 ? 'amount-withdrawal' : undefined}
+                        >
+                          {formatNumber(row.withdrawal)}
+                        </strong>
+                      </div>
+                      <div>
+                        <span className="label">Deposit</span>
+                        <strong className={Number(row.deposit) > 0 ? 'amount-deposit' : undefined}>
+                          {formatNumber(row.deposit)}
+                        </strong>
+                      </div>
+                      <div>
+                        <span className="label">Balance</span>
+                        <strong>{formatNumber(row.balance)}</strong>
+                      </div>
+                    </article>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
           {uploadResult && (
             <div className="upload-result">
               <div>
@@ -304,6 +483,7 @@ export default function Dashboard() {
               <span>Period</span>
               <span>Inserted</span>
               <span>Uploaded</span>
+              <span>Actions</span>
             </div>
             {imports.map((item) => (
               <article className="import-row" key={item.id}>
@@ -325,10 +505,21 @@ export default function Dashboard() {
                   <span className="label">Uploaded</span>
                   <strong>{formatDate(item.uploadedAt)}</strong>
                 </div>
+                <div className="import-actions">
+                  <button
+                    className="ghost"
+                    type="button"
+                    onClick={() => handleRevertImport(item.id)}
+                    disabled={revertingImportId === item.id}
+                  >
+                    {revertingImportId === item.id ? 'Reverting...' : 'Revert'}
+                  </button>
+                </div>
               </article>
             ))}
           </div>
         )}
+        {importsStatus && <p className="status">{importsStatus}</p>}
       </section>
     </>
   );
