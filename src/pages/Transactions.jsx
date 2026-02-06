@@ -422,6 +422,7 @@ export default function Transactions() {
                         <option value="NOTHING_OUTSTANDING">Nothing outstanding</option>
                         <option value="I_OWE">I owe</option>
                         <option value="OWES_ME">They owe me</option>
+                        <option value="SETTLEMENT">Settlement</option>
                       </select>
                       <input
                         type="text"
@@ -455,6 +456,8 @@ export default function Transactions() {
                                   ? 'I owe'
                                   : tag.direction === 'OWES_ME'
                                     ? 'They owe me'
+                                    : tag.direction === 'SETTLEMENT'
+                                      ? 'Settlement'
                                     : 'Nothing outstanding'}
                               </strong>
                             </div>

@@ -408,6 +408,8 @@ export default function Friends() {
                                   ? 'I owe'
                                   : tag.direction === 'OWES_ME'
                                     ? 'They owe me'
+                                    : tag.direction === 'SETTLEMENT'
+                                      ? 'Settlement'
                                     : 'Nothing outstanding'}
                               </strong>
                             </div>
