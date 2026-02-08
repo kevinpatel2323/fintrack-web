@@ -376,7 +376,9 @@ export default function Friends() {
                       <div className="friend-transactions-list">
                         <div className="friend-transaction-head" aria-hidden="true">
                           <span>Date</span>
-                          <span>Narration</span>
+                          <span>UPI name</span>
+                          <span>UPI description</span>
+                          <span>UPI bank</span>
                           <span>Direction</span>
                           <span>Amount</span>
                           <span>Note</span>
@@ -387,11 +389,19 @@ export default function Friends() {
                               <span className="friend-cell-label">Date</span>
                               <strong>{formatDate(tag.transaction?.transactionDate)}</strong>
                             </div>
-                            <div className="friend-transaction-cell friend-transaction-narration">
-                              <span className="friend-cell-label">Narration</span>
-                              <strong title={tag.transaction?.narration || '—'}>
-                                {tag.transaction?.narration || '—'}
+                            <div className="friend-transaction-cell friend-transaction-upi-name">
+                              <span className="friend-cell-label">UPI name</span>
+                              <strong>{tag.transaction?.upiName || '—'}</strong>
+                            </div>
+                            <div className="friend-transaction-cell friend-transaction-upi-desc">
+                              <span className="friend-cell-label">UPI description</span>
+                              <strong title={tag.transaction?.upiDescription || '—'}>
+                                {tag.transaction?.upiDescription || '—'}
                               </strong>
+                            </div>
+                            <div className="friend-transaction-cell friend-transaction-upi-bank">
+                              <span className="friend-cell-label">UPI bank</span>
+                              <strong>{tag.transaction?.upiBank || '—'}</strong>
                             </div>
                             <div className="friend-transaction-cell">
                               <span className="friend-cell-label">Direction</span>

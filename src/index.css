@@ -449,7 +449,7 @@ button:disabled {
   align-items: flex-start;
 }
 
-.friend-header > div:first-child {
+.friend-header>div:first-child {
   min-width: 0;
 }
 
@@ -541,11 +541,13 @@ button:disabled {
   overflow: hidden;
 }
 
-.friend-transaction-row > div {
+.friend-transaction-row>div {
   min-width: 0;
 }
 
-.friend-transaction-narration,
+.friend-transaction-upi-name,
+.friend-transaction-upi-desc,
+.friend-transaction-upi-bank,
 .friend-transaction-note {
   grid-column: 1 / -1;
 }
@@ -593,12 +595,17 @@ input[type='date'] {
   grid-template-columns: 1fr;
 }
 
-.preview-row > div {
+.preview-row>div {
   min-width: 0;
 }
 
-.preview-narration strong {
+.preview-upi-name strong,
+.preview-upi-desc strong,
+.preview-upi-bank strong {
   overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .imports-head {
@@ -631,6 +638,7 @@ input[type='date'] {
   max-height: none;
   overflow: visible;
   border-radius: 14px;
+  --tx-grid-columns: 120px 180px minmax(180px, 2fr) minmax(130px, 1fr) 110px 130px 130px auto;
 }
 
 .table {
@@ -643,12 +651,39 @@ input[type='date'] {
 }
 
 .table-row {
-  display: grid;
-  gap: 10px;
+  position: relative;
   padding: 12px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(31, 95, 89, 0.1);
+  padding-left: 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 12px rgba(30, 27, 22, 0.08);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.table-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+}
+
+.table-row.transaction-withdrawal::before {
+  background: var(--danger);
+}
+
+.table-row.transaction-deposit::before {
+  background: var(--success);
+}
+
+.table-row:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(30, 27, 22, 0.12);
 }
 
 .table-cell {
@@ -660,14 +695,41 @@ input[type='date'] {
   line-height: 1.3;
 }
 
-.table-narration strong {
+.table-upi-name strong,
+.table-upi-desc strong,
+.table-upi-bank strong {
   font-weight: 600;
   overflow-wrap: anywhere;
   line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .table-cell-label {
   display: block;
+}
+
+.transaction-account-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(31, 95, 89, 0.1);
+  color: var(--teal);
+}
+
+.transaction-date {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-family: monospace;
+}
+
+.transaction-amount {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .amount-withdrawal {
@@ -676,6 +738,65 @@ input[type='date'] {
 
 .amount-deposit {
   color: var(--success);
+}
+
+.transaction-status-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.transaction-status-badge.owe {
+  background: rgba(185, 56, 41, 0.1);
+  color: var(--danger);
+}
+
+.transaction-status-badge.receivable {
+  background: rgba(27, 122, 57, 0.1);
+  color: var(--success);
+}
+
+/* Mobile transaction card layout */
+.transaction-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.transaction-header-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.transaction-header-right {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.transaction-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.transaction-details {
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.transaction-upi-primary {
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.3;
+  color: var(--ink);
 }
 
 .table-actions {
@@ -846,7 +967,9 @@ input[type='date'] {
     align-items: start;
   }
 
-  .friend-transaction-narration,
+  .friend-transaction-upi-name,
+  .friend-transaction-upi-desc,
+  .friend-transaction-upi-bank,
   .friend-transaction-note {
     grid-column: 1 / -1;
   }
@@ -878,7 +1001,7 @@ input[type='date'] {
 @media (min-width: 1100px) {
   .table-head {
     display: grid;
-    grid-template-columns: 120px 190px minmax(360px, 1fr) 120px 120px 140px auto;
+    grid-template-columns: var(--tx-grid-columns);
     align-items: center;
     padding: 0 12px;
     gap: 10px;
@@ -893,8 +1016,26 @@ input[type='date'] {
   }
 
   .table-row {
-    grid-template-columns: 120px 190px minmax(360px, 1fr) 120px 120px 140px auto;
+    display: grid;
+    grid-template-columns: var(--tx-grid-columns);
     align-items: center;
+    gap: 10px;
+  }
+
+  /* Desktop: Convert mobile sections to grid cells */
+  .transaction-header,
+  .transaction-details {
+    display: contents;
+  }
+
+  .transaction-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .transaction-upi-primary {
+    display: none;
   }
 
   .table-cell strong {
@@ -910,11 +1051,15 @@ input[type='date'] {
     display: none;
   }
 
-  .table-narration {
+  .table-upi-name,
+  .table-upi-desc,
+  .table-upi-bank {
     grid-column: auto;
   }
 
-  .table-narration strong {
+  .table-upi-name strong,
+  .table-upi-desc strong,
+  .table-upi-bank strong {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -936,7 +1081,7 @@ input[type='date'] {
   }
 
   .friend-transaction-row {
-    grid-template-columns: 140px minmax(0, 1fr) 180px 140px minmax(140px, 220px);
+    grid-template-columns: 140px 180px 110px minmax(0, 1fr) 150px 160px 140px minmax(140px, 220px);
     align-items: center;
     gap: 14px;
   }
@@ -949,7 +1094,7 @@ input[type='date'] {
 
   .friend-transaction-head {
     display: grid;
-    grid-template-columns: 140px minmax(0, 1fr) 180px 140px minmax(140px, 220px);
+    grid-template-columns: 140px 180px 110px minmax(0, 1fr) 150px 160px 140px minmax(140px, 220px);
     gap: 14px;
     padding: 0 12px;
   }
@@ -966,12 +1111,16 @@ input[type='date'] {
     display: none;
   }
 
-  .friend-transaction-narration,
+  .friend-transaction-upi-name,
+  .friend-transaction-upi-desc,
+  .friend-transaction-upi-bank,
   .friend-transaction-note {
     grid-column: auto;
   }
 
-  .friend-transaction-narration strong,
+  .friend-transaction-upi-name strong,
+  .friend-transaction-upi-desc strong,
+  .friend-transaction-upi-bank strong,
   .friend-transaction-note strong {
     display: block;
     overflow: hidden;

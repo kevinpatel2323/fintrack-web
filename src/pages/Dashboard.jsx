@@ -318,48 +318,63 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="imports-list preview-list">
-                <div className="imports-head preview-head" aria-hidden="true">
-                  <span>Date</span>
-                  <span>Narration</span>
-                  <span>Withdrawal</span>
-                  <span>Deposit</span>
-                  <span>Balance</span>
+              <div className="transactions-table">
+                <div className="table">
+                  <div className="table-head" aria-hidden="true">
+                    <span>Date</span>
+                    <span>Account</span>
+                    <span>UPI name</span>
+                    <span>UPI description</span>
+                    <span>UPI bank</span>
+                    <span>Amount</span>
+                    <span>Balance</span>
+                  </div>
+                  {uploadPreview.previewRows.length === 0 ? (
+                    <p className="empty">No new entries will be inserted from this statement.</p>
+                  ) : (
+                    uploadPreview.previewRows.map((row, idx) => {
+                      const withdrawal = Number(row.withdrawal || 0);
+                      const deposit = Number(row.deposit || 0);
+                      const amount = withdrawal > 0 ? withdrawal : deposit;
+                      const isWithdrawal = withdrawal > 0;
+
+                      return (
+                        <div className={`table-row ${isWithdrawal ? 'transaction-withdrawal' : 'transaction-deposit'}`} key={`${row.transactionDate}-${idx}`}>
+                          <div className="table-cell">
+                            <span className="table-cell-label">Date</span>
+                            <strong className="transaction-date">{formatDate(row.transactionDate)}</strong>
+                          </div>
+                          <div className="table-cell">
+                            <span className="table-cell-label">Account</span>
+                            <span className="transaction-account-badge">{row.accountNumber || uploadPreview.accountNumber || 'unknown'}</span>
+                          </div>
+                          <div className="table-cell table-upi-name">
+                            <span className="table-cell-label">UPI name</span>
+                            <strong>{row.upiName || '—'}</strong>
+                          </div>
+                          <div className="table-cell table-upi-desc">
+                            <span className="table-cell-label">UPI description</span>
+                            <strong title={row.upiDescription || '—'}>{row.upiDescription || '—'}</strong>
+                          </div>
+                          <div className="table-cell table-upi-bank">
+                            <span className="table-cell-label">UPI bank</span>
+                            <strong>{row.upiBank || '—'}</strong>
+                          </div>
+                          <div className="table-cell">
+                            <span className="table-cell-label">Amount</span>
+                            <strong className={`transaction-amount ${isWithdrawal ? 'amount-withdrawal' : 'amount-deposit'}`}>
+                              {isWithdrawal ? '-' : '+'}{formatNumber(amount)}
+                            </strong>
+                          </div>
+                          <div className="table-cell">
+                            <span className="table-cell-label">Balance</span>
+                            <strong>{formatNumber(row.balance)}</strong>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
-                {uploadPreview.previewRows.length === 0 ? (
-                  <p className="empty">No new entries will be inserted from this statement.</p>
-                ) : (
-                  uploadPreview.previewRows.map((row, idx) => (
-                    <article className="import-row preview-row" key={`${row.transactionDate}-${idx}`}>
-                      <div>
-                        <span className="label">Date</span>
-                        <strong>{formatDate(row.transactionDate)}</strong>
-                      </div>
-                      <div className="preview-narration">
-                        <span className="label">Narration</span>
-                        <strong title={row.narration}>{row.narration}</strong>
-                      </div>
-                      <div>
-                        <span className="label">Withdrawal</span>
-                        <strong
-                          className={Number(row.withdrawal) > 0 ? 'amount-withdrawal' : undefined}
-                        >
-                          {formatNumber(row.withdrawal)}
-                        </strong>
-                      </div>
-                      <div>
-                        <span className="label">Deposit</span>
-                        <strong className={Number(row.deposit) > 0 ? 'amount-deposit' : undefined}>
-                          {formatNumber(row.deposit)}
-                        </strong>
-                      </div>
-                      <div>
-                        <span className="label">Balance</span>
-                        <strong>{formatNumber(row.balance)}</strong>
-                      </div>
-                    </article>
-                  ))
-                )}
               </div>
             </div>
           )}
