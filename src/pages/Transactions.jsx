@@ -49,6 +49,8 @@ export default function Transactions() {
   const [expandedTransactionId, setExpandedTransactionId] = useState(null);
   const [tagFormByTransaction, setTagFormByTransaction] = useState({});
   const [confirmState, setConfirmState] = useState({ open: false });
+  const [linkableTransactions, setLinkableTransactions] = useState({});
+  const [linkableTransactionsLoading, setLinkableTransactionsLoading] = useState({});
 
   const canFetchRange = useMemo(() => rangeStart && rangeEnd, [rangeStart, rangeEnd]);
 
@@ -164,18 +166,55 @@ export default function Transactions() {
     }
   }
 
+  async function fetchLinkableTransactions(transactionId, friendId) {
+    if (!friendId) return;
+
+    const key = `${transactionId}_${friendId}`;
+    setLinkableTransactionsLoading(prev => ({ ...prev, [key]: true }));
+
+    try {
+      const res = await fetch(`${API_BASE}/friends/${friendId}/linkable-transactions`);
+      if (!res.ok) throw new Error('Failed to fetch linkable transactions');
+      const data = await res.json();
+      setLinkableTransactions(prev => ({ ...prev, [key]: data.data || [] }));
+    } catch (error) {
+      console.error('Failed to fetch linkable transactions:', error);
+      setLinkableTransactions(prev => ({ ...prev, [key]: [] }));
+    } finally {
+      setLinkableTransactionsLoading(prev => ({ ...prev, [key]: false }));
+    }
+  }
+
   function updateTagForm(transactionId, patch) {
-    setTagFormByTransaction((prev) => ({
-      ...prev,
-      [transactionId]: {
+    setTagFormByTransaction((prev) => {
+      const current = prev[transactionId] || {};
+      const updated = {
         friendId: '',
         amount: '',
         direction: 'NOTHING_OUTSTANDING',
         note: '',
-        ...(prev[transactionId] || {}),
+        linkedTransactionId: '',
+        ...current,
         ...patch,
-      },
-    }));
+      };
+
+      // If direction changed to SETTLEMENT and friend is selected, fetch linkable transactions
+      if (patch.direction === 'SETTLEMENT' && updated.friendId) {
+        fetchLinkableTransactions(transactionId, updated.friendId);
+      }
+
+      // If direction changed away from SETTLEMENT, clear linked transaction
+      if (patch.direction && patch.direction !== 'SETTLEMENT') {
+        updated.linkedTransactionId = '';
+      }
+
+      // If friend changed and direction is SETTLEMENT, fetch new linkable transactions
+      if (patch.friendId && updated.direction === 'SETTLEMENT') {
+        fetchLinkableTransactions(transactionId, patch.friendId);
+      }
+
+      return { ...prev, [transactionId]: updated };
+    });
   }
 
   async function addTag(transactionId) {
@@ -210,11 +249,17 @@ export default function Transactions() {
           amount: direction === 'NOTHING_OUTSTANDING' ? 0 : amountValue,
           direction,
           note: form.note?.trim() || undefined,
+          linkedTransactionId: form.linkedTransactionId ? Number(form.linkedTransactionId) : undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to add tag');
-      updateTagForm(transactionId, { amount: '', note: '', direction: 'NOTHING_OUTSTANDING' });
+      updateTagForm(transactionId, { 
+        amount: '', 
+        note: '', 
+        direction: 'NOTHING_OUTSTANDING',
+        linkedTransactionId: '',
+      });
       await fetchTags(transactionId);
     } catch (error) {
       setTagsStatusByTransaction((prev) => ({
@@ -431,6 +476,36 @@ export default function Transactions() {
                             <option value="OWES_ME">They owe me</option>
                             <option value="SETTLEMENT">Settlement</option>
                           </select>
+                          {tagFormByTransaction[row.id]?.direction === 'SETTLEMENT' &&
+                           tagFormByTransaction[row.id]?.friendId && (
+                            <select
+                              value={tagFormByTransaction[row.id]?.linkedTransactionId || ''}
+                              onChange={(event) =>
+                                updateTagForm(row.id, { linkedTransactionId: event.target.value })
+                              }
+                            >
+                              <option value="">Link to transaction (optional)</option>
+                              {(() => {
+                                const key = `${row.id}_${tagFormByTransaction[row.id]?.friendId}`;
+                                const transactions = linkableTransactions[key] || [];
+                                const loading = linkableTransactionsLoading[key];
+
+                                if (loading) {
+                                  return <option disabled>Loading...</option>;
+                                }
+
+                                return transactions.map((tag) => (
+                                  <option key={tag.id} value={tag.id}>
+                                    {formatDate(tag.transaction?.transactionDate)} -
+                                    {tag.direction === 'I_OWE' ? ' I owe' :
+                                     tag.direction === 'OWES_ME' ? ' They owe me' : ' Nothing'} -
+                                    ₹{formatNumber(tag.amount)}
+                                    {tag.transaction?.upiName ? ` - ${tag.transaction.upiName}` : ''}
+                                  </option>
+                                ));
+                              })()}
+                            </select>
+                          )}
                           <input
                             type="text"
                             placeholder="Note (optional)"
@@ -476,6 +551,15 @@ export default function Transactions() {
                                   <span>Note</span>
                                   <strong>{tag.note || '—'}</strong>
                                 </div>
+                                {tag.linkedTransaction && (
+                                  <div>
+                                    <span>Linked to</span>
+                                    <strong>
+                                      {formatDate(tag.linkedTransaction.transaction?.transactionDate)} -
+                                      ₹{formatNumber(tag.linkedTransaction.amount)}
+                                    </strong>
+                                  </div>
+                                )}
                                 <button
                                   className="ghost"
                                   type="button"

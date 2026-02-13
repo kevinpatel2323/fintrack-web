@@ -441,6 +441,30 @@ export default function Friends() {
                               <span className="friend-cell-label">Note</span>
                               <strong title={tag.note || '—'}>{tag.note || '—'}</strong>
                             </div>
+                            {tag.linkedTransaction && (
+                              <div className="friend-transaction-cell friend-transaction-linked">
+                                <span className="friend-cell-label">Linked to</span>
+                                <strong>
+                                  {formatDate(tag.linkedTransaction.transaction?.transactionDate)} -
+                                  {tag.linkedTransaction.direction === 'I_OWE' ? ' I owe' :
+                                   tag.linkedTransaction.direction === 'OWES_ME' ? ' They owe me' : ' Nothing'} -
+                                  ₹{formatNumber(tag.linkedTransaction.amount)}
+                                </strong>
+                              </div>
+                            )}
+                            {tag.settledBy && tag.settledBy.length > 0 && (
+                              <div className="friend-transaction-cell friend-transaction-settled">
+                                <span className="friend-cell-label">Settled by</span>
+                                <strong>
+                                  {tag.settledBy.map((settlement, idx) => (
+                                    <span key={settlement.id}>
+                                      {idx > 0 && ', '}
+                                      {formatDate(settlement.transaction?.transactionDate)} - ₹{formatNumber(settlement.amount)}
+                                    </span>
+                                  ))}
+                                </strong>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -456,6 +480,10 @@ export default function Friends() {
                     <div>
                       <span>They owe me</span>
                       <strong>{formatNumber(summary.totalOwesMe)}</strong>
+                    </div>
+                    <div>
+                      <span>Settlements</span>
+                      <strong>{formatNumber(summary.totalSettlements)}</strong>
                     </div>
                     <div>
                       <span>Net</span>
