@@ -76,7 +76,7 @@ export default function Friends() {
       setStatus('');
     } catch (error) {
       if (error.name === 'AbortError') return;
-      setStatus(error.message || 'Failed to fetch friends');
+      setStatus(error.message || 'Failed to fetch friends.');
     }
   }
 
