@@ -441,14 +441,19 @@ export default function Friends() {
                               <span className="friend-cell-label">Note</span>
                               <strong title={tag.note || '—'}>{tag.note || '—'}</strong>
                             </div>
-                            {tag.linkedTransaction && (
+                            {tag.settlesTransactions && tag.settlesTransactions.length > 0 && (
                               <div className="friend-transaction-cell friend-transaction-linked">
-                                <span className="friend-cell-label">Linked to</span>
+                                <span className="friend-cell-label">Settles</span>
                                 <strong>
-                                  {formatDate(tag.linkedTransaction.transaction?.transactionDate)} -
-                                  {tag.linkedTransaction.direction === 'I_OWE' ? ' I owe' :
-                                   tag.linkedTransaction.direction === 'OWES_ME' ? ' They owe me' : ' Nothing'} -
-                                  ₹{formatNumber(tag.linkedTransaction.amount)}
+                                  {tag.settlesTransactions.map((settled, idx) => (
+                                    <span key={settled.id}>
+                                      {idx > 0 && ', '}
+                                      {formatDate(settled.transaction?.transactionDate)} -
+                                      {settled.direction === 'I_OWE' ? ' I owe' :
+                                       settled.direction === 'OWES_ME' ? ' They owe me' : ' Nothing'} -
+                                      ₹{formatNumber(settled.amount)}
+                                    </span>
+                                  ))}
                                 </strong>
                               </div>
                             )}
