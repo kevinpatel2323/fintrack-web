@@ -820,8 +820,44 @@ input[type='date'] {
 }
 
 .friend-tags-form {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tag-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.tag-form-row > select,
+.tag-form-row > input {
+  flex: 1;
+  min-width: 140px;
+}
+
+.tag-form-row > .note-input {
+  flex: 2;
+  min-width: 200px;
+}
+
+.settlement-section {
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  border: 1px solid var(--stroke);
+}
+
+.settlement-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 0;
 }
 
 .friend-tags-form select,
@@ -841,22 +877,40 @@ input[type='date'] {
 
 .friend-tag-row {
   display: grid;
-  gap: 8px;
-  padding: 10px;
+  grid-template-columns: 1.2fr 1fr 0.8fr 1fr 1.5fr auto;
+  gap: 12px;
+  padding: 12px 16px;
   border-radius: 12px;
   background: rgba(31, 95, 89, 0.06);
   min-width: 0;
+  align-items: center;
 }
 
-.friend-tag-row span {
-  font-size: 0.7rem;
+.friend-tag-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.friend-tag-row > div > span {
+  font-size: 0.65rem;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   color: var(--muted);
 }
 
-.friend-tag-row strong {
-  overflow-wrap: anywhere;
+.friend-tag-row > div > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.friend-tag-row > button {
+  justify-self: end;
 }
 
 @media (min-width: 720px) {
@@ -941,13 +995,12 @@ input[type='date'] {
     justify-content: flex-end;
   }
 
-  .friend-tags-form {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .tag-form-row {
+    flex-wrap: nowrap;
   }
 
   .friend-tag-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
+    grid-template-columns: 1.2fr 1fr 0.8fr 1fr 1.5fr auto;
   }
 
   .friends-grid {
@@ -974,8 +1027,8 @@ input[type='date'] {
     grid-column: 1 / -1;
   }
 
-  .friend-tag-row button {
-    grid-column: 1 / -1;
+  .friend-tag-row > button {
+    justify-self: end;
   }
 }
 
@@ -1066,18 +1119,22 @@ input[type='date'] {
     overflow-wrap: normal;
   }
 
-  .friend-tags-form {
-    grid-template-columns: 1.2fr 0.7fr 0.9fr 1.4fr auto;
-    align-items: center;
+  .tag-form-row {
+    flex-wrap: nowrap;
+  }
+
+  .tag-form-row > select,
+  .tag-form-row > input {
+    flex: 1;
   }
 
   .friend-tag-row {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
-    align-items: center;
+    grid-template-columns: 1.2fr 1fr 0.8fr 1fr 1.5fr auto;
+    gap: 16px;
   }
 
-  .friend-tag-row button {
-    grid-column: auto;
+  .friend-tag-row > button {
+    justify-self: end;
   }
 
   .friend-transaction-row {
