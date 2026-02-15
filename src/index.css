@@ -748,6 +748,7 @@ input[type='date'] {
   border-radius: 999px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  margin-left: 6px;
 }
 
 .transaction-status-badge.owe {
@@ -758,6 +759,11 @@ input[type='date'] {
 .transaction-status-badge.receivable {
   background: rgba(27, 122, 57, 0.1);
   color: var(--success);
+}
+
+.transaction-status-badge.manual {
+  background: rgba(31, 95, 89, 0.1);
+  color: var(--teal);
 }
 
 /* Mobile transaction card layout */

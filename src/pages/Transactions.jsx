@@ -124,6 +124,14 @@ function getCurrentMonthRange() {
   return { startIso, endIso };
 }
 
+function getTodayIso() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 export default function Transactions() {
   const [accounts, setAccounts] = useState([]);
   const [accountsStatus, setAccountsStatus] = useState('');
@@ -145,6 +153,20 @@ export default function Transactions() {
   const [confirmState, setConfirmState] = useState({ open: false });
   const [linkableTransactions, setLinkableTransactions] = useState({});
   const [linkableTransactionsLoading, setLinkableTransactionsLoading] = useState({});
+  const [manualStatus, setManualStatus] = useState('');
+  const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualForm, setManualForm] = useState({
+    transactionDate: getTodayIso(),
+    narration: '',
+    type: 'PAID',
+    settlementDirection: 'WITHDRAWAL',
+    amount: '',
+    balance: '',
+    upiName: '',
+    upiDescription: '',
+    upiBank: '',
+  });
 
   const canFetchRange = useMemo(() => rangeStart && rangeEnd, [rangeStart, rangeEnd]);
 
@@ -396,6 +418,76 @@ export default function Transactions() {
     }
   }
 
+  async function handleManualSubmit(event) {
+    event.preventDefault();
+    setManualStatus('');
+
+    const narration = manualForm.narration.trim();
+    const amountValue = Number(manualForm.amount);
+    const balanceValue = manualForm.balance === '' ? undefined : Number(manualForm.balance);
+
+    if (!manualForm.transactionDate) {
+      setManualStatus('Select a transaction date.');
+      return;
+    }
+    if (!narration) {
+      setManualStatus('Enter a narration.');
+      return;
+    }
+    if (!manualForm.amount || Number.isNaN(amountValue) || amountValue <= 0) {
+      setManualStatus('Enter a valid amount.');
+      return;
+    }
+    if (manualForm.type === 'SETTLEMENT' && !manualForm.settlementDirection) {
+      setManualStatus('Select settlement direction.');
+      return;
+    }
+    if (balanceValue !== undefined && (Number.isNaN(balanceValue) || balanceValue < 0)) {
+      setManualStatus('Balance must be zero or positive.');
+      return;
+    }
+
+    setManualSubmitting(true);
+    try {
+      const res = await fetch(`${API_BASE}/transactions/manual`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionDate: manualForm.transactionDate,
+          narration,
+          type: manualForm.type,
+          settlementDirection:
+            manualForm.type === 'SETTLEMENT' ? manualForm.settlementDirection : undefined,
+          amount: amountValue,
+          balance: balanceValue,
+          upiName: manualForm.upiName.trim() || undefined,
+          upiDescription: manualForm.upiDescription.trim() || undefined,
+          upiBank: manualForm.upiBank.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add manual transaction.');
+      setManualStatus('Manual transaction added.');
+      setManualForm((prev) => ({
+        ...prev,
+        narration: '',
+        type: 'PAID',
+        settlementDirection: 'WITHDRAWAL',
+        amount: '',
+        balance: '',
+        upiName: '',
+        upiDescription: '',
+        upiBank: '',
+      }));
+      setManualOpen(false);
+      await handleRangeFetch();
+    } catch (error) {
+      setManualStatus(error.message || 'Failed to add manual transaction.');
+    } finally {
+      setManualSubmitting(false);
+    }
+  }
+
   return (
     <>
       <ConfirmDialog
@@ -426,6 +518,146 @@ export default function Transactions() {
         </div>
         {accountsStatus && <p className="status">{accountsStatus}</p>}
         {friendsStatus && <p className="status">{friendsStatus}</p>}
+        <div className="friend-actions">
+          <button
+            className="secondary"
+            type="button"
+            onClick={() => {
+              setManualStatus('');
+              setManualOpen((prev) => !prev);
+            }}
+          >
+            {manualOpen ? 'Close manual form' : 'Add manual transaction'}
+          </button>
+        </div>
+        {manualOpen && (
+          <form className="friend-form manual-form" onSubmit={handleManualSubmit}>
+            <div className="friend-tags-header">
+              <h3>Add manual transaction</h3>
+              <p>Manual entries are posted to the Wallet account.</p>
+            </div>
+            <div className="form-grid">
+              <label className="field">
+                <span>Date</span>
+                <input
+                  type="date"
+                  value={manualForm.transactionDate}
+                  onChange={(event) =>
+                    setManualForm((prev) => ({ ...prev, transactionDate: event.target.value }))
+                  }
+                />
+              </label>
+              <label className="field">
+                <span>Account</span>
+                <input type="text" value="Wallet" disabled />
+              </label>
+              <label className="field">
+                <span>Type</span>
+                <select
+                  value={manualForm.type}
+                  onChange={(event) =>
+                    setManualForm((prev) => ({ ...prev, type: event.target.value }))
+                  }
+                >
+                  <option value="PAID">Paid</option>
+                  <option value="RECEIVED">Received</option>
+                  <option value="I_OWE">I owe</option>
+                  <option value="SETTLEMENT">Settlement</option>
+                </select>
+              </label>
+              {manualForm.type === 'SETTLEMENT' && (
+                <label className="field">
+                  <span>Settlement direction</span>
+                  <select
+                    value={manualForm.settlementDirection}
+                    onChange={(event) =>
+                      setManualForm((prev) => ({
+                        ...prev,
+                        settlementDirection: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="WITHDRAWAL">Withdrawal</option>
+                    <option value="DEPOSIT">Deposit</option>
+                  </select>
+                </label>
+              )}
+              <label className="field">
+                <span>Amount</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={manualForm.amount}
+                  onChange={(event) =>
+                    setManualForm((prev) => ({ ...prev, amount: event.target.value }))
+                  }
+                  placeholder="0.00"
+                />
+              </label>
+              <label className="field">
+                <span>Narration</span>
+                <input
+                  type="text"
+                  value={manualForm.narration}
+                  onChange={(event) =>
+                    setManualForm((prev) => ({ ...prev, narration: event.target.value }))
+                  }
+                  placeholder="What was this for?"
+                />
+              </label>
+              <label className="field">
+                <span>Balance (optional)</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={manualForm.balance}
+                  onChange={(event) =>
+                    setManualForm((prev) => ({ ...prev, balance: event.target.value }))
+                  }
+                  placeholder="0.00"
+                />
+              </label>
+              <label className="field">
+                <span>UPI name (optional)</span>
+                <input
+                  type="text"
+                  value={manualForm.upiName}
+                  onChange={(event) =>
+                    setManualForm((prev) => ({ ...prev, upiName: event.target.value }))
+                  }
+                />
+              </label>
+              <label className="field">
+                <span>UPI description (optional)</span>
+                <input
+                  type="text"
+                  value={manualForm.upiDescription}
+                  onChange={(event) =>
+                    setManualForm((prev) => ({ ...prev, upiDescription: event.target.value }))
+                  }
+                />
+              </label>
+              <label className="field">
+                <span>UPI bank (optional)</span>
+                <input
+                  type="text"
+                  value={manualForm.upiBank}
+                  onChange={(event) =>
+                    setManualForm((prev) => ({ ...prev, upiBank: event.target.value }))
+                  }
+                />
+              </label>
+            </div>
+            <div className="friend-actions">
+              <button className="secondary" type="submit" disabled={manualSubmitting}>
+                {manualSubmitting ? 'Adding...' : 'Add transaction'}
+              </button>
+              {manualStatus && <p className="status">{manualStatus}</p>}
+            </div>
+          </form>
+        )}
         <form className="range-form" onSubmit={handleRangeFetch}>
           <label>
             <span>Start date</span>
@@ -496,6 +728,9 @@ export default function Transactions() {
                     <div className="table-cell">
                       <span className="table-cell-label">Account</span>
                       <span className="transaction-account-badge">{row.accountNumber || 'unknown'}</span>
+                      {row.isManual && (
+                        <span className="transaction-status-badge manual">Manual</span>
+                      )}
                     </div>
                     <div className="table-cell table-upi-name">
                       <span className="table-cell-label">UPI name</span>
