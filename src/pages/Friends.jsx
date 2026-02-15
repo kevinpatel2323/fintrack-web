@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const MIN_COL_WIDTH = 80;
+const FRIEND_COL_WIDTHS = [120, 200, 220, 140, 140, 120, 180];
 
 function formatDate(value) {
   if (!value) return '—';
@@ -46,10 +48,22 @@ export default function Friends() {
   const [summaries, setSummaries] = useState({});
   const [transactionsByFriend, setTransactionsByFriend] = useState({});
   const [transactionsStatusByFriend, setTransactionsStatusByFriend] = useState({});
+  const [friendColWidths, setFriendColWidths] = useState(FRIEND_COL_WIDTHS);
+  const [friendResizeLineX, setFriendResizeLineX] = useState(null);
+  const friendColWidthsRef = useRef(friendColWidths);
+  const friendResizeStateRef = useRef(null);
+  const friendGridTemplate = useMemo(
+    () => friendColWidths.map((width) => `${width}px`).join(' '),
+    [friendColWidths],
+  );
   const [expandedFriendId, setExpandedFriendId] = useState(null);
   const [confirmState, setConfirmState] = useState({ open: false });
 
   const canCreate = useMemo(() => createForm.name.trim().length > 0, [createForm]);
+
+  useEffect(() => {
+    friendColWidthsRef.current = friendColWidths;
+  }, [friendColWidths]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -212,6 +226,49 @@ export default function Friends() {
     }
   }
 
+  function handleFriendResizeStart(index, event) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const widths = friendColWidthsRef.current;
+    const nextIndex = index + 1;
+    if (nextIndex >= widths.length) return;
+
+    friendResizeStateRef.current = {
+      index,
+      startX: event.clientX,
+      startWidth: widths[index],
+      nextStartWidth: widths[nextIndex],
+    };
+    setFriendResizeLineX(event.clientX);
+
+    window.addEventListener('mousemove', handleFriendResizeMove);
+    window.addEventListener('mouseup', handleFriendResizeEnd);
+  }
+
+  function handleFriendResizeMove(event) {
+    const state = friendResizeStateRef.current;
+    if (!state) return;
+    const dx = event.clientX - state.startX;
+    const total = state.startWidth + state.nextStartWidth;
+    const newWidth = Math.max(MIN_COL_WIDTH, state.startWidth + dx);
+    const newNextWidth = Math.max(MIN_COL_WIDTH, total - newWidth);
+
+    setFriendResizeLineX(event.clientX);
+    setFriendColWidths((prev) => {
+      const updated = [...prev];
+      updated[state.index] = newWidth;
+      updated[state.index + 1] = newNextWidth;
+      return updated;
+    });
+  }
+
+  function handleFriendResizeEnd() {
+    friendResizeStateRef.current = null;
+    setFriendResizeLineX(null);
+    window.removeEventListener('mousemove', handleFriendResizeMove);
+    window.removeEventListener('mouseup', handleFriendResizeEnd);
+  }
+
   return (
     <>
       <ConfirmDialog
@@ -370,18 +427,41 @@ export default function Friends() {
                       <h3>Tagged transactions</h3>
                       <p>All transactions linked to {friend.name}.</p>
                     </div>
+                    {friendResizeLineX !== null && (
+                      <>
+                        <div className="table-resize-overlay" />
+                        <div className="table-resize-line" style={{ left: friendResizeLineX }} />
+                      </>
+                    )}
                     {friendTransactions.length === 0 ? (
                       <p className="empty">No tagged transactions yet.</p>
                     ) : (
-                      <div className="friend-transactions-list">
+                      <div
+                        className="friend-transactions-list"
+                        style={{ '--friend-tx-grid-columns': friendGridTemplate }}
+                      >
                         <div className="friend-transaction-head" aria-hidden="true">
-                          <span>Date</span>
-                          <span>UPI name</span>
-                          <span>UPI description</span>
-                          <span>UPI bank</span>
-                          <span>Direction</span>
-                          <span>Amount</span>
-                          <span>Note</span>
+                          {[
+                            'Date',
+                            'UPI name',
+                            'UPI description',
+                            'UPI bank',
+                            'Direction',
+                            'Amount',
+                            'Note',
+                          ].map((label, index) => (
+                            <span className="table-head-cell" key={label}>
+                              {label}
+                              {index < friendColWidths.length - 1 && (
+                                <button
+                                  type="button"
+                                  className="col-resizer"
+                                  aria-label="Resize column"
+                                  onMouseDown={(event) => handleFriendResizeStart(index, event)}
+                                />
+                              )}
+                            </span>
+                          ))}
                         </div>
                         {friendTransactions.map((tag) => (
                           <div className="friend-transaction-row" key={tag.id}>

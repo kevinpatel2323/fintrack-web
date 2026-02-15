@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
@@ -132,6 +132,9 @@ function getTodayIso() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+const MIN_COL_WIDTH = 80;
+const DEFAULT_COL_WIDTHS = [120, 180, 220, 180, 110, 130, 130, 120];
+
 export default function Transactions() {
   const [accounts, setAccounts] = useState([]);
   const [accountsStatus, setAccountsStatus] = useState('');
@@ -156,6 +159,10 @@ export default function Transactions() {
   const [manualStatus, setManualStatus] = useState('');
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
+  const [colWidths, setColWidths] = useState(DEFAULT_COL_WIDTHS);
+  const [resizeLineX, setResizeLineX] = useState(null);
+  const colWidthsRef = useRef(colWidths);
+  const resizeStateRef = useRef(null);
   const [manualForm, setManualForm] = useState({
     transactionDate: getTodayIso(),
     narration: '',
@@ -169,6 +176,14 @@ export default function Transactions() {
   });
 
   const canFetchRange = useMemo(() => rangeStart && rangeEnd, [rangeStart, rangeEnd]);
+  const gridTemplate = useMemo(
+    () => colWidths.map((width) => `${width}px`).join(' '),
+    [colWidths],
+  );
+
+  useEffect(() => {
+    colWidthsRef.current = colWidths;
+  }, [colWidths]);
 
   useEffect(() => {
     async function fetchAccounts() {
@@ -488,6 +503,49 @@ export default function Transactions() {
     }
   }
 
+  function handleResizeStart(index, event) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const widths = colWidthsRef.current;
+    const nextIndex = index + 1;
+    if (nextIndex >= widths.length) return;
+
+    resizeStateRef.current = {
+      index,
+      startX: event.clientX,
+      startWidth: widths[index],
+      nextStartWidth: widths[nextIndex],
+    };
+    setResizeLineX(event.clientX);
+
+    window.addEventListener('mousemove', handleResizeMove);
+    window.addEventListener('mouseup', handleResizeEnd);
+  }
+
+  function handleResizeMove(event) {
+    const state = resizeStateRef.current;
+    if (!state) return;
+    const dx = event.clientX - state.startX;
+    const total = state.startWidth + state.nextStartWidth;
+    const newWidth = Math.max(MIN_COL_WIDTH, state.startWidth + dx);
+    const newNextWidth = Math.max(MIN_COL_WIDTH, total - newWidth);
+
+    setResizeLineX(event.clientX);
+    setColWidths((prev) => {
+      const updated = [...prev];
+      updated[state.index] = newWidth;
+      updated[state.index + 1] = newNextWidth;
+      return updated;
+    });
+  }
+
+  function handleResizeEnd() {
+    resizeStateRef.current = null;
+    setResizeLineX(null);
+    window.removeEventListener('mousemove', handleResizeMove);
+    window.removeEventListener('mouseup', handleResizeEnd);
+  }
+
   return (
     <>
       <ConfirmDialog
@@ -697,27 +755,48 @@ export default function Transactions() {
           </div>
         )}
         <div className="transactions-table">
+          {resizeLineX !== null && (
+            <>
+              <div className="table-resize-overlay" />
+              <div className="table-resize-line" style={{ left: resizeLineX }} />
+            </>
+          )}
           {transactionsLoading ? (
             <p className="status">Loading transactions...</p>
           ) : transactions.length === 0 ? (
             <p className="empty">No transactions in this range.</p>
           ) : (
-            <div className="table">
+            <div className="table" style={{ '--tx-grid-columns': gridTemplate }}>
               <div className="table-head" aria-hidden="true">
-                <span>Date</span>
-                <span>Account</span>
-                <span>UPI name</span>
-                <span>UPI description</span>
-                <span>UPI bank</span>
-                <span>Amount</span>
-                <span>Balance</span>
-                <span>Actions</span>
+                {[
+                  'Date',
+                  'Account',
+                  'UPI name',
+                  'UPI description',
+                  'UPI bank',
+                  'Amount',
+                  'Balance',
+                  'Actions',
+                ].map((label, index) => (
+                  <span className="table-head-cell" key={label}>
+                    {label}
+                    {index < colWidths.length - 1 && (
+                      <button
+                        type="button"
+                        className="col-resizer"
+                        aria-label="Resize column"
+                        onMouseDown={(event) => handleResizeStart(index, event)}
+                      />
+                    )}
+                  </span>
+                ))}
               </div>
               {transactions.map((row) => {
                 const withdrawal = Number(row.withdrawal || 0);
                 const deposit = Number(row.deposit || 0);
                 const amount = withdrawal > 0 ? withdrawal : deposit;
                 const isWithdrawal = withdrawal > 0;
+                const upiDescription = row.isManual ? row.narration : row.upiDescription;
 
                 return (
                   <div className={`table-row ${isWithdrawal ? 'transaction-withdrawal' : 'transaction-deposit'}`} key={row.id}>
@@ -738,7 +817,7 @@ export default function Transactions() {
                     </div>
                     <div className="table-cell table-upi-desc">
                       <span className="table-cell-label">UPI description</span>
-                      <strong title={row.upiDescription || '—'}>{row.upiDescription || '—'}</strong>
+                      <strong title={upiDescription || '—'}>{upiDescription || '—'}</strong>
                     </div>
                     <div className="table-cell table-upi-bank">
                       <span className="table-cell-label">UPI bank</span>

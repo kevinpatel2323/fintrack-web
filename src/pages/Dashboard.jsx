@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+const MIN_COL_WIDTH = 80;
+const PREVIEW_COL_WIDTHS = [120, 180, 220, 180, 110, 130, 130];
 
 function formatDate(value) {
   if (!value) return '—';
@@ -42,6 +44,19 @@ export default function Dashboard() {
   const [uploadResult, setUploadResult] = useState(null);
   const [uploadPreview, setUploadPreview] = useState(null);
   const [previewFileKey, setPreviewFileKey] = useState('');
+  const [previewColWidths, setPreviewColWidths] = useState(PREVIEW_COL_WIDTHS);
+  const [previewResizeLineX, setPreviewResizeLineX] = useState(null);
+  const previewColWidthsRef = useRef(previewColWidths);
+  const previewResizeStateRef = useRef(null);
+
+  const previewGridTemplate = useMemo(
+    () => previewColWidths.map((width) => `${width}px`).join(' '),
+    [previewColWidths],
+  );
+
+  useEffect(() => {
+    previewColWidthsRef.current = previewColWidths;
+  }, [previewColWidths]);
 
   function getFileKey(file) {
     if (!file) return '';
@@ -240,6 +255,49 @@ export default function Dashboard() {
     });
   }
 
+  function handlePreviewResizeStart(index, event) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const widths = previewColWidthsRef.current;
+    const nextIndex = index + 1;
+    if (nextIndex >= widths.length) return;
+
+    previewResizeStateRef.current = {
+      index,
+      startX: event.clientX,
+      startWidth: widths[index],
+      nextStartWidth: widths[nextIndex],
+    };
+    setPreviewResizeLineX(event.clientX);
+
+    window.addEventListener('mousemove', handlePreviewResizeMove);
+    window.addEventListener('mouseup', handlePreviewResizeEnd);
+  }
+
+  function handlePreviewResizeMove(event) {
+    const state = previewResizeStateRef.current;
+    if (!state) return;
+    const dx = event.clientX - state.startX;
+    const total = state.startWidth + state.nextStartWidth;
+    const newWidth = Math.max(MIN_COL_WIDTH, state.startWidth + dx);
+    const newNextWidth = Math.max(MIN_COL_WIDTH, total - newWidth);
+
+    setPreviewResizeLineX(event.clientX);
+    setPreviewColWidths((prev) => {
+      const updated = [...prev];
+      updated[state.index] = newWidth;
+      updated[state.index + 1] = newNextWidth;
+      return updated;
+    });
+  }
+
+  function handlePreviewResizeEnd() {
+    previewResizeStateRef.current = null;
+    setPreviewResizeLineX(null);
+    window.removeEventListener('mousemove', handlePreviewResizeMove);
+    window.removeEventListener('mouseup', handlePreviewResizeEnd);
+  }
+
   return (
     <>
       <ConfirmDialog
@@ -319,15 +377,35 @@ export default function Dashboard() {
               </div>
 
               <div className="transactions-table">
-                <div className="table">
+                {previewResizeLineX !== null && (
+                  <>
+                    <div className="table-resize-overlay" />
+                    <div className="table-resize-line" style={{ left: previewResizeLineX }} />
+                  </>
+                )}
+                <div className="table" style={{ '--tx-grid-columns': previewGridTemplate }}>
                   <div className="table-head" aria-hidden="true">
-                    <span>Date</span>
-                    <span>Account</span>
-                    <span>UPI name</span>
-                    <span>UPI description</span>
-                    <span>UPI bank</span>
-                    <span>Amount</span>
-                    <span>Balance</span>
+                    {[
+                      'Date',
+                      'Account',
+                      'UPI name',
+                      'UPI description',
+                      'UPI bank',
+                      'Amount',
+                      'Balance',
+                    ].map((label, index) => (
+                      <span className="table-head-cell" key={label}>
+                        {label}
+                        {index < previewColWidths.length - 1 && (
+                          <button
+                            type="button"
+                            className="col-resizer"
+                            aria-label="Resize column"
+                            onMouseDown={(event) => handlePreviewResizeStart(index, event)}
+                          />
+                        )}
+                      </span>
+                    ))}
                   </div>
                   {uploadPreview.previewRows.length === 0 ? (
                     <p className="empty">No new entries will be inserted from this statement.</p>

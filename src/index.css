@@ -516,6 +516,7 @@ button:disabled {
 .friend-transactions-list {
   display: grid;
   gap: 10px;
+  --friend-tx-grid-columns: 120px 200px 220px 140px 140px 120px 180px;
 }
 
 .friend-transaction-head {
@@ -648,6 +649,60 @@ input[type='date'] {
 
 .table-head {
   display: none;
+}
+
+.table-head-cell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  padding-right: 10px;
+}
+
+.col-resizer {
+  position: absolute;
+  right: -4px;
+  top: 0;
+  height: 100%;
+  width: 8px;
+  cursor: col-resize;
+  background: transparent;
+  border: none;
+  padding: 0;
+  display: none;
+}
+
+.col-resizer::after {
+  content: '';
+  display: block;
+  width: 2px;
+  height: 60%;
+  margin: 0 auto;
+  border-radius: 2px;
+  background: rgba(31, 95, 89, 0.25);
+  transition: background 0.15s ease, height 0.15s ease;
+}
+
+.col-resizer:hover::after {
+  background: var(--teal);
+  height: 80%;
+}
+
+.table-resize-overlay {
+  position: fixed;
+  inset: 0;
+  cursor: col-resize;
+  z-index: 9999;
+}
+
+.table-resize-line {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--teal);
+  z-index: 10000;
+  pointer-events: none;
 }
 
 .table-row {
@@ -1074,6 +1129,10 @@ input[type='date'] {
     font-weight: 600;
   }
 
+  .col-resizer {
+    display: inline-flex;
+  }
+
   .table-row {
     display: grid;
     grid-template-columns: var(--tx-grid-columns);
@@ -1143,16 +1202,49 @@ input[type='date'] {
     justify-self: end;
   }
 
-  .friend-transaction-row {
-    grid-template-columns: 140px 180px 110px minmax(0, 1fr) 150px 160px 140px minmax(140px, 220px);
+  .friend-transaction-head {
+    display: grid;
+    grid-template-columns: var(--friend-tx-grid-columns);
     align-items: center;
-    gap: 14px;
+    padding: 0 8px;
+    gap: 10px;
   }
 
-  .friend-transaction-cell strong {
-    display: block;
-    max-width: 100%;
+  .friend-transaction-head span {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .friend-transaction-row {
+    grid-template-columns: var(--friend-tx-grid-columns);
+    align-items: center;
+    gap: 10px;
+  }
+
+  .friend-cell-label {
+    display: none;
+  }
+
+  .friend-transaction-upi-name,
+  .friend-transaction-upi-desc,
+  .friend-transaction-upi-bank,
+  .friend-transaction-note {
+    grid-column: auto;
+  }
+
+  .friend-transaction-linked,
+  .friend-transaction-settled {
+    grid-column: 1 / -1;
+  }
+
+  .friend-transaction-row strong {
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
   }
 
   .friend-transaction-head {
