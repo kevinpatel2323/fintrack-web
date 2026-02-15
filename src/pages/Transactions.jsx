@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
@@ -124,6 +124,17 @@ function getCurrentMonthRange() {
   return { startIso, endIso };
 }
 
+function getTodayIso() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+const MIN_COL_WIDTH = 80;
+const DEFAULT_COL_WIDTHS = [120, 180, 220, 180, 110, 130, 130, 120];
+
 export default function Transactions() {
   const [accounts, setAccounts] = useState([]);
   const [accountsStatus, setAccountsStatus] = useState('');
@@ -145,8 +156,34 @@ export default function Transactions() {
   const [confirmState, setConfirmState] = useState({ open: false });
   const [linkableTransactions, setLinkableTransactions] = useState({});
   const [linkableTransactionsLoading, setLinkableTransactionsLoading] = useState({});
+  const [manualStatus, setManualStatus] = useState('');
+  const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [colWidths, setColWidths] = useState(DEFAULT_COL_WIDTHS);
+  const [resizeLineX, setResizeLineX] = useState(null);
+  const colWidthsRef = useRef(colWidths);
+  const resizeStateRef = useRef(null);
+  const [manualForm, setManualForm] = useState({
+    transactionDate: getTodayIso(),
+    narration: '',
+    type: 'PAID',
+    settlementDirection: 'WITHDRAWAL',
+    amount: '',
+    balance: '',
+    upiName: '',
+    upiDescription: '',
+    upiBank: '',
+  });
 
   const canFetchRange = useMemo(() => rangeStart && rangeEnd, [rangeStart, rangeEnd]);
+  const gridTemplate = useMemo(
+    () => colWidths.map((width) => `${width}px`).join(' '),
+    [colWidths],
+  );
+
+  useEffect(() => {
+    colWidthsRef.current = colWidths;
+  }, [colWidths]);
 
   useEffect(() => {
     async function fetchAccounts() {
@@ -396,6 +433,119 @@ export default function Transactions() {
     }
   }
 
+  async function handleManualSubmit(event) {
+    event.preventDefault();
+    setManualStatus('');
+
+    const narration = manualForm.narration.trim();
+    const amountValue = Number(manualForm.amount);
+    const balanceValue = manualForm.balance === '' ? undefined : Number(manualForm.balance);
+
+    if (!manualForm.transactionDate) {
+      setManualStatus('Select a transaction date.');
+      return;
+    }
+    if (!narration) {
+      setManualStatus('Enter a narration.');
+      return;
+    }
+    if (!manualForm.amount || Number.isNaN(amountValue) || amountValue <= 0) {
+      setManualStatus('Enter a valid amount.');
+      return;
+    }
+    if (manualForm.type === 'SETTLEMENT' && !manualForm.settlementDirection) {
+      setManualStatus('Select settlement direction.');
+      return;
+    }
+    if (balanceValue !== undefined && (Number.isNaN(balanceValue) || balanceValue < 0)) {
+      setManualStatus('Balance must be zero or positive.');
+      return;
+    }
+
+    setManualSubmitting(true);
+    try {
+      const res = await fetch(`${API_BASE}/transactions/manual`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionDate: manualForm.transactionDate,
+          narration,
+          type: manualForm.type,
+          settlementDirection:
+            manualForm.type === 'SETTLEMENT' ? manualForm.settlementDirection : undefined,
+          amount: amountValue,
+          balance: balanceValue,
+          upiName: manualForm.upiName.trim() || undefined,
+          upiDescription: manualForm.upiDescription.trim() || undefined,
+          upiBank: manualForm.upiBank.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add manual transaction.');
+      setManualStatus('Manual transaction added.');
+      setManualForm((prev) => ({
+        ...prev,
+        narration: '',
+        type: 'PAID',
+        settlementDirection: 'WITHDRAWAL',
+        amount: '',
+        balance: '',
+        upiName: '',
+        upiDescription: '',
+        upiBank: '',
+      }));
+      setManualOpen(false);
+      await handleRangeFetch();
+    } catch (error) {
+      setManualStatus(error.message || 'Failed to add manual transaction.');
+    } finally {
+      setManualSubmitting(false);
+    }
+  }
+
+  function handleResizeStart(index, event) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const widths = colWidthsRef.current;
+    const nextIndex = index + 1;
+    if (nextIndex >= widths.length) return;
+
+    resizeStateRef.current = {
+      index,
+      startX: event.clientX,
+      startWidth: widths[index],
+      nextStartWidth: widths[nextIndex],
+    };
+    setResizeLineX(event.clientX);
+
+    window.addEventListener('mousemove', handleResizeMove);
+    window.addEventListener('mouseup', handleResizeEnd);
+  }
+
+  function handleResizeMove(event) {
+    const state = resizeStateRef.current;
+    if (!state) return;
+    const dx = event.clientX - state.startX;
+    const total = state.startWidth + state.nextStartWidth;
+    const newWidth = Math.max(MIN_COL_WIDTH, state.startWidth + dx);
+    const newNextWidth = Math.max(MIN_COL_WIDTH, total - newWidth);
+
+    setResizeLineX(event.clientX);
+    setColWidths((prev) => {
+      const updated = [...prev];
+      updated[state.index] = newWidth;
+      updated[state.index + 1] = newNextWidth;
+      return updated;
+    });
+  }
+
+  function handleResizeEnd() {
+    resizeStateRef.current = null;
+    setResizeLineX(null);
+    window.removeEventListener('mousemove', handleResizeMove);
+    window.removeEventListener('mouseup', handleResizeEnd);
+  }
+
   return (
     <>
       <ConfirmDialog
@@ -426,6 +576,146 @@ export default function Transactions() {
         </div>
         {accountsStatus && <p className="status">{accountsStatus}</p>}
         {friendsStatus && <p className="status">{friendsStatus}</p>}
+        <div className="friend-actions">
+          <button
+            className="secondary"
+            type="button"
+            onClick={() => {
+              setManualStatus('');
+              setManualOpen((prev) => !prev);
+            }}
+          >
+            {manualOpen ? 'Close manual form' : 'Add manual transaction'}
+          </button>
+        </div>
+        {manualOpen && (
+          <form className="friend-form manual-form" onSubmit={handleManualSubmit}>
+            <div className="friend-tags-header">
+              <h3>Add manual transaction</h3>
+              <p>Manual entries are posted to the Wallet account.</p>
+            </div>
+            <div className="form-grid">
+              <label className="field">
+                <span>Date</span>
+                <input
+                  type="date"
+                  value={manualForm.transactionDate}
+                  onChange={(event) =>
+                    setManualForm((prev) => ({ ...prev, transactionDate: event.target.value }))
+                  }
+                />
+              </label>
+              <label className="field">
+                <span>Account</span>
+                <input type="text" value="Wallet" disabled />
+              </label>
+              <label className="field">
+                <span>Type</span>
+                <select
+                  value={manualForm.type}
+                  onChange={(event) =>
+                    setManualForm((prev) => ({ ...prev, type: event.target.value }))
+                  }
+                >
+                  <option value="PAID">Paid</option>
+                  <option value="RECEIVED">Received</option>
+                  <option value="I_OWE">I owe</option>
+                  <option value="SETTLEMENT">Settlement</option>
+                </select>
+              </label>
+              {manualForm.type === 'SETTLEMENT' && (
+                <label className="field">
+                  <span>Settlement direction</span>
+                  <select
+                    value={manualForm.settlementDirection}
+                    onChange={(event) =>
+                      setManualForm((prev) => ({
+                        ...prev,
+                        settlementDirection: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="WITHDRAWAL">Withdrawal</option>
+                    <option value="DEPOSIT">Deposit</option>
+                  </select>
+                </label>
+              )}
+              <label className="field">
+                <span>Amount</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={manualForm.amount}
+                  onChange={(event) =>
+                    setManualForm((prev) => ({ ...prev, amount: event.target.value }))
+                  }
+                  placeholder="0.00"
+                />
+              </label>
+              <label className="field">
+                <span>Narration</span>
+                <input
+                  type="text"
+                  value={manualForm.narration}
+                  onChange={(event) =>
+                    setManualForm((prev) => ({ ...prev, narration: event.target.value }))
+                  }
+                  placeholder="What was this for?"
+                />
+              </label>
+              <label className="field">
+                <span>Balance (optional)</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={manualForm.balance}
+                  onChange={(event) =>
+                    setManualForm((prev) => ({ ...prev, balance: event.target.value }))
+                  }
+                  placeholder="0.00"
+                />
+              </label>
+              <label className="field">
+                <span>UPI name (optional)</span>
+                <input
+                  type="text"
+                  value={manualForm.upiName}
+                  onChange={(event) =>
+                    setManualForm((prev) => ({ ...prev, upiName: event.target.value }))
+                  }
+                />
+              </label>
+              <label className="field">
+                <span>UPI description (optional)</span>
+                <input
+                  type="text"
+                  value={manualForm.upiDescription}
+                  onChange={(event) =>
+                    setManualForm((prev) => ({ ...prev, upiDescription: event.target.value }))
+                  }
+                />
+              </label>
+              <label className="field">
+                <span>UPI bank (optional)</span>
+                <input
+                  type="text"
+                  value={manualForm.upiBank}
+                  onChange={(event) =>
+                    setManualForm((prev) => ({ ...prev, upiBank: event.target.value }))
+                  }
+                />
+              </label>
+            </div>
+            <div className="friend-actions">
+              <button className="secondary" type="submit" disabled={manualSubmitting}>
+                {manualSubmitting ? 'Adding...' : 'Add transaction'}
+              </button>
+              {manualStatus && <p className="status">{manualStatus}</p>}
+            </div>
+          </form>
+        )}
         <form className="range-form" onSubmit={handleRangeFetch}>
           <label>
             <span>Start date</span>
@@ -465,27 +755,48 @@ export default function Transactions() {
           </div>
         )}
         <div className="transactions-table">
+          {resizeLineX !== null && (
+            <>
+              <div className="table-resize-overlay" />
+              <div className="table-resize-line" style={{ left: resizeLineX }} />
+            </>
+          )}
           {transactionsLoading ? (
             <p className="status">Loading transactions...</p>
           ) : transactions.length === 0 ? (
             <p className="empty">No transactions in this range.</p>
           ) : (
-            <div className="table">
+            <div className="table" style={{ '--tx-grid-columns': gridTemplate }}>
               <div className="table-head" aria-hidden="true">
-                <span>Date</span>
-                <span>Account</span>
-                <span>UPI name</span>
-                <span>UPI description</span>
-                <span>UPI bank</span>
-                <span>Amount</span>
-                <span>Balance</span>
-                <span>Actions</span>
+                {[
+                  'Date',
+                  'Account',
+                  'UPI name',
+                  'UPI description',
+                  'UPI bank',
+                  'Amount',
+                  'Balance',
+                  'Actions',
+                ].map((label, index) => (
+                  <span className="table-head-cell" key={label}>
+                    {label}
+                    {index < colWidths.length - 1 && (
+                      <button
+                        type="button"
+                        className="col-resizer"
+                        aria-label="Resize column"
+                        onMouseDown={(event) => handleResizeStart(index, event)}
+                      />
+                    )}
+                  </span>
+                ))}
               </div>
               {transactions.map((row) => {
                 const withdrawal = Number(row.withdrawal || 0);
                 const deposit = Number(row.deposit || 0);
                 const amount = withdrawal > 0 ? withdrawal : deposit;
                 const isWithdrawal = withdrawal > 0;
+                const upiDescription = row.isManual ? row.narration : row.upiDescription;
 
                 return (
                   <div className={`table-row ${isWithdrawal ? 'transaction-withdrawal' : 'transaction-deposit'}`} key={row.id}>
@@ -496,6 +807,9 @@ export default function Transactions() {
                     <div className="table-cell">
                       <span className="table-cell-label">Account</span>
                       <span className="transaction-account-badge">{row.accountNumber || 'unknown'}</span>
+                      {row.isManual && (
+                        <span className="transaction-status-badge manual">Manual</span>
+                      )}
                     </div>
                     <div className="table-cell table-upi-name">
                       <span className="table-cell-label">UPI name</span>
@@ -503,7 +817,7 @@ export default function Transactions() {
                     </div>
                     <div className="table-cell table-upi-desc">
                       <span className="table-cell-label">UPI description</span>
-                      <strong title={row.upiDescription || '—'}>{row.upiDescription || '—'}</strong>
+                      <strong title={upiDescription || '—'}>{upiDescription || '—'}</strong>
                     </div>
                     <div className="table-cell table-upi-bank">
                       <span className="table-cell-label">UPI bank</span>
