@@ -1,3 +1,5 @@
+import { createPortal } from 'react-dom';
+
 export default function ConfirmDialog({
   open,
   title,
@@ -9,7 +11,7 @@ export default function ConfirmDialog({
 }) {
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
       className="modal-backdrop"
       role="dialog"
@@ -31,6 +33,7 @@ export default function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
