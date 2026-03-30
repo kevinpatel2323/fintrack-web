@@ -311,8 +311,9 @@ button:disabled {
   background: rgba(30, 27, 22, 0.55);
   display: grid;
   place-items: center;
-  z-index: 1000;
+  z-index: 2000;
   padding: 24px;
+  padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
 }
 
 .modal-card {

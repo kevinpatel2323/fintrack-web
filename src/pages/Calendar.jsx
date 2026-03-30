@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import MobileTransactionCard from '../components/MobileTransactionCard.jsx';
+import Portal from '../components/Portal.jsx';
 import TransactionFriendTagsPanel from '../components/TransactionFriendTagsPanel.jsx';
 import './Calendar.css';
 
@@ -470,12 +471,13 @@ export default function Calendar() {
       </section>
 
       {selectedIso && (
-        <div
-          className="calendar-sheet-backdrop"
-          role="presentation"
-          onClick={(e) => e.target === e.currentTarget && closeSheet()}
-        >
-          <div className="calendar-sheet" role="dialog" aria-modal="true" aria-labelledby="calendar-sheet-title">
+        <Portal>
+          <div
+            className="calendar-sheet-backdrop"
+            role="presentation"
+            onClick={(e) => e.target === e.currentTarget && closeSheet()}
+          >
+            <div className="calendar-sheet" role="dialog" aria-modal="true" aria-labelledby="calendar-sheet-title">
             <div className="calendar-sheet__header">
               <div>
                 <h3 id="calendar-sheet-title">{formatDate(selectedIso)}</h3>
@@ -715,6 +717,7 @@ export default function Calendar() {
             </div>
           </div>
         </div>
+        </Portal>
       )}
     </>
   );

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import DataTable from '../components/DataTable.jsx';
+import FriendLedgerExportModal from '../components/FriendLedgerExportModal.jsx';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
@@ -49,6 +50,7 @@ export default function Friends() {
   const [transactionsStatusByFriend, setTransactionsStatusByFriend] = useState({});
   const [expandedFriendId, setExpandedFriendId] = useState(null);
   const [confirmState, setConfirmState] = useState({ open: false });
+  const [ledgerExportFriend, setLedgerExportFriend] = useState(null);
 
   const canCreate = useMemo(() => createForm.name.trim().length > 0, [createForm]);
 
@@ -394,6 +396,11 @@ export default function Friends() {
         onConfirm={confirmState.onConfirm}
         onCancel={confirmState.onCancel}
       />
+      <FriendLedgerExportModal
+        friend={ledgerExportFriend}
+        open={Boolean(ledgerExportFriend)}
+        onClose={() => setLedgerExportFriend(null)}
+      />
     <section className="card">
       <div className="card-header">
         <div>
@@ -530,6 +537,13 @@ export default function Friends() {
                   </button>
                   <button className="ghost" type="button" onClick={() => loadSummary(friend.id)}>
                     {summary ? 'Refresh summary' : 'Show summary'}
+                  </button>
+                  <button
+                    className="secondary"
+                    type="button"
+                    onClick={() => setLedgerExportFriend(friend)}
+                  >
+                    Export PDF ledger
                   </button>
                 </div>
                 {transactionsStatusByFriend[friend.id] && (

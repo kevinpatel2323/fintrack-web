@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
+import Portal from '../components/Portal.jsx';
 import DataTable from '../components/DataTable.jsx';
 import MobileTransactionCard from '../components/MobileTransactionCard.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
@@ -775,17 +776,18 @@ export default function Transactions() {
         onCancel={confirmState.onCancel}
       />
       {friendTagsSheetRow && (
-        <div
-          className="calendar-sheet-backdrop"
-          role="presentation"
-          onClick={(e) => e.target === e.currentTarget && closeFriendTagsSheet()}
-        >
+        <Portal>
           <div
-            className="calendar-sheet"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="txn-friend-sheet-title"
+            className="calendar-sheet-backdrop"
+            role="presentation"
+            onClick={(e) => e.target === e.currentTarget && closeFriendTagsSheet()}
           >
+            <div
+              className="calendar-sheet"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="txn-friend-sheet-title"
+            >
             <div className="calendar-sheet__header">
               <div>
                 <h3 id="txn-friend-sheet-title">
@@ -860,6 +862,7 @@ export default function Transactions() {
             </div>
           </div>
         </div>
+        </Portal>
       )}
       <section className="card card--transactions">
         <div className="glass-panel txn-premium-filters">
