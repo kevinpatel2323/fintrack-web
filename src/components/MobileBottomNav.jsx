@@ -22,6 +22,12 @@ export default function MobileBottomNav() {
         </span>
         <span>Txns</span>
       </NavLink>
+      <NavLink className={linkClass} to="/calendar">
+        <span className="mobile-bottom-nav__icon" aria-hidden>
+          ▦
+        </span>
+        <span>Cal</span>
+      </NavLink>
       <NavLink className={linkClass} to="/friends">
         <span className="mobile-bottom-nav__icon" aria-hidden>
           ◉

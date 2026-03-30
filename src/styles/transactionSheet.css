@@ -1,0 +1,323 @@
+/* Shared overlay sheet: calendar day picker, calendar manage, transactions friend tags */
+
+.calendar-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(30, 27, 22, 0.55);
+  z-index: 950;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+
+@media (min-width: 720px) {
+  .calendar-sheet-backdrop {
+    align-items: center;
+    padding: 24px;
+  }
+}
+
+.calendar-sheet {
+  width: 100%;
+  max-width: 520px;
+  max-height: min(88vh, 720px);
+  max-height: min(88dvh, 720px);
+  background: #fff;
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -12px 48px rgba(30, 27, 22, 0.22);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  animation: calendar-sheet-up 0.22s ease-out;
+}
+
+@media (min-width: 720px) {
+  .calendar-sheet {
+    border-radius: 20px;
+    max-height: min(85vh, 680px);
+    animation: calendar-sheet-fade 0.2s ease-out;
+  }
+}
+
+@keyframes calendar-sheet-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0.85;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes calendar-sheet-fade {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.calendar-sheet__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 18px 12px;
+  border-bottom: 1px solid var(--stroke);
+  flex-shrink: 0;
+}
+
+.calendar-sheet__header > div:first-child {
+  min-width: 0;
+}
+
+.calendar-sheet__header h3 {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-size: 1.15rem;
+  color: var(--ink);
+}
+
+.calendar-sheet__header p {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+}
+
+.calendar-sheet__header-meta {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.calendar-sheet__close {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.calendar-sheet__body {
+  padding: 16px 18px calc(20px + env(safe-area-inset-bottom, 0));
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  display: grid;
+  gap: 16px;
+}
+
+.calendar-sheet__actions {
+  display: grid;
+  gap: 10px;
+}
+
+.calendar-sheet__actions--single {
+  gap: 10px;
+}
+
+.calendar-sheet__actions button {
+  width: 100%;
+  justify-content: center;
+  min-height: 48px;
+  font-weight: 600;
+}
+
+.calendar-sheet__actions .calendar-action-primary {
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 12px 16px;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(31, 95, 89, 0.25);
+}
+
+.calendar-sheet__actions .calendar-action-primary:hover {
+  filter: brightness(1.05);
+}
+
+.calendar-sheet__actions .calendar-action-secondary {
+  background: rgba(246, 242, 234, 0.9);
+  color: var(--ink);
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.calendar-sheet__actions .calendar-action-secondary:hover {
+  background: rgba(31, 95, 89, 0.06);
+}
+
+.calendar-manage-list {
+  display: grid;
+  gap: 12px;
+}
+
+.calendar-back-link {
+  background: none;
+  border: none;
+  color: var(--teal);
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  padding: 8px 0;
+  text-align: left;
+  font-family: inherit;
+}
+
+.calendar-back-link:hover {
+  text-decoration: underline;
+}
+
+.calendar-summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 12px 14px;
+  background: rgba(246, 242, 234, 0.65);
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  font-size: 0.82rem;
+}
+
+.calendar-summary-strip strong {
+  color: var(--ink);
+  display: block;
+  font-size: 0.95rem;
+}
+
+.calendar-manage-shell {
+  padding: 14px 16px;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.calendar-manage-shell__head {
+  display: grid;
+  gap: 6px;
+}
+
+.calendar-manage-shell__title {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+.calendar-manage-shell__sub {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.calendar-manage-shell__empty {
+  margin: 0;
+}
+
+.calendar-manage-shell .friend-tags-panel {
+  gap: 12px;
+}
+
+/*
+ * Friend-tags UI uses viewport media queries (e.g. nowrap form rows, wide tag grids)
+ * that assume full page width. The sheet stays ~520px, so we override inside the overlay.
+ */
+.calendar-sheet {
+  min-width: 0;
+}
+
+.calendar-sheet .calendar-sheet__body {
+  min-width: 0;
+}
+
+.calendar-sheet .calendar-manage-shell,
+.calendar-sheet .friend-tags-panel {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.calendar-sheet .friend-tags-form,
+.calendar-sheet .friend-tags-list {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.calendar-sheet .tag-form-row {
+  flex-wrap: wrap;
+}
+
+.calendar-sheet .tag-form-row > select,
+.calendar-sheet .tag-form-row > input {
+  flex: 1 1 100%;
+  min-width: 0 !important;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.calendar-sheet .tag-form-row > .note-input {
+  flex: 1 1 100%;
+  min-width: 0 !important;
+}
+
+.calendar-sheet .tag-form-row .secondary {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.calendar-sheet .settlement-section {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.calendar-sheet .friend-tag-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+  align-items: start;
+}
+
+.calendar-sheet .friend-tag-row > div {
+  min-width: 0;
+}
+
+.calendar-sheet .friend-tag-row > div > strong {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  word-break: break-word;
+}
+
+.calendar-sheet .friend-tag-row > button {
+  grid-column: 1;
+  width: 100%;
+  max-width: 100%;
+  justify-self: stretch;
+  box-sizing: border-box;
+}
+
+.calendar-sheet .manual-form .form-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (max-width: 719px) {
+  .calendar-manage-shell {
+    padding: 12px 12px;
+  }
+}

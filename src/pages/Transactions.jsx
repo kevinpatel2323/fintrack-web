@@ -4,6 +4,7 @@ import DataTable from '../components/DataTable.jsx';
 import MobileTransactionCard from '../components/MobileTransactionCard.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { sortTableRows } from '../utils/tableSort.js';
+import '../styles/transactionSheet.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
@@ -162,7 +163,7 @@ export default function Transactions() {
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [tagsByTransaction, setTagsByTransaction] = useState({});
   const [tagsStatusByTransaction, setTagsStatusByTransaction] = useState({});
-  const [expandedTransactionId, setExpandedTransactionId] = useState(null);
+  const [friendTagsSheetId, setFriendTagsSheetId] = useState(null);
   const [tagFormByTransaction, setTagFormByTransaction] = useState({});
   const [confirmState, setConfirmState] = useState({ open: false });
   const [linkableTransactions, setLinkableTransactions] = useState({});
@@ -241,7 +242,7 @@ export default function Transactions() {
       const data = await res.json();
       setRangeResult(data);
       setTransactions(data.data || []);
-      setExpandedTransactionId(null);
+      setFriendTagsSheetId(null);
       setTagsByTransaction({});
       setTagsStatusByTransaction({});
       setTagFormByTransaction({});
@@ -253,12 +254,7 @@ export default function Transactions() {
     }
   }
 
-  async function toggleTags(transactionId) {
-    if (expandedTransactionId === transactionId) {
-      setExpandedTransactionId(null);
-      return;
-    }
-
+  async function openFriendTagsSheet(transactionId) {
     if (!tagFormByTransaction[transactionId]) {
       const transaction = transactions.find((row) => row.id === transactionId);
       if (transaction) {
@@ -277,10 +273,14 @@ export default function Transactions() {
       }
     }
 
-    setExpandedTransactionId(transactionId);
+    setFriendTagsSheetId(transactionId);
     if (!tagsByTransaction[transactionId]) {
       await fetchTags(transactionId);
     }
+  }
+
+  function closeFriendTagsSheet() {
+    setFriendTagsSheetId(null);
   }
 
   async function fetchTags(transactionId) {
@@ -616,21 +616,32 @@ export default function Transactions() {
           <button
             className="ghost"
             type="button"
-            onClick={() => toggleTags(row.id)}
-            aria-label={expandedTransactionId === row.id ? 'Close tags panel' : 'Manage friends'}
+            onClick={() => openFriendTagsSheet(row.id)}
+            aria-label="Manage friends for this transaction"
           >
-            {expandedTransactionId === row.id ? '⌃' : 'Manage'}
+            Manage
           </button>
         ),
       },
     ],
-    [expandedTransactionId],
+    [],
   );
 
   const sortedForMobile = useMemo(
     () => sortTableRows(transactions, transactionColumns, mobileSort),
     [transactions, transactionColumns, mobileSort],
   );
+
+  const friendTagsSheetRow = useMemo(
+    () => (friendTagsSheetId ? transactions.find((r) => r.id === friendTagsSheetId) : null),
+    [friendTagsSheetId, transactions],
+  );
+
+  useEffect(() => {
+    if (friendTagsSheetId && !transactions.some((r) => r.id === friendTagsSheetId)) {
+      setFriendTagsSheetId(null);
+    }
+  }, [transactions, friendTagsSheetId]);
 
   const renderFriendTagsPanel = (row) => (
     <div className="friend-tags-panel">
@@ -763,6 +774,93 @@ export default function Transactions() {
         onConfirm={confirmState.onConfirm}
         onCancel={confirmState.onCancel}
       />
+      {friendTagsSheetRow && (
+        <div
+          className="calendar-sheet-backdrop"
+          role="presentation"
+          onClick={(e) => e.target === e.currentTarget && closeFriendTagsSheet()}
+        >
+          <div
+            className="calendar-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="txn-friend-sheet-title"
+          >
+            <div className="calendar-sheet__header">
+              <div>
+                <h3 id="txn-friend-sheet-title">
+                  {formatDate(friendTagsSheetRow.transactionDate)}
+                </h3>
+                <p>
+                  {(tagsByTransaction[friendTagsSheetRow.id] || []).length}{' '}
+                  {(tagsByTransaction[friendTagsSheetRow.id] || []).length === 1
+                    ? 'friend tag'
+                    : 'friend tags'}
+                  {' · '}
+                  {(() => {
+                    const w = Number(friendTagsSheetRow.withdrawal || 0);
+                    const d = Number(friendTagsSheetRow.deposit || 0);
+                    const isW = w > 0;
+                    const amt = isW ? w : d;
+                    return `${isW ? 'Out' : 'In'} ₹${formatNumber(amt)}`;
+                  })()}
+                </p>
+                <p className="calendar-sheet__header-meta">
+                  {[friendTagsSheetRow.accountNumber, friendTagsSheetRow.isManual ? 'Manual' : null]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  {(() => {
+                    const line = friendTagsSheetRow.isManual
+                      ? friendTagsSheetRow.narration
+                      : friendTagsSheetRow.upiDescription || friendTagsSheetRow.upiName;
+                    const t = (line || '').trim();
+                    if (!t) return null;
+                    return ` · ${t.length > 140 ? `${t.slice(0, 137)}…` : t}`;
+                  })()}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="ghost calendar-sheet__close"
+                onClick={closeFriendTagsSheet}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="calendar-sheet__body">
+              <div className="calendar-summary-strip" aria-label="Transaction amounts">
+                <div>
+                  <span>Total in</span>
+                  <strong>₹{formatNumber(Number(friendTagsSheetRow.deposit || 0))}</strong>
+                </div>
+                <div>
+                  <span>Total out</span>
+                  <strong>₹{formatNumber(Number(friendTagsSheetRow.withdrawal || 0))}</strong>
+                </div>
+                <div>
+                  <span>Net</span>
+                  <strong>
+                    {(() => {
+                      const net =
+                        Number(friendTagsSheetRow.deposit || 0) -
+                        Number(friendTagsSheetRow.withdrawal || 0);
+                      return (
+                        <>
+                          {net >= 0 ? '+' : '−'}₹{formatNumber(Math.abs(net))}
+                        </>
+                      );
+                    })()}
+                  </strong>
+                </div>
+              </div>
+              <div className="calendar-manage-shell glass-panel">
+                {renderFriendTagsPanel(friendTagsSheetRow)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <section className="card card--transactions">
         <div className="glass-panel txn-premium-filters">
           <div className="card-header">
@@ -994,12 +1092,12 @@ export default function Transactions() {
                 <MobileTransactionCard
                   key={row.id}
                   row={row}
-                  expanded={expandedTransactionId === row.id}
-                  onToggleExpand={() => toggleTags(row.id)}
+                  expanded={false}
+                  onToggleExpand={() => openFriendTagsSheet(row.id)}
                   formatDateCompact={formatDateCompact}
                   formatNumber={formatNumber}
                 >
-                  {renderFriendTagsPanel(row)}
+                  {null}
                 </MobileTransactionCard>
               ))}
             </div>
@@ -1018,9 +1116,6 @@ export default function Transactions() {
               const isWithdrawal = withdrawal > 0;
               return isWithdrawal ? 'transaction-withdrawal' : 'transaction-deposit';
             }}
-            renderAfterRow={(row) =>
-              expandedTransactionId === row.id ? renderFriendTagsPanel(row) : null
-            }
           />
         )}
         {isPhone && !manualOpen && (
