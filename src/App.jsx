@@ -2,6 +2,7 @@ import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom';
 import MobileBottomNav from './components/MobileBottomNav.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Transactions from './pages/Transactions.jsx';
+import Calendar from './pages/Calendar.jsx';
 import Friends from './pages/Friends.jsx';
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
             Overview
           </NavLink>
           <NavLink to="/transactions">Transactions</NavLink>
+          <NavLink to="/calendar">Calendar</NavLink>
           <NavLink to="/friends">Friends</NavLink>
         </nav>
 
@@ -30,6 +32,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/transactions" element={<Transactions />} />
+            <Route path="/calendar" element={<Calendar />} />
             <Route path="/friends" element={<Friends />} />
           </Routes>
         </main>
