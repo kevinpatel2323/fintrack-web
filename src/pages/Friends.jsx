@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
+import DataTable from '../components/DataTable.jsx';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-const MIN_COL_WIDTH = 80;
-const FRIEND_COL_WIDTHS = [120, 200, 220, 140, 140, 120, 180];
 
 function formatDate(value) {
   if (!value) return '—';
@@ -48,22 +47,10 @@ export default function Friends() {
   const [summaries, setSummaries] = useState({});
   const [transactionsByFriend, setTransactionsByFriend] = useState({});
   const [transactionsStatusByFriend, setTransactionsStatusByFriend] = useState({});
-  const [friendColWidths, setFriendColWidths] = useState(FRIEND_COL_WIDTHS);
-  const [friendResizeLineX, setFriendResizeLineX] = useState(null);
-  const friendColWidthsRef = useRef(friendColWidths);
-  const friendResizeStateRef = useRef(null);
-  const friendGridTemplate = useMemo(
-    () => friendColWidths.map((width) => `${width}px`).join(' '),
-    [friendColWidths],
-  );
   const [expandedFriendId, setExpandedFriendId] = useState(null);
   const [confirmState, setConfirmState] = useState({ open: false });
 
   const canCreate = useMemo(() => createForm.name.trim().length > 0, [createForm]);
-
-  useEffect(() => {
-    friendColWidthsRef.current = friendColWidths;
-  }, [friendColWidths]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -226,48 +213,175 @@ export default function Friends() {
     }
   }
 
-  function handleFriendResizeStart(index, event) {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    const widths = friendColWidthsRef.current;
-    const nextIndex = index + 1;
-    if (nextIndex >= widths.length) return;
-
-    friendResizeStateRef.current = {
-      index,
-      startX: event.clientX,
-      startWidth: widths[index],
-      nextStartWidth: widths[nextIndex],
-    };
-    setFriendResizeLineX(event.clientX);
-
-    window.addEventListener('mousemove', handleFriendResizeMove);
-    window.addEventListener('mouseup', handleFriendResizeEnd);
-  }
-
-  function handleFriendResizeMove(event) {
-    const state = friendResizeStateRef.current;
-    if (!state) return;
-    const dx = event.clientX - state.startX;
-    const total = state.startWidth + state.nextStartWidth;
-    const newWidth = Math.max(MIN_COL_WIDTH, state.startWidth + dx);
-    const newNextWidth = Math.max(MIN_COL_WIDTH, total - newWidth);
-
-    setFriendResizeLineX(event.clientX);
-    setFriendColWidths((prev) => {
-      const updated = [...prev];
-      updated[state.index] = newWidth;
-      updated[state.index + 1] = newNextWidth;
-      return updated;
-    });
-  }
-
-  function handleFriendResizeEnd() {
-    friendResizeStateRef.current = null;
-    setFriendResizeLineX(null);
-    window.removeEventListener('mousemove', handleFriendResizeMove);
-    window.removeEventListener('mouseup', handleFriendResizeEnd);
-  }
+  const friendTaggedColumns = [
+    {
+      id: 'date',
+      header: 'Date',
+      defaultWidth: 120,
+      sortable: true,
+      accessor: (tag) => new Date(tag.transaction?.transactionDate).getTime(),
+      trim: true,
+      title: (tag) => formatDate(tag.transaction?.transactionDate),
+      cell: (tag) => <strong>{formatDate(tag.transaction?.transactionDate)}</strong>,
+    },
+    {
+      id: 'upiName',
+      header: 'UPI name',
+      defaultWidth: 180,
+      sortable: true,
+      accessor: (tag) => tag.transaction?.upiName || '',
+      trim: true,
+      title: (tag) => tag.transaction?.upiName || '—',
+      cellClassName: 'data-table-cell--span-mobile',
+      cell: (tag) => <strong>{tag.transaction?.upiName || '—'}</strong>,
+    },
+    {
+      id: 'upiDescription',
+      header: 'UPI description',
+      defaultWidth: 200,
+      sortable: true,
+      accessor: (tag) => tag.transaction?.upiDescription || '',
+      trim: true,
+      title: (tag) => tag.transaction?.upiDescription || '—',
+      cellClassName: 'data-table-cell--span-mobile',
+      cell: (tag) => <strong>{tag.transaction?.upiDescription || '—'}</strong>,
+    },
+    {
+      id: 'upiBank',
+      header: 'UPI bank',
+      defaultWidth: 140,
+      sortable: true,
+      accessor: (tag) => tag.transaction?.upiBank || '',
+      trim: true,
+      title: (tag) => tag.transaction?.upiBank || '—',
+      cellClassName: 'data-table-cell--span-mobile',
+      cell: (tag) => <strong>{tag.transaction?.upiBank || '—'}</strong>,
+    },
+    {
+      id: 'direction',
+      header: 'Direction',
+      defaultWidth: 140,
+      sortable: true,
+      accessor: (tag) => tag.direction || '',
+      trim: true,
+      cell: (tag) => (
+        <strong
+          className={
+            tag.direction === 'I_OWE'
+              ? 'friend-direction-owe'
+              : tag.direction === 'OWES_ME'
+                ? 'friend-direction-receivable'
+                : undefined
+          }
+        >
+          {tag.direction === 'I_OWE'
+            ? 'I owe'
+            : tag.direction === 'OWES_ME'
+              ? 'They owe me'
+              : tag.direction === 'SETTLEMENT'
+                ? 'Settlement'
+                : 'Nothing outstanding'}
+        </strong>
+      ),
+    },
+    {
+      id: 'amount',
+      header: 'Amount',
+      defaultWidth: 120,
+      sortable: true,
+      accessor: (tag) => Number(tag.amount) || 0,
+      trim: true,
+      title: (tag) => formatNumber(tag.amount),
+      cell: (tag) => (
+        <strong
+          className={
+            tag.direction === 'I_OWE'
+              ? 'friend-amount-owe'
+              : tag.direction === 'OWES_ME'
+                ? 'friend-amount-receivable'
+                : undefined
+          }
+        >
+          {formatNumber(tag.amount)}
+        </strong>
+      ),
+    },
+    {
+      id: 'note',
+      header: 'Note',
+      defaultWidth: 160,
+      sortable: true,
+      accessor: (tag) => tag.note || '',
+      trim: true,
+      title: (tag) => tag.note || '—',
+      cellClassName: 'data-table-cell--span-mobile',
+      cell: (tag) => <strong>{tag.note || '—'}</strong>,
+    },
+    {
+      id: 'settles',
+      header: 'Settles',
+      defaultWidth: 200,
+      sortable: false,
+      trim: true,
+      title: (tag) =>
+        tag.settlesTransactions?.length
+          ? tag.settlesTransactions
+              .map(
+                (s) =>
+                  `${formatDate(s.transaction?.transactionDate)} — ₹${formatNumber(s.amount)}`,
+              )
+              .join('; ')
+          : '',
+      cellClassName: 'data-table-cell--span-mobile',
+      cell: (tag) => (
+        <strong>
+          {tag.settlesTransactions?.length
+            ? tag.settlesTransactions.map((settled, idx) => (
+                <span key={settled.id}>
+                  {idx > 0 && ', '}
+                  {formatDate(settled.transaction?.transactionDate)} -
+                  {settled.direction === 'I_OWE'
+                    ? ' I owe'
+                    : settled.direction === 'OWES_ME'
+                      ? ' They owe me'
+                      : ' Nothing'}{' '}
+                  - ₹{formatNumber(settled.amount)}
+                </span>
+              ))
+            : '—'}
+        </strong>
+      ),
+    },
+    {
+      id: 'settledBy',
+      header: 'Settled by',
+      defaultWidth: 200,
+      sortable: false,
+      trim: true,
+      title: (tag) =>
+        tag.settledBy?.length
+          ? tag.settledBy
+              .map(
+                (s) =>
+                  `${formatDate(s.transaction?.transactionDate)} — ₹${formatNumber(s.amount)}`,
+              )
+              .join('; ')
+          : '',
+      cellClassName: 'data-table-cell--span-mobile',
+      cell: (tag) => (
+        <strong>
+          {tag.settledBy?.length
+            ? tag.settledBy.map((settlement, idx) => (
+                <span key={settlement.id}>
+                  {idx > 0 && ', '}
+                  {formatDate(settlement.transaction?.transactionDate)} - ₹{formatNumber(settlement.amount)}
+                </span>
+              ))
+            : '—'}
+        </strong>
+      ),
+    },
+  ];
 
   return (
     <>
@@ -427,132 +541,17 @@ export default function Friends() {
                       <h3>Tagged transactions</h3>
                       <p>All transactions linked to {friend.name}.</p>
                     </div>
-                    {friendResizeLineX !== null && (
-                      <>
-                        <div className="table-resize-overlay" />
-                        <div className="table-resize-line" style={{ left: friendResizeLineX }} />
-                      </>
-                    )}
                     {friendTransactions.length === 0 ? (
                       <p className="empty">No tagged transactions yet.</p>
                     ) : (
-                      <div
-                        className="friend-transactions-list"
-                        style={{ '--friend-tx-grid-columns': friendGridTemplate }}
-                      >
-                        <div className="friend-transaction-head" aria-hidden="true">
-                          {[
-                            'Date',
-                            'UPI name',
-                            'UPI description',
-                            'UPI bank',
-                            'Direction',
-                            'Amount',
-                            'Note',
-                          ].map((label, index) => (
-                            <span className="table-head-cell" key={label}>
-                              {label}
-                              {index < friendColWidths.length - 1 && (
-                                <button
-                                  type="button"
-                                  className="col-resizer"
-                                  aria-label="Resize column"
-                                  onMouseDown={(event) => handleFriendResizeStart(index, event)}
-                                />
-                              )}
-                            </span>
-                          ))}
-                        </div>
-                        {friendTransactions.map((tag) => (
-                          <div className="friend-transaction-row" key={tag.id}>
-                            <div className="friend-transaction-cell">
-                              <span className="friend-cell-label">Date</span>
-                              <strong>{formatDate(tag.transaction?.transactionDate)}</strong>
-                            </div>
-                            <div className="friend-transaction-cell friend-transaction-upi-name">
-                              <span className="friend-cell-label">UPI name</span>
-                              <strong>{tag.transaction?.upiName || '—'}</strong>
-                            </div>
-                            <div className="friend-transaction-cell friend-transaction-upi-desc">
-                              <span className="friend-cell-label">UPI description</span>
-                              <strong title={tag.transaction?.upiDescription || '—'}>
-                                {tag.transaction?.upiDescription || '—'}
-                              </strong>
-                            </div>
-                            <div className="friend-transaction-cell friend-transaction-upi-bank">
-                              <span className="friend-cell-label">UPI bank</span>
-                              <strong>{tag.transaction?.upiBank || '—'}</strong>
-                            </div>
-                            <div className="friend-transaction-cell">
-                              <span className="friend-cell-label">Direction</span>
-                              <strong
-                                className={
-                                  tag.direction === 'I_OWE'
-                                    ? 'friend-direction-owe'
-                                    : tag.direction === 'OWES_ME'
-                                      ? 'friend-direction-receivable'
-                                      : undefined
-                                }
-                              >
-                                {tag.direction === 'I_OWE'
-                                  ? 'I owe'
-                                  : tag.direction === 'OWES_ME'
-                                    ? 'They owe me'
-                                    : tag.direction === 'SETTLEMENT'
-                                      ? 'Settlement'
-                                    : 'Nothing outstanding'}
-                              </strong>
-                            </div>
-                            <div className="friend-transaction-cell">
-                              <span className="friend-cell-label">Amount</span>
-                              <strong
-                                className={
-                                  tag.direction === 'I_OWE'
-                                    ? 'friend-amount-owe'
-                                    : tag.direction === 'OWES_ME'
-                                      ? 'friend-amount-receivable'
-                                      : undefined
-                                }
-                              >
-                                {formatNumber(tag.amount)}
-                              </strong>
-                            </div>
-                            <div className="friend-transaction-cell friend-transaction-note">
-                              <span className="friend-cell-label">Note</span>
-                              <strong title={tag.note || '—'}>{tag.note || '—'}</strong>
-                            </div>
-                            {tag.settlesTransactions && tag.settlesTransactions.length > 0 && (
-                              <div className="friend-transaction-cell friend-transaction-linked">
-                                <span className="friend-cell-label">Settles</span>
-                                <strong>
-                                  {tag.settlesTransactions.map((settled, idx) => (
-                                    <span key={settled.id}>
-                                      {idx > 0 && ', '}
-                                      {formatDate(settled.transaction?.transactionDate)} -
-                                      {settled.direction === 'I_OWE' ? ' I owe' :
-                                       settled.direction === 'OWES_ME' ? ' They owe me' : ' Nothing'} -
-                                      ₹{formatNumber(settled.amount)}
-                                    </span>
-                                  ))}
-                                </strong>
-                              </div>
-                            )}
-                            {tag.settledBy && tag.settledBy.length > 0 && (
-                              <div className="friend-transaction-cell friend-transaction-settled">
-                                <span className="friend-cell-label">Settled by</span>
-                                <strong>
-                                  {tag.settledBy.map((settlement, idx) => (
-                                    <span key={settlement.id}>
-                                      {idx > 0 && ', '}
-                                      {formatDate(settlement.transaction?.transactionDate)} - ₹{formatNumber(settlement.amount)}
-                                    </span>
-                                  ))}
-                                </strong>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                      <DataTable
+                        storageKey={`fintrack-friend-tags-${friend.id}`}
+                        columns={friendTaggedColumns}
+                        rows={friendTransactions}
+                        getRowKey={(row) => row.id}
+                        mobileHeroColumnIds={['date', 'direction', 'amount']}
+                        aria-label={`Tagged transactions for ${friend.name}`}
+                      />
                     )}
                   </div>
                 )}

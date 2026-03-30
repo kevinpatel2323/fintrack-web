@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
+import DataTable from '../components/DataTable.jsx';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-const MIN_COL_WIDTH = 80;
-const PREVIEW_COL_WIDTHS = [120, 180, 220, 180, 110, 130, 130];
 
 function formatDate(value) {
   if (!value) return '—';
@@ -44,19 +43,6 @@ export default function Dashboard() {
   const [uploadResult, setUploadResult] = useState(null);
   const [uploadPreview, setUploadPreview] = useState(null);
   const [previewFileKey, setPreviewFileKey] = useState('');
-  const [previewColWidths, setPreviewColWidths] = useState(PREVIEW_COL_WIDTHS);
-  const [previewResizeLineX, setPreviewResizeLineX] = useState(null);
-  const previewColWidthsRef = useRef(previewColWidths);
-  const previewResizeStateRef = useRef(null);
-
-  const previewGridTemplate = useMemo(
-    () => previewColWidths.map((width) => `${width}px`).join(' '),
-    [previewColWidths],
-  );
-
-  useEffect(() => {
-    previewColWidthsRef.current = previewColWidths;
-  }, [previewColWidths]);
 
   function getFileKey(file) {
     if (!file) return '';
@@ -255,48 +241,166 @@ export default function Dashboard() {
     });
   }
 
-  function handlePreviewResizeStart(index, event) {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    const widths = previewColWidthsRef.current;
-    const nextIndex = index + 1;
-    if (nextIndex >= widths.length) return;
+  const previewColumns = [
+    {
+      id: 'date',
+      header: 'Date',
+      defaultWidth: 120,
+      sortable: true,
+      accessor: (row) => new Date(row.transactionDate).getTime(),
+      trim: true,
+      title: (row) => formatDate(row.transactionDate),
+      cellClassName: 'data-table-cell--span-mobile',
+      cell: (row) => <strong className="transaction-date">{formatDate(row.transactionDate)}</strong>,
+    },
+    {
+      id: 'account',
+      header: 'Account',
+      defaultWidth: 180,
+      sortable: true,
+      accessor: (row) => row.accountNumber || '',
+      trim: true,
+      cell: (row) => (
+        <span className="transaction-account-badge">
+          {row.accountNumber || uploadPreview?.accountNumber || 'unknown'}
+        </span>
+      ),
+    },
+    {
+      id: 'upiName',
+      header: 'UPI name',
+      defaultWidth: 200,
+      sortable: true,
+      accessor: (row) => row.upiName || '',
+      trim: true,
+      title: (row) => row.upiName || '—',
+      cellClassName: 'data-table-cell--span-mobile',
+      cell: (row) => <strong>{row.upiName || '—'}</strong>,
+    },
+    {
+      id: 'upiDescription',
+      header: 'UPI description',
+      defaultWidth: 220,
+      sortable: true,
+      accessor: (row) => row.upiDescription || '',
+      trim: true,
+      title: (row) => row.upiDescription || '—',
+      cellClassName: 'data-table-cell--span-mobile',
+      cell: (row) => <strong>{row.upiDescription || '—'}</strong>,
+    },
+    {
+      id: 'upiBank',
+      header: 'UPI bank',
+      defaultWidth: 160,
+      sortable: true,
+      accessor: (row) => row.upiBank || '',
+      trim: true,
+      title: (row) => row.upiBank || '—',
+      cellClassName: 'data-table-cell--span-mobile',
+      cell: (row) => <strong>{row.upiBank || '—'}</strong>,
+    },
+    {
+      id: 'amount',
+      header: 'Amount',
+      defaultWidth: 120,
+      sortable: true,
+      accessor: (row) => {
+        const w = Number(row.withdrawal || 0);
+        const d = Number(row.deposit || 0);
+        return w > 0 ? -w : d;
+      },
+      trim: true,
+      cell: (row) => {
+        const withdrawal = Number(row.withdrawal || 0);
+        const deposit = Number(row.deposit || 0);
+        const amount = withdrawal > 0 ? withdrawal : deposit;
+        const isWithdrawal = withdrawal > 0;
+        return (
+          <strong className={`transaction-amount ${isWithdrawal ? 'amount-withdrawal' : 'amount-deposit'}`}>
+            {isWithdrawal ? '-' : '+'}
+            {formatNumber(amount)}
+          </strong>
+        );
+      },
+    },
+    {
+      id: 'balance',
+      header: 'Balance',
+      defaultWidth: 130,
+      sortable: true,
+      accessor: (row) => Number(row.balance) || 0,
+      trim: true,
+      title: (row) => formatNumber(row.balance),
+      cell: (row) => <strong>{formatNumber(row.balance)}</strong>,
+    },
+  ];
 
-    previewResizeStateRef.current = {
-      index,
-      startX: event.clientX,
-      startWidth: widths[index],
-      nextStartWidth: widths[nextIndex],
-    };
-    setPreviewResizeLineX(event.clientX);
-
-    window.addEventListener('mousemove', handlePreviewResizeMove);
-    window.addEventListener('mouseup', handlePreviewResizeEnd);
-  }
-
-  function handlePreviewResizeMove(event) {
-    const state = previewResizeStateRef.current;
-    if (!state) return;
-    const dx = event.clientX - state.startX;
-    const total = state.startWidth + state.nextStartWidth;
-    const newWidth = Math.max(MIN_COL_WIDTH, state.startWidth + dx);
-    const newNextWidth = Math.max(MIN_COL_WIDTH, total - newWidth);
-
-    setPreviewResizeLineX(event.clientX);
-    setPreviewColWidths((prev) => {
-      const updated = [...prev];
-      updated[state.index] = newWidth;
-      updated[state.index + 1] = newNextWidth;
-      return updated;
-    });
-  }
-
-  function handlePreviewResizeEnd() {
-    previewResizeStateRef.current = null;
-    setPreviewResizeLineX(null);
-    window.removeEventListener('mousemove', handlePreviewResizeMove);
-    window.removeEventListener('mouseup', handlePreviewResizeEnd);
-  }
+  const importColumns = [
+    {
+      id: 'account',
+      header: 'Account',
+      defaultWidth: 140,
+      sortable: true,
+      accessor: (row) => row.accountNumber || '',
+      trim: true,
+      title: (row) => row.accountNumber || 'unknown',
+      cell: (row) => <strong>{row.accountNumber || 'unknown'}</strong>,
+    },
+    {
+      id: 'period',
+      header: 'Period',
+      defaultWidth: 220,
+      sortable: true,
+      accessor: (row) => new Date(row.periodStart).getTime(),
+      trim: true,
+      title: (row) =>
+        `${formatDate(row.periodStart)} → ${formatDate(row.periodEnd)}`,
+      cellClassName: 'data-table-cell--span-mobile',
+      cell: (row) => (
+        <strong>
+          {formatDate(row.periodStart)} → {formatDate(row.periodEnd)}
+        </strong>
+      ),
+    },
+    {
+      id: 'inserted',
+      header: 'Inserted',
+      defaultWidth: 110,
+      sortable: true,
+      accessor: (row) => Number(row.insertedRows) || 0,
+      trim: true,
+      cell: (row) => <strong>{formatNumber(row.insertedRows)}</strong>,
+    },
+    {
+      id: 'uploaded',
+      header: 'Uploaded',
+      defaultWidth: 130,
+      sortable: true,
+      accessor: (row) => new Date(row.uploadedAt).getTime(),
+      trim: true,
+      title: (row) => formatDate(row.uploadedAt),
+      cell: (row) => <strong>{formatDate(row.uploadedAt)}</strong>,
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      defaultWidth: 120,
+      minWidth: 96,
+      hideable: false,
+      sortable: false,
+      cellClassName: 'data-table-cell--actions',
+      cell: (row) => (
+        <button
+          className="ghost"
+          type="button"
+          onClick={() => handleRevertImport(row.id)}
+          disabled={revertingImportId === row.id}
+        >
+          {revertingImportId === row.id ? 'Reverting...' : 'Revert'}
+        </button>
+      ),
+    },
+  ];
 
   return (
     <>
@@ -376,84 +480,22 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="transactions-table">
-                {previewResizeLineX !== null && (
-                  <>
-                    <div className="table-resize-overlay" />
-                    <div className="table-resize-line" style={{ left: previewResizeLineX }} />
-                  </>
-                )}
-                <div className="table" style={{ '--tx-grid-columns': previewGridTemplate }}>
-                  <div className="table-head" aria-hidden="true">
-                    {[
-                      'Date',
-                      'Account',
-                      'UPI name',
-                      'UPI description',
-                      'UPI bank',
-                      'Amount',
-                      'Balance',
-                    ].map((label, index) => (
-                      <span className="table-head-cell" key={label}>
-                        {label}
-                        {index < previewColWidths.length - 1 && (
-                          <button
-                            type="button"
-                            className="col-resizer"
-                            aria-label="Resize column"
-                            onMouseDown={(event) => handlePreviewResizeStart(index, event)}
-                          />
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                  {uploadPreview.previewRows.length === 0 ? (
-                    <p className="empty">No new entries will be inserted from this statement.</p>
-                  ) : (
-                    uploadPreview.previewRows.map((row, idx) => {
-                      const withdrawal = Number(row.withdrawal || 0);
-                      const deposit = Number(row.deposit || 0);
-                      const amount = withdrawal > 0 ? withdrawal : deposit;
-                      const isWithdrawal = withdrawal > 0;
-
-                      return (
-                        <div className={`table-row ${isWithdrawal ? 'transaction-withdrawal' : 'transaction-deposit'}`} key={`${row.transactionDate}-${idx}`}>
-                          <div className="table-cell">
-                            <span className="table-cell-label">Date</span>
-                            <strong className="transaction-date">{formatDate(row.transactionDate)}</strong>
-                          </div>
-                          <div className="table-cell">
-                            <span className="table-cell-label">Account</span>
-                            <span className="transaction-account-badge">{row.accountNumber || uploadPreview.accountNumber || 'unknown'}</span>
-                          </div>
-                          <div className="table-cell table-upi-name">
-                            <span className="table-cell-label">UPI name</span>
-                            <strong>{row.upiName || '—'}</strong>
-                          </div>
-                          <div className="table-cell table-upi-desc">
-                            <span className="table-cell-label">UPI description</span>
-                            <strong title={row.upiDescription || '—'}>{row.upiDescription || '—'}</strong>
-                          </div>
-                          <div className="table-cell table-upi-bank">
-                            <span className="table-cell-label">UPI bank</span>
-                            <strong>{row.upiBank || '—'}</strong>
-                          </div>
-                          <div className="table-cell">
-                            <span className="table-cell-label">Amount</span>
-                            <strong className={`transaction-amount ${isWithdrawal ? 'amount-withdrawal' : 'amount-deposit'}`}>
-                              {isWithdrawal ? '-' : '+'}{formatNumber(amount)}
-                            </strong>
-                          </div>
-                          <div className="table-cell">
-                            <span className="table-cell-label">Balance</span>
-                            <strong>{formatNumber(row.balance)}</strong>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
+              {uploadPreview.previewRows.length === 0 ? (
+                <p className="empty">No new entries will be inserted from this statement.</p>
+              ) : (
+                <DataTable
+                  columns={previewColumns}
+                  rows={uploadPreview.previewRows}
+                  getRowKey={(row, index) => `${row.transactionDate}-${index}`}
+                  scrollClassName="data-table-scroll transactions-table"
+                  mobileHeroColumnIds={['date', 'amount', 'balance']}
+                  aria-label="Statement import preview"
+                  rowClassName={(row) => {
+                    const withdrawal = Number(row.withdrawal || 0);
+                    return withdrawal > 0 ? 'transaction-withdrawal' : 'transaction-deposit';
+                  }}
+                />
+              )}
             </div>
           )}
           {uploadResult && (
@@ -570,47 +612,14 @@ export default function Dashboard() {
         ) : imports.length === 0 ? (
           <p className="empty">No imports found.</p>
         ) : (
-          <div className="imports-list">
-            <div className="imports-head" aria-hidden="true">
-              <span>Account</span>
-              <span>Period</span>
-              <span>Inserted</span>
-              <span>Uploaded</span>
-              <span>Actions</span>
-            </div>
-            {imports.map((item) => (
-              <article className="import-row" key={item.id}>
-                <div>
-                  <span className="label">Account</span>
-                  <strong>{item.accountNumber || 'unknown'}</strong>
-                </div>
-                <div>
-                  <span className="label">Period</span>
-                  <strong>
-                    {formatDate(item.periodStart)} → {formatDate(item.periodEnd)}
-                  </strong>
-                </div>
-                <div>
-                  <span className="label">Inserted</span>
-                  <strong>{formatNumber(item.insertedRows)}</strong>
-                </div>
-                <div>
-                  <span className="label">Uploaded</span>
-                  <strong>{formatDate(item.uploadedAt)}</strong>
-                </div>
-                <div className="import-actions">
-                  <button
-                    className="ghost"
-                    type="button"
-                    onClick={() => handleRevertImport(item.id)}
-                    disabled={revertingImportId === item.id}
-                  >
-                    {revertingImportId === item.id ? 'Reverting...' : 'Revert'}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
+          <DataTable
+            storageKey="fintrack-imports-v1"
+            columns={importColumns}
+            rows={imports}
+            getRowKey={(row) => row.id}
+            mobileHeroColumnIds={['account', 'inserted', 'actions']}
+            aria-label="Recent statement imports"
+          />
         )}
         {importsStatus && <p className="status">{importsStatus}</p>}
       </section>
