@@ -1,5 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
+import DataTable from '../components/DataTable.jsx';
+import MobileTransactionCard from '../components/MobileTransactionCard.jsx';
+import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import { sortTableRows } from '../utils/tableSort.js';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
@@ -108,6 +112,16 @@ function formatDate(value) {
   }).format(date);
 }
 
+function formatDateCompact(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat('en-IN', {
+    day: 'numeric',
+    month: 'short',
+  }).format(date);
+}
+
 function formatNumber(value) {
   if (value === null || value === undefined) return '—';
   const num = Number(value);
@@ -131,9 +145,6 @@ function getTodayIso() {
   const dd = String(now.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 }
-
-const MIN_COL_WIDTH = 80;
-const DEFAULT_COL_WIDTHS = [120, 180, 220, 180, 110, 130, 130, 120];
 
 export default function Transactions() {
   const [accounts, setAccounts] = useState([]);
@@ -159,10 +170,6 @@ export default function Transactions() {
   const [manualStatus, setManualStatus] = useState('');
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
-  const [colWidths, setColWidths] = useState(DEFAULT_COL_WIDTHS);
-  const [resizeLineX, setResizeLineX] = useState(null);
-  const colWidthsRef = useRef(colWidths);
-  const resizeStateRef = useRef(null);
   const [manualForm, setManualForm] = useState({
     transactionDate: getTodayIso(),
     narration: '',
@@ -176,14 +183,9 @@ export default function Transactions() {
   });
 
   const canFetchRange = useMemo(() => rangeStart && rangeEnd, [rangeStart, rangeEnd]);
-  const gridTemplate = useMemo(
-    () => colWidths.map((width) => `${width}px`).join(' '),
-    [colWidths],
-  );
-
-  useEffect(() => {
-    colWidthsRef.current = colWidths;
-  }, [colWidths]);
+  const isNarrow = useMediaQuery('(max-width: 1099px)');
+  const isPhone = useMediaQuery('(max-width: 719px)');
+  const [mobileSort, setMobileSort] = useState({ columnId: 'date', dir: 'desc' });
 
   useEffect(() => {
     async function fetchAccounts() {
@@ -503,48 +505,252 @@ export default function Transactions() {
     }
   }
 
-  function handleResizeStart(index, event) {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    const widths = colWidthsRef.current;
-    const nextIndex = index + 1;
-    if (nextIndex >= widths.length) return;
+  const transactionColumns = useMemo(
+    () => [
+      {
+        id: 'date',
+        header: 'Date',
+        defaultWidth: 120,
+        minWidth: 88,
+        sortable: true,
+        accessor: (row) => new Date(row.transactionDate).getTime(),
+        trim: true,
+        title: (row) => formatDate(row.transactionDate),
+        cellClassName: 'data-table-cell--span-mobile',
+        cell: (row) => <strong className="transaction-date">{formatDate(row.transactionDate)}</strong>,
+      },
+      {
+        id: 'account',
+        header: 'Account',
+        defaultWidth: 180,
+        sortable: true,
+        accessor: (row) => row.accountNumber || '',
+        trim: true,
+        title: (row) => row.accountNumber || 'unknown',
+        cell: (row) => (
+          <>
+            <span className="transaction-account-badge">{row.accountNumber || 'unknown'}</span>
+            {row.isManual && <span className="transaction-status-badge manual">Manual</span>}
+          </>
+        ),
+      },
+      {
+        id: 'upiName',
+        header: 'UPI name',
+        defaultWidth: 200,
+        sortable: true,
+        accessor: (row) => row.upiName || '',
+        trim: true,
+        title: (row) => row.upiName || '—',
+        cellClassName: 'data-table-cell--span-mobile',
+        cell: (row) => <strong>{row.upiName || '—'}</strong>,
+      },
+      {
+        id: 'upiDescription',
+        header: 'UPI description',
+        defaultWidth: 220,
+        sortable: true,
+        accessor: (row) => (row.isManual ? row.narration : row.upiDescription) || '',
+        trim: true,
+        title: (row) => (row.isManual ? row.narration : row.upiDescription) || '—',
+        cellClassName: 'data-table-cell--span-mobile',
+        cell: (row) => {
+          const text = row.isManual ? row.narration : row.upiDescription;
+          return <strong>{text || '—'}</strong>;
+        },
+      },
+      {
+        id: 'upiBank',
+        header: 'UPI bank',
+        defaultWidth: 160,
+        sortable: true,
+        accessor: (row) => row.upiBank || '',
+        trim: true,
+        title: (row) => row.upiBank || '—',
+        cellClassName: 'data-table-cell--span-mobile',
+        cell: (row) => <strong>{row.upiBank || '—'}</strong>,
+      },
+      {
+        id: 'amount',
+        header: 'Amount',
+        defaultWidth: 120,
+        sortable: true,
+        accessor: (row) => {
+          const w = Number(row.withdrawal || 0);
+          const d = Number(row.deposit || 0);
+          return w > 0 ? -w : d;
+        },
+        trim: true,
+        cell: (row) => {
+          const withdrawal = Number(row.withdrawal || 0);
+          const deposit = Number(row.deposit || 0);
+          const amount = withdrawal > 0 ? withdrawal : deposit;
+          const isWithdrawal = withdrawal > 0;
+          return (
+            <strong className={`transaction-amount ${isWithdrawal ? 'amount-withdrawal' : 'amount-deposit'}`}>
+              {isWithdrawal ? '-' : '+'}
+              {formatNumber(amount)}
+            </strong>
+          );
+        },
+      },
+      {
+        id: 'balance',
+        header: 'Balance',
+        defaultWidth: 130,
+        sortable: true,
+        accessor: (row) => Number(row.balance) || 0,
+        trim: true,
+        title: (row) => formatNumber(row.balance),
+        cell: (row) => <strong>{formatNumber(row.balance)}</strong>,
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        defaultWidth: 120,
+        minWidth: 96,
+        hideable: false,
+        sortable: false,
+        cellClassName: 'data-table-cell--actions',
+        cell: (row) => (
+          <button
+            className="ghost"
+            type="button"
+            onClick={() => toggleTags(row.id)}
+            aria-label={expandedTransactionId === row.id ? 'Close tags panel' : 'Manage friends'}
+          >
+            {expandedTransactionId === row.id ? '⌃' : 'Manage'}
+          </button>
+        ),
+      },
+    ],
+    [expandedTransactionId],
+  );
 
-    resizeStateRef.current = {
-      index,
-      startX: event.clientX,
-      startWidth: widths[index],
-      nextStartWidth: widths[nextIndex],
-    };
-    setResizeLineX(event.clientX);
+  const sortedForMobile = useMemo(
+    () => sortTableRows(transactions, transactionColumns, mobileSort),
+    [transactions, transactionColumns, mobileSort],
+  );
 
-    window.addEventListener('mousemove', handleResizeMove);
-    window.addEventListener('mouseup', handleResizeEnd);
-  }
-
-  function handleResizeMove(event) {
-    const state = resizeStateRef.current;
-    if (!state) return;
-    const dx = event.clientX - state.startX;
-    const total = state.startWidth + state.nextStartWidth;
-    const newWidth = Math.max(MIN_COL_WIDTH, state.startWidth + dx);
-    const newNextWidth = Math.max(MIN_COL_WIDTH, total - newWidth);
-
-    setResizeLineX(event.clientX);
-    setColWidths((prev) => {
-      const updated = [...prev];
-      updated[state.index] = newWidth;
-      updated[state.index + 1] = newNextWidth;
-      return updated;
-    });
-  }
-
-  function handleResizeEnd() {
-    resizeStateRef.current = null;
-    setResizeLineX(null);
-    window.removeEventListener('mousemove', handleResizeMove);
-    window.removeEventListener('mouseup', handleResizeEnd);
-  }
+  const renderFriendTagsPanel = (row) => (
+    <div className="friend-tags-panel">
+      <div className="friend-tags-header">
+        <h3>Friend tags</h3>
+        <p>Track who owes whom for this transaction.</p>
+      </div>
+      <div className="friend-tags-form">
+        <div className="tag-form-row">
+          <select
+            value={tagFormByTransaction[row.id]?.friendId || ''}
+            onChange={(event) => updateTagForm(row.id, { friendId: event.target.value })}
+          >
+            <option value="">Select friend</option>
+            {friends.map((friend) => (
+              <option key={friend.id} value={friend.id}>
+                {friend.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="Amount"
+            value={tagFormByTransaction[row.id]?.amount || ''}
+            onChange={(event) => updateTagForm(row.id, { amount: event.target.value })}
+          />
+          <select
+            value={tagFormByTransaction[row.id]?.direction || 'NOTHING_OUTSTANDING'}
+            onChange={(event) => updateTagForm(row.id, { direction: event.target.value })}
+          >
+            <option value="NOTHING_OUTSTANDING">Nothing outstanding</option>
+            <option value="I_OWE">I owe</option>
+            <option value="OWES_ME">They owe me</option>
+            <option value="SETTLEMENT">Settlement</option>
+          </select>
+        </div>
+        {tagFormByTransaction[row.id]?.direction === 'SETTLEMENT' &&
+          tagFormByTransaction[row.id]?.friendId && (
+            <div className="settlement-section">
+              <label className="settlement-label">Select transactions to settle</label>
+              <SettlementSelect
+                rowId={row.id}
+                friendId={tagFormByTransaction[row.id]?.friendId}
+                linkableTransactions={linkableTransactions}
+                linkableTransactionsLoading={linkableTransactionsLoading}
+                selectedIds={tagFormByTransaction[row.id]?.linkedTransactionIds || []}
+                onChange={(selected) => updateTagForm(row.id, { linkedTransactionIds: selected })}
+              />
+            </div>
+          )}
+        <div className="tag-form-row">
+          <input
+            type="text"
+            placeholder="Note (optional)"
+            value={tagFormByTransaction[row.id]?.note || ''}
+            onChange={(event) => updateTagForm(row.id, { note: event.target.value })}
+            className="note-input"
+          />
+          <button className="secondary" type="button" onClick={() => addTag(row.id)}>
+            Add tag
+          </button>
+        </div>
+      </div>
+      {tagsStatusByTransaction[row.id] && (
+        <p className="status">{tagsStatusByTransaction[row.id]}</p>
+      )}
+      <div className="friend-tags-list">
+        {(tagsByTransaction[row.id] || []).length === 0 ? (
+          <p className="empty">No friend tags for this transaction.</p>
+        ) : (
+          (tagsByTransaction[row.id] || []).map((tag) => (
+            <div className="friend-tag-row" key={tag.id}>
+              <div>
+                <span>Friend</span>
+                <strong>{tag.friend?.name || tag.friendId}</strong>
+              </div>
+              <div>
+                <span>Direction</span>
+                <strong>
+                  {tag.direction === 'I_OWE'
+                    ? 'I owe'
+                    : tag.direction === 'OWES_ME'
+                      ? 'They owe me'
+                      : tag.direction === 'SETTLEMENT'
+                        ? 'Settlement'
+                        : 'Nothing outstanding'}
+                </strong>
+              </div>
+              <div>
+                <span>Amount</span>
+                <strong>{formatNumber(tag.amount)}</strong>
+              </div>
+              <div>
+                <span>Note</span>
+                <strong>{tag.note || '—'}</strong>
+              </div>
+              {tag.settlesTransactions && tag.settlesTransactions.length > 0 && (
+                <div>
+                  <span>Settles</span>
+                  <strong>
+                    {tag.settlesTransactions.map((linked, idx) => (
+                      <span key={linked.id}>
+                        {idx > 0 && ', '}
+                        {formatDate(linked.transaction?.transactionDate)} - ₹{formatNumber(linked.amount)}
+                      </span>
+                    ))}
+                  </strong>
+                </div>
+              )}
+              <button className="ghost" type="button" onClick={() => deleteTag(row.id, tag.id)}>
+                Remove
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -557,37 +763,62 @@ export default function Transactions() {
         onConfirm={confirmState.onConfirm}
         onCancel={confirmState.onCancel}
       />
-      <section className="card">
-        <div className="card-header">
-          <div>
-            <h2>Transactions</h2>
-            <p>Filter by date range. Defaults to the current month.</p>
+      <section className="card card--transactions">
+        <div className="glass-panel txn-premium-filters">
+          <div className="card-header">
+            <div>
+              <h2>Filters</h2>
+              <p>Filter by date range. Defaults to the current month.</p>
+            </div>
+            <div className="select-wrap">
+              <select value={rangeAccount} onChange={(e) => setRangeAccount(e.target.value)}>
+                <option value="">All accounts</option>
+                {accounts.map((account) => (
+                  <option value={account} key={account}>
+                    {account}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div className="select-wrap">
-            <select value={rangeAccount} onChange={(e) => setRangeAccount(e.target.value)}>
-              <option value="">All accounts</option>
-              {accounts.map((account) => (
-                <option value={account} key={account}>
-                  {account}
-                </option>
-              ))}
-            </select>
-          </div>
+          <form className="range-form range-form--premium" onSubmit={handleRangeFetch}>
+            <label>
+              <span>Start date</span>
+              <input
+                type="date"
+                value={rangeStart}
+                onChange={(event) => setRangeStart(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>End date</span>
+              <input
+                type="date"
+                value={rangeEnd}
+                onChange={(event) => setRangeEnd(event.target.value)}
+              />
+            </label>
+            <button className="secondary" type="submit" disabled={!canFetchRange}>
+              Refresh
+            </button>
+          </form>
         </div>
         {accountsStatus && <p className="status">{accountsStatus}</p>}
         {friendsStatus && <p className="status">{friendsStatus}</p>}
-        <div className="friend-actions">
-          <button
-            className="secondary"
-            type="button"
-            onClick={() => {
-              setManualStatus('');
-              setManualOpen((prev) => !prev);
-            }}
-          >
-            {manualOpen ? 'Close manual form' : 'Add manual transaction'}
-          </button>
-        </div>
+        {!isPhone && (
+          <div className="friend-actions">
+            <button
+              className="secondary"
+              type="button"
+              onClick={() => {
+                setManualStatus('');
+                setManualOpen((prev) => !prev);
+              }}
+            >
+              {manualOpen ? 'Close manual form' : 'Add manual transaction'}
+            </button>
+          </div>
+        )}
         {manualOpen && (
           <form className="friend-form manual-form" onSubmit={handleManualSubmit}>
             <div className="friend-tags-header">
@@ -716,30 +947,9 @@ export default function Transactions() {
             </div>
           </form>
         )}
-        <form className="range-form" onSubmit={handleRangeFetch}>
-          <label>
-            <span>Start date</span>
-            <input
-              type="date"
-              value={rangeStart}
-              onChange={(event) => setRangeStart(event.target.value)}
-            />
-          </label>
-          <label>
-            <span>End date</span>
-            <input
-              type="date"
-              value={rangeEnd}
-              onChange={(event) => setRangeEnd(event.target.value)}
-            />
-          </label>
-          <button className="secondary" type="submit" disabled={!canFetchRange}>
-            Refresh
-          </button>
-        </form>
         {rangeStatus && <p className="status">{rangeStatus}</p>}
         {rangeResult && (
-          <div className="range-result">
+          <div className="range-result glass-panel txn-stat-strip">
             <div>
               <span>Transactions</span>
               <strong>{formatNumber(rangeResult.count)}</strong>
@@ -754,236 +964,78 @@ export default function Transactions() {
             </div>
           </div>
         )}
-        <div className="transactions-table">
-          {resizeLineX !== null && (
-            <>
-              <div className="table-resize-overlay" />
-              <div className="table-resize-line" style={{ left: resizeLineX }} />
-            </>
-          )}
-          {transactionsLoading ? (
-            <p className="status">Loading transactions...</p>
-          ) : transactions.length === 0 ? (
-            <p className="empty">No transactions in this range.</p>
-          ) : (
-            <div className="table" style={{ '--tx-grid-columns': gridTemplate }}>
-              <div className="table-head" aria-hidden="true">
-                {[
-                  'Date',
-                  'Account',
-                  'UPI name',
-                  'UPI description',
-                  'UPI bank',
-                  'Amount',
-                  'Balance',
-                  'Actions',
-                ].map((label, index) => (
-                  <span className="table-head-cell" key={label}>
-                    {label}
-                    {index < colWidths.length - 1 && (
-                      <button
-                        type="button"
-                        className="col-resizer"
-                        aria-label="Resize column"
-                        onMouseDown={(event) => handleResizeStart(index, event)}
-                      />
-                    )}
-                  </span>
-                ))}
-              </div>
-              {transactions.map((row) => {
-                const withdrawal = Number(row.withdrawal || 0);
-                const deposit = Number(row.deposit || 0);
-                const amount = withdrawal > 0 ? withdrawal : deposit;
-                const isWithdrawal = withdrawal > 0;
-                const upiDescription = row.isManual ? row.narration : row.upiDescription;
-
-                return (
-                  <div className={`table-row ${isWithdrawal ? 'transaction-withdrawal' : 'transaction-deposit'}`} key={row.id}>
-                    <div className="table-cell">
-                      <span className="table-cell-label">Date</span>
-                      <strong className="transaction-date">{formatDate(row.transactionDate)}</strong>
-                    </div>
-                    <div className="table-cell">
-                      <span className="table-cell-label">Account</span>
-                      <span className="transaction-account-badge">{row.accountNumber || 'unknown'}</span>
-                      {row.isManual && (
-                        <span className="transaction-status-badge manual">Manual</span>
-                      )}
-                    </div>
-                    <div className="table-cell table-upi-name">
-                      <span className="table-cell-label">UPI name</span>
-                      <strong>{row.upiName || '—'}</strong>
-                    </div>
-                    <div className="table-cell table-upi-desc">
-                      <span className="table-cell-label">UPI description</span>
-                      <strong title={upiDescription || '—'}>{upiDescription || '—'}</strong>
-                    </div>
-                    <div className="table-cell table-upi-bank">
-                      <span className="table-cell-label">UPI bank</span>
-                      <strong>{row.upiBank || '—'}</strong>
-                    </div>
-                    <div className="table-cell">
-                      <span className="table-cell-label">Amount</span>
-                      <strong className={`transaction-amount ${isWithdrawal ? 'amount-withdrawal' : 'amount-deposit'}`}>
-                        {isWithdrawal ? '-' : '+'}{formatNumber(amount)}
-                      </strong>
-                    </div>
-                    <div className="table-cell">
-                      <span className="table-cell-label">Balance</span>
-                      <strong>{formatNumber(row.balance)}</strong>
-                    </div>
-                    <div className="table-actions">
-                      <button
-                        className="ghost"
-                        type="button"
-                        onClick={() => toggleTags(row.id)}
-                        aria-label={
-                          expandedTransactionId === row.id ? 'Close tags panel' : 'Manage friends'
-                        }
-                      >
-                        {expandedTransactionId === row.id ? '⌃' : 'Manage'}
-                      </button>
-                    </div>
-                    {expandedTransactionId === row.id && (
-                      <div className="friend-tags-panel">
-                        <div className="friend-tags-header">
-                          <h3>Friend tags</h3>
-                          <p>Track who owes whom for this transaction.</p>
-                        </div>
-                        <div className="friend-tags-form">
-                          <div className="tag-form-row">
-                            <select
-                              value={tagFormByTransaction[row.id]?.friendId || ''}
-                              onChange={(event) =>
-                                updateTagForm(row.id, { friendId: event.target.value })
-                              }
-                            >
-                              <option value="">Select friend</option>
-                              {friends.map((friend) => (
-                                <option key={friend.id} value={friend.id}>
-                                  {friend.name}
-                                </option>
-                              ))}
-                            </select>
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              placeholder="Amount"
-                              value={tagFormByTransaction[row.id]?.amount || ''}
-                              onChange={(event) =>
-                                updateTagForm(row.id, { amount: event.target.value })
-                              }
-                            />
-                            <select
-                              value={tagFormByTransaction[row.id]?.direction || 'NOTHING_OUTSTANDING'}
-                              onChange={(event) =>
-                                updateTagForm(row.id, { direction: event.target.value })
-                              }
-                            >
-                              <option value="NOTHING_OUTSTANDING">Nothing outstanding</option>
-                              <option value="I_OWE">I owe</option>
-                              <option value="OWES_ME">They owe me</option>
-                              <option value="SETTLEMENT">Settlement</option>
-                            </select>
-                          </div>
-                          {tagFormByTransaction[row.id]?.direction === 'SETTLEMENT' &&
-                           tagFormByTransaction[row.id]?.friendId && (
-                            <div className="settlement-section">
-                              <label className="settlement-label">
-                                Select transactions to settle
-                              </label>
-                              <SettlementSelect
-                                rowId={row.id}
-                                friendId={tagFormByTransaction[row.id]?.friendId}
-                                linkableTransactions={linkableTransactions}
-                                linkableTransactionsLoading={linkableTransactionsLoading}
-                                selectedIds={tagFormByTransaction[row.id]?.linkedTransactionIds || []}
-                                onChange={(selected) => updateTagForm(row.id, { linkedTransactionIds: selected })}
-                              />
-                            </div>
-                          )}
-                          <div className="tag-form-row">
-                            <input
-                              type="text"
-                              placeholder="Note (optional)"
-                              value={tagFormByTransaction[row.id]?.note || ''}
-                              onChange={(event) =>
-                                updateTagForm(row.id, { note: event.target.value })
-                              }
-                              className="note-input"
-                            />
-                            <button className="secondary" type="button" onClick={() => addTag(row.id)}>
-                              Add tag
-                            </button>
-                          </div>
-                        </div>
-                        {tagsStatusByTransaction[row.id] && (
-                          <p className="status">{tagsStatusByTransaction[row.id]}</p>
-                        )}
-                        <div className="friend-tags-list">
-                          {(tagsByTransaction[row.id] || []).length === 0 ? (
-                            <p className="empty">No friend tags for this transaction.</p>
-                          ) : (
-                            (tagsByTransaction[row.id] || []).map((tag) => (
-                              <div className="friend-tag-row" key={tag.id}>
-                                <div>
-                                  <span>Friend</span>
-                                  <strong>{tag.friend?.name || tag.friendId}</strong>
-                                </div>
-                                <div>
-                                  <span>Direction</span>
-                                  <strong>
-                                    {tag.direction === 'I_OWE'
-                                      ? 'I owe'
-                                      : tag.direction === 'OWES_ME'
-                                        ? 'They owe me'
-                                        : tag.direction === 'SETTLEMENT'
-                                          ? 'Settlement'
-                                          : 'Nothing outstanding'}
-                                  </strong>
-                                </div>
-                                <div>
-                                  <span>Amount</span>
-                                  <strong>{formatNumber(tag.amount)}</strong>
-                                </div>
-                                <div>
-                                  <span>Note</span>
-                                  <strong>{tag.note || '—'}</strong>
-                                </div>
-                                {tag.settlesTransactions && tag.settlesTransactions.length > 0 && (
-                                  <div>
-                                    <span>Settles</span>
-                                    <strong>
-                                      {tag.settlesTransactions.map((linked, idx) => (
-                                        <span key={linked.id}>
-                                          {idx > 0 && ', '}
-                                          {formatDate(linked.transaction?.transactionDate)} - ₹{formatNumber(linked.amount)}
-                                        </span>
-                                      ))}
-                                    </strong>
-                                  </div>
-                                )}
-                                <button
-                                  className="ghost"
-                                  type="button"
-                                  onClick={() => deleteTag(row.id, tag.id)}
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+        {transactionsLoading ? (
+          <p className="status">Loading transactions...</p>
+        ) : transactions.length === 0 ? (
+          <p className="empty">No transactions in this range.</p>
+        ) : isNarrow ? (
+          <div className="txn-mobile-stack">
+            <div className="glass-panel mobile-txn-toolbar">
+              <label className="mobile-txn-toolbar__label" htmlFor="txn-mobile-sort">
+                Sort
+              </label>
+              <select
+                id="txn-mobile-sort"
+                className="mobile-txn-toolbar__select"
+                value={`${mobileSort.columnId}:${mobileSort.dir}`}
+                onChange={(e) => {
+                  const [columnId, dir] = e.target.value.split(':');
+                  setMobileSort({ columnId, dir });
+                }}
+              >
+                <option value="date:desc">Newest first</option>
+                <option value="date:asc">Oldest first</option>
+                <option value="amount:desc">Amount · high to low</option>
+                <option value="amount:asc">Amount · low to high</option>
+              </select>
             </div>
-          )}
-        </div>
+            <div className="txn-mobile-list">
+              {sortedForMobile.map((row) => (
+                <MobileTransactionCard
+                  key={row.id}
+                  row={row}
+                  expanded={expandedTransactionId === row.id}
+                  onToggleExpand={() => toggleTags(row.id)}
+                  formatDateCompact={formatDateCompact}
+                  formatNumber={formatNumber}
+                >
+                  {renderFriendTagsPanel(row)}
+                </MobileTransactionCard>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <DataTable
+            storageKey="fintrack-transactions-v1"
+            columns={transactionColumns}
+            rows={transactions}
+            getRowKey={(row) => row.id}
+            scrollClassName="data-table-scroll transactions-table"
+            mobileHeroColumnIds={['date', 'amount', 'actions']}
+            aria-label="Transactions in selected range"
+            rowClassName={(row) => {
+              const withdrawal = Number(row.withdrawal || 0);
+              const isWithdrawal = withdrawal > 0;
+              return isWithdrawal ? 'transaction-withdrawal' : 'transaction-deposit';
+            }}
+            renderAfterRow={(row) =>
+              expandedTransactionId === row.id ? renderFriendTagsPanel(row) : null
+            }
+          />
+        )}
+        {isPhone && !manualOpen && (
+          <button
+            type="button"
+            className="mobile-transaction-fab"
+            aria-label="Add manual transaction"
+            onClick={() => {
+              setManualStatus('');
+              setManualOpen((prev) => !prev);
+            }}
+          >
+            +
+          </button>
+        )}
       </section>
     </>
   );

@@ -1,4 +1,5 @@
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom';
+import MobileBottomNav from './components/MobileBottomNav.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Transactions from './pages/Transactions.jsx';
 import Friends from './pages/Friends.jsx';
@@ -10,10 +11,14 @@ export default function App() {
         <div className="gradient" aria-hidden="true" />
         <header className="hero">
           <p className="eyebrow">Fintrack</p>
-          <h1>Track every account with precision.</h1>
+          <h1>
+            Track every account
+            <br />
+            with <span className="hero-accent-gradient">precision.</span>
+          </h1>
         </header>
 
-        <nav className="nav">
+        <nav className="nav nav--top">
           <NavLink to="/" end>
             Overview
           </NavLink>
@@ -28,6 +33,8 @@ export default function App() {
             <Route path="/friends" element={<Friends />} />
           </Routes>
         </main>
+
+        <MobileBottomNav />
       </div>
     </BrowserRouter>
   );
