@@ -16,6 +16,12 @@ export default function MobileBottomNav() {
         </span>
         <span>Overview</span>
       </NavLink>
+      <NavLink className={linkClass} to="/import">
+        <span className="mobile-bottom-nav__icon" aria-hidden>
+          ↓
+        </span>
+        <span>Import</span>
+      </NavLink>
       <NavLink className={linkClass} to="/transactions">
         <span className="mobile-bottom-nav__icon" aria-hidden>
           ≡
@@ -33,6 +39,12 @@ export default function MobileBottomNav() {
           ◉
         </span>
         <span>Friends</span>
+      </NavLink>
+      <NavLink className={linkClass} to="/categories">
+        <span className="mobile-bottom-nav__icon" aria-hidden>
+          ⊞
+        </span>
+        <span>Cats</span>
       </NavLink>
     </nav>
   );

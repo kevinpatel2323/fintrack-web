@@ -1,0 +1,85 @@
+.base-widget {
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+  padding: clamp(1rem, 2.5vw, 1.25rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+  height: 100%;
+}
+
+.base-widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.base-widget-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.base-widget-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.base-widget-content {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.base-widget-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  gap: 1rem;
+  color: #666;
+}
+
+.base-widget-loading .spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.base-widget-error {
+  padding: 1rem;
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 4px;
+}
+
+.base-widget-error .error-message {
+  margin: 0;
+  color: #c33;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .base-widget {
+    padding: 1rem;
+  }
+
+  .base-widget-title {
+    font-size: 1rem;
+  }
+}
