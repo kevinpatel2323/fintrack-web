@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import MobileTransactionCard from '../components/MobileTransactionCard.jsx';
 import Portal from '../components/Portal.jsx';
 import TransactionFriendTagsPanel from '../components/TransactionFriendTagsPanel.jsx';
+import '../styles/txn-manage-forms.css';
 import './Calendar.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
@@ -202,6 +203,47 @@ export default function Calendar() {
     }
     fetchFriends();
   }, []);
+
+  const [categories, setCategories] = useState([]);
+  const [categoryStatusByTransaction, setCategoryStatusByTransaction] = useState({});
+
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const res = await fetch(`${API_BASE}/categories`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setCategories(data.data || []);
+      } catch {
+        setCategories([]);
+      }
+    }
+    fetchCategories();
+  }, []);
+
+  const assignCategory = useCallback(async (transactionId, categoryId) => {
+    setCategoryStatusByTransaction((prev) => ({ ...prev, [transactionId]: 'Saving…' }));
+    try {
+      if (categoryId) {
+        await fetch(`${API_BASE}/transactions/${transactionId}/category`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ categoryId: Number(categoryId) }),
+        });
+      } else {
+        await fetch(`${API_BASE}/transactions/${transactionId}/category`, { method: 'DELETE' });
+      }
+      const cat = categories.find((c) => String(c.id) === String(categoryId)) || null;
+      setTransactions((prev) =>
+        prev.map((t) =>
+          t.id === transactionId ? { ...t, categoryId: cat ? cat.id : null, category: cat } : t,
+        ),
+      );
+      setCategoryStatusByTransaction((prev) => ({ ...prev, [transactionId]: '' }));
+    } catch {
+      setCategoryStatusByTransaction((prev) => ({ ...prev, [transactionId]: 'Failed to save' }));
+    }
+  }, [categories]);
 
   const byDay = useMemo(() => aggregateByDay(transactions), [transactions]);
   const cells = useMemo(() => buildCalendarCells(viewYear, viewMonth), [viewYear, viewMonth]);
@@ -549,95 +591,108 @@ export default function Calendar() {
                       ← Back to options
                     </button>
                   </div>
-                  <form className="friend-form manual-form" onSubmit={handleManualSubmit}>
-                    <div className="friend-tags-header">
+                  <form className="friend-form manual-form txn-manual-form" onSubmit={handleManualSubmit}>
+                    <div className="friend-tags-header txn-manual-form__head">
                       <h3>Add manual transaction</h3>
-                      <p>Posted to Wallet · date {formatDateCompact(selectedIso)}</p>
+                      <p>Posted to Wallet · {formatDateCompact(selectedIso)}</p>
                     </div>
-                    <div className="form-grid">
-                      <label className="field">
-                        <span>Type</span>
-                        <select
-                          value={manualForm.type}
-                          onChange={(e) => setManualForm((p) => ({ ...p, type: e.target.value }))}
-                        >
-                          <option value="PAID">Paid</option>
-                          <option value="RECEIVED">Received</option>
-                          <option value="I_OWE">I owe</option>
-                          <option value="SETTLEMENT">Settlement</option>
-                        </select>
-                      </label>
-                      {manualForm.type === 'SETTLEMENT' && (
+                    <div className="txn-form-section">
+                      <p className="txn-form-section__label">Details</p>
+                      <div className="form-grid">
                         <label className="field">
-                          <span>Settlement direction</span>
+                          <span>Type</span>
                           <select
-                            value={manualForm.settlementDirection}
-                            onChange={(e) =>
-                              setManualForm((p) => ({ ...p, settlementDirection: e.target.value }))
-                            }
+                            value={manualForm.type}
+                            onChange={(e) => setManualForm((p) => ({ ...p, type: e.target.value }))}
                           >
-                            <option value="WITHDRAWAL">Withdrawal</option>
-                            <option value="DEPOSIT">Deposit</option>
+                            <option value="PAID">Paid</option>
+                            <option value="RECEIVED">Received</option>
+                            <option value="I_OWE">I owe</option>
+                            <option value="SETTLEMENT">Settlement</option>
                           </select>
                         </label>
-                      )}
-                      <label className="field">
-                        <span>Amount</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={manualForm.amount}
-                          onChange={(e) => setManualForm((p) => ({ ...p, amount: e.target.value }))}
-                          placeholder="0.00"
-                        />
-                      </label>
-                      <label className="field">
-                        <span>Narration</span>
-                        <input
-                          type="text"
-                          value={manualForm.narration}
-                          onChange={(e) => setManualForm((p) => ({ ...p, narration: e.target.value }))}
-                          placeholder="What was this for?"
-                        />
-                      </label>
-                      <label className="field">
-                        <span>Balance (optional)</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={manualForm.balance}
-                          onChange={(e) => setManualForm((p) => ({ ...p, balance: e.target.value }))}
-                          placeholder="0.00"
-                        />
-                      </label>
-                      <label className="field">
-                        <span>UPI name (optional)</span>
-                        <input
-                          type="text"
-                          value={manualForm.upiName}
-                          onChange={(e) => setManualForm((p) => ({ ...p, upiName: e.target.value }))}
-                        />
-                      </label>
-                      <label className="field">
-                        <span>UPI description (optional)</span>
-                        <input
-                          type="text"
-                          value={manualForm.upiDescription}
-                          onChange={(e) => setManualForm((p) => ({ ...p, upiDescription: e.target.value }))}
-                        />
-                      </label>
-                      <label className="field">
-                        <span>UPI bank (optional)</span>
-                        <input
-                          type="text"
-                          value={manualForm.upiBank}
-                          onChange={(e) => setManualForm((p) => ({ ...p, upiBank: e.target.value }))}
-                        />
-                      </label>
+                        {manualForm.type === 'SETTLEMENT' && (
+                          <label className="field">
+                            <span>Settlement direction</span>
+                            <select
+                              value={manualForm.settlementDirection}
+                              onChange={(e) =>
+                                setManualForm((p) => ({ ...p, settlementDirection: e.target.value }))
+                              }
+                            >
+                              <option value="WITHDRAWAL">Withdrawal</option>
+                              <option value="DEPOSIT">Deposit</option>
+                            </select>
+                          </label>
+                        )}
+                        <label className="field">
+                          <span>Amount</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={manualForm.amount}
+                            onChange={(e) => setManualForm((p) => ({ ...p, amount: e.target.value }))}
+                            placeholder="0.00"
+                          />
+                        </label>
+                        <label className="field">
+                          <span>Narration</span>
+                          <input
+                            type="text"
+                            value={manualForm.narration}
+                            onChange={(e) => setManualForm((p) => ({ ...p, narration: e.target.value }))}
+                            placeholder="What was this for?"
+                          />
+                        </label>
+                      </div>
                     </div>
-                    <div className="friend-actions">
+                    <div className="txn-form-section">
+                      <p className="txn-form-section__label">Optional</p>
+                      <div className="form-grid">
+                        <label className="field">
+                          <span>Balance</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={manualForm.balance}
+                            onChange={(e) => setManualForm((p) => ({ ...p, balance: e.target.value }))}
+                            placeholder="0.00"
+                          />
+                        </label>
+                        <label className="field">
+                          <span>UPI name</span>
+                          <input
+                            type="text"
+                            value={manualForm.upiName}
+                            onChange={(e) => setManualForm((p) => ({ ...p, upiName: e.target.value }))}
+                            placeholder="Optional"
+                          />
+                        </label>
+                        <label className="field">
+                          <span>UPI description</span>
+                          <input
+                            type="text"
+                            value={manualForm.upiDescription}
+                            onChange={(e) =>
+                              setManualForm((p) => ({ ...p, upiDescription: e.target.value }))
+                            }
+                            placeholder="Optional"
+                          />
+                        </label>
+                        <label className="field">
+                          <span>UPI bank</span>
+                          <input
+                            type="text"
+                            value={manualForm.upiBank}
+                            onChange={(e) => setManualForm((p) => ({ ...p, upiBank: e.target.value }))}
+                            placeholder="Optional"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                    <div className="friend-actions txn-manual-form__actions">
                       <button className="secondary" type="submit" disabled={manualSubmitting}>
                         {manualSubmitting ? 'Adding…' : 'Add transaction'}
                       </button>
@@ -700,6 +755,9 @@ export default function Calendar() {
                             onToggleExpand={() => toggleExpand(row.id)}
                             formatDateCompact={formatDateCompact}
                             formatNumber={formatNumber}
+                            categories={categories}
+                            onAssignCategory={assignCategory}
+                            categoryStatus={categoryStatusByTransaction[row.id]}
                           >
                             <TransactionFriendTagsPanel
                               transaction={row}

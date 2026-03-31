@@ -1,0 +1,134 @@
+.top-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.top-category-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.category-rank {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8f4f8;
+  border-radius: 50%;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #2c3e50;
+  flex-shrink: 0;
+}
+
+.category-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.category-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.category-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.category-bar-wrapper {
+  height: 6px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.category-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.category-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.125rem;
+  flex-shrink: 0;
+}
+
+.category-amount {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #333;
+  white-space: nowrap;
+}
+
+.category-percentage {
+  font-size: 0.75rem;
+  color: #666;
+  font-weight: 600;
+}
+
+@media (max-width: 1024px) {
+  .top-category-item {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .category-rank {
+    width: 24px;
+    height: 24px;
+    font-size: 0.75rem;
+  }
+
+  .category-details {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Full-width row under rank + details; padding (not margin) so width stays inside the card */
+  .category-stats {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-left: 0;
+    margin-top: 0.125rem;
+    padding-left: calc(24px + 0.75rem);
+    padding-right: 0;
+  }
+
+  .category-amount,
+  .category-percentage {
+    min-width: 0;
+  }
+
+  .category-percentage {
+    flex-shrink: 0;
+    text-align: right;
+  }
+}

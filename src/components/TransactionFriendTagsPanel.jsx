@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import ConfirmDialog from './ConfirmDialog.jsx';
+import '../styles/txn-manage-forms.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
@@ -23,7 +24,7 @@ function SettlementSelect({
   };
 
   if (loading) {
-    return <p className="status">Loading...</p>;
+    return <p className="status">Loading linkable entries…</p>;
   }
 
   if (transactions.length === 0) {
@@ -31,94 +32,43 @@ function SettlementSelect({
   }
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gap: '6px',
-        maxHeight: '240px',
-        overflow: 'auto',
-        padding: '12px',
-        background: '#fff',
-        borderRadius: '12px',
-        border: '1px solid var(--stroke)',
-      }}
-    >
+    <div className="settlement-link-list">
       {transactions.map((tag) => {
         const isSelected = selectedIds.includes(String(tag.id));
+        const dirClass =
+          tag.direction === 'I_OWE'
+            ? 'settlement-dir-pill--owe'
+            : tag.direction === 'OWES_ME'
+              ? 'settlement-dir-pill--me'
+              : 'settlement-dir-pill--none';
         return (
           <label
             key={tag.id}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '10px 12px',
-              borderRadius: '10px',
-              cursor: 'pointer',
-              background: isSelected ? 'rgba(31, 95, 89, 0.08)' : 'rgba(246, 242, 234, 0.5)',
-              border: isSelected ? '1px solid rgba(31, 95, 89, 0.3)' : '1px solid transparent',
-              transition: 'all 0.15s ease',
-            }}
+            className={`settlement-link-item${isSelected ? ' settlement-link-item--selected' : ''}`}
           >
             <input
               type="checkbox"
+              className="settlement-link-item__check"
               checked={isSelected}
               onChange={() => handleToggle(String(tag.id))}
-              style={{
-                width: '18px',
-                height: '18px',
-                flexShrink: 0,
-                accentColor: 'var(--teal)',
-              }}
             />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--ink)' }}>
+            <div className="settlement-link-item__body">
+              <div className="settlement-link-item__top">
+                <span className="settlement-link-item__date">
                   {formatDateInner(tag.transaction?.transactionDate)}
                 </span>
-                <span
-                  style={{
-                    fontSize: '0.75rem',
-                    padding: '2px 8px',
-                    borderRadius: '999px',
-                    background:
-                      tag.direction === 'I_OWE'
-                        ? 'rgba(185, 56, 41, 0.1)'
-                        : tag.direction === 'OWES_ME'
-                          ? 'rgba(27, 122, 57, 0.1)'
-                          : 'rgba(108, 98, 88, 0.1)',
-                    color:
-                      tag.direction === 'I_OWE'
-                        ? 'var(--danger)'
-                        : tag.direction === 'OWES_ME'
-                          ? 'var(--success)'
-                          : 'var(--muted)',
-                    fontWeight: 600,
-                  }}
-                >
+                <span className={`settlement-dir-pill ${dirClass}`}>
                   {tag.direction === 'I_OWE'
                     ? 'I owe'
                     : tag.direction === 'OWES_ME'
                       ? 'They owe me'
                       : 'Nothing'}
                 </span>
-                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--teal)' }}>
-                  ₹{formatNumberInner(tag.amount)}
-                </span>
+                <span className="settlement-link-item__amount">₹{formatNumberInner(tag.amount)}</span>
               </div>
-              {tag.transaction?.upiName && (
-                <span
-                  style={{
-                    fontSize: '0.8rem',
-                    color: 'var(--muted)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {tag.transaction.upiName}
-                </span>
-              )}
+              {tag.transaction?.upiName ? (
+                <span className="settlement-link-item__upi">{tag.transaction.upiName}</span>
+              ) : null}
             </div>
           </label>
         );
@@ -322,8 +272,8 @@ export default function TransactionFriendTagsPanel({ transaction, friends, forma
           <h3>Friend tags</h3>
           <p>Track who owes whom for this transaction.</p>
         </div>
-        <div className="friend-tags-form">
-          <div className="tag-form-row">
+        <div className="friend-tags-form txn-tag-form">
+          <div className="tag-form-row txn-tag-form__primary">
             <select
               value={form.friendId}
               onChange={(event) => updateForm({ friendId: event.target.value })}
@@ -366,7 +316,7 @@ export default function TransactionFriendTagsPanel({ transaction, friends, forma
               />
             </div>
           )}
-          <div className="tag-form-row">
+          <div className="tag-form-row txn-tag-form__note">
             <input
               type="text"
               placeholder="Note (optional)"

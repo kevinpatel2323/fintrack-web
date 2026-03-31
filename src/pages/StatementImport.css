@@ -1,0 +1,33 @@
+.statement-import-intro {
+  margin-bottom: clamp(1rem, 3vw, 1.5rem);
+}
+
+.statement-import-title {
+  margin: 0 0 0.35rem;
+  font-family: 'Fraunces', serif;
+  font-size: clamp(1.35rem, 3.5vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.statement-import-lead {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.45;
+  max-width: 40rem;
+}
+
+.statement-import-top {
+  display: grid;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 480px) {
+  .statement-import-lead {
+    font-size: 0.85rem;
+  }
+}

@@ -317,6 +317,38 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* txn-tag-form: keep stacked / 2-col grid inside narrow sheet (ignore viewport 1100px flex row) */
+.calendar-sheet .txn-tag-form .tag-form-row.txn-tag-form__primary {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  flex-wrap: unset !important;
+}
+
+.calendar-sheet .txn-tag-form .tag-form-row.txn-tag-form__primary > select,
+.calendar-sheet .txn-tag-form .tag-form-row.txn-tag-form__primary > input {
+  flex: unset !important;
+  min-height: 44px;
+}
+
+@media (min-width: 400px) {
+  .calendar-sheet .txn-tag-form .tag-form-row.txn-tag-form__primary {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .calendar-sheet .txn-tag-form .tag-form-row.txn-tag-form__primary > select:last-of-type {
+    grid-column: 1 / -1;
+  }
+}
+
+.calendar-sheet .txn-tag-form .tag-form-row.txn-tag-form__note {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+}
+
+.calendar-sheet .txn-tag-form .tag-form-row.txn-tag-form__note > .secondary {
+  width: 100% !important;
+}
+
 @media (max-width: 719px) {
   .calendar-manage-shell {
     padding: 12px 12px;

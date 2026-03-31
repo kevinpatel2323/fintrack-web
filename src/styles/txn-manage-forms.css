@@ -1,0 +1,490 @@
+/* Shared UI for transaction management: category, friend tags, settlement links, manual entry, filters */
+
+/* ─── Transactions page: filter bar selects ───────────────────────────── */
+
+.txn-premium-filters .select-wrap select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.txn-premium-filters .select-wrap select:focus {
+  outline: 2px solid var(--teal);
+  outline-offset: 1px;
+}
+
+@media (min-width: 720px) {
+  .txn-premium-filters .select-wrap select {
+    min-height: unset;
+  }
+}
+
+/* ─── Transactions table: inline category column ─────────────────────── */
+
+.data-table-cell--category {
+  min-width: 0;
+}
+
+.data-table-cell--category .data-table-cell-value {
+  min-width: 0;
+  overflow: visible;
+}
+
+.data-table-category-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+}
+
+.data-table-category-select {
+  --txn-cat-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' fill='none' stroke='%236c6258' stroke-width='1.35' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 4px 22px 4px 2px;
+  border: none;
+  border-radius: 6px;
+  background-color: transparent;
+  background-image: var(--txn-cat-chevron);
+  background-repeat: no-repeat;
+  background-position: right 2px center;
+  background-size: 12px 12px;
+  color: var(--ink);
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  text-align: left;
+}
+
+.data-table-category-select--empty {
+  color: var(--muted);
+}
+
+.data-table-category-select:focus {
+  outline: none;
+}
+
+.data-table-category-select:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.data-table-category-select:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.data-table-category-select option {
+  color: var(--ink);
+  background: #fff;
+}
+
+.data-table-category-status {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+/* ─── Category assign (inline panel) ─────────────────────────────────── */
+
+.txn-assign-section {
+  margin-bottom: 4px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(31, 95, 89, 0.07), rgba(31, 95, 89, 0.03));
+  border: 1px solid rgba(31, 95, 89, 0.14);
+  display: grid;
+  gap: 10px;
+}
+
+.txn-assign-section__eyebrow {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--teal);
+}
+
+.txn-assign-section__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.txn-assign-select {
+  flex: 1 1 160px;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.txn-assign-select:focus {
+  outline: 2px solid var(--teal);
+  outline-offset: 1px;
+}
+
+.txn-assign-status {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* ─── Settlement: linkable transaction list ───────────────────────────── */
+
+.settlement-link-list {
+  display: grid;
+  gap: 8px;
+  max-height: min(240px, 42vh);
+  overflow: auto;
+  padding: 12px;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid var(--stroke);
+  -webkit-overflow-scrolling: touch;
+}
+
+.settlement-link-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: rgba(246, 242, 234, 0.55);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.settlement-link-item:hover {
+  background: rgba(31, 95, 89, 0.06);
+}
+
+.settlement-link-item--selected {
+  background: rgba(31, 95, 89, 0.1);
+  border-color: rgba(31, 95, 89, 0.28);
+  box-shadow: 0 2px 8px rgba(31, 95, 89, 0.08);
+}
+
+.settlement-link-item__check {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  margin-top: 2px;
+  accent-color: var(--teal);
+  cursor: pointer;
+}
+
+.settlement-link-item__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settlement-link-item__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settlement-link-item__date {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.settlement-link-item__amount {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--teal);
+}
+
+.settlement-link-item__upi {
+  font-size: 0.8rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settlement-dir-pill {
+  font-size: 0.72rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.settlement-dir-pill--owe {
+  background: rgba(185, 56, 41, 0.12);
+  color: var(--danger);
+}
+
+.settlement-dir-pill--me {
+  background: rgba(27, 122, 57, 0.12);
+  color: var(--success);
+}
+
+.settlement-dir-pill--none {
+  background: rgba(108, 98, 88, 0.12);
+  color: var(--muted);
+}
+
+/* ─── Friend tag form layout ──────────────────────────────────────────── */
+
+.txn-tag-form {
+  gap: 14px;
+}
+
+.txn-tag-form .tag-form-row.txn-tag-form__primary {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.txn-tag-form .tag-form-row.txn-tag-form__primary > select,
+.txn-tag-form .tag-form-row.txn-tag-form__primary > input {
+  width: 100%;
+  min-width: 0 !important;
+  min-height: 44px;
+}
+
+.txn-tag-form .tag-form-row.txn-tag-form__note {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.txn-tag-form .tag-form-row.txn-tag-form__note > .note-input {
+  min-height: 44px;
+  width: 100%;
+  min-width: 0 !important;
+}
+
+.txn-tag-form .tag-form-row.txn-tag-form__note > .secondary {
+  width: 100%;
+  justify-content: center;
+  min-height: 44px;
+}
+
+@media (min-width: 720px) {
+  .txn-tag-form .tag-form-row.txn-tag-form__primary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .txn-tag-form .tag-form-row.txn-tag-form__primary > select:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1100px) {
+  .txn-tag-form .tag-form-row.txn-tag-form__primary {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 12px;
+  }
+
+  .txn-tag-form .tag-form-row.txn-tag-form__primary > select,
+  .txn-tag-form .tag-form-row.txn-tag-form__primary > input {
+    flex: 1;
+    min-width: 140px;
+    min-height: unset;
+  }
+
+  .txn-tag-form .tag-form-row.txn-tag-form__primary > select:last-child {
+    grid-column: auto;
+  }
+
+  .txn-tag-form .tag-form-row.txn-tag-form__note {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .txn-tag-form .tag-form-row.txn-tag-form__note > .note-input {
+    flex: 2;
+    min-width: 200px;
+    min-height: unset;
+  }
+
+  .txn-tag-form .tag-form-row.txn-tag-form__note > .secondary {
+    width: auto;
+    min-height: unset;
+  }
+}
+
+/* ─── Manual transaction form ─────────────────────────────────────────── */
+
+.txn-manual-form {
+  gap: 16px;
+}
+
+.txn-manual-form__head {
+  padding-bottom: 2px;
+}
+
+.txn-form-section {
+  display: grid;
+  gap: 10px;
+}
+
+.txn-form-section__label {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.txn-manual-form .form-grid {
+  gap: 12px;
+}
+
+.txn-manual-form .field input,
+.txn-manual-form .field select {
+  min-height: 44px;
+  border-radius: 12px;
+}
+
+.txn-manual-form .field input:disabled,
+.txn-input--muted {
+  background: rgba(246, 242, 234, 0.85) !important;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.txn-manual-form__actions {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.txn-manual-form__actions .secondary {
+  width: 100%;
+  justify-content: center;
+  min-height: 46px;
+}
+
+@media (min-width: 720px) {
+  .txn-manual-form__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .txn-manual-form__actions .secondary {
+    width: auto;
+  }
+}
+
+/* ─── Date range filter row ───────────────────────────────────────────── */
+
+.range-form--premium .txn-field {
+  display: grid;
+  gap: 6px;
+}
+
+.range-form--premium .txn-field span {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.range-form--premium .txn-field input[type='date'] {
+  min-height: 44px;
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.range-form--premium .txn-field input[type='date']:focus {
+  outline: 2px solid var(--teal);
+  outline-offset: 1px;
+}
+
+.range-form--premium button.secondary {
+  min-height: 44px;
+}
+
+@media (min-width: 720px) {
+  .range-form--premium .txn-field input[type='date'] {
+    min-height: unset;
+  }
+
+  .range-form--premium button.secondary {
+    min-height: unset;
+  }
+}
+
+/* ─── Settlement section container ────────────────────────────────────── */
+
+.settlement-section {
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 14px;
+  border: 1px solid rgba(31, 95, 89, 0.12);
+}
+
+.settlement-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--teal);
+  margin: 0 0 8px;
+}
+
+/* ─── Friend tag list cards ───────────────────────────────────────────── */
+
+.friend-tag-row {
+  border-radius: 14px;
+  border: 1px solid rgba(31, 95, 89, 0.1);
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.friend-tag-row > button.ghost {
+  border-radius: 12px;
+  min-height: 40px;
+}
+
+@media (max-width: 719px) {
+  .friend-tag-row > button.ghost {
+    min-height: 44px;
+  }
+}
+

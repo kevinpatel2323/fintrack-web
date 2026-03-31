@@ -1,0 +1,112 @@
+.spending-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.spending-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.stat-value.amount-withdrawal {
+  color: #e74c3c;
+}
+
+.stat-value.amount-deposit {
+  color: #27ae60;
+}
+
+.stat-value.positive {
+  color: #27ae60;
+}
+
+.stat-value.negative {
+  color: #e74c3c;
+}
+
+.spending-details {
+  display: flex;
+  gap: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-label {
+  font-size: 0.75rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.comparison {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.comparison-label {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.comparison-value {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.comparison-value.increase {
+  color: #e74c3c;
+}
+
+.comparison-value.decrease {
+  color: #27ae60;
+}
+
+@media (max-width: 768px) {
+  .spending-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+
+  .spending-details {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}

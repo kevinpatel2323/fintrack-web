@@ -24,6 +24,9 @@ export default function MobileTransactionCard({
   formatDateCompact,
   formatNumber,
   children,
+  categories,
+  onAssignCategory,
+  categoryStatus,
 }) {
   const withdrawal = Number(row.withdrawal || 0);
   const deposit = Number(row.deposit || 0);
@@ -39,11 +42,21 @@ export default function MobileTransactionCard({
     ? [row.upiDescription, row.upiBank].filter(Boolean).join(' · ')
     : row.upiDescription || '';
 
+  const showCategory = Array.isArray(categories) && typeof onAssignCategory === 'function';
+  const categoryBusy = categoryStatus === 'Saving…';
+  const categoryTitle = row.category
+    ? `${row.category.icon ? `${row.category.icon} ` : ''}${row.category.name}`
+    : 'None';
+
   function handleKeyDown(e) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       onToggleExpand();
     }
+  }
+
+  function stopCardToggle(e) {
+    e.stopPropagation();
   }
 
   return (
@@ -65,32 +78,56 @@ export default function MobileTransactionCard({
       >
         <div className="mobile-txn-card__accent" aria-hidden />
         <div className="mobile-txn-card__shell">
-          <div className="mobile-txn-card__top">
-            <div className="mobile-txn-card__main">
-              <p className="mobile-txn-card__meta">
-                <time dateTime={row.transactionDate}>{formatDateCompact(row.transactionDate)}</time>
-                <span className="mobile-txn-card__meta-sep">·</span>
-                <span>{counterpartyHint(row)}</span>
-              </p>
-              <h3 className="mobile-txn-card__title">{title}</h3>
-              <p className="mobile-txn-card__account">{maskAccount(row.accountNumber)}</p>
-              {row.isManual && (
-                <span className="mobile-txn-card__badge-manual">Manual</span>
-              )}
-            </div>
+          <div className="mobile-txn-card__left">
+            <p className="mobile-txn-card__meta">
+              <time dateTime={row.transactionDate}>{formatDateCompact(row.transactionDate)}</time>
+              <span className="mobile-txn-card__meta-sep">·</span>
+              <span>{counterpartyHint(row)}</span>
+            </p>
+            <h3 className="mobile-txn-card__title">{title}</h3>
+            <p className="mobile-txn-card__account">{maskAccount(row.accountNumber)}</p>
+            {row.isManual && <span className="mobile-txn-card__badge-manual">Manual</span>}
+            {descLine ? <p className="mobile-txn-card__desc">{descLine}</p> : null}
+          </div>
+          <div className="mobile-txn-card__right">
             <div className="mobile-txn-card__amounts">
-              <span
-                className={`mobile-txn-card__amount ${isWithdrawal ? 'is-out' : 'is-in'}`}
-              >
+              <span className={`mobile-txn-card__amount ${isWithdrawal ? 'is-out' : 'is-in'}`}>
                 {isWithdrawal ? '−' : '+'}
                 {formatNumber(amount)}
               </span>
-              <span className="mobile-txn-card__balance">
-                Bal {formatNumber(row.balance)}
-              </span>
+              <span className="mobile-txn-card__balance">Bal {formatNumber(row.balance)}</span>
             </div>
+            {showCategory ? (
+              <div
+                className="mobile-txn-card__category"
+                onClick={stopCardToggle}
+                onPointerDown={stopCardToggle}
+                role="presentation"
+              >
+                <select
+                  className={`mobile-txn-card__category-select${row.categoryId == null ? ' mobile-txn-card__category-select--empty' : ''}`}
+                  value={row.categoryId != null ? String(row.categoryId) : ''}
+                  onChange={(e) => onAssignCategory(row.id, e.target.value)}
+                  aria-label={`Category for ${title}`}
+                  title={categoryTitle}
+                  disabled={categoryBusy}
+                  onClick={stopCardToggle}
+                  onPointerDown={stopCardToggle}
+                >
+                  <option value="">None</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.icon ? `${cat.icon} ` : ''}
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+                {categoryStatus ? (
+                  <span className="mobile-txn-card__category-status">{categoryStatus}</span>
+                ) : null}
+              </div>
+            ) : null}
           </div>
-          {descLine ? <p className="mobile-txn-card__desc">{descLine}</p> : null}
         </div>
       </div>
       {expanded ? <div className="mobile-txn-card__expanded">{children}</div> : null}

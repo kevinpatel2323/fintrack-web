@@ -1,0 +1,83 @@
+.widget-container {
+  width: 100%;
+  min-width: 0;
+}
+
+.widgets-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(0.75rem, 2vw, 1.125rem);
+  width: 100%;
+  align-items: stretch;
+}
+
+.widget-grid-item {
+  min-width: 0;
+}
+
+/* One column: everything full width */
+.widget-size-large,
+.widget-size-medium,
+.widget-size-small {
+  grid-column: 1 / -1;
+}
+
+/* Two columns from tablet: large = full row; others tile evenly — no grid holes */
+@media (min-width: 640px) {
+  .widgets-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .widget-size-large {
+    grid-column: 1 / -1;
+  }
+
+  .widget-size-medium,
+  .widget-size-small {
+    grid-column: auto;
+  }
+}
+
+@media (min-width: 1100px) {
+  .widgets-grid {
+    gap: 1.25rem;
+  }
+}
+
+.widget-container-error {
+  padding: 0.875rem 1rem;
+  margin-bottom: 0;
+  background: rgba(255, 238, 238, 0.95);
+  border: 1px solid rgba(252, 204, 204, 0.95);
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.widget-container-error p {
+  margin: 0;
+  color: var(--danger, #b93829);
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+}
+
+.retry-button {
+  padding: 0.5rem 1rem;
+  background: var(--danger, #b93829);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.retry-button:hover {
+  opacity: 0.9;
+}

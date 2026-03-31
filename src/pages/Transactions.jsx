@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import Portal from '../components/Portal.jsx';
 import DataTable from '../components/DataTable.jsx';
@@ -6,6 +6,7 @@ import MobileTransactionCard from '../components/MobileTransactionCard.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { sortTableRows } from '../utils/tableSort.js';
 import '../styles/transactionSheet.css';
+import '../styles/txn-manage-forms.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
@@ -22,7 +23,7 @@ function SettlementSelect({ rowId, friendId, linkableTransactions, linkableTrans
   };
 
   if (loading) {
-    return <p className="status">Loading...</p>;
+    return <p className="status">Loading linkable entries…</p>;
   }
 
   if (transactions.length === 0) {
@@ -30,71 +31,43 @@ function SettlementSelect({ rowId, friendId, linkableTransactions, linkableTrans
   }
 
   return (
-    <div style={{ 
-      display: 'grid', 
-      gap: '6px', 
-      maxHeight: '240px', 
-      overflow: 'auto', 
-      padding: '12px', 
-      background: '#fff', 
-      borderRadius: '12px',
-      border: '1px solid var(--stroke)'
-    }}>
+    <div className="settlement-link-list">
       {transactions.map((tag) => {
         const isSelected = selectedIds.includes(String(tag.id));
+        const dirClass =
+          tag.direction === 'I_OWE'
+            ? 'settlement-dir-pill--owe'
+            : tag.direction === 'OWES_ME'
+              ? 'settlement-dir-pill--me'
+              : 'settlement-dir-pill--none';
         return (
           <label
             key={tag.id}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '10px 12px',
-              borderRadius: '10px',
-              cursor: 'pointer',
-              background: isSelected ? 'rgba(31, 95, 89, 0.08)' : 'rgba(246, 242, 234, 0.5)',
-              border: isSelected ? '1px solid rgba(31, 95, 89, 0.3)' : '1px solid transparent',
-              transition: 'all 0.15s ease'
-            }}
+            className={`settlement-link-item${isSelected ? ' settlement-link-item--selected' : ''}`}
           >
             <input
               type="checkbox"
+              className="settlement-link-item__check"
               checked={isSelected}
               onChange={() => handleToggle(String(tag.id))}
-              style={{ 
-                width: '18px', 
-                height: '18px', 
-                flexShrink: 0,
-                accentColor: 'var(--teal)'
-              }}
             />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--ink)' }}>
+            <div className="settlement-link-item__body">
+              <div className="settlement-link-item__top">
+                <span className="settlement-link-item__date">
                   {formatDate(tag.transaction?.transactionDate)}
                 </span>
-                <span style={{ 
-                  fontSize: '0.75rem', 
-                  padding: '2px 8px', 
-                  borderRadius: '999px',
-                  background: tag.direction === 'I_OWE' ? 'rgba(185, 56, 41, 0.1)' : 
-                             tag.direction === 'OWES_ME' ? 'rgba(27, 122, 57, 0.1)' : 'rgba(108, 98, 88, 0.1)',
-                  color: tag.direction === 'I_OWE' ? 'var(--danger)' : 
-                         tag.direction === 'OWES_ME' ? 'var(--success)' : 'var(--muted)',
-                  fontWeight: 600
-                }}>
-                  {tag.direction === 'I_OWE' ? 'I owe' :
-                   tag.direction === 'OWES_ME' ? 'They owe me' : 'Nothing'}
+                <span className={`settlement-dir-pill ${dirClass}`}>
+                  {tag.direction === 'I_OWE'
+                    ? 'I owe'
+                    : tag.direction === 'OWES_ME'
+                      ? 'They owe me'
+                      : 'Nothing'}
                 </span>
-                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--teal)' }}>
-                  ₹{formatNumber(tag.amount)}
-                </span>
+                <span className="settlement-link-item__amount">₹{formatNumber(tag.amount)}</span>
               </div>
-              {tag.transaction?.upiName && (
-                <span style={{ fontSize: '0.8rem', color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {tag.transaction.upiName}
-                </span>
-              )}
+              {tag.transaction?.upiName ? (
+                <span className="settlement-link-item__upi">{tag.transaction.upiName}</span>
+              ) : null}
             </div>
           </label>
         );
@@ -153,6 +126,9 @@ export default function Transactions() {
   const [accountsStatus, setAccountsStatus] = useState('');
   const [friends, setFriends] = useState([]);
   const [friendsStatus, setFriendsStatus] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [categoryStatusByTransaction, setCategoryStatusByTransaction] = useState({});
 
   const monthRange = useMemo(() => getCurrentMonthRange(), []);
   const [rangeStart, setRangeStart] = useState(monthRange.startIso);
@@ -222,6 +198,18 @@ export default function Transactions() {
   }, []);
 
   useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const res = await fetch(`${API_BASE}/categories`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setCategories(data.data || []);
+      } catch {}
+    }
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
     if (!canFetchRange) return;
     handleRangeFetch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -247,6 +235,7 @@ export default function Transactions() {
       setTagsByTransaction({});
       setTagsStatusByTransaction({});
       setTagFormByTransaction({});
+      setCategoryStatusByTransaction({});
       setRangeStatus('');
     } catch (error) {
       setRangeStatus(error.message || 'Failed to fetch transactions');
@@ -506,8 +495,31 @@ export default function Transactions() {
     }
   }
 
-  const transactionColumns = useMemo(
-    () => [
+  const assignCategory = useCallback(async (transactionId, categoryId) => {
+    setCategoryStatusByTransaction((prev) => ({ ...prev, [transactionId]: 'Saving…' }));
+    try {
+      if (categoryId) {
+        await fetch(`${API_BASE}/transactions/${transactionId}/category`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ categoryId: Number(categoryId) }),
+        });
+      } else {
+        await fetch(`${API_BASE}/transactions/${transactionId}/category`, { method: 'DELETE' });
+      }
+      const cat = categories.find((c) => String(c.id) === String(categoryId)) || null;
+      setTransactions((prev) =>
+        prev.map((t) =>
+          t.id === transactionId ? { ...t, categoryId: cat ? cat.id : null, category: cat } : t,
+        ),
+      );
+      setCategoryStatusByTransaction((prev) => ({ ...prev, [transactionId]: '' }));
+    } catch {
+      setCategoryStatusByTransaction((prev) => ({ ...prev, [transactionId]: 'Failed to save' }));
+    }
+  }, [categories]);
+
+  const transactionColumns = [
       {
         id: 'date',
         header: 'Date',
@@ -606,6 +618,44 @@ export default function Transactions() {
         cell: (row) => <strong>{formatNumber(row.balance)}</strong>,
       },
       {
+        id: 'category',
+        header: 'Category',
+        defaultWidth: 176,
+        minWidth: 120,
+        sortable: true,
+        accessor: (row) => row.category?.name || '',
+        trim: false,
+        title: (row) =>
+          row.category
+            ? `${row.category.icon ? `${row.category.icon} ` : ''}${row.category.name}`
+            : 'None',
+        cellClassName: 'data-table-cell--category',
+        cell: (row) => {
+          const status = categoryStatusByTransaction[row.id];
+          const busy = status === 'Saving…';
+          return (
+            <div className="data-table-category-cell">
+              <select
+                className={`data-table-category-select${row.categoryId == null ? ' data-table-category-select--empty' : ''}`}
+                value={row.categoryId != null ? String(row.categoryId) : ''}
+                onChange={(e) => assignCategory(row.id, e.target.value)}
+                aria-label={`Category for transaction on ${formatDate(row.transactionDate)}`}
+                disabled={busy}
+              >
+                <option value="">None</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.icon ? `${cat.icon} ` : ''}
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+              {status ? <span className="data-table-category-status">{status}</span> : null}
+            </div>
+          );
+        },
+      },
+      {
         id: 'actions',
         header: 'Actions',
         defaultWidth: 120,
@@ -624,13 +674,18 @@ export default function Transactions() {
           </button>
         ),
       },
-    ],
-    [],
-  );
+    ];
+
+  // Category-filtered view for table/mobile
+  const filteredTransactions = useMemo(() => {
+    if (!categoryFilter) return transactions;
+    if (categoryFilter === '__none__') return transactions.filter((t) => !t.categoryId);
+    return transactions.filter((t) => String(t.categoryId) === categoryFilter);
+  }, [transactions, categoryFilter]);
 
   const sortedForMobile = useMemo(
-    () => sortTableRows(transactions, transactionColumns, mobileSort),
-    [transactions, transactionColumns, mobileSort],
+    () => sortTableRows(filteredTransactions, transactionColumns, mobileSort),
+    [filteredTransactions, transactionColumns, mobileSort],
   );
 
   const friendTagsSheetRow = useMemo(
@@ -646,12 +701,32 @@ export default function Transactions() {
 
   const renderFriendTagsPanel = (row) => (
     <div className="friend-tags-panel">
+      <div className="txn-assign-section">
+        <div className="txn-assign-section__row">
+          <select
+            className="txn-assign-select"
+            value={row.categoryId || ''}
+            onChange={(e) => assignCategory(row.id, e.target.value)}
+            aria-label="Category for this transaction"
+          >
+            <option value="">No category</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.icon ? `${cat.icon} ` : ''}{cat.name}
+              </option>
+            ))}
+          </select>
+          {categoryStatusByTransaction[row.id] ? (
+            <span className="txn-assign-status">{categoryStatusByTransaction[row.id]}</span>
+          ) : null}
+        </div>
+      </div>
       <div className="friend-tags-header">
         <h3>Friend tags</h3>
         <p>Track who owes whom for this transaction.</p>
       </div>
-      <div className="friend-tags-form">
-        <div className="tag-form-row">
+      <div className="friend-tags-form txn-tag-form">
+        <div className="tag-form-row txn-tag-form__primary">
           <select
             value={tagFormByTransaction[row.id]?.friendId || ''}
             onChange={(event) => updateTagForm(row.id, { friendId: event.target.value })}
@@ -695,7 +770,7 @@ export default function Transactions() {
               />
             </div>
           )}
-        <div className="tag-form-row">
+        <div className="tag-form-row txn-tag-form__note">
           <input
             type="text"
             placeholder="Note (optional)"
@@ -881,9 +956,24 @@ export default function Transactions() {
                 ))}
               </select>
             </div>
+            <div className="select-wrap">
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                title="Filter by category"
+              >
+                <option value="">All categories</option>
+                <option value="__none__">Uncategorised</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.icon ? `${cat.icon} ` : ''}{cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <form className="range-form range-form--premium" onSubmit={handleRangeFetch}>
-            <label>
+            <label className="txn-field">
               <span>Start date</span>
               <input
                 type="date"
@@ -891,7 +981,7 @@ export default function Transactions() {
                 onChange={(event) => setRangeStart(event.target.value)}
               />
             </label>
-            <label>
+            <label className="txn-field">
               <span>End date</span>
               <input
                 type="date"
@@ -921,128 +1011,139 @@ export default function Transactions() {
           </div>
         )}
         {manualOpen && (
-          <form className="friend-form manual-form" onSubmit={handleManualSubmit}>
-            <div className="friend-tags-header">
+          <form className="friend-form manual-form txn-manual-form" onSubmit={handleManualSubmit}>
+            <div className="friend-tags-header txn-manual-form__head">
               <h3>Add manual transaction</h3>
               <p>Manual entries are posted to the Wallet account.</p>
             </div>
-            <div className="form-grid">
-              <label className="field">
-                <span>Date</span>
-                <input
-                  type="date"
-                  value={manualForm.transactionDate}
-                  onChange={(event) =>
-                    setManualForm((prev) => ({ ...prev, transactionDate: event.target.value }))
-                  }
-                />
-              </label>
-              <label className="field">
-                <span>Account</span>
-                <input type="text" value="Wallet" disabled />
-              </label>
-              <label className="field">
-                <span>Type</span>
-                <select
-                  value={manualForm.type}
-                  onChange={(event) =>
-                    setManualForm((prev) => ({ ...prev, type: event.target.value }))
-                  }
-                >
-                  <option value="PAID">Paid</option>
-                  <option value="RECEIVED">Received</option>
-                  <option value="I_OWE">I owe</option>
-                  <option value="SETTLEMENT">Settlement</option>
-                </select>
-              </label>
-              {manualForm.type === 'SETTLEMENT' && (
+            <div className="txn-form-section">
+              <p className="txn-form-section__label">Details</p>
+              <div className="form-grid">
                 <label className="field">
-                  <span>Settlement direction</span>
-                  <select
-                    value={manualForm.settlementDirection}
+                  <span>Date</span>
+                  <input
+                    type="date"
+                    value={manualForm.transactionDate}
                     onChange={(event) =>
-                      setManualForm((prev) => ({
-                        ...prev,
-                        settlementDirection: event.target.value,
-                      }))
+                      setManualForm((prev) => ({ ...prev, transactionDate: event.target.value }))
+                    }
+                  />
+                </label>
+                <label className="field">
+                  <span>Account</span>
+                  <input className="txn-input--muted" type="text" value="Wallet" disabled readOnly />
+                </label>
+                <label className="field">
+                  <span>Type</span>
+                  <select
+                    value={manualForm.type}
+                    onChange={(event) =>
+                      setManualForm((prev) => ({ ...prev, type: event.target.value }))
                     }
                   >
-                    <option value="WITHDRAWAL">Withdrawal</option>
-                    <option value="DEPOSIT">Deposit</option>
+                    <option value="PAID">Paid</option>
+                    <option value="RECEIVED">Received</option>
+                    <option value="I_OWE">I owe</option>
+                    <option value="SETTLEMENT">Settlement</option>
                   </select>
                 </label>
-              )}
-              <label className="field">
-                <span>Amount</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={manualForm.amount}
-                  onChange={(event) =>
-                    setManualForm((prev) => ({ ...prev, amount: event.target.value }))
-                  }
-                  placeholder="0.00"
-                />
-              </label>
-              <label className="field">
-                <span>Narration</span>
-                <input
-                  type="text"
-                  value={manualForm.narration}
-                  onChange={(event) =>
-                    setManualForm((prev) => ({ ...prev, narration: event.target.value }))
-                  }
-                  placeholder="What was this for?"
-                />
-              </label>
-              <label className="field">
-                <span>Balance (optional)</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={manualForm.balance}
-                  onChange={(event) =>
-                    setManualForm((prev) => ({ ...prev, balance: event.target.value }))
-                  }
-                  placeholder="0.00"
-                />
-              </label>
-              <label className="field">
-                <span>UPI name (optional)</span>
-                <input
-                  type="text"
-                  value={manualForm.upiName}
-                  onChange={(event) =>
-                    setManualForm((prev) => ({ ...prev, upiName: event.target.value }))
-                  }
-                />
-              </label>
-              <label className="field">
-                <span>UPI description (optional)</span>
-                <input
-                  type="text"
-                  value={manualForm.upiDescription}
-                  onChange={(event) =>
-                    setManualForm((prev) => ({ ...prev, upiDescription: event.target.value }))
-                  }
-                />
-              </label>
-              <label className="field">
-                <span>UPI bank (optional)</span>
-                <input
-                  type="text"
-                  value={manualForm.upiBank}
-                  onChange={(event) =>
-                    setManualForm((prev) => ({ ...prev, upiBank: event.target.value }))
-                  }
-                />
-              </label>
+                {manualForm.type === 'SETTLEMENT' && (
+                  <label className="field">
+                    <span>Settlement direction</span>
+                    <select
+                      value={manualForm.settlementDirection}
+                      onChange={(event) =>
+                        setManualForm((prev) => ({
+                          ...prev,
+                          settlementDirection: event.target.value,
+                        }))
+                      }
+                    >
+                      <option value="WITHDRAWAL">Withdrawal</option>
+                      <option value="DEPOSIT">Deposit</option>
+                    </select>
+                  </label>
+                )}
+                <label className="field">
+                  <span>Amount</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={manualForm.amount}
+                    onChange={(event) =>
+                      setManualForm((prev) => ({ ...prev, amount: event.target.value }))
+                    }
+                    placeholder="0.00"
+                  />
+                </label>
+                <label className="field">
+                  <span>Narration</span>
+                  <input
+                    type="text"
+                    value={manualForm.narration}
+                    onChange={(event) =>
+                      setManualForm((prev) => ({ ...prev, narration: event.target.value }))
+                    }
+                    placeholder="What was this for?"
+                  />
+                </label>
+              </div>
             </div>
-            <div className="friend-actions">
+            <div className="txn-form-section">
+              <p className="txn-form-section__label">Optional</p>
+              <div className="form-grid">
+                <label className="field">
+                  <span>Balance</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={manualForm.balance}
+                    onChange={(event) =>
+                      setManualForm((prev) => ({ ...prev, balance: event.target.value }))
+                    }
+                    placeholder="0.00"
+                  />
+                </label>
+                <label className="field">
+                  <span>UPI name</span>
+                  <input
+                    type="text"
+                    value={manualForm.upiName}
+                    onChange={(event) =>
+                      setManualForm((prev) => ({ ...prev, upiName: event.target.value }))
+                    }
+                    placeholder="Optional"
+                  />
+                </label>
+                <label className="field">
+                  <span>UPI description</span>
+                  <input
+                    type="text"
+                    value={manualForm.upiDescription}
+                    onChange={(event) =>
+                      setManualForm((prev) => ({ ...prev, upiDescription: event.target.value }))
+                    }
+                    placeholder="Optional"
+                  />
+                </label>
+                <label className="field">
+                  <span>UPI bank</span>
+                  <input
+                    type="text"
+                    value={manualForm.upiBank}
+                    onChange={(event) =>
+                      setManualForm((prev) => ({ ...prev, upiBank: event.target.value }))
+                    }
+                    placeholder="Optional"
+                  />
+                </label>
+              </div>
+            </div>
+            <div className="friend-actions txn-manual-form__actions">
               <button className="secondary" type="submit" disabled={manualSubmitting}>
-                {manualSubmitting ? 'Adding...' : 'Add transaction'}
+                {manualSubmitting ? 'Adding…' : 'Add transaction'}
               </button>
               {manualStatus && <p className="status">{manualStatus}</p>}
             </div>
@@ -1099,6 +1200,9 @@ export default function Transactions() {
                   onToggleExpand={() => openFriendTagsSheet(row.id)}
                   formatDateCompact={formatDateCompact}
                   formatNumber={formatNumber}
+                  categories={categories}
+                  onAssignCategory={assignCategory}
+                  categoryStatus={categoryStatusByTransaction[row.id]}
                 >
                   {null}
                 </MobileTransactionCard>
@@ -1109,7 +1213,7 @@ export default function Transactions() {
           <DataTable
             storageKey="fintrack-transactions-v1"
             columns={transactionColumns}
-            rows={transactions}
+            rows={filteredTransactions}
             getRowKey={(row) => row.id}
             scrollClassName="data-table-scroll transactions-table"
             mobileHeroColumnIds={['date', 'amount', 'actions']}
