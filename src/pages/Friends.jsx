@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import DataTable from '../components/DataTable.jsx';
 import FriendLedgerExportModal from '../components/FriendLedgerExportModal.jsx';
+import MobileTransactionCard from '../components/MobileTransactionCard.jsx';
+import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import { ledgerDirectionPhrase } from '../utils/ledgerParties';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
@@ -16,11 +19,109 @@ function formatDate(value) {
   }).format(date);
 }
 
+/** Same compact date as Transactions → MobileTransactionCard */
+function formatDateCompact(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat('en-IN', {
+    day: 'numeric',
+    month: 'short',
+  }).format(date);
+}
+
+/** Feed MobileTransactionCard: show tagged amount with same in/out as the parent txn. */
+function rowForFriendTagCard(tag) {
+  const tx = tag.transaction;
+  if (!tx) return {};
+  const w = Number(tx.withdrawal || 0);
+  const isW = w > 0;
+  const n = Number(tag.amount) || 0;
+  return {
+    ...tx,
+    withdrawal: isW ? n : 0,
+    deposit: isW ? 0 : n,
+  };
+}
+
+function FriendTagMobileDetails({ tag, friendName }) {
+  const phrase = ledgerDirectionPhrase(tag.direction, friendName);
+  const settles =
+    tag.settlesTransactions?.length > 0
+      ? tag.settlesTransactions.map((s, idx) => (
+          <span key={s.id}>
+            {idx > 0 ? '; ' : ''}
+            {formatDate(s.transaction?.transactionDate)} — {ledgerDirectionPhrase(s.direction, friendName)} — ₹
+            {formatNumber(s.amount)}
+          </span>
+        ))
+      : null;
+  const settledBy =
+    tag.settledBy?.length > 0
+      ? tag.settledBy.map((s, idx) => (
+          <span key={s.id}>
+            {idx > 0 ? '; ' : ''}
+            {formatDate(s.transaction?.transactionDate)} — ₹{formatNumber(s.amount)}
+          </span>
+        ))
+      : null;
+  return (
+    <table className="friend-tag-mini-table">
+      <tbody>
+        <tr>
+          <th scope="row">Direction</th>
+          <td>{phrase}</td>
+        </tr>
+        {tag.note ? (
+          <tr>
+            <th scope="row">Note</th>
+            <td>{tag.note}</td>
+          </tr>
+        ) : null}
+        {settles ? (
+          <tr>
+            <th scope="row">Settles</th>
+            <td>{settles}</td>
+          </tr>
+        ) : null}
+        {settledBy ? (
+          <tr>
+            <th scope="row">Settled by</th>
+            <td>{settledBy}</td>
+          </tr>
+        ) : null}
+      </tbody>
+    </table>
+  );
+}
+
 function formatNumber(value) {
   if (value === null || value === undefined) return '—';
   const num = Number(value);
   if (Number.isNaN(num)) return String(value);
   return new Intl.NumberFormat('en-IN').format(num);
+}
+
+/** Same row accent as Transactions (DataTable.css ::before on row). */
+function tagTransactionRowClassName(tag) {
+  const tx = tag.transaction;
+  if (!tx) return '';
+  const w = Number(tx.withdrawal || 0);
+  return w > 0 ? 'transaction-withdrawal' : 'transaction-deposit';
+}
+
+/** Same amount cell markup/classes as Transactions.jsx amount column. */
+function FriendTagAmountCell({ tag }) {
+  const tx = tag.transaction;
+  const withdrawal = Number(tx?.withdrawal || 0);
+  const isWithdrawal = withdrawal > 0;
+  const n = Number(tag.amount) || 0;
+  return (
+    <strong className={`transaction-amount ${isWithdrawal ? 'amount-withdrawal' : 'amount-deposit'}`}>
+      {isWithdrawal ? '-' : '+'}
+      {formatNumber(n)}
+    </strong>
+  );
 }
 
 export default function Friends() {
@@ -51,6 +152,8 @@ export default function Friends() {
   const [expandedFriendId, setExpandedFriendId] = useState(null);
   const [confirmState, setConfirmState] = useState({ open: false });
   const [ledgerExportFriend, setLedgerExportFriend] = useState(null);
+
+  const isNarrow = useMediaQuery('(max-width: 1099px)');
 
   const canCreate = useMemo(() => createForm.name.trim().length > 0, [createForm]);
 
@@ -220,16 +323,20 @@ export default function Friends() {
       id: 'date',
       header: 'Date',
       defaultWidth: 120,
+      minWidth: 88,
       sortable: true,
       accessor: (tag) => new Date(tag.transaction?.transactionDate).getTime(),
       trim: true,
       title: (tag) => formatDate(tag.transaction?.transactionDate),
-      cell: (tag) => <strong>{formatDate(tag.transaction?.transactionDate)}</strong>,
+      cellClassName: 'data-table-cell--span-mobile',
+      cell: (tag) => (
+        <strong className="transaction-date">{formatDate(tag.transaction?.transactionDate)}</strong>
+      ),
     },
     {
       id: 'upiName',
       header: 'UPI name',
-      defaultWidth: 180,
+      defaultWidth: 200,
       sortable: true,
       accessor: (tag) => tag.transaction?.upiName || '',
       trim: true,
@@ -240,7 +347,7 @@ export default function Friends() {
     {
       id: 'upiDescription',
       header: 'UPI description',
-      defaultWidth: 200,
+      defaultWidth: 220,
       sortable: true,
       accessor: (tag) => tag.transaction?.upiDescription || '',
       trim: true,
@@ -251,7 +358,7 @@ export default function Friends() {
     {
       id: 'upiBank',
       header: 'UPI bank',
-      defaultWidth: 140,
+      defaultWidth: 160,
       sortable: true,
       accessor: (tag) => tag.transaction?.upiBank || '',
       trim: true,
@@ -266,25 +373,9 @@ export default function Friends() {
       sortable: true,
       accessor: (tag) => tag.direction || '',
       trim: true,
-      cell: (tag) => (
-        <strong
-          className={
-            tag.direction === 'I_OWE'
-              ? 'friend-direction-owe'
-              : tag.direction === 'OWES_ME'
-                ? 'friend-direction-receivable'
-                : undefined
-          }
-        >
-          {tag.direction === 'I_OWE'
-            ? 'I owe'
-            : tag.direction === 'OWES_ME'
-              ? 'They owe me'
-              : tag.direction === 'SETTLEMENT'
-                ? 'Settlement'
-                : 'Nothing outstanding'}
-        </strong>
-      ),
+      title: (tag) => ledgerDirectionPhrase(tag.direction, tag._friendName),
+      cellClassName: 'data-table-cell--span-mobile',
+      cell: (tag) => <strong>{ledgerDirectionPhrase(tag.direction, tag._friendName)}</strong>,
     },
     {
       id: 'amount',
@@ -294,19 +385,8 @@ export default function Friends() {
       accessor: (tag) => Number(tag.amount) || 0,
       trim: true,
       title: (tag) => formatNumber(tag.amount),
-      cell: (tag) => (
-        <strong
-          className={
-            tag.direction === 'I_OWE'
-              ? 'friend-amount-owe'
-              : tag.direction === 'OWES_ME'
-                ? 'friend-amount-receivable'
-                : undefined
-          }
-        >
-          {formatNumber(tag.amount)}
-        </strong>
-      ),
+      cellClassName: 'data-table-cell--span-mobile',
+      cell: (tag) => <FriendTagAmountCell tag={tag} />,
     },
     {
       id: 'note',
@@ -341,13 +421,9 @@ export default function Friends() {
             ? tag.settlesTransactions.map((settled, idx) => (
                 <span key={settled.id}>
                   {idx > 0 && ', '}
-                  {formatDate(settled.transaction?.transactionDate)} -
-                  {settled.direction === 'I_OWE'
-                    ? ' I owe'
-                    : settled.direction === 'OWES_ME'
-                      ? ' They owe me'
-                      : ' Nothing'}{' '}
-                  - ₹{formatNumber(settled.amount)}
+                  {formatDate(settled.transaction?.transactionDate)} —{' '}
+                  {ledgerDirectionPhrase(settled.direction, tag._friendName)} — ₹
+                  {formatNumber(settled.amount)}
                 </span>
               ))
             : '—'}
@@ -557,13 +633,45 @@ export default function Friends() {
                     </div>
                     {friendTransactions.length === 0 ? (
                       <p className="empty">No tagged transactions yet.</p>
+                    ) : isNarrow ? (
+                      <div className="txn-mobile-stack friend-tagged-mobile">
+                        <div className="txn-mobile-list">
+                          {[...friendTransactions]
+                            .map((t) => ({ ...t, _friendName: friend.name }))
+                            .sort(
+                              (a, b) =>
+                                new Date(b.transaction?.transactionDate || 0).getTime() -
+                                new Date(a.transaction?.transactionDate || 0).getTime(),
+                            )
+                            .map((tag) => (
+                              <MobileTransactionCard
+                                key={tag.id}
+                                row={rowForFriendTagCard(tag)}
+                                expanded
+                                onToggleExpand={() => {}}
+                                formatDateCompact={formatDateCompact}
+                                formatNumber={formatNumber}
+                                nonInteractive
+                                hideBalance
+                                cardAriaLabel={`Tagged transaction ${formatDateCompact(tag.transaction?.transactionDate)}`}
+                              >
+                                <FriendTagMobileDetails tag={tag} friendName={friend.name} />
+                              </MobileTransactionCard>
+                            ))}
+                        </div>
+                      </div>
                     ) : (
                       <DataTable
                         storageKey={`fintrack-friend-tags-${friend.id}`}
                         columns={friendTaggedColumns}
-                        rows={friendTransactions}
+                        rows={friendTransactions.map((t) => ({
+                          ...t,
+                          _friendName: friend.name,
+                        }))}
                         getRowKey={(row) => row.id}
-                        mobileHeroColumnIds={['date', 'direction', 'amount']}
+                        mobileHeroColumnIds={['date', 'amount', 'direction']}
+                        scrollClassName="data-table-scroll transactions-table"
+                        rowClassName={tagTransactionRowClassName}
                         aria-label={`Tagged transactions for ${friend.name}`}
                       />
                     )}

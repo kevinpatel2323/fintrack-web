@@ -13,6 +13,8 @@
 
 .ledger-export-modal {
   width: min(980px, 100%);
+  max-width: 100%;
+  min-width: 0;
   max-height: min(92vh, 900px);
   background: #fff;
   border-radius: 16px;
@@ -48,31 +50,199 @@
   flex-shrink: 0;
 }
 
-.ledger-export-steps {
+/* Stepper (matches ledger polish) */
+.ledger-export-stepper {
+  position: relative;
+  flex-shrink: 0;
+  padding: 6px 4px 2px;
+  margin: 0 -2px;
+}
+
+.ledger-export-stepper__track {
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  top: 22px;
+  height: 4px;
+  background: rgba(30, 27, 22, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.ledger-export-stepper__track-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #2563eb 0%, #0d9488 100%);
+  transition: width 0.35s ease;
+}
+
+.ledger-export-stepper__list {
+  position: relative;
+  z-index: 1;
   display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  list-style: none;
+  margin: 0;
+  padding: 0 8px;
   gap: 8px;
-  flex-wrap: wrap;
-  font-size: 0.8rem;
-  color: var(--muted);
 }
 
-.ledger-export-steps span {
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(30, 27, 22, 0.06);
+.ledger-export-stepper__item {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
 }
 
-.ledger-export-steps span.is-active {
-  background: rgba(47, 107, 255, 0.15);
-  color: #1e3a5f;
+.ledger-export-stepper__node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #64748b;
+  background: #fff;
+  border: 2px solid rgba(30, 27, 22, 0.12);
+  box-shadow: 0 2px 8px rgba(30, 27, 22, 0.06);
+  transition:
+    color 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s;
+}
+
+.ledger-export-stepper__item.is-complete .ledger-export-stepper__node {
+  color: #0f766e;
+  border-color: rgba(13, 148, 136, 0.45);
+  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+}
+
+.ledger-export-stepper__item.is-active .ledger-export-stepper__node {
+  color: #1e40af;
+  border-color: rgba(37, 99, 235, 0.55);
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  box-shadow:
+    0 0 0 3px rgba(37, 99, 235, 0.12),
+    0 4px 14px rgba(37, 99, 235, 0.15);
+  transform: scale(1.06);
+}
+
+.ledger-export-stepper__check {
+  display: block;
+}
+
+.ledger-export-stepper__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 9.5rem;
+}
+
+.ledger-export-stepper__title {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 0.78rem;
   font-weight: 600;
+  color: #94a3b8;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.ledger-export-stepper__item.is-active .ledger-export-stepper__title {
+  color: #0f172a;
+  font-size: 0.82rem;
+}
+
+.ledger-export-stepper__item.is-complete .ledger-export-stepper__title {
+  color: #475569;
+}
+
+.ledger-export-stepper__hint {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: #cbd5e1;
+  line-height: 1.3;
+}
+
+.ledger-export-stepper__item.is-active .ledger-export-stepper__hint {
+  color: #64748b;
+}
+
+.ledger-export-stepper__item.is-complete .ledger-export-stepper__hint {
+  color: #94a3b8;
+}
+
+/* Step 3: preview + export */
+.ledger-export-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ledger-export-preview__banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.07) 0%, rgba(13, 148, 136, 0.06) 100%);
+  border: 1px solid rgba(30, 27, 22, 0.08);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
+}
+
+.ledger-export-preview__banner-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.1);
+  border: 1px solid rgba(37, 99, 235, 0.12);
+}
+
+.ledger-export-preview__banner-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ledger-export-preview__banner-copy strong {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.ledger-export-preview__banner-copy span {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .ledger-export-body {
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   flex: 1;
   min-height: 0;
+  min-width: 0;
   padding-right: 4px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ledger-export-dates {
@@ -158,151 +328,124 @@
   flex-shrink: 0;
 }
 
-/* Printable ledger (preview + PDF capture) */
+/* Ledger preview — matches exported PDF layout (document header + ruled tables) */
 .ledger-sheet-outer {
-  padding: 28px 32px 32px;
-  background:
-    radial-gradient(ellipse 100% 70% at 100% -10%, rgba(56, 189, 248, 0.14), transparent 55%),
-    radial-gradient(ellipse 80% 50% at -5% 110%, rgba(52, 211, 153, 0.1), transparent 50%),
-    linear-gradient(168deg, #dce4ee 0%, #e8edf4 38%, #eef2f7 100%);
+  padding: 16px 20px 20px;
+  background: #dfe3e8;
   box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .ledger-sheet {
   --ledger-ink: #0c1929;
   --ledger-muted: #5c6b7e;
-  max-width: 720px;
+  --ledger-border: #c8ced6;
+  --ledger-thead: #eceff4;
+  max-width: 100%;
+  min-width: 0;
   margin: 0 auto;
-  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-family: Helvetica, 'IBM Plex Sans', system-ui, sans-serif;
   font-size: 11px;
   line-height: 1.45;
   color: var(--ledger-ink);
-  background: #fafbfc;
-  border-radius: 14px;
-  overflow: hidden;
-  box-shadow:
-    0 0 0 1px rgba(12, 25, 41, 0.06),
-    0 2px 4px rgba(12, 25, 41, 0.04),
-    0 28px 56px -16px rgba(15, 30, 50, 0.22);
+  background: #fff;
+  border-radius: 2px;
+  overflow-x: hidden;
+  overflow-y: visible;
+  box-shadow: 0 0 0 1px rgba(12, 25, 41, 0.1);
 }
 
-.ledger-sheet__title-band {
-  position: relative;
-  background: linear-gradient(145deg, #0a1f33 0%, #143a5c 38%, #0d2844 72%, #071824 100%);
-  color: #f0f7ff;
-  padding: 0;
+.ledger-sheet__doc-header {
+  background: #fff;
 }
 
-.ledger-sheet__title-band::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse 90% 120% at 80% -40%, rgba(56, 189, 248, 0.18), transparent 55%);
-  pointer-events: none;
+.ledger-sheet__doc-header-inner {
+  text-align: left;
+  padding: 26px 28px 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.ledger-sheet__title-band::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #38bdf8 0%, #34d399 42%, #fbbf24 78%, #f472b6 100%);
-  opacity: 0.92;
-}
-
-.ledger-sheet__title-band-inner {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-  padding: 26px 22px 30px;
-}
-
-.ledger-sheet__brand {
-  display: inline-block;
-  font-family: 'IBM Plex Sans', sans-serif;
+.ledger-sheet__doc-brand {
+  display: block;
   font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.28em;
+  font-weight: 700;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: rgba(224, 242, 254, 0.72);
-  margin-bottom: 10px;
+  color: #5c6b7e;
+  margin-bottom: 18px;
 }
 
-.ledger-sheet__h1 {
+.ledger-sheet__doc-title {
   margin: 0;
-  font-family: 'IBM Plex Serif', Georgia, serif;
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: #fff;
+  font-family: Helvetica, 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 1.28rem;
+  font-weight: 700;
+  color: #0c1929;
   line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
-.ledger-sheet__friend {
-  margin: 10px 0 0;
-  font-size: 14px;
-  font-weight: 500;
-  color: rgba(186, 230, 253, 0.95);
+.ledger-sheet__doc-blurb {
+  margin: 20px 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #374151;
+  max-width: 48rem;
 }
 
-.ledger-sheet__period {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
+.ledger-sheet__doc-period {
+  margin: 16px 0 0;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: #505a66;
+}
+
+.ledger-sheet__doc-rule {
+  height: 1px;
   margin-top: 18px;
-  padding: 10px 20px 12px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-}
-
-.ledger-sheet__period-label {
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(186, 230, 253, 0.65);
-}
-
-.ledger-sheet__period-dates {
-  font-size: 12px;
-  font-weight: 500;
-  color: #fff;
-  font-variant-numeric: tabular-nums;
+  background: #b4bcc8;
 }
 
 .ledger-sheet__body {
-  padding: 20px 22px 22px;
-  background: linear-gradient(180deg, #fafbfc 0%, #f4f6f9 100%);
+  padding: 18px 28px 24px;
+  background: #fff;
+  min-width: 0;
 }
 
 .ledger-table-wrap {
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid rgba(12, 25, 41, 0.08);
-  box-shadow: 0 1px 3px rgba(12, 25, 41, 0.05);
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--ledger-border);
+  background: #fff;
 }
 
 .ledger-table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
   background: #fff;
 }
 
 .ledger-table thead th {
-  background: linear-gradient(180deg, #1a3652 0%, #142c45 100%);
-  color: #e8f4fc;
-  font-weight: 600;
+  background: var(--ledger-thead);
+  color: #1e293b;
+  font-weight: 700;
   font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   text-align: left;
   padding: 10px 8px;
-  border-bottom: 2px solid #0f2138;
+  border: 1px solid var(--ledger-border);
+  border-bottom: 1px solid var(--ledger-border);
   white-space: nowrap;
+}
+
+.ledger-table thead th:first-child {
+  border-left: 1px solid var(--ledger-border);
 }
 
 .ledger-table th.num {
@@ -315,14 +458,15 @@
 }
 
 .ledger-table tbody td {
-  padding: 9px 8px;
-  border-bottom: 1px solid rgba(12, 25, 41, 0.06);
+  padding: 8px 8px;
+  border: 1px solid #dcdfe4;
   vertical-align: top;
-  font-size: 10.5px;
+  font-size: 10px;
+  background: #fff;
 }
 
 .ledger-table tbody tr:last-child td {
-  border-bottom: none;
+  border-bottom: 1px solid #dcdfe4;
 }
 
 .ledger-table td.num {
@@ -335,7 +479,7 @@
   text-align: center;
   color: var(--ledger-muted);
   font-weight: 500;
-  font-size: 10px;
+  font-size: 9.5px;
 }
 
 .ledger-table__amount {
@@ -343,47 +487,24 @@
   color: #1e293b;
 }
 
-.ledger-row--owes {
-  background: linear-gradient(90deg, rgba(34, 197, 94, 0.11) 0%, rgba(255, 255, 255, 0.5) 100%);
-}
-
-.ledger-row--owe {
-  background: linear-gradient(90deg, rgba(244, 63, 94, 0.09) 0%, rgba(255, 255, 255, 0.5) 100%);
-}
-
-.ledger-row--settlement {
-  background: linear-gradient(90deg, rgba(234, 179, 8, 0.14) 0%, rgba(255, 255, 255, 0.55) 100%);
-}
-
-.ledger-row--neutral {
-  background: #fff;
-}
-
-.ledger-dir {
-  display: inline-block;
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 9px;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
 .ledger-row--owes .ledger-dir {
-  background: rgba(22, 163, 74, 0.2);
   color: #166534;
-  border: 1px solid rgba(22, 163, 74, 0.25);
 }
 
 .ledger-row--owe .ledger-dir {
-  background: rgba(244, 63, 94, 0.14);
   color: #9f1239;
-  border: 1px solid rgba(244, 63, 94, 0.2);
 }
 
 .ledger-row--settlement .ledger-dir {
-  background: rgba(234, 179, 8, 0.22);
   color: #854d0e;
-  border: 1px solid rgba(234, 179, 8, 0.28);
+}
+
+.ledger-dir {
+  display: inline;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: normal;
 }
 
 .ledger-impact--pos {
@@ -402,98 +523,64 @@
   letter-spacing: 0.02em;
 }
 
-.ledger-summary-panel {
-  margin-top: 22px;
-  padding-top: 20px;
-  border-top: 1px solid rgba(12, 25, 41, 0.08);
+.ledger-summary-table-block {
+  margin-top: 20px;
 }
 
-.ledger-summary-panel__title {
-  margin: 0 0 14px;
-  font-family: 'IBM Plex Serif', Georgia, serif;
-  font-size: 15px;
-  font-weight: 600;
-  color: #142c45;
-  letter-spacing: -0.01em;
+.ledger-summary-table-block__title {
+  margin: 0 0 10px;
+  font-family: Helvetica, 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0c1929;
 }
 
-.ledger-summary-cards {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+.ledger-summary-table-wrap {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--ledger-border);
+  background: #fff;
 }
 
-.ledger-sum-card {
-  border-radius: 12px;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  border: 1px solid rgba(12, 25, 41, 0.07);
-  box-shadow: 0 2px 8px rgba(12, 25, 41, 0.04);
-}
-
-.ledger-sum-card__label {
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ledger-muted);
-}
-
-.ledger-sum-card__value {
-  font-size: 17px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-
-.ledger-sum-card--they {
-  background: linear-gradient(145deg, rgba(240, 253, 244, 0.95) 0%, rgba(220, 252, 231, 0.5) 100%);
-}
-
-.ledger-sum-card--they .ledger-sum-card__value {
-  color: #166534;
-}
-
-.ledger-sum-card--you {
-  background: linear-gradient(145deg, rgba(255, 241, 242, 0.95) 0%, rgba(255, 228, 230, 0.45) 100%);
-}
-
-.ledger-sum-card--you .ledger-sum-card__value {
-  color: #be123c;
-}
-
-.ledger-sum-card--settle {
-  background: linear-gradient(145deg, rgba(254, 252, 232, 0.98) 0%, rgba(254, 243, 199, 0.4) 100%);
-}
-
-.ledger-sum-card--settle .ledger-sum-card__value {
-  color: #a16207;
-}
-
-.ledger-sum-card--net {
-  grid-column: 1 / -1;
-  background: linear-gradient(135deg, #1e3a5f 0%, #0f2744 55%, #1a3050 100%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 24px rgba(15, 39, 68, 0.25);
-  padding: 18px 20px;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.ledger-sum-card--net .ledger-sum-card__label {
-  color: rgba(186, 230, 253, 0.75);
+.ledger-summary-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
   font-size: 10px;
 }
 
-.ledger-sum-card--net .ledger-sum-card__value {
-  font-size: 22px;
+.ledger-summary-table thead th {
+  background: var(--ledger-thead);
+  color: #1e293b;
   font-weight: 700;
-  color: #fff;
+  font-size: 9px;
+  text-align: left;
+  padding: 10px 10px;
+  border: 1px solid var(--ledger-border);
+}
+
+.ledger-summary-table th.num {
+  text-align: right;
+}
+
+.ledger-summary-table tbody td {
+  padding: 9px 10px;
+  border: 1px solid #dcdfe4;
+  color: #0c1929;
+  background: #fff;
+}
+
+.ledger-summary-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.ledger-summary-table__net td {
+  font-weight: 700;
 }
 
 .ledger-sheet__footer {
@@ -502,11 +589,11 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 14px 20px 18px;
-  background: linear-gradient(180deg, #f1f4f8 0%, #e8ecf2 100%);
-  border-top: 1px solid rgba(12, 25, 41, 0.06);
-  font-size: 10px;
-  color: var(--ledger-muted);
+  padding: 12px 20px 16px;
+  background: #fafbfc;
+  border-top: 1px solid var(--ledger-border);
+  font-size: 8px;
+  color: #78869a;
 }
 
 .ledger-sheet__footer-brand {
@@ -516,8 +603,9 @@
   color: #3d5266;
 }
 
-.ledger-sheet__footer-dot {
-  opacity: 0.45;
+.ledger-sheet__footer-sep {
+  opacity: 0.55;
+  font-weight: 400;
 }
 
 .ledger-sheet__footer-meta {
@@ -540,22 +628,21 @@
   }
 
   .ledger-sheet-outer {
-    padding: 16px;
+    padding: 12px;
+  }
+
+  .ledger-sheet__body {
+    padding: 14px 12px 18px;
+  }
+
+  .ledger-sheet__doc-header-inner {
+    padding-left: 16px;
+    padding-right: 16px;
   }
 
   .ledger-table thead th,
   .ledger-table tbody td {
     font-size: 9px;
     padding: 6px 5px;
-  }
-
-  .ledger-summary-cards {
-    grid-template-columns: 1fr;
-  }
-
-  .ledger-sum-card--net {
-    grid-column: 1;
-    flex-direction: column;
-    align-items: flex-start;
   }
 }

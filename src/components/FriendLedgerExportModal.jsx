@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
+import { buildLedgerPdf } from '../utils/ledgerPdf';
+import { LEDGER_OWNER_NAME, ledgerDirectionPhrase } from '../utils/ledgerParties';
 import './FriendLedgerExportModal.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
@@ -35,13 +35,6 @@ function formatNumberIn(value) {
   return new Intl.NumberFormat('en-IN').format(num);
 }
 
-function directionLabel(direction) {
-  if (direction === 'I_OWE') return 'I owe';
-  if (direction === 'OWES_ME') return 'They owe me';
-  if (direction === 'SETTLEMENT') return 'Settlement';
-  return 'Nothing outstanding';
-}
-
 function rowClass(direction) {
   if (direction === 'OWES_ME') return 'ledger-row--owes';
   if (direction === 'I_OWE') return 'ledger-row--owe';
@@ -51,10 +44,10 @@ function rowClass(direction) {
 
 function balanceImpactCell(direction, amount) {
   if (direction === 'OWES_ME') {
-    return { text: `+₹${formatNumberIn(amount)}`, className: 'ledger-impact--pos' };
+    return { text: `+Rs.${formatNumberIn(amount)}`, className: 'ledger-impact--pos' };
   }
   if (direction === 'I_OWE') {
-    return { text: `-₹${formatNumberIn(amount)}`, className: 'ledger-impact--neg' };
+    return { text: `-Rs.${formatNumberIn(amount)}`, className: 'ledger-impact--neg' };
   }
   if (direction === 'SETTLEMENT') {
     return { text: 'Settled', className: 'ledger-impact--settled' };
@@ -91,27 +84,37 @@ function formatGeneratedStamp() {
   }).format(new Date());
 }
 
-function LedgerSummaryCards({ summary }) {
+function LedgerSummaryTable({ summary }) {
   return (
-    <div className="ledger-summary-panel">
-      <h2 className="ledger-summary-panel__title">Summary</h2>
-      <div className="ledger-summary-cards">
-        <div className="ledger-sum-card ledger-sum-card--they">
-          <span className="ledger-sum-card__label">Total they owe you</span>
-          <span className="ledger-sum-card__value">₹{formatNumberIn(summary.totalTheyOwe)}</span>
-        </div>
-        <div className="ledger-sum-card ledger-sum-card--you">
-          <span className="ledger-sum-card__label">Total you owe</span>
-          <span className="ledger-sum-card__value">₹{formatNumberIn(summary.totalYouOwe)}</span>
-        </div>
-        <div className="ledger-sum-card ledger-sum-card--settle">
-          <span className="ledger-sum-card__label">Settlements</span>
-          <span className="ledger-sum-card__value">₹{formatNumberIn(summary.totalSettlements)}</span>
-        </div>
-        <div className="ledger-sum-card ledger-sum-card--net">
-          <span className="ledger-sum-card__label">Net balance</span>
-          <span className="ledger-sum-card__value">₹{formatNumberIn(summary.net)}</span>
-        </div>
+    <div className="ledger-summary-table-block">
+      <h2 className="ledger-summary-table-block__title">Summary</h2>
+      <div className="ledger-summary-table-wrap">
+        <table className="ledger-summary-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th className="num">Amount (Rs.)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Total they owe you</td>
+              <td className="num">Rs.{formatNumberIn(summary.totalTheyOwe)}</td>
+            </tr>
+            <tr>
+              <td>Total you owe</td>
+              <td className="num">Rs.{formatNumberIn(summary.totalYouOwe)}</td>
+            </tr>
+            <tr>
+              <td>Settlements</td>
+              <td className="num">Rs.{formatNumberIn(summary.totalSettlements)}</td>
+            </tr>
+            <tr className="ledger-summary-table__net">
+              <td>Net balance</td>
+              <td className="num">Rs.{formatNumberIn(summary.net)}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -119,19 +122,18 @@ function LedgerSummaryCards({ summary }) {
 
 function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
   const stamp = formatGeneratedStamp();
+  const blurb = `This statement lists transactions tagged between ${LEDGER_OWNER_NAME} and ${friendName}.`;
 
   const header = (
-    <header className="ledger-sheet__title-band">
-      <div className="ledger-sheet__title-band-inner">
-        <span className="ledger-sheet__brand">Fintrack</span>
-        <h1 className="ledger-sheet__h1">Transaction ledger</h1>
-        <p className="ledger-sheet__friend">{friendName}</p>
-        <div className="ledger-sheet__period">
-          <span className="ledger-sheet__period-label">Statement period</span>
-          <span className="ledger-sheet__period-dates">
-            {formatDateLedger(startDate)} — {formatDateLedger(endDate)}
-          </span>
-        </div>
+    <header className="ledger-sheet__doc-header">
+      <div className="ledger-sheet__doc-header-inner">
+        <span className="ledger-sheet__doc-brand">FINTRACK</span>
+        <h1 className="ledger-sheet__doc-title">Transaction ledger</h1>
+        <p className="ledger-sheet__doc-blurb">{blurb}</p>
+        <p className="ledger-sheet__doc-period">
+          Statement period: {formatDateLedger(startDate)} - {formatDateLedger(endDate)}
+        </p>
+        <div className="ledger-sheet__doc-rule" aria-hidden="true" />
       </div>
     </header>
   );
@@ -139,8 +141,8 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
   const footer = (
     <footer className="ledger-sheet__footer">
       <span className="ledger-sheet__footer-brand">Fintrack</span>
-      <span className="ledger-sheet__footer-dot" aria-hidden="true">
-        ·
+      <span className="ledger-sheet__footer-sep" aria-hidden="true">
+        |
       </span>
       <span className="ledger-sheet__footer-meta">Generated {stamp}</span>
     </footer>
@@ -175,7 +177,7 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
                   <th>UPI description</th>
                   <th>Bank</th>
                   <th>Direction</th>
-                  <th className="num">Amount (₹)</th>
+                  <th className="num">Amount (Rs.)</th>
                   <th className="num">Balance impact</th>
                   <th>Note</th>
                 </tr>
@@ -195,9 +197,11 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
                       <td>{desc}</td>
                       <td>{bank}</td>
                       <td>
-                        <span className="ledger-dir">{directionLabel(tag.direction)}</span>
+                        <span className="ledger-dir">
+                          {ledgerDirectionPhrase(tag.direction, friendName)}
+                        </span>
                       </td>
-                      <td className="num ledger-table__amount">₹{formatNumberIn(tag.amount)}</td>
+                      <td className="num ledger-table__amount">Rs.{formatNumberIn(tag.amount)}</td>
                       <td className={`num ${impact.className}`}>{impact.text}</td>
                       <td>{tag.note || '—'}</td>
                     </tr>
@@ -206,7 +210,7 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
               </tbody>
             </table>
           </div>
-          <LedgerSummaryCards summary={summary} />
+          <LedgerSummaryTable summary={summary} />
         </div>
         {footer}
       </div>
@@ -222,7 +226,6 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [loadStatus, setLoadStatus] = useState('');
   const [pdfBusy, setPdfBusy] = useState(false);
-  const ledgerRef = useRef(null);
   const ledgerOpenIdRef = useRef(null);
 
   const resetForFriend = useCallback(() => {
@@ -294,39 +297,18 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
 
   const previewSummary = useMemo(() => computeSummary(includedTags), [includedTags]);
 
-  async function exportPdf() {
-    const el = ledgerRef.current;
-    if (!el || !includedTags.length) return;
+  function exportPdf() {
+    if (!includedTags.length) return;
     setPdfBusy(true);
     try {
-      if (document.fonts?.ready) {
-        await document.fonts.ready;
-      }
-      const canvas = await html2canvas(el, {
-        scale: 2.25,
-        useCORS: true,
-        backgroundColor: '#e4eaf2',
-        logging: false,
+      const pdf = buildLedgerPdf({
+        friendName: friend.name,
+        startDate,
+        endDate,
+        tags: includedTags,
+        summary: previewSummary,
+        generatedStamp: formatGeneratedStamp(),
       });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
       const part = sanitizeFilePart(friend?.name);
       pdf.save(`Transaction-Ledger-${part}-${startDate}-to-${endDate}.pdf`);
     } catch (e) {
@@ -360,11 +342,76 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
           </button>
         </div>
 
-        <div className="ledger-export-steps" aria-hidden="true">
-          <span className={step === 1 ? 'is-active' : ''}>1. Date range</span>
-          <span className={step === 2 ? 'is-active' : ''}>2. Include rows</span>
-          <span className={step === 3 ? 'is-active' : ''}>3. Preview & PDF</span>
-        </div>
+        <nav className="ledger-export-stepper" aria-label="Export steps">
+          <div className="ledger-export-stepper__track" aria-hidden="true">
+            <div
+              className="ledger-export-stepper__track-fill"
+              style={{ width: step === 1 ? '0%' : step === 2 ? '50%' : '100%' }}
+            />
+          </div>
+          <ol className="ledger-export-stepper__list">
+            <li
+              className={`ledger-export-stepper__item${step === 1 ? ' is-active' : ''}${step > 1 ? ' is-complete' : ''}`}
+              aria-current={step === 1 ? 'step' : undefined}
+            >
+              <span className="ledger-export-stepper__node" aria-hidden="true">
+                {step > 1 ? (
+                  <svg className="ledger-export-stepper__check" viewBox="0 0 16 16" width="16" height="16" fill="none">
+                    <path
+                      d="M3 8.5 6.2 11 13 4"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                ) : (
+                  '1'
+                )}
+              </span>
+              <span className="ledger-export-stepper__text">
+                <span className="ledger-export-stepper__title">Date range</span>
+                <span className="ledger-export-stepper__hint">Pick dates</span>
+              </span>
+            </li>
+            <li
+              className={`ledger-export-stepper__item${step === 2 ? ' is-active' : ''}${step > 2 ? ' is-complete' : ''}`}
+              aria-current={step === 2 ? 'step' : undefined}
+            >
+              <span className="ledger-export-stepper__node" aria-hidden="true">
+                {step > 2 ? (
+                  <svg className="ledger-export-stepper__check" viewBox="0 0 16 16" width="16" height="16" fill="none">
+                    <path
+                      d="M3 8.5 6.2 11 13 4"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                ) : (
+                  '2'
+                )}
+              </span>
+              <span className="ledger-export-stepper__text">
+                <span className="ledger-export-stepper__title">Include rows</span>
+                <span className="ledger-export-stepper__hint">Choose transactions</span>
+              </span>
+            </li>
+            <li
+              className={`ledger-export-stepper__item${step === 3 ? ' is-active' : ''}`}
+              aria-current={step === 3 ? 'step' : undefined}
+            >
+              <span className="ledger-export-stepper__node" aria-hidden="true">
+                3
+              </span>
+              <span className="ledger-export-stepper__text">
+                <span className="ledger-export-stepper__title">Preview &amp; PDF</span>
+                <span className="ledger-export-stepper__hint">Review &amp; download</span>
+              </span>
+            </li>
+          </ol>
+        </nav>
 
         <div className="ledger-export-body">
           {step === 1 && (
@@ -420,7 +467,7 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
                             />
                           </td>
                           <td>{formatDateLedger(t.transactionDate)}</td>
-                          <td>{directionLabel(tag.direction)}</td>
+                          <td>{ledgerDirectionPhrase(tag.direction, friend.name)}</td>
                           <td className="num">₹{formatNumberIn(tag.amount)}</td>
                           <td>{t.upiDescription || t.narration || '—'}</td>
                         </tr>
@@ -433,7 +480,23 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
           )}
 
           {step === 3 && (
-            <div ref={ledgerRef}>
+            <div className="ledger-export-preview">
+              <div className="ledger-export-preview__banner">
+                <div className="ledger-export-preview__banner-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
+                    <path
+                      d="M9 12h6m-6 4h6M7 8h10M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2z"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </div>
+                <div className="ledger-export-preview__banner-copy">
+                  <strong>Preview your ledger</strong>
+                  <span>Matches the PDF. Use Export PDF when it looks right.</span>
+                </div>
+              </div>
               <LedgerSheet
                 friendName={friend.name}
                 startDate={startDate}
@@ -476,7 +539,7 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
               type="button"
               className="primary"
               disabled={!includedTags.length || pdfBusy}
-              onClick={() => void exportPdf()}
+              onClick={() => exportPdf()}
             >
               {pdfBusy ? 'Exporting…' : 'Export PDF'}
             </button>

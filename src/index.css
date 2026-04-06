@@ -524,11 +524,74 @@ button:disabled {
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid rgba(31, 95, 89, 0.1);
+  min-width: 0;
+}
+
+/* Match Transactions DataTable: contained scroll + wrapping for long settlement lines */
+.friend-transactions .data-table-scroll {
+  max-width: 100%;
+}
+
+/* Long settlement lines: wrap instead of clipping (desktop + mobile) */
+.friend-transactions .data-table-cell[data-col-id='settles'] .data-table-cell-value,
+.friend-transactions .data-table-cell[data-col-id='settledBy'] .data-table-cell-value {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (max-width: 1099px) {
+  .friend-transactions .data-table-row .data-table-cell[data-col-id='settles'] .data-table-cell-trim,
+  .friend-transactions .data-table-row .data-table-cell[data-col-id='settledBy'] .data-table-cell-trim {
+    white-space: normal;
+    display: block;
+    -webkit-line-clamp: unset;
+    -webkit-box-orient: unset;
+  }
 }
 
 .friend-transactions-header h3 {
   margin: 0 0 4px;
   font-family: 'Fraunces', serif;
+}
+
+.friend-tagged-mobile {
+  min-width: 0;
+}
+
+.friend-tag-mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.friend-tag-mini-table th,
+.friend-tag-mini-table td {
+  padding: 6px 8px 6px 0;
+  vertical-align: top;
+  border-bottom: 1px solid var(--stroke);
+  text-align: left;
+  font-weight: 400;
+}
+
+.friend-tag-mini-table th {
+  width: 6.5rem;
+  padding-right: 10px;
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.friend-tag-mini-table td {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+
+.friend-tag-mini-table tr:last-child th,
+.friend-tag-mini-table tr:last-child td {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .friend-transactions-list {
@@ -580,16 +643,6 @@ button:disabled {
 
 .friend-cell-label {
   display: block;
-}
-
-.friend-direction-owe,
-.friend-amount-owe {
-  color: var(--danger);
-}
-
-.friend-direction-receivable,
-.friend-amount-receivable {
-  color: var(--success);
 }
 
 input[type='date'] {
@@ -655,8 +708,11 @@ input[type='date'] {
 
 .transactions-table {
   max-height: none;
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: visible;
   border-radius: 14px;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
   --tx-grid-columns: 120px 180px minmax(180px, 2fr) minmax(130px, 1fr) 110px 130px 130px auto;
 }
 

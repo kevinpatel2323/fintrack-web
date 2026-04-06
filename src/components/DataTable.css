@@ -86,6 +86,10 @@
 .data-table-scroll {
   border-radius: 14px;
   min-width: 0;
+  /* Keep wide column grids inside cards / narrow layouts (e.g. Friends) */
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
 }
 
 .data-table-empty {
@@ -381,15 +385,11 @@
     letter-spacing: -0.02em;
   }
 
-  .data-table-mobile-hero .friend-direction-owe,
-  .data-table-mobile-hero .friend-direction-receivable {
+  /* Friends tagged table: third hero slot (direction) — align with Transactions “actions” slot weight */
+  .data-table-mobile-hero .data-table-cell[data-col-id='direction'] .data-table-cell-value strong {
     font-size: 0.82rem;
     font-weight: 700;
-  }
-
-  .data-table-mobile-hero .friend-amount-owe,
-  .data-table-mobile-hero .friend-amount-receivable {
-    font-size: 1.05rem;
+    color: var(--ink);
   }
 
   .data-table-mobile-hero + .data-table-cell--meta {
