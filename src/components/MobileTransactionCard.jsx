@@ -27,6 +27,12 @@ export default function MobileTransactionCard({
   categories,
   onAssignCategory,
   categoryStatus,
+  /** When true, card is display-only (no expand toggle) — e.g. Friends tagged list */
+  nonInteractive = false,
+  /** Accessible name when nonInteractive (defaults to generic label) */
+  cardAriaLabel,
+  /** Hide running balance line (e.g. Friends tagged transactions) */
+  hideBalance = false,
 }) {
   const withdrawal = Number(row.withdrawal || 0);
   const deposit = Number(row.deposit || 0);
@@ -49,6 +55,7 @@ export default function MobileTransactionCard({
     : 'None';
 
   function handleKeyDown(e) {
+    if (nonInteractive) return;
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       onToggleExpand();
@@ -64,16 +71,18 @@ export default function MobileTransactionCard({
       className={`mobile-txn-card glass-panel ${isWithdrawal ? 'mobile-txn-card--out' : 'mobile-txn-card--in'}`}
     >
       <div
-        className="mobile-txn-card__clickable"
-        role="button"
-        tabIndex={0}
-        onClick={onToggleExpand}
-        onKeyDown={handleKeyDown}
-        aria-expanded={expanded}
+        className={`mobile-txn-card__clickable${nonInteractive ? ' mobile-txn-card__clickable--static' : ''}`}
+        role={nonInteractive ? 'group' : 'button'}
+        tabIndex={nonInteractive ? undefined : 0}
+        onClick={nonInteractive ? undefined : onToggleExpand}
+        onKeyDown={nonInteractive ? undefined : handleKeyDown}
+        aria-expanded={nonInteractive ? undefined : expanded}
         aria-label={
-          expanded
-            ? 'Collapse friend tags for this transaction'
-            : 'Expand friend tags for this transaction'
+          nonInteractive
+            ? cardAriaLabel || 'Transaction'
+            : expanded
+              ? 'Collapse friend tags for this transaction'
+              : 'Expand friend tags for this transaction'
         }
       >
         <div className="mobile-txn-card__accent" aria-hidden />
@@ -95,7 +104,9 @@ export default function MobileTransactionCard({
                 {isWithdrawal ? '−' : '+'}
                 {formatNumber(amount)}
               </span>
-              <span className="mobile-txn-card__balance">Bal {formatNumber(row.balance)}</span>
+              {!hideBalance ? (
+                <span className="mobile-txn-card__balance">Bal {formatNumber(row.balance)}</span>
+              ) : null}
             </div>
             {showCategory ? (
               <div

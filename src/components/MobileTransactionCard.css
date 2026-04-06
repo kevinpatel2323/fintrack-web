@@ -21,6 +21,11 @@
   outline-offset: 2px;
 }
 
+.mobile-txn-card__clickable--static {
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .mobile-txn-card__accent {
   position: absolute;
   left: 0;
