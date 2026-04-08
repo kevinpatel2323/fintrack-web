@@ -601,7 +601,7 @@ export default function Transactions() {
         }`}
       >
         {(tagsByTransaction[row.id] || []).length === 0 ? (
-          <p className="empty">No friend tags for this transaction.</p>
+          <p className="empty">No friend attached for this transaction.</p>
         ) : (
           (tagsByTransaction[row.id] || []).map((tag) => {
             const friendName = tag.friend?.name || String(tag.friendId);
@@ -947,8 +947,8 @@ export default function Transactions() {
         {rangeResult && (
           <div className="range-result glass-panel txn-stat-strip">
             <div>
-              <span>Transactions</span>
               <strong>{formatNumber(rangeResult.count)}</strong>
+              <span>Tnsx.</span>
             </div>
             <div>
               <span>Start</span>
@@ -1019,20 +1019,20 @@ export default function Transactions() {
             }}
           />
         )}
-        {isPhone && !manualOpen && (
-          <button
-            type="button"
-            className="mobile-transaction-fab"
-            aria-label="Add manual transaction"
-            onClick={() => {
-              setManualStatus('');
-              setManualOpen((prev) => !prev);
-            }}
-          >
-            +
-          </button>
-        )}
       </section>
+      {isPhone && !manualOpen && (
+        <button
+          type="button"
+          className="mobile-transaction-fab"
+          aria-label="Add manual transaction"
+          onClick={() => {
+            setManualStatus('');
+            setManualOpen((prev) => !prev);
+          }}
+        >
+          +
+        </button>
+      )}
     </>
   );
 }

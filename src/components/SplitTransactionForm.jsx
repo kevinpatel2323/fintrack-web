@@ -408,7 +408,6 @@ export default function SplitTransactionForm({
             autoComplete="off"
             spellCheck={false}
             aria-label="Filter friends by name"
-            aria-describedby="split-txn-participant-hint"
           />
           {orderedSelected.length > 0 && (
             <div className="split-txn-participant-chips" role="list" aria-label="Selected participants">
@@ -436,21 +435,6 @@ export default function SplitTransactionForm({
               })}
             </div>
           )}
-          <p id="split-txn-participant-hint" className="split-txn-participant-meta" aria-live="polite">
-            {participantSearch.trim() ? (
-              <>
-                {filteredParticipants.length} match{filteredParticipants.length === 1 ? '' : 'es'}
-                {selectedIds.length > 0 ? ` · ${selectedIds.length} selected` : null}
-                {filteredParticipants.length > 0 ? ' · Enter: add / remove top name' : null}
-              </>
-            ) : (
-              <>
-                {participants.length} friend{participants.length === 1 ? '' : 's'}
-                {selectedIds.length > 0 ? ` · ${selectedIds.length} selected` : ''}
-                {' — '}type to filter · {filteredParticipants.length > 0 ? 'Enter: add / remove top name' : ''}
-              </>
-            )}
-          </p>
         </div>
       )}
       <div className="split-txn-friend-list">
@@ -618,7 +602,7 @@ export default function SplitTransactionForm({
           disabled={!validation.valid || !onApplySplit || applying}
           onClick={() => void handleApply()}
         >
-          {applying ? 'Applying…' : 'Apply split as tags'}
+          {applying ? 'Adding…' : 'Add split'}
         </button>
       </div>
     </div>

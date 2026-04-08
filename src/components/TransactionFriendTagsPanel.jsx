@@ -332,7 +332,7 @@ export default function TransactionFriendTagsPanel({ transaction, friends, forma
         {status && <p className="status">{status}</p>}
         <div className="friend-tags-list">
           {tags.length === 0 ? (
-            <p className="empty">No friend tags for this transaction.</p>
+            <p className="empty">No friend attached for this transaction.</p>
           ) : (
             tags.map((tag) => (
               <div className="friend-tag-row" key={tag.id}>

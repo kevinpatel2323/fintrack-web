@@ -481,22 +481,6 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
 
           {step === 3 && (
             <div className="ledger-export-preview">
-              <div className="ledger-export-preview__banner">
-                <div className="ledger-export-preview__banner-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
-                    <path
-                      d="M9 12h6m-6 4h6M7 8h10M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2z"
-                      stroke="currentColor"
-                      strokeWidth="1.75"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </div>
-                <div className="ledger-export-preview__banner-copy">
-                  <strong>Preview your ledger</strong>
-                  <span>Matches the PDF. Use Export PDF when it looks right.</span>
-                </div>
-              </div>
               <LedgerSheet
                 friendName={friend.name}
                 startDate={startDate}
