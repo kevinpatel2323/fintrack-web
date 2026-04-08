@@ -1,0 +1,135 @@
+.calendar-cell--subs.calendar-cell--has-data {
+  border-color: rgba(220, 120, 140, 0.35);
+}
+
+.subscriptions-list-panel h3 {
+  margin-top: 0;
+}
+
+.subscriptions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.subscriptions-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.subscriptions-list li:last-child {
+  border-bottom: none;
+}
+
+.subscriptions-list__meta {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.subscriptions-list__rrule {
+  margin-top: 6px;
+  max-width: 100%;
+}
+
+.subscriptions-list__rrule code {
+  font-size: 0.72rem;
+  word-break: break-all;
+  opacity: 0.9;
+}
+
+.subscriptions-list__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+button.danger,
+.subscriptions-list__actions .danger {
+  color: #f0a4a4;
+}
+
+.subs-day-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.subs-day-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.subs-day-list__amt {
+  font-weight: 700;
+  text-align: right;
+}
+
+.subs-pill {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: rgba(120, 180, 255, 0.2);
+  color: var(--ink);
+}
+
+.subs-form-sheet.calendar-sheet--wide {
+  max-width: min(520px, 100vw - 24px);
+}
+
+.subs-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.subs-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.subs-form__field input,
+.subs-form__field textarea,
+.subs-form__field select {
+  font-weight: 400;
+}
+
+.subs-form__inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.subs-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.muted.small {
+  font-size: 0.8rem;
+}

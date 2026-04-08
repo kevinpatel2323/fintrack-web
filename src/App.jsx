@@ -6,6 +6,7 @@ import Transactions from './pages/Transactions.jsx';
 import Calendar from './pages/Calendar.jsx';
 import Friends from './pages/Friends.jsx';
 import Categories from './pages/Categories.jsx';
+import SubscriptionsCalendar from './pages/SubscriptionsCalendar.jsx';
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
           <NavLink to="/import">Import</NavLink>
           <NavLink to="/transactions">Transactions</NavLink>
           <NavLink to="/calendar">Calendar</NavLink>
+          <NavLink to="/subscriptions">Subscriptions</NavLink>
           <NavLink to="/friends">Friends</NavLink>
           <NavLink to="/categories">Categories</NavLink>
         </nav>
@@ -38,6 +40,7 @@ export default function App() {
             <Route path="/import" element={<StatementImport />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/calendar" element={<Calendar />} />
+            <Route path="/subscriptions" element={<SubscriptionsCalendar />} />
             <Route path="/friends" element={<Friends />} />
             <Route path="/categories" element={<Categories />} />
           </Routes>

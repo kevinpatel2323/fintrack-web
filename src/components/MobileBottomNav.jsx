@@ -34,6 +34,12 @@ export default function MobileBottomNav() {
         </span>
         <span>Cal</span>
       </NavLink>
+      <NavLink className={linkClass} to="/subscriptions">
+        <span className="mobile-bottom-nav__icon" aria-hidden>
+          ⧗
+        </span>
+        <span>Subs</span>
+      </NavLink>
       <NavLink className={linkClass} to="/friends">
         <span className="mobile-bottom-nav__icon" aria-hidden>
           ◉
