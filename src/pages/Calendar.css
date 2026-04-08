@@ -1,5 +1,31 @@
 @import '../styles/transactionSheet.css';
 
+.calendar-view-toggle {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  border-radius: 16px;
+}
+
+.calendar-view-toggle__btn {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--stroke, rgba(255, 255, 255, 0.12));
+  background: transparent;
+  color: var(--ink-muted, inherit);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.calendar-view-toggle__btn--active {
+  background: var(--accent-soft, rgba(46, 196, 182, 0.18));
+  border-color: var(--accent, #2ec4b6);
+  color: var(--ink, inherit);
+}
+
 .calendar-card {
   gap: 14px;
   min-width: 0;
@@ -131,12 +157,35 @@
   cursor: pointer;
 }
 
+/* Days with ≥1 transaction: category coverage (see computeCategoryCoverageByDay) */
+.calendar-cell--cats-complete {
+  background: rgba(27, 122, 57, 0.14);
+  border-color: rgba(27, 122, 57, 0.22);
+}
+
+.calendar-cell--cats-incomplete {
+  background: rgba(185, 56, 41, 0.12);
+  border-color: rgba(185, 56, 41, 0.28);
+}
+
 .calendar-cell--has-data:hover,
 .calendar-cell--has-data:focus-visible {
   background: rgba(31, 95, 89, 0.08);
   border-color: rgba(31, 95, 89, 0.25);
   transform: translateY(-1px);
   outline: none;
+}
+
+.calendar-cell--has-data.calendar-cell--cats-complete:hover,
+.calendar-cell--has-data.calendar-cell--cats-complete:focus-visible {
+  background: rgba(27, 122, 57, 0.22);
+  border-color: rgba(27, 122, 57, 0.32);
+}
+
+.calendar-cell--has-data.calendar-cell--cats-incomplete:hover,
+.calendar-cell--has-data.calendar-cell--cats-incomplete:focus-visible {
+  background: rgba(185, 56, 41, 0.18);
+  border-color: rgba(185, 56, 41, 0.38);
 }
 
 .calendar-cell__dow-num {
@@ -212,6 +261,16 @@
 
 .calendar-legend i.out {
   background: var(--danger);
+}
+
+.calendar-legend i.cats-ok {
+  background: rgba(27, 122, 57, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(27, 122, 57, 0.35);
+}
+
+.calendar-legend i.cats-miss {
+  background: rgba(185, 56, 41, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(185, 56, 41, 0.35);
 }
 
 @media (max-width: 719px) {

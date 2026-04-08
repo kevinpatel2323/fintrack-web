@@ -232,9 +232,6 @@
 }
 
 .category-row {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
   padding: 14px 16px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.82);
@@ -254,6 +251,54 @@
   align-items: center;
   gap: 14px;
   min-width: 0;
+}
+
+.category-row__tools {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.category-icon-btn {
+  box-sizing: border-box;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  margin: 0;
+  border-radius: 10px;
+  border: 1px solid rgba(31, 95, 89, 0.22);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--teal);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.category-icon-btn:hover {
+  background: rgba(31, 95, 89, 0.08);
+  border-color: rgba(31, 95, 89, 0.35);
+}
+
+.category-icon-btn:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.category-icon-btn--danger {
+  color: var(--danger);
+  border-color: rgba(185, 56, 41, 0.28);
+}
+
+.category-icon-btn--danger:hover {
+  background: rgba(185, 56, 41, 0.08);
+  border-color: rgba(185, 56, 41, 0.4);
 }
 
 .category-avatar {
@@ -299,29 +344,6 @@
   background: var(--bg-deep);
   color: var(--muted);
   flex-shrink: 0;
-}
-
-.category-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  width: 100%;
-}
-
-.category-action-btn {
-  min-height: 44px;
-  padding: 10px 12px;
-  font-size: 0.85rem;
-  border-radius: 12px;
-}
-
-.category-action-btn--danger {
-  color: var(--danger);
-  border-color: rgba(185, 56, 41, 0.22);
-}
-
-.category-action-btn--danger:hover {
-  background: rgba(185, 56, 41, 0.06);
 }
 
 /* colour chip used elsewhere (Transactions column) */
@@ -390,10 +412,6 @@
   }
 
   .category-row {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
     padding: 14px 18px;
   }
 
@@ -407,19 +425,6 @@
     white-space: nowrap;
     width: auto;
     max-width: min(320px, 45vw);
-  }
-
-  .category-actions {
-    display: flex;
-    width: auto;
-    grid-template-columns: none;
-    flex-shrink: 0;
-  }
-
-  .category-action-btn {
-    min-height: unset;
-    padding: 7px 14px;
-    font-size: 0.8rem;
   }
 }
 
@@ -442,6 +447,13 @@
   .categories-page__add-btn {
     width: 100%;
     justify-content: center;
+  }
+
+  .categories-page .category-icon-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .color-swatch,

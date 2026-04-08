@@ -770,14 +770,6 @@
   outline-offset: 1px;
 }
 
-.split-txn-participant-meta {
-  margin: 0;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--muted);
-  line-height: 1.35;
-}
-
 .split-txn-participant-chips {
   display: flex;
   flex-wrap: wrap;

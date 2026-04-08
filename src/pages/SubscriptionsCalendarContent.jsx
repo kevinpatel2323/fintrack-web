@@ -98,7 +98,7 @@ const emptyForm = () => ({
   remindDaysBefore: '',
 });
 
-export default function SubscriptionsCalendar() {
+export default function SubscriptionsCalendarContent() {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
@@ -355,33 +355,23 @@ export default function SubscriptionsCalendar() {
     <>
       <section className="card calendar-card">
         <div className="glass-panel calendar-filters">
-          <div className="card-header">
-            <div>
-              <h2>Subscriptions calendar</h2>
-              <p>
-                Expected debits from RRULE rules. Isolated from bank transactions—expand occurrences on demand, no
-                per-date rows in the database.
-              </p>
-            </div>
-            <button type="button" className="primary" onClick={openCreate}>
-              Add subscription
-            </button>
-          </div>
-        </div>
-
-        <div className="glass-panel calendar-filters">
-          <div className="calendar-toolbar">
-            <h2>Month</h2>
-            <div className="calendar-nav-cluster">
-              <button className="secondary" type="button" onClick={goPrevMonth} aria-label="Previous month">
-                ‹
-              </button>
-              <span className="calendar-month-label">{monthTitle}</span>
-              <button className="secondary" type="button" onClick={goNextMonth} aria-label="Next month">
-                ›
-              </button>
-              <button className="secondary" type="button" onClick={goThisMonth}>
-                Today
+          <div className="calendar-toolbar subs-calendar-toolbar">
+            <h2>Subscription Calendar</h2>
+            <div className="subs-calendar-toolbar__controls">
+              <div className="calendar-nav-cluster">
+                <button className="secondary" type="button" onClick={goPrevMonth} aria-label="Previous month">
+                  ‹
+                </button>
+                <span className="calendar-month-label">{monthTitle}</span>
+                <button className="secondary" type="button" onClick={goNextMonth} aria-label="Next month">
+                  ›
+                </button>
+                <button className="secondary" type="button" onClick={goThisMonth}>
+                  Today
+                </button>
+              </div>
+              <button type="button" className="primary subs-add-subscription-btn" onClick={openCreate}>
+                Add subscription
               </button>
             </div>
           </div>
@@ -446,9 +436,6 @@ export default function SubscriptionsCalendar() {
           <div className="calendar-legend">
             <span>
               <i className="out" /> Expected debit total
-            </span>
-            <span>
-              <i /> Tap a date for details
             </span>
           </div>
         </div>

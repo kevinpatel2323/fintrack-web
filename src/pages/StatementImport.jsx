@@ -332,6 +332,15 @@ export default function StatementImport() {
       cell: (row) => <strong>{row.accountNumber || 'unknown'}</strong>,
     },
     {
+      id: 'inserted',
+      header: 'Inserted',
+      defaultWidth: 110,
+      sortable: true,
+      accessor: (row) => Number(row.insertedRows) || 0,
+      trim: true,
+      cell: (row) => <strong>{formatNumber(row.insertedRows)}</strong>,
+    },
+    {
       id: 'period',
       header: 'Period',
       defaultWidth: 220,
@@ -346,15 +355,6 @@ export default function StatementImport() {
           {formatDate(row.periodStart)} → {formatDate(row.periodEnd)}
         </strong>
       ),
-    },
-    {
-      id: 'inserted',
-      header: 'Inserted',
-      defaultWidth: 110,
-      sortable: true,
-      accessor: (row) => Number(row.insertedRows) || 0,
-      trim: true,
-      cell: (row) => <strong>{formatNumber(row.insertedRows)}</strong>,
     },
     {
       id: 'uploaded',
@@ -445,32 +445,48 @@ export default function StatementImport() {
           {uploadPreview && (
             <div className="upload-preview">
               <div className="upload-result">
-                <div>
-                  <span>Account</span>
-                  <strong>{uploadPreview.accountNumber || 'unknown'}</strong>
-                </div>
-                <div>
-                  <span>Will insert</span>
-                  <strong>{formatNumber(uploadPreview.willInsert)}</strong>
-                </div>
-                <div>
-                  <span>Skipped</span>
-                  <strong>{formatNumber(uploadPreview.skippedRows)}</strong>
-                </div>
-                <div>
-                  <span>Total parsed</span>
-                  <strong>{formatNumber(uploadPreview.totalParsed)}</strong>
-                </div>
-                <div>
-                  <span>Last date before</span>
-                  <strong>{formatDate(uploadPreview.lastDateBefore)}</strong>
-                </div>
-                <div>
-                  <span>Period</span>
-                  <strong>
-                    {formatDate(uploadPreview.periodStart)} → {formatDate(uploadPreview.periodEnd)}
-                  </strong>
-                </div>
+                <table className="friend-tag-mini-table">
+                  <tbody>
+                    <tr>
+                      <th scope="row">Account</th>
+                      <td>
+                        <strong>{uploadPreview.accountNumber || 'unknown'}</strong>
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Will insert</th>
+                      <td>
+                        <strong>{formatNumber(uploadPreview.willInsert)}</strong>
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Skipped</th>
+                      <td>
+                        <strong>{formatNumber(uploadPreview.skippedRows)}</strong>
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Total parsed</th>
+                      <td>
+                        <strong>{formatNumber(uploadPreview.totalParsed)}</strong>
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Last date before</th>
+                      <td>
+                        <strong>{formatDate(uploadPreview.lastDateBefore)}</strong>
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Period</th>
+                      <td>
+                        <strong>
+                          {formatDate(uploadPreview.periodStart)} → {formatDate(uploadPreview.periodEnd)}
+                        </strong>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
 
               {uploadPreview.previewRows.length === 0 ? (
@@ -493,20 +509,30 @@ export default function StatementImport() {
           )}
           {uploadResult && (
             <div className="upload-result">
-              <div>
-                <span>Account</span>
-                <strong>{uploadResult.accountNumber || 'unknown'}</strong>
-              </div>
-              <div>
-                <span>Inserted</span>
-                <strong>{formatNumber(uploadResult.insertedRows)}</strong>
-              </div>
-              <div>
-                <span>Period</span>
-                <strong>
-                  {formatDate(uploadResult.periodStart)} → {formatDate(uploadResult.periodEnd)}
-                </strong>
-              </div>
+              <table className="friend-tag-mini-table">
+                <tbody>
+                  <tr>
+                    <th scope="row">Account</th>
+                    <td>
+                      <strong>{uploadResult.accountNumber || 'unknown'}</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Inserted</th>
+                    <td>
+                      <strong>{formatNumber(uploadResult.insertedRows)}</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Period</th>
+                    <td>
+                      <strong>
+                        {formatDate(uploadResult.periodStart)} → {formatDate(uploadResult.periodEnd)}
+                      </strong>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           )}
         </div>
@@ -531,32 +557,48 @@ export default function StatementImport() {
           {accountsStatus && <p className="status">{accountsStatus}</p>}
           {lastImport ? (
             <div className="stat-grid">
-              <div>
-                <span>Account</span>
-                <strong>{lastImport.accountNumber || 'unknown'}</strong>
-              </div>
-              <div>
-                <span>Inserted</span>
-                <strong>{formatNumber(lastImport.insertedRows)}</strong>
-              </div>
-              <div>
-                <span>Rows</span>
-                <strong>{formatNumber(lastImport.totalRows)}</strong>
-              </div>
-              <div>
-                <span>Period</span>
-                <strong>
-                  {formatDate(lastImport.periodStart)} → {formatDate(lastImport.periodEnd)}
-                </strong>
-              </div>
-              <div>
-                <span>Last date before</span>
-                <strong>{formatDate(lastImport.lastTxDateBefore)}</strong>
-              </div>
-              <div>
-                <span>Uploaded</span>
-                <strong>{formatDate(lastImport.uploadedAt)}</strong>
-              </div>
+              <table className="friend-tag-mini-table">
+                <tbody>
+                  <tr>
+                    <th scope="row">Account</th>
+                    <td>
+                      <strong>{lastImport.accountNumber || 'unknown'}</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Inserted</th>
+                    <td>
+                      <strong>{formatNumber(lastImport.insertedRows)}</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Rows</th>
+                    <td>
+                      <strong>{formatNumber(lastImport.totalRows)}</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Period</th>
+                    <td>
+                      <strong>
+                        {formatDate(lastImport.periodStart)} → {formatDate(lastImport.periodEnd)}
+                      </strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Last date before</th>
+                    <td>
+                      <strong>{formatDate(lastImport.lastTxDateBefore)}</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Uploaded</th>
+                    <td>
+                      <strong>{formatDate(lastImport.uploadedAt)}</strong>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           ) : (
             <p className="empty">No imports yet.</p>
@@ -606,11 +648,11 @@ export default function StatementImport() {
           <p className="empty">No imports found.</p>
         ) : (
           <DataTable
+            className="statement-imports-table"
             storageKey="fintrack-imports-v1"
             columns={importColumns}
             rows={imports}
             getRowKey={(row) => row.id}
-            mobileHeroColumnIds={['account', 'inserted', 'actions']}
             aria-label="Recent statement imports"
           />
         )}

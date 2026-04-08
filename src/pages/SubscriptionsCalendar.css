@@ -1,3 +1,38 @@
+.subs-calendar-toolbar {
+  align-items: flex-start;
+}
+
+.subs-calendar-toolbar__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: 1 1 min(100%, 18rem);
+  min-width: 0;
+}
+
+.subs-add-subscription-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .subs-calendar-toolbar__controls {
+    justify-content: stretch;
+  }
+
+  .subs-calendar-toolbar__controls .calendar-nav-cluster {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+
+  .subs-add-subscription-btn {
+    flex: 1 1 auto;
+    min-height: 44px;
+  }
+}
+
 .calendar-cell--subs.calendar-cell--has-data {
   border-color: rgba(220, 120, 140, 0.35);
 }

@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
+import {
+  FriendTagMobileDetails,
+  rowForFriendTagCard,
+} from '../components/FriendTagLedgerDisplay.jsx';
 import MobileTransactionCard from '../components/MobileTransactionCard.jsx';
 import Portal from '../components/Portal.jsx';
-import TransactionFriendTagsPanel from '../components/TransactionFriendTagsPanel.jsx';
+import SplitTransactionForm from '../components/SplitTransactionForm.jsx';
 import '../styles/txn-manage-forms.css';
 import './Calendar.css';
+import './SubscriptionsCalendar.css';
+import SubscriptionsCalendarContent from './SubscriptionsCalendarContent.jsx';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
@@ -115,7 +123,50 @@ function aggregateByDay(transactions) {
   return map;
 }
 
+function transactionHasCategory(t) {
+  if (t.category && (t.category.id != null || t.category.name)) return true;
+  const cid = t.categoryId;
+  if (cid == null || cid === '') return false;
+  const n = Number(cid);
+  if (!Number.isNaN(n) && n <= 0) return false;
+  return true;
+}
+
+/** Per local date (YYYY-MM-DD): whether every txn that day has a category. */
+function computeCategoryCoverageByDay(transactions) {
+  const map = new Map();
+  for (const t of transactions) {
+    const raw = t.transactionDate;
+    const d = typeof raw === 'string' ? raw.slice(0, 10) : '';
+    if (!d) continue;
+    const cur = map.get(d) || { total: 0, missing: 0 };
+    cur.total += 1;
+    if (!transactionHasCategory(t)) cur.missing += 1;
+    map.set(d, cur);
+  }
+  const out = new Map();
+  for (const [iso, v] of map) {
+    if (v.total > 0) out.set(iso, v.missing === 0 ? 'complete' : 'incomplete');
+  }
+  return out;
+}
+
 export default function Calendar() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const calendarView =
+    searchParams.get('view') === 'subscriptions' ? 'subscriptions' : 'transactions';
+
+  const setCalendarView = useCallback(
+    (next) => {
+      if (next === 'subscriptions') {
+        setSearchParams({ view: 'subscriptions' });
+      } else {
+        setSearchParams({});
+      }
+    },
+    [setSearchParams],
+  );
+
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
@@ -245,7 +296,116 @@ export default function Calendar() {
     }
   }, [categories]);
 
+  const [tagsByTransaction, setTagsByTransaction] = useState({});
+  const [tagsStatusByTransaction, setTagsStatusByTransaction] = useState({});
+  const [splitApplyingTransactionId, setSplitApplyingTransactionId] = useState(null);
+  const [confirmState, setConfirmState] = useState({ open: false });
+
+  const fetchTags = useCallback(async (transactionId) => {
+    setTagsStatusByTransaction((prev) => ({ ...prev, [transactionId]: 'Loading tags...' }));
+    try {
+      const res = await fetch(`${API_BASE}/transactions/${transactionId}/friends`);
+      if (!res.ok) throw new Error('Failed to fetch tags');
+      const data = await res.json();
+      setTagsByTransaction((prev) => ({ ...prev, [transactionId]: data.data || [] }));
+      setTagsStatusByTransaction((prev) => ({ ...prev, [transactionId]: '' }));
+    } catch (error) {
+      setTagsStatusByTransaction((prev) => ({
+        ...prev,
+        [transactionId]: error.message || 'Failed to fetch tags',
+      }));
+    }
+  }, []);
+
+  function minorToApiAmount(amountMinor, minorPerMajor = 100) {
+    return Number((amountMinor / minorPerMajor).toFixed(2));
+  }
+
+  const applySplitTags = useCallback(async (transactionId, { results, direction, note }) => {
+    setTagsStatusByTransaction((prev) => ({ ...prev, [transactionId]: '' }));
+    setSplitApplyingTransactionId(transactionId);
+    const noteTrimmed = typeof note === 'string' ? note.trim() : '';
+    try {
+      for (const r of results) {
+        const amountMinor = r.amountMinor;
+        const lineDirection = amountMinor === 0 ? 'NOTHING_OUTSTANDING' : direction;
+        const amountValue = amountMinor === 0 ? 0 : minorToApiAmount(amountMinor, 100);
+
+        const res = await fetch(`${API_BASE}/transactions/${transactionId}/friends`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            friendId: Number(r.participantId),
+            amount: amountValue,
+            direction: lineDirection,
+            ...(noteTrimmed ? { note: noteTrimmed } : {}),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || data.message || 'Failed to add tag');
+      }
+      setTagsStatusByTransaction((prev) => ({
+        ...prev,
+        [transactionId]: 'Split applied — friend tags added.',
+      }));
+      await fetchTags(transactionId);
+    } catch (error) {
+      setTagsStatusByTransaction((prev) => ({
+        ...prev,
+        [transactionId]: error.message || 'Failed to apply split.',
+      }));
+    } finally {
+      setSplitApplyingTransactionId(null);
+    }
+  }, [fetchTags]);
+
+  const runDeleteTag = useCallback(
+    async (transactionId, tagId) => {
+      setTagsStatusByTransaction((prev) => ({ ...prev, [transactionId]: 'Removing tag...' }));
+      try {
+        const res = await fetch(`${API_BASE}/transactions/${transactionId}/friends/${tagId}`, {
+          method: 'DELETE',
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to delete tag');
+        await fetchTags(transactionId);
+      } catch (error) {
+        setTagsStatusByTransaction((prev) => ({
+          ...prev,
+          [transactionId]: error.message || 'Failed to delete tag',
+        }));
+      }
+    },
+    [fetchTags],
+  );
+
+  const deleteTag = useCallback(
+    (transactionId, tagId) => {
+      setConfirmState({
+        open: true,
+        title: 'Remove tag?',
+        message: 'This will remove the friend tag from this transaction.',
+        confirmLabel: 'Remove',
+        onConfirm: async () => {
+          setConfirmState({ open: false });
+          await runDeleteTag(transactionId, tagId);
+        },
+        onCancel: () => setConfirmState({ open: false }),
+      });
+    },
+    [runDeleteTag],
+  );
+
+  useEffect(() => {
+    if (sheetMode !== 'manage' || !expandedTransactionId) return;
+    void fetchTags(expandedTransactionId);
+  }, [sheetMode, expandedTransactionId, fetchTags]);
+
   const byDay = useMemo(() => aggregateByDay(transactions), [transactions]);
+  const categoryCoverageByIso = useMemo(
+    () => computeCategoryCoverageByDay(transactions),
+    [transactions],
+  );
   const cells = useMemo(() => buildCalendarCells(viewYear, viewMonth), [viewYear, viewMonth]);
 
   const monthTitle = useMemo(
@@ -389,14 +549,131 @@ export default function Calendar() {
     setExpandedTransactionId((prev) => (prev === rowId ? null : rowId));
   }
 
+  function renderManageFriendTagsPanel(row) {
+    return (
+      <div className="friend-tags-panel">
+        <div className="txn-assign-section">
+          <div className="txn-assign-section__row">
+            <select
+              className="txn-assign-select"
+              value={row.categoryId || ''}
+              onChange={(e) => assignCategory(row.id, e.target.value)}
+              aria-label="Category for this transaction"
+            >
+              <option value="">No category</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.icon ? `${cat.icon} ` : ''}
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+            {categoryStatusByTransaction[row.id] ? (
+              <span className="txn-assign-status">{categoryStatusByTransaction[row.id]}</span>
+            ) : null}
+          </div>
+        </div>
+        {(() => {
+          const withdrawal = Number(row.withdrawal || 0);
+          const deposit = Number(row.deposit || 0);
+          const splitTotal = withdrawal > 0 ? withdrawal : deposit > 0 ? deposit : 0;
+          return splitTotal > 0 ? (
+            <SplitTransactionForm
+              key={`split-${row.id}`}
+              totalAmount={splitTotal}
+              participants={friends.map((f) => ({ id: String(f.id), name: f.name }))}
+              taggedFriendIds={(tagsByTransaction[row.id] || []).map((t) => String(t.friendId))}
+              defaultDirection="OWES_ME"
+              applying={splitApplyingTransactionId === row.id}
+              onApplySplit={(args) => applySplitTags(row.id, args)}
+            />
+          ) : null;
+        })()}
+        {tagsStatusByTransaction[row.id] && (
+          <p className="status">{tagsStatusByTransaction[row.id]}</p>
+        )}
+        <div
+          className={`friend-tags-list${
+            (tagsByTransaction[row.id] || []).length ? ' friend-tagged-mobile' : ''
+          }`}
+        >
+          {(tagsByTransaction[row.id] || []).length === 0 ? (
+            <p className="empty">No friend attached for this transaction.</p>
+          ) : (
+            (tagsByTransaction[row.id] || []).map((tag) => {
+              const friendName = tag.friend?.name || String(tag.friendId);
+              return (
+                <MobileTransactionCard
+                  key={tag.id}
+                  row={rowForFriendTagCard(tag, row)}
+                  expanded
+                  onToggleExpand={() => {}}
+                  formatDateCompact={formatDateCompact}
+                  formatNumber={formatNumber}
+                  nonInteractive
+                  hideBalance
+                  cardAriaLabel={`Friend tag ${friendName}`}
+                >
+                  <FriendTagMobileDetails tag={tag} friendName={friendName} />
+                  <button
+                    className="ghost friend-tag-sheet-remove"
+                    type="button"
+                    onClick={() => deleteTag(row.id, tag.id)}
+                  >
+                    Remove
+                  </button>
+                </MobileTransactionCard>
+              );
+            })
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
+        cancelLabel={confirmState.cancelLabel}
+        onConfirm={confirmState.onConfirm}
+        onCancel={confirmState.onCancel}
+      />
+      <div className="glass-panel calendar-view-toggle" role="tablist" aria-label="Calendar type">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={calendarView === 'transactions'}
+          className={`calendar-view-toggle__btn${
+            calendarView === 'transactions' ? ' calendar-view-toggle__btn--active' : ''
+          }`}
+          onClick={() => setCalendarView('transactions')}
+        >
+          Transactions
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={calendarView === 'subscriptions'}
+          className={`calendar-view-toggle__btn${
+            calendarView === 'subscriptions' ? ' calendar-view-toggle__btn--active' : ''
+          }`}
+          onClick={() => setCalendarView('subscriptions')}
+        >
+          Subscriptions
+        </button>
+      </div>
+      {calendarView === 'transactions' ? (
+        <>
       <section className="card calendar-card">
         <div className="glass-panel calendar-filters">
           <div className="card-header">
             <div>
               <h2>Filters</h2>
-              <p>Same as transactions: pick an account and browse by month.</p>
+              <p>Pick an account and browse by month.</p>
             </div>
             <div className="select-wrap">
               <select value={account} onChange={(e) => setAccount(e.target.value)}>
@@ -415,7 +692,7 @@ export default function Calendar() {
 
         <div className="glass-panel calendar-filters">
           <div className="calendar-toolbar">
-            <h2>Calendar</h2>
+            <h2>Transactions calendar</h2>
             <div className="calendar-nav-cluster">
               <button className="secondary" type="button" onClick={goPrevMonth} aria-label="Previous month">
                 ‹
@@ -443,6 +720,8 @@ export default function Calendar() {
             {cells.map((cell) => {
               const stats = byDay.get(cell.iso);
               const hasData = stats && stats.count > 0;
+              const catCoverage =
+                cell.inMonth && hasData ? categoryCoverageByIso.get(cell.iso) : null;
               const isToday = cell.iso === todayIso;
               const net = stats?.net ?? 0;
               let netClass = 'calendar-cell__net--zero';
@@ -453,6 +732,13 @@ export default function Calendar() {
                 ? `${net > 0 ? '+' : net < 0 ? '−' : ''}${formatNetCompact(net)}`
                 : '';
 
+              const categoryHint =
+                catCoverage === 'complete'
+                  ? 'all categorized'
+                  : catCoverage === 'incomplete'
+                    ? 'needs category'
+                    : '';
+
               return (
                 <div
                   key={cell.iso}
@@ -462,6 +748,8 @@ export default function Calendar() {
                     !cell.inMonth ? 'calendar-cell--muted' : '',
                     isToday && cell.inMonth ? 'calendar-cell--today' : '',
                     cell.inMonth ? 'calendar-cell--has-data' : '',
+                    catCoverage === 'complete' ? 'calendar-cell--cats-complete' : '',
+                    catCoverage === 'incomplete' ? 'calendar-cell--cats-incomplete' : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
@@ -476,7 +764,7 @@ export default function Calendar() {
                   }}
                   aria-label={
                     cell.inMonth
-                      ? `${cell.label} ${monthTitle.split(' ')[0]}, net ${hasData ? formatNumber(net) : 'no transactions'}`
+                      ? `${cell.label} ${monthTitle.split(' ')[0]}, net ${hasData ? formatNumber(net) : 'no transactions'}${categoryHint ? `, ${categoryHint}` : ''}`
                       : undefined
                   }
                   title={
@@ -504,9 +792,6 @@ export default function Calendar() {
             </span>
             <span>
               <i className="out" /> Net out
-            </span>
-            <span>
-              <i /> Tap a date for actions
             </span>
           </div>
         </div>
@@ -759,12 +1044,7 @@ export default function Calendar() {
                             onAssignCategory={assignCategory}
                             categoryStatus={categoryStatusByTransaction[row.id]}
                           >
-                            <TransactionFriendTagsPanel
-                              transaction={row}
-                              friends={friends}
-                              formatDate={formatDate}
-                              formatNumber={formatNumber}
-                            />
+                            {renderManageFriendTagsPanel(row)}
                           </MobileTransactionCard>
                         ))}
                       </div>
@@ -776,6 +1056,10 @@ export default function Calendar() {
           </div>
         </div>
         </Portal>
+      )}
+        </>
+      ) : (
+        <SubscriptionsCalendarContent />
       )}
     </>
   );

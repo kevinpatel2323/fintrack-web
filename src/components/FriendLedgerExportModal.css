@@ -190,51 +190,6 @@
   max-width: 100%;
 }
 
-.ledger-export-preview__banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 14px 16px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.07) 0%, rgba(13, 148, 136, 0.06) 100%);
-  border: 1px solid rgba(30, 27, 22, 0.08);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
-}
-
-.ledger-export-preview__banner-icon {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  color: #1d4ed8;
-  background: rgba(37, 99, 235, 0.1);
-  border: 1px solid rgba(37, 99, 235, 0.12);
-}
-
-.ledger-export-preview__banner-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.ledger-export-preview__banner-copy strong {
-  font-family: 'IBM Plex Sans', system-ui, sans-serif;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #0f172a;
-  letter-spacing: -0.02em;
-}
-
-.ledger-export-preview__banner-copy span {
-  font-size: 0.82rem;
-  color: var(--muted);
-  line-height: 1.45;
-}
-
 .ledger-export-body {
   overflow-x: hidden;
   overflow-y: auto;
