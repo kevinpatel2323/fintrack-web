@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import DataTable from '../components/DataTable.jsx';
 import FriendLedgerExportModal from '../components/FriendLedgerExportModal.jsx';
+import {
+  FriendTagAmountCell,
+  FriendTagMobileDetails,
+  rowForFriendTagCard,
+} from '../components/FriendTagLedgerDisplay.jsx';
 import MobileTransactionCard from '../components/MobileTransactionCard.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { ledgerDirectionPhrase } from '../utils/ledgerParties';
@@ -30,71 +35,6 @@ function formatDateCompact(value) {
   }).format(date);
 }
 
-/** Feed MobileTransactionCard: show tagged amount with same in/out as the parent txn. */
-function rowForFriendTagCard(tag) {
-  const tx = tag.transaction;
-  if (!tx) return {};
-  const w = Number(tx.withdrawal || 0);
-  const isW = w > 0;
-  const n = Number(tag.amount) || 0;
-  return {
-    ...tx,
-    withdrawal: isW ? n : 0,
-    deposit: isW ? 0 : n,
-  };
-}
-
-function FriendTagMobileDetails({ tag, friendName }) {
-  const phrase = ledgerDirectionPhrase(tag.direction, friendName);
-  const settles =
-    tag.settlesTransactions?.length > 0
-      ? tag.settlesTransactions.map((s, idx) => (
-          <span key={s.id}>
-            {idx > 0 ? '; ' : ''}
-            {formatDate(s.transaction?.transactionDate)} — {ledgerDirectionPhrase(s.direction, friendName)} — ₹
-            {formatNumber(s.amount)}
-          </span>
-        ))
-      : null;
-  const settledBy =
-    tag.settledBy?.length > 0
-      ? tag.settledBy.map((s, idx) => (
-          <span key={s.id}>
-            {idx > 0 ? '; ' : ''}
-            {formatDate(s.transaction?.transactionDate)} — ₹{formatNumber(s.amount)}
-          </span>
-        ))
-      : null;
-  return (
-    <table className="friend-tag-mini-table">
-      <tbody>
-        <tr>
-          <th scope="row">Direction</th>
-          <td>{phrase}</td>
-        </tr>
-        {tag.note ? (
-          <tr>
-            <th scope="row">Note</th>
-            <td>{tag.note}</td>
-          </tr>
-        ) : null}
-        {settles ? (
-          <tr>
-            <th scope="row">Settles</th>
-            <td>{settles}</td>
-          </tr>
-        ) : null}
-        {settledBy ? (
-          <tr>
-            <th scope="row">Settled by</th>
-            <td>{settledBy}</td>
-          </tr>
-        ) : null}
-      </tbody>
-    </table>
-  );
-}
-
 function formatNumber(value) {
   if (value === null || value === undefined) return '—';
   const num = Number(value);
@@ -108,20 +48,6 @@ function tagTransactionRowClassName(tag) {
   if (!tx) return '';
   const w = Number(tx.withdrawal || 0);
   return w > 0 ? 'transaction-withdrawal' : 'transaction-deposit';
-}
-
-/** Same amount cell markup/classes as Transactions.jsx amount column. */
-function FriendTagAmountCell({ tag }) {
-  const tx = tag.transaction;
-  const withdrawal = Number(tx?.withdrawal || 0);
-  const isWithdrawal = withdrawal > 0;
-  const n = Number(tag.amount) || 0;
-  return (
-    <strong className={`transaction-amount ${isWithdrawal ? 'amount-withdrawal' : 'amount-deposit'}`}>
-      {isWithdrawal ? '-' : '+'}
-      {formatNumber(n)}
-    </strong>
-  );
 }
 
 export default function Friends() {

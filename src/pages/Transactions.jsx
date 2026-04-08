@@ -1,80 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
+import {
+  FriendTagMobileDetails,
+  rowForFriendTagCard,
+} from '../components/FriendTagLedgerDisplay.jsx';
 import Portal from '../components/Portal.jsx';
 import DataTable from '../components/DataTable.jsx';
 import MobileTransactionCard from '../components/MobileTransactionCard.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { sortTableRows } from '../utils/tableSort.js';
+import SplitTransactionForm from '../components/SplitTransactionForm.jsx';
 import '../styles/transactionSheet.css';
 import '../styles/txn-manage-forms.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-
-function SettlementSelect({ rowId, friendId, linkableTransactions, linkableTransactionsLoading, selectedIds, onChange }) {
-  const key = `${rowId}_${friendId}`;
-  const transactions = linkableTransactions[key] || [];
-  const loading = linkableTransactionsLoading[key];
-
-  const handleToggle = (tagId) => {
-    const newSelected = selectedIds.includes(tagId)
-      ? selectedIds.filter(id => id !== tagId)
-      : [...selectedIds, tagId];
-    onChange(newSelected);
-  };
-
-  if (loading) {
-    return <p className="status">Loading linkable entries…</p>;
-  }
-
-  if (transactions.length === 0) {
-    return <p className="empty">No linkable transactions found</p>;
-  }
-
-  return (
-    <div className="settlement-link-list">
-      {transactions.map((tag) => {
-        const isSelected = selectedIds.includes(String(tag.id));
-        const dirClass =
-          tag.direction === 'I_OWE'
-            ? 'settlement-dir-pill--owe'
-            : tag.direction === 'OWES_ME'
-              ? 'settlement-dir-pill--me'
-              : 'settlement-dir-pill--none';
-        return (
-          <label
-            key={tag.id}
-            className={`settlement-link-item${isSelected ? ' settlement-link-item--selected' : ''}`}
-          >
-            <input
-              type="checkbox"
-              className="settlement-link-item__check"
-              checked={isSelected}
-              onChange={() => handleToggle(String(tag.id))}
-            />
-            <div className="settlement-link-item__body">
-              <div className="settlement-link-item__top">
-                <span className="settlement-link-item__date">
-                  {formatDate(tag.transaction?.transactionDate)}
-                </span>
-                <span className={`settlement-dir-pill ${dirClass}`}>
-                  {tag.direction === 'I_OWE'
-                    ? 'I owe'
-                    : tag.direction === 'OWES_ME'
-                      ? 'They owe me'
-                      : 'Nothing'}
-                </span>
-                <span className="settlement-link-item__amount">₹{formatNumber(tag.amount)}</span>
-              </div>
-              {tag.transaction?.upiName ? (
-                <span className="settlement-link-item__upi">{tag.transaction.upiName}</span>
-              ) : null}
-            </div>
-          </label>
-        );
-      })}
-    </div>
-  );
-}
 
 function formatDate(value) {
   if (!value) return '—';
@@ -141,10 +80,8 @@ export default function Transactions() {
   const [tagsByTransaction, setTagsByTransaction] = useState({});
   const [tagsStatusByTransaction, setTagsStatusByTransaction] = useState({});
   const [friendTagsSheetId, setFriendTagsSheetId] = useState(null);
-  const [tagFormByTransaction, setTagFormByTransaction] = useState({});
   const [confirmState, setConfirmState] = useState({ open: false });
-  const [linkableTransactions, setLinkableTransactions] = useState({});
-  const [linkableTransactionsLoading, setLinkableTransactionsLoading] = useState({});
+  const [splitApplyingTransactionId, setSplitApplyingTransactionId] = useState(null);
   const [manualStatus, setManualStatus] = useState('');
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
@@ -234,7 +171,6 @@ export default function Transactions() {
       setFriendTagsSheetId(null);
       setTagsByTransaction({});
       setTagsStatusByTransaction({});
-      setTagFormByTransaction({});
       setCategoryStatusByTransaction({});
       setRangeStatus('');
     } catch (error) {
@@ -245,24 +181,6 @@ export default function Transactions() {
   }
 
   async function openFriendTagsSheet(transactionId) {
-    if (!tagFormByTransaction[transactionId]) {
-      const transaction = transactions.find((row) => row.id === transactionId);
-      if (transaction) {
-        const withdrawal = Number(transaction.withdrawal || 0);
-        const deposit = Number(transaction.deposit || 0);
-        const defaultAmount = withdrawal > 0 ? withdrawal : deposit > 0 ? deposit : '';
-        updateTagForm(transactionId, {
-          direction: 'NOTHING_OUTSTANDING',
-          amount: defaultAmount === '' ? '' : String(defaultAmount),
-        });
-      } else {
-        updateTagForm(transactionId, {
-          direction: 'NOTHING_OUTSTANDING',
-          amount: '',
-        });
-      }
-    }
-
     setFriendTagsSheetId(transactionId);
     if (!tagsByTransaction[transactionId]) {
       await fetchTags(transactionId);
@@ -289,108 +207,45 @@ export default function Transactions() {
     }
   }
 
-  async function fetchLinkableTransactions(transactionId, friendId) {
-    if (!friendId) return;
-
-    const key = `${transactionId}_${friendId}`;
-    setLinkableTransactionsLoading(prev => ({ ...prev, [key]: true }));
-
-    try {
-      const res = await fetch(`${API_BASE}/friends/${friendId}/linkable-transactions`);
-      if (!res.ok) throw new Error('Failed to fetch linkable transactions');
-      const data = await res.json();
-      setLinkableTransactions(prev => ({ ...prev, [key]: data.data || [] }));
-    } catch (error) {
-      console.error('Failed to fetch linkable transactions:', error);
-      setLinkableTransactions(prev => ({ ...prev, [key]: [] }));
-    } finally {
-      setLinkableTransactionsLoading(prev => ({ ...prev, [key]: false }));
-    }
+  function minorToApiAmount(amountMinor, minorPerMajor = 100) {
+    return Number((amountMinor / minorPerMajor).toFixed(2));
   }
 
-  function updateTagForm(transactionId, patch) {
-    setTagFormByTransaction((prev) => {
-      const current = prev[transactionId] || {};
-      const updated = {
-        friendId: '',
-        amount: '',
-        direction: 'NOTHING_OUTSTANDING',
-        note: '',
-        linkedTransactionIds: [],
-        ...current,
-        ...patch,
-      };
-
-      // If direction changed to SETTLEMENT and friend is selected, fetch linkable transactions
-      if (patch.direction === 'SETTLEMENT' && updated.friendId) {
-        fetchLinkableTransactions(transactionId, updated.friendId);
-      }
-
-      // If direction changed away from SETTLEMENT, clear linked transactions
-      if (patch.direction && patch.direction !== 'SETTLEMENT') {
-        updated.linkedTransactionIds = [];
-      }
-
-      // If friend changed and direction is SETTLEMENT, fetch new linkable transactions
-      if (patch.friendId && updated.direction === 'SETTLEMENT') {
-        fetchLinkableTransactions(transactionId, patch.friendId);
-      }
-
-      return { ...prev, [transactionId]: updated };
-    });
-  }
-
-  async function addTag(transactionId) {
-    const form = tagFormByTransaction[transactionId] || {};
-    const direction = form.direction || 'NOTHING_OUTSTANDING';
-    const rawAmount = form.amount;
-    const amountValue = Number(rawAmount || 0);
-
-    if (!form.friendId) {
-      setTagsStatusByTransaction((prev) => ({
-        ...prev,
-        [transactionId]: 'Select a friend.',
-      }));
-      return;
-    }
-
-    if (direction !== 'NOTHING_OUTSTANDING' && (!rawAmount || amountValue <= 0)) {
-      setTagsStatusByTransaction((prev) => ({
-        ...prev,
-        [transactionId]: 'Select friend and valid amount.',
-      }));
-      return;
-    }
-
-    setTagsStatusByTransaction((prev) => ({ ...prev, [transactionId]: 'Adding tag...' }));
+  async function applySplitTags(transactionId, { results, direction, note }) {
+    setTagsStatusByTransaction((prev) => ({ ...prev, [transactionId]: '' }));
+    setSplitApplyingTransactionId(transactionId);
+    const noteTrimmed = typeof note === 'string' ? note.trim() : '';
     try {
-      const res = await fetch(`${API_BASE}/transactions/${transactionId}/friends`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          friendId: Number(form.friendId),
-          amount: direction === 'NOTHING_OUTSTANDING' ? 0 : amountValue,
-          direction,
-          note: form.note?.trim() || undefined,
-          linkedTransactionIds: form.linkedTransactionIds && form.linkedTransactionIds.length > 0
-            ? form.linkedTransactionIds.map(Number)
-            : undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to add tag');
-      updateTagForm(transactionId, { 
-        amount: '', 
-        note: '', 
-        direction: 'NOTHING_OUTSTANDING',
-        linkedTransactionIds: [],
-      });
+      for (const r of results) {
+        const amountMinor = r.amountMinor;
+        const lineDirection = amountMinor === 0 ? 'NOTHING_OUTSTANDING' : direction;
+        const amountValue = amountMinor === 0 ? 0 : minorToApiAmount(amountMinor, 100);
+
+        const res = await fetch(`${API_BASE}/transactions/${transactionId}/friends`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            friendId: Number(r.participantId),
+            amount: amountValue,
+            direction: lineDirection,
+            ...(noteTrimmed ? { note: noteTrimmed } : {}),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || data.message || 'Failed to add tag');
+      }
+      setTagsStatusByTransaction((prev) => ({
+        ...prev,
+        [transactionId]: 'Split applied — friend tags added.',
+      }));
       await fetchTags(transactionId);
     } catch (error) {
       setTagsStatusByTransaction((prev) => ({
         ...prev,
-        [transactionId]: error.message || 'Failed to add tag',
+        [transactionId]: error.message || 'Failed to apply split.',
       }));
+    } finally {
+      setSplitApplyingTransactionId(null);
     }
   }
 
@@ -721,119 +576,58 @@ export default function Transactions() {
           ) : null}
         </div>
       </div>
-      <div className="friend-tags-header">
-        <h3>Friend tags</h3>
-        <p>Track who owes whom for this transaction.</p>
-      </div>
-      <div className="friend-tags-form txn-tag-form">
-        <div className="tag-form-row txn-tag-form__primary">
-          <select
-            value={tagFormByTransaction[row.id]?.friendId || ''}
-            onChange={(event) => updateTagForm(row.id, { friendId: event.target.value })}
-          >
-            <option value="">Select friend</option>
-            {friends.map((friend) => (
-              <option key={friend.id} value={friend.id}>
-                {friend.name}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="Amount"
-            value={tagFormByTransaction[row.id]?.amount || ''}
-            onChange={(event) => updateTagForm(row.id, { amount: event.target.value })}
+      {(() => {
+        const withdrawal = Number(row.withdrawal || 0);
+        const deposit = Number(row.deposit || 0);
+        const splitTotal = withdrawal > 0 ? withdrawal : deposit > 0 ? deposit : 0;
+        return splitTotal > 0 ? (
+          <SplitTransactionForm
+            key={`split-${row.id}`}
+            totalAmount={splitTotal}
+            participants={friends.map((f) => ({ id: String(f.id), name: f.name }))}
+            taggedFriendIds={(tagsByTransaction[row.id] || []).map((t) => String(t.friendId))}
+            defaultDirection="OWES_ME"
+            applying={splitApplyingTransactionId === row.id}
+            onApplySplit={(args) => applySplitTags(row.id, args)}
           />
-          <select
-            value={tagFormByTransaction[row.id]?.direction || 'NOTHING_OUTSTANDING'}
-            onChange={(event) => updateTagForm(row.id, { direction: event.target.value })}
-          >
-            <option value="NOTHING_OUTSTANDING">Nothing outstanding</option>
-            <option value="I_OWE">I owe</option>
-            <option value="OWES_ME">They owe me</option>
-            <option value="SETTLEMENT">Settlement</option>
-          </select>
-        </div>
-        {tagFormByTransaction[row.id]?.direction === 'SETTLEMENT' &&
-          tagFormByTransaction[row.id]?.friendId && (
-            <div className="settlement-section">
-              <label className="settlement-label">Select transactions to settle</label>
-              <SettlementSelect
-                rowId={row.id}
-                friendId={tagFormByTransaction[row.id]?.friendId}
-                linkableTransactions={linkableTransactions}
-                linkableTransactionsLoading={linkableTransactionsLoading}
-                selectedIds={tagFormByTransaction[row.id]?.linkedTransactionIds || []}
-                onChange={(selected) => updateTagForm(row.id, { linkedTransactionIds: selected })}
-              />
-            </div>
-          )}
-        <div className="tag-form-row txn-tag-form__note">
-          <input
-            type="text"
-            placeholder="Note (optional)"
-            value={tagFormByTransaction[row.id]?.note || ''}
-            onChange={(event) => updateTagForm(row.id, { note: event.target.value })}
-            className="note-input"
-          />
-          <button className="secondary" type="button" onClick={() => addTag(row.id)}>
-            Add tag
-          </button>
-        </div>
-      </div>
+        ) : null;
+      })()}
       {tagsStatusByTransaction[row.id] && (
         <p className="status">{tagsStatusByTransaction[row.id]}</p>
       )}
-      <div className="friend-tags-list">
+      <div
+        className={`friend-tags-list${
+          (tagsByTransaction[row.id] || []).length ? ' friend-tagged-mobile' : ''
+        }`}
+      >
         {(tagsByTransaction[row.id] || []).length === 0 ? (
           <p className="empty">No friend tags for this transaction.</p>
         ) : (
-          (tagsByTransaction[row.id] || []).map((tag) => (
-            <div className="friend-tag-row" key={tag.id}>
-              <div>
-                <span>Friend</span>
-                <strong>{tag.friend?.name || tag.friendId}</strong>
-              </div>
-              <div>
-                <span>Direction</span>
-                <strong>
-                  {tag.direction === 'I_OWE'
-                    ? 'I owe'
-                    : tag.direction === 'OWES_ME'
-                      ? 'They owe me'
-                      : tag.direction === 'SETTLEMENT'
-                        ? 'Settlement'
-                        : 'Nothing outstanding'}
-                </strong>
-              </div>
-              <div>
-                <span>Amount</span>
-                <strong>{formatNumber(tag.amount)}</strong>
-              </div>
-              <div>
-                <span>Note</span>
-                <strong>{tag.note || '—'}</strong>
-              </div>
-              {tag.settlesTransactions && tag.settlesTransactions.length > 0 && (
-                <div>
-                  <span>Settles</span>
-                  <strong>
-                    {tag.settlesTransactions.map((linked, idx) => (
-                      <span key={linked.id}>
-                        {idx > 0 && ', '}
-                        {formatDate(linked.transaction?.transactionDate)} - ₹{formatNumber(linked.amount)}
-                      </span>
-                    ))}
-                  </strong>
-                </div>
-              )}
-              <button className="ghost" type="button" onClick={() => deleteTag(row.id, tag.id)}>
-                Remove
-              </button>
-            </div>
-          ))
+          (tagsByTransaction[row.id] || []).map((tag) => {
+            const friendName = tag.friend?.name || String(tag.friendId);
+            return (
+              <MobileTransactionCard
+                key={tag.id}
+                row={rowForFriendTagCard(tag, row)}
+                expanded
+                onToggleExpand={() => {}}
+                formatDateCompact={formatDateCompact}
+                formatNumber={formatNumber}
+                nonInteractive
+                hideBalance
+                cardAriaLabel={`Friend tag ${friendName}`}
+              >
+                <FriendTagMobileDetails tag={tag} friendName={friendName} />
+                <button
+                  className="ghost friend-tag-sheet-remove"
+                  type="button"
+                  onClick={() => deleteTag(row.id, tag.id)}
+                >
+                  Remove
+                </button>
+              </MobileTransactionCard>
+            );
+          })
         )}
       </div>
     </div>

@@ -257,6 +257,23 @@
   max-width: 100%;
 }
 
+/* Same pattern as Friends → expanded friend: MobileTransactionCard + friend-tag-mini-table */
+.calendar-sheet .friend-tags-list.friend-tagged-mobile {
+  display: grid;
+  gap: 12px;
+}
+
+.calendar-sheet .friend-tags-list.friend-tagged-mobile .mobile-txn-card {
+  min-width: 0;
+}
+
+.calendar-sheet .friend-tag-sheet-remove {
+  margin-top: 14px;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+}
+
 .calendar-sheet .tag-form-row {
   flex-wrap: wrap;
 }
@@ -294,6 +311,21 @@
   align-items: start;
 }
 
+.calendar-sheet .friend-tag-row--note-only {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px 12px;
+  padding: 12px 14px;
+}
+
+.calendar-sheet .friend-tag-row--note-only > button.ghost {
+  width: auto;
+  max-width: none;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
 .calendar-sheet .friend-tag-row > div {
   min-width: 0;
 }
@@ -311,6 +343,10 @@
   max-width: 100%;
   justify-self: stretch;
   box-sizing: border-box;
+}
+
+.calendar-sheet .friend-tag-row--note-only > button {
+  grid-column: unset;
 }
 
 .calendar-sheet .manual-form .form-grid {
