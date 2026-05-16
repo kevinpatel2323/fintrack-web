@@ -7,6 +7,13 @@ import './StatementImport.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
+function isoDateMinusDays(isoDate, days) {
+  if (!isoDate) return null;
+  const d = new Date(isoDate + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
 export default function StatementImport() {
   const [accounts, setAccounts] = useState([]);
   const [accountsStatus, setAccountsStatus] = useState('');
@@ -591,6 +598,16 @@ export default function StatementImport() {
                       <strong>{formatDate(lastImport.lastTxDateBefore)}</strong>
                     </td>
                   </tr>
+                  {lastImport.periodEnd && (
+                    <tr>
+                      <th scope="row">Next statement start</th>
+                      <td>
+                        <strong className="import-next-start-hint">
+                          On or before {formatDate(isoDateMinusDays(lastImport.periodEnd, 2))}
+                        </strong>
+                      </td>
+                    </tr>
+                  )}
                   <tr>
                     <th scope="row">Uploaded</th>
                     <td>

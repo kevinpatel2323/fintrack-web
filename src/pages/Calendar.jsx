@@ -321,7 +321,7 @@ export default function Calendar() {
     return Number((amountMinor / minorPerMajor).toFixed(2));
   }
 
-  const applySplitTags = useCallback(async (transactionId, { results, direction, note }) => {
+  const applySplitTags = useCallback(async (transactionId, { results, direction, note, linkedTagsByParticipant }) => {
     setTagsStatusByTransaction((prev) => ({ ...prev, [transactionId]: '' }));
     setSplitApplyingTransactionId(transactionId);
     const noteTrimmed = typeof note === 'string' ? note.trim() : '';
@@ -330,6 +330,7 @@ export default function Calendar() {
         const amountMinor = r.amountMinor;
         const lineDirection = amountMinor === 0 ? 'NOTHING_OUTSTANDING' : direction;
         const amountValue = amountMinor === 0 ? 0 : minorToApiAmount(amountMinor, 100);
+        const linkedIds = linkedTagsByParticipant?.[r.participantId];
 
         const res = await fetch(`${API_BASE}/transactions/${transactionId}/friends`, {
           method: 'POST',
@@ -339,6 +340,9 @@ export default function Calendar() {
             amount: amountValue,
             direction: lineDirection,
             ...(noteTrimmed ? { note: noteTrimmed } : {}),
+            ...(lineDirection === 'SETTLEMENT' && linkedIds?.length > 0
+              ? { linkedTransactionIds: linkedIds.map(Number) }
+              : {}),
           }),
         });
         const data = await res.json();

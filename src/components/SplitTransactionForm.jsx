@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   calculateAdjustmentSplit,
   calculateEqualSplit,
@@ -17,6 +17,8 @@ import {
   validateShares,
   validateSplitTotal,
 } from '../utils/splitValidation.ts';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 const METHODS = [
   { id: 'EQUAL', label: 'Equal' },
@@ -67,6 +69,20 @@ function SplitMethodIcon({ methodId }) {
   }
 }
 
+function formatSettlementDate(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
+}
+
+function formatSettlementAmount(value) {
+  if (value === null || value === undefined) return '—';
+  const num = Number(value);
+  if (Number.isNaN(num)) return String(value);
+  return new Intl.NumberFormat('en-IN').format(num);
+}
+
 function formatInr(minor, minorPerMajor) {
   const neg = minor < 0;
   const abs = Math.abs(minor);
@@ -111,6 +127,10 @@ export default function SplitTransactionForm({
   const [adjAmountById, setAdjAmountById] = useState({});
   const [splitNote, setSplitNote] = useState('');
   const [participantSearch, setParticipantSearch] = useState('');
+  const [linkableByParticipant, setLinkableByParticipant] = useState({});
+  const [linkableLoadingByParticipant, setLinkableLoadingByParticipant] = useState({});
+  const [linkedTagsByParticipant, setLinkedTagsByParticipant] = useState({});
+  const fetchedLinkableIds = useRef(new Set());
 
   useEffect(() => {
     setSplitDirection(defaultDirection);
@@ -133,6 +153,22 @@ export default function SplitTransactionForm({
     const order = participants.map((p) => String(p.id));
     return selectedIds.slice().sort((a, b) => order.indexOf(a) - order.indexOf(b));
   }, [selectedIds, participants]);
+
+  useEffect(() => {
+    if (splitDirection !== 'SETTLEMENT') return;
+    for (const id of orderedSelected) {
+      if (fetchedLinkableIds.current.has(id)) continue;
+      fetchedLinkableIds.current.add(id);
+      setLinkableLoadingByParticipant((prev) => ({ ...prev, [id]: true }));
+      fetch(`${API_BASE}/friends/${id}/linkable-transactions`)
+        .then((res) => (res.ok ? res.json() : Promise.reject()))
+        .then((data) => setLinkableByParticipant((prev) => ({ ...prev, [id]: data.data || [] })))
+        .catch(() => setLinkableByParticipant((prev) => ({ ...prev, [id]: [] })))
+        .finally(() =>
+          setLinkableLoadingByParticipant((prev) => ({ ...prev, [id]: false })),
+        );
+    }
+  }, [splitDirection, orderedSelected]);
 
   const filteredParticipants = useMemo(() => {
     if (participants.length === 0) return [];
@@ -278,9 +314,6 @@ export default function SplitTransactionForm({
       if (incomplete) errors.push('Enter an exact amount for every selected participant.');
     }
 
-    if (splitDirection === 'SETTLEMENT') {
-      errors.push('Settlement needs linked entries — add those from the tag form below.');
-    }
     if (splitDirection === 'NOTHING_OUTSTANDING' && results.some((r) => r.amountMinor > 0)) {
       errors.push('Choose I owe or They owe me when the split has a positive amount.');
     }
@@ -329,6 +362,7 @@ export default function SplitTransactionForm({
       results,
       direction: splitDirection,
       ...(note ? { note } : {}),
+      linkedTagsByParticipant,
     });
   };
 
@@ -564,6 +598,80 @@ export default function SplitTransactionForm({
               );
             })}
           </ul>
+        </div>
+      )}
+
+      {splitDirection === 'SETTLEMENT' && orderedSelected.length > 0 && (
+        <div className="split-txn-settlement-section">
+          <p className="split-txn-label">Link settled entries <span className="split-txn-label-optional">(optional)</span></p>
+          {orderedSelected.map((id) => {
+            const p = participants.find((x) => String(x.id) === id);
+            const loading = linkableLoadingByParticipant[id];
+            const entries = linkableByParticipant[id] || [];
+            const selectedLinked = linkedTagsByParticipant[id] || [];
+            return (
+              <div key={id} className="split-txn-settlement-participant">
+                <p className="split-txn-settlement-participant__name">{p?.name || id}</p>
+                {loading ? (
+                  <p className="status">Loading linkable entries…</p>
+                ) : entries.length === 0 ? (
+                  <p className="empty">No linkable entries for {p?.name || id}.</p>
+                ) : (
+                  <div className="settlement-link-list">
+                    {entries.map((tag) => {
+                      const isSelected = selectedLinked.includes(String(tag.id));
+                      const dirClass =
+                        tag.direction === 'I_OWE'
+                          ? 'settlement-dir-pill--owe'
+                          : tag.direction === 'OWES_ME'
+                            ? 'settlement-dir-pill--me'
+                            : 'settlement-dir-pill--none';
+                      return (
+                        <label
+                          key={tag.id}
+                          className={`settlement-link-item${isSelected ? ' settlement-link-item--selected' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="settlement-link-item__check"
+                            checked={isSelected}
+                            onChange={() => {
+                              const next = isSelected
+                                ? selectedLinked.filter((x) => x !== String(tag.id))
+                                : [...selectedLinked, String(tag.id)];
+                              setLinkedTagsByParticipant((prev) => ({ ...prev, [id]: next }));
+                            }}
+                          />
+                          <div className="settlement-link-item__body">
+                            <div className="settlement-link-item__top">
+                              <span className="settlement-link-item__date">
+                                {formatSettlementDate(tag.transaction?.transactionDate)}
+                              </span>
+                              <span className={`settlement-dir-pill ${dirClass}`}>
+                                {tag.direction === 'I_OWE'
+                                  ? 'I owe'
+                                  : tag.direction === 'OWES_ME'
+                                    ? 'They owe me'
+                                    : 'Nothing'}
+                              </span>
+                              <span className="settlement-link-item__amount">
+                                ₹{formatSettlementAmount(tag.amount)}
+                              </span>
+                            </div>
+                            {tag.transaction?.upiName ? (
+                              <span className="settlement-link-item__upi">
+                                {tag.transaction.upiName}
+                              </span>
+                            ) : null}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
