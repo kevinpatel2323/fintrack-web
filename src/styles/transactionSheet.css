@@ -257,7 +257,7 @@
   max-width: 100%;
 }
 
-/* Same pattern as Friends → expanded friend: MobileTransactionCard + friend-tag-mini-table */
+/* Compact split-card list inside transaction management sheets. */
 .calendar-sheet .friend-tags-list.friend-tagged-mobile {
   display: grid;
   gap: 12px;

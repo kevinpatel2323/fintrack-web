@@ -250,6 +250,15 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
     resetForFriend();
   }, [open, friend?.id, resetForFriend]);
 
+  useEffect(() => {
+    if (!open) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   const dateOrderOk = useMemo(() => {
     if (!startDate || !endDate) return false;
     return startDate <= endDate;
@@ -437,7 +446,7 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
                 <button type="button" className="ghost" onClick={selectNone}>
                   Clear all
                 </button>
-                <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
+                <span className="ledger-export-toolbar__count">
                   {selectedIds.size} of {loadedTags.length} selected
                 </span>
               </div>

@@ -315,7 +315,7 @@ export default function SplitTransactionForm({
     }
 
     if (splitDirection === 'NOTHING_OUTSTANDING' && results.some((r) => r.amountMinor > 0)) {
-      errors.push('Choose I owe or They owe me when the split has a positive amount.');
+        errors.push('Choose who owes whom when the split has a positive amount.');
     }
 
     const clash = results.filter((r) => taggedSet.has(String(r.participantId)));
@@ -377,15 +377,15 @@ export default function SplitTransactionForm({
         </strong>
       </div>
 
-      <label className="split-txn-label">Direction for split tags</label>
+      <label className="split-txn-label">Who owes whom</label>
       <select
         className="split-txn-direction"
         value={splitDirection}
         onChange={(e) => setSplitDirection(e.target.value)}
-        aria-label="Direction for tags created from split"
+        aria-label="Who owes whom for tags created from split"
       >
         <option value="NOTHING_OUTSTANDING">Nothing outstanding</option>
-        <option value="I_OWE">I owe</option>
+        <option value="I_OWE">I owe them</option>
         <option value="OWES_ME">They owe me</option>
         <option value="SETTLEMENT">Settlement</option>
       </select>

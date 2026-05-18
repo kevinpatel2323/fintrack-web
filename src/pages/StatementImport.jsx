@@ -1,11 +1,30 @@
 import { useEffect, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
-import DataTable from '../components/DataTable.jsx';
-import { formatDate } from '../utils/dateUtils.js';
-import { formatNumber } from '../utils/stringUtils.js';
-import './StatementImport.css';
+import {
+  Card, Num, GhostBtn, PrimaryBtn, Overline,
+} from '../components/ui/primitives.jsx';
+import {
+  IcUpload, IcCheck, IcChevR, IcSparkle, IcReceipt, IcRefresh, IcTrash,
+} from '../components/ui/Icon.jsx';
+import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import { inr } from '../utils/inr.js';
+import './import-redesign.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+
+function fmtDate(value) {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(d);
+}
+
+function fmtShortDate(value) {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short' }).format(d);
+}
 
 function isoDateMinusDays(isoDate, days) {
   if (!isoDate) return null;
@@ -15,15 +34,12 @@ function isoDateMinusDays(isoDate, days) {
 }
 
 export default function StatementImport() {
-  const [accounts, setAccounts] = useState([]);
-  const [accountsStatus, setAccountsStatus] = useState('');
+  const isMobile = useMediaQuery('(max-width: 720px)');
 
   const [lastImport, setLastImport] = useState(null);
-  const [lastAccount, setLastAccount] = useState('');
-
+  const [accounts, setAccounts] = useState([]);
+  const [selectedAccount, setSelectedAccount] = useState('');
   const [imports, setImports] = useState([]);
-  const [importsPage, setImportsPage] = useState(1);
-  const [importsAccount, setImportsAccount] = useState('');
   const [importsLoading, setImportsLoading] = useState(false);
   const [importsError, setImportsError] = useState('');
   const [importsStatus, setImportsStatus] = useState('');
@@ -35,646 +51,728 @@ export default function StatementImport() {
   const [uploadResult, setUploadResult] = useState(null);
   const [uploadPreview, setUploadPreview] = useState(null);
   const [previewFileKey, setPreviewFileKey] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
-  function getFileKey(file) {
-    if (!file) return '';
-    return `${file.name}-${file.size}-${file.lastModified}`;
-  }
+  const fileKey = (f) => (f ? `${f.name}-${f.size}-${f.lastModified}` : '');
 
   useEffect(() => {
-    async function fetchAccounts() {
-      setAccountsStatus('');
+    (async () => {
       try {
         const res = await fetch(`${API_BASE}/imports/accounts`);
-        if (!res.ok) throw new Error('Failed to fetch accounts');
-        const data = await res.json();
-        setAccounts(data.data || []);
-      } catch (error) {
-        setAccountsStatus(error.message || 'Failed to fetch accounts');
-      }
-    }
-
-    fetchAccounts();
+        if (res.ok) {
+          const data = await res.json();
+          setAccounts(Array.isArray(data) ? data : (data?.data ?? []));
+        }
+      } catch {}
+    })();
+    loadHistory();
   }, []);
 
   useEffect(() => {
-    async function fetchLast() {
-      try {
-        const accountQuery = lastAccount ? `?accountNumber=${encodeURIComponent(lastAccount)}` : '';
-        const res = await fetch(`${API_BASE}/imports/last${accountQuery}`);
-        if (res.status === 404) {
-          setLastImport(null);
-          return;
-        }
-        if (!res.ok) throw new Error('Failed to fetch last import');
-        const data = await res.json();
-        setLastImport(data);
-      } catch (error) {
-        setImportsError(error.message || 'Failed to fetch last import');
-      }
-    }
+    loadLastImport(selectedAccount);
+  }, [selectedAccount]);
 
-    fetchLast();
-  }, [lastAccount]);
-
-  useEffect(() => {
-    async function fetchImports() {
-      setImportsLoading(true);
-      setImportsError('');
-      try {
-        const accountQuery = importsAccount
-          ? `&accountNumber=${encodeURIComponent(importsAccount)}`
-          : '';
-        const res = await fetch(`${API_BASE}/imports?page=${importsPage}&limit=6${accountQuery}`);
-        if (!res.ok) throw new Error('Failed to fetch imports');
-        const data = await res.json();
-        setImports(data.data || []);
-      } catch (error) {
-        setImportsError(error.message || 'Failed to fetch imports');
-      } finally {
-        setImportsLoading(false);
-      }
-    }
-
-    fetchImports();
-  }, [importsPage, importsAccount]);
-
-  async function handleUpload(event) {
-    event.preventDefault();
-    if (!uploadFile) {
-      setUploadStatus('Please select a statement file.');
-      return;
-    }
-    const currentFileKey = getFileKey(uploadFile);
-    if (!uploadPreview || previewFileKey !== currentFileKey) {
-      setUploadStatus('Please preview this statement before importing.');
-      return;
-    }
-
-    setUploadStatus('Uploading...');
-    setUploadResult(null);
+  async function loadLastImport(acct) {
     try {
-      const formData = new FormData();
-      formData.append('statement', uploadFile);
-      const res = await fetch(`${API_BASE}/imports/hdfc`, {
-        method: 'POST',
-        body: formData,
-      });
+      const url = acct
+        ? `${API_BASE}/imports/last?accountNumber=${encodeURIComponent(acct)}`
+        : `${API_BASE}/imports/last`;
+      const res = await fetch(url);
+      if (res.status === 404) { setLastImport(null); return; }
+      if (res.ok) setLastImport(await res.json());
+    } catch {}
+  }
+
+  async function loadHistory() {
+    setImportsLoading(true);
+    setImportsError('');
+    try {
+      const res = await fetch(`${API_BASE}/imports?page=1&limit=6`);
+      if (!res.ok) throw new Error('Failed to fetch imports');
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Upload failed');
-      }
-      setUploadResult(data);
-      setUploadPreview(null);
-      setPreviewFileKey('');
-      setUploadStatus('Import completed.');
-      setUploadFile(null);
-      await refreshAfterUpload();
-    } catch (error) {
-      setUploadStatus(error.message || 'Upload failed');
-    }
+      setImports(data.data || []);
+    } catch (e) { setImportsError(e.message || 'Failed to fetch imports'); }
+    finally { setImportsLoading(false); }
   }
 
   async function handlePreview() {
-    if (!uploadFile) {
-      setUploadStatus('Please select a statement file.');
-      return;
-    }
-
-    setUploadStatus('Preparing preview...');
+    if (!uploadFile) return;
+    setUploadStatus('Generating preview…');
     setUploadResult(null);
+    setUploadPreview(null);
     try {
-      const formData = new FormData();
-      formData.append('statement', uploadFile);
-      const res = await fetch(`${API_BASE}/imports/hdfc/preview`, {
-        method: 'POST',
-        body: formData,
-      });
+      const fd = new FormData();
+      fd.append('statement', uploadFile);
+      const res = await fetch(`${API_BASE}/imports/hdfc/preview`, { method: 'POST', body: fd });
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Preview failed');
-      }
+      if (!res.ok) throw new Error(data.error || 'Preview failed');
       setUploadPreview(data);
-      setPreviewFileKey(getFileKey(uploadFile));
-      setUploadStatus('Preview ready. Verify entries and click Import now.');
-    } catch (error) {
-      setUploadStatus(error.message || 'Preview failed');
-    }
+      setPreviewFileKey(fileKey(uploadFile));
+      setUploadStatus('');
+    } catch (e) { setUploadStatus(e.message || 'Preview failed'); }
+  }
+
+  async function handleUpload() {
+    if (!uploadFile || !uploadPreview || previewFileKey !== fileKey(uploadFile)) return;
+    setIsUploading(true);
+    setUploadStatus('Importing…');
+    try {
+      const fd = new FormData();
+      fd.append('statement', uploadFile);
+      const res = await fetch(`${API_BASE}/imports/hdfc`, { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Import failed');
+      setUploadResult(data);
+      setUploadPreview(null);
+      setPreviewFileKey('');
+      setUploadFile(null);
+      setUploadStatus('');
+      await refreshAfterUpload();
+    } catch (e) { setUploadStatus(e.message || 'Import failed'); }
+    finally { setIsUploading(false); }
   }
 
   async function refreshAfterUpload() {
-    try {
-      const res = await fetch(`${API_BASE}/imports/last`);
-      if (res.ok) {
-        const data = await res.json();
-        setLastImport(data);
-      }
-    } catch (error) {
-      // ignore
-    }
-
-    try {
-      const res = await fetch(`${API_BASE}/imports?page=1&limit=6`);
-      if (res.ok) {
-        const data = await res.json();
-        setImports(data.data || []);
-        setImportsPage(1);
-      }
-    } catch (error) {
-      // ignore
-    }
-
-    try {
-      const res = await fetch(`${API_BASE}/imports/accounts`);
-      if (res.ok) {
-        const data = await res.json();
-        setAccounts(data.data || []);
-      }
-    } catch (error) {
-      // ignore
-    }
+    await Promise.all([loadLastImport(selectedAccount), loadHistory()]);
   }
 
-  async function runRevertImport(importId) {
-    setImportsError('');
-    setImportsStatus('Reverting import...');
-    setRevertingImportId(importId);
-    try {
-      const res = await fetch(`${API_BASE}/imports/${importId}/revert`, {
-        method: 'POST',
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || data.error || 'Failed to revert import');
-      }
-      setImportsStatus(
-        `Import #${importId} reverted. Removed ${formatNumber(data.removedTransactions)} transactions.`,
-      );
-      await refreshAfterUpload();
-    } catch (error) {
-      setImportsStatus('');
-      setImportsError(error.message || 'Failed to revert import');
-    } finally {
-      setRevertingImportId(null);
-    }
+  function resetUpload() {
+    setUploadFile(null);
+    setUploadPreview(null);
+    setPreviewFileKey('');
+    setUploadStatus('');
+    setUploadResult(null);
   }
 
-  function handleRevertImport(importId) {
+  function handleFileInput(f) {
+    if (!f) return;
+    setUploadFile(f);
+    setUploadPreview(null);
+    setPreviewFileKey('');
+    setUploadStatus('');
+    setUploadResult(null);
+  }
+
+  function askRevert(id) {
     setConfirmState({
       open: true,
-      title: 'Revert import?',
-      message: 'This will remove all transactions created by it.',
+      title: `Revert import #${id}?`,
+      message: 'All transactions created by this import will be removed.',
       confirmLabel: 'Revert',
       onConfirm: async () => {
         setConfirmState({ open: false });
-        await runRevertImport(importId);
+        await runRevert(id);
       },
       onCancel: () => setConfirmState({ open: false }),
     });
   }
 
-  const previewColumns = [
-    {
-      id: 'date',
-      header: 'Date',
-      defaultWidth: 120,
-      sortable: true,
-      accessor: (row) => new Date(row.transactionDate).getTime(),
-      trim: true,
-      title: (row) => formatDate(row.transactionDate),
-      cellClassName: 'data-table-cell--span-mobile',
-      cell: (row) => <strong className="transaction-date">{formatDate(row.transactionDate)}</strong>,
-    },
-    {
-      id: 'account',
-      header: 'Account',
-      defaultWidth: 180,
-      sortable: true,
-      accessor: (row) => row.accountNumber || '',
-      trim: true,
-      cell: (row) => (
-        <span className="transaction-account-badge">
-          {row.accountNumber || uploadPreview?.accountNumber || 'unknown'}
-        </span>
-      ),
-    },
-    {
-      id: 'upiName',
-      header: 'UPI name',
-      defaultWidth: 200,
-      sortable: true,
-      accessor: (row) => row.upiName || '',
-      trim: true,
-      title: (row) => row.upiName || '—',
-      cellClassName: 'data-table-cell--span-mobile',
-      cell: (row) => <strong>{row.upiName || '—'}</strong>,
-    },
-    {
-      id: 'upiDescription',
-      header: 'UPI description',
-      defaultWidth: 220,
-      sortable: true,
-      accessor: (row) => row.upiDescription || '',
-      trim: true,
-      title: (row) => row.upiDescription || '—',
-      cellClassName: 'data-table-cell--span-mobile',
-      cell: (row) => <strong>{row.upiDescription || '—'}</strong>,
-    },
-    {
-      id: 'upiBank',
-      header: 'UPI bank',
-      defaultWidth: 160,
-      sortable: true,
-      accessor: (row) => row.upiBank || '',
-      trim: true,
-      title: (row) => row.upiBank || '—',
-      cellClassName: 'data-table-cell--span-mobile',
-      cell: (row) => <strong>{row.upiBank || '—'}</strong>,
-    },
-    {
-      id: 'amount',
-      header: 'Amount',
-      defaultWidth: 120,
-      sortable: true,
-      accessor: (row) => {
-        const w = Number(row.withdrawal || 0);
-        const d = Number(row.deposit || 0);
-        return w > 0 ? -w : d;
-      },
-      trim: true,
-      cell: (row) => {
-        const withdrawal = Number(row.withdrawal || 0);
-        const deposit = Number(row.deposit || 0);
-        const amount = withdrawal > 0 ? withdrawal : deposit;
-        const isWithdrawal = withdrawal > 0;
-        return (
-          <strong className={`transaction-amount ${isWithdrawal ? 'amount-withdrawal' : 'amount-deposit'}`}>
-            {isWithdrawal ? '-' : '+'}
-            {formatNumber(amount)}
-          </strong>
-        );
-      },
-    },
-    {
-      id: 'balance',
-      header: 'Balance',
-      defaultWidth: 130,
-      sortable: true,
-      accessor: (row) => Number(row.balance) || 0,
-      trim: true,
-      title: (row) => formatNumber(row.balance),
-      cell: (row) => <strong>{formatNumber(row.balance)}</strong>,
-    },
+  async function runRevert(id) {
+    setImportsError('');
+    setImportsStatus(`Reverting…`);
+    setRevertingImportId(id);
+    try {
+      const res = await fetch(`${API_BASE}/imports/${id}/revert`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || 'Revert failed');
+      setImportsStatus(`Reverted ${data.removedTransactions || 0} transactions.`);
+      await refreshAfterUpload();
+    } catch (e) { setImportsError(e.message || 'Revert failed'); setImportsStatus(''); }
+    finally { setRevertingImportId(null); }
+  }
+
+  // Derived state
+  const step = !uploadFile ? 1 : (!uploadPreview || previewFileKey !== fileKey(uploadFile)) ? 2 : 3;
+  const previewRows = uploadPreview?.previewRows || [];
+  const net = previewRows.reduce((s, r) => s + Number(r.deposit || 0) - Number(r.withdrawal || 0), 0);
+  const debits = previewRows.reduce((s, r) => s + Number(r.withdrawal || 0), 0);
+  const credits = previewRows.reduce((s, r) => s + Number(r.deposit || 0), 0);
+  const period = uploadPreview?.periodStart && uploadPreview?.periodEnd
+    ? `${fmtShortDate(uploadPreview.periodStart)} – ${fmtShortDate(uploadPreview.periodEnd)}`
+    : '—';
+  const lastFour = uploadPreview?.accountNumber?.slice(-4) || '';
+
+  const STEPS = [
+    { label: 'Upload file',      done: step > 1, active: step === 1 },
+    { label: 'Review & map',     done: step > 2, active: step === 2 },
+    { label: 'Confirm & apply',  done: false,    active: step === 3 },
   ];
 
-  const importColumns = [
-    {
-      id: 'account',
-      header: 'Account',
-      defaultWidth: 140,
-      sortable: true,
-      accessor: (row) => row.accountNumber || '',
-      trim: true,
-      title: (row) => row.accountNumber || 'unknown',
-      cell: (row) => <strong>{row.accountNumber || 'unknown'}</strong>,
-    },
-    {
-      id: 'inserted',
-      header: 'Inserted',
-      defaultWidth: 110,
-      sortable: true,
-      accessor: (row) => Number(row.insertedRows) || 0,
-      trim: true,
-      cell: (row) => <strong>{formatNumber(row.insertedRows)}</strong>,
-    },
-    {
-      id: 'period',
-      header: 'Period',
-      defaultWidth: 220,
-      sortable: true,
-      accessor: (row) => new Date(row.periodStart).getTime(),
-      trim: true,
-      title: (row) =>
-        `${formatDate(row.periodStart)} → ${formatDate(row.periodEnd)}`,
-      cellClassName: 'data-table-cell--span-mobile',
-      cell: (row) => (
-        <strong>
-          {formatDate(row.periodStart)} → {formatDate(row.periodEnd)}
-        </strong>
-      ),
-    },
-    {
-      id: 'uploaded',
-      header: 'Uploaded',
-      defaultWidth: 130,
-      sortable: true,
-      accessor: (row) => new Date(row.uploadedAt).getTime(),
-      trim: true,
-      title: (row) => formatDate(row.uploadedAt),
-      cell: (row) => <strong>{formatDate(row.uploadedAt)}</strong>,
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      defaultWidth: 120,
-      minWidth: 96,
-      hideable: false,
-      sortable: false,
-      cellClassName: 'data-table-cell--actions',
-      cell: (row) => (
-        <button
-          className="ghost"
-          type="button"
-          onClick={() => handleRevertImport(row.id)}
-          disabled={revertingImportId === row.id}
-        >
-          {revertingImportId === row.id ? 'Reverting...' : 'Revert'}
-        </button>
-      ),
-    },
-  ];
+  if (isMobile) return (
+    <MobileView
+      step={step}
+      uploadFile={uploadFile}
+      uploadPreview={uploadPreview}
+      uploadStatus={uploadStatus}
+      uploadResult={uploadResult}
+      isUploading={isUploading}
+      isDragging={isDragging}
+      previewRows={previewRows}
+      net={net} debits={debits} credits={credits} period={period} lastFour={lastFour}
+      imports={imports} importsLoading={importsLoading} importsError={importsError} importsStatus={importsStatus}
+      revertingImportId={revertingImportId} lastImport={lastImport}
+      confirmState={confirmState}
+      STEPS={STEPS}
+      onFileInput={handleFileInput}
+      onPreview={handlePreview}
+      onUpload={handleUpload}
+      onReset={resetUpload}
+      onRevert={askRevert}
+      onRefresh={loadHistory}
+      setIsDragging={setIsDragging}
+    />
+  );
 
   return (
     <>
-      <ConfirmDialog
-        open={confirmState.open}
-        title={confirmState.title}
-        message={confirmState.message}
-        confirmLabel={confirmState.confirmLabel}
-        cancelLabel={confirmState.cancelLabel}
-        onConfirm={confirmState.onConfirm}
-        onCancel={confirmState.onCancel}
-      />
+      <ConfirmDialog {...confirmState} />
 
-      <section className="statement-import-intro">
-        <h2 className="statement-import-title">Statement import</h2>
-        <p className="statement-import-lead">
-          Upload HDFC XLS statements, preview rows, and manage past imports.
-        </p>
-      </section>
+      <header className="ft-page-header">
+        <div>
+          <p className="ft-page-header__sub">
+            {lastImport
+              ? `Last import · ${fmtDate(lastImport.uploadedAt)}`
+              : 'No imports yet'}
+          </p>
+          <h1 className="ft-page-header__title">Import statement</h1>
+        </div>
+      </header>
 
-      <section className="statement-import-top">
-        <div className="card upload-card">
-          <div className="card-header">
-            <div>
-              <h2>Upload statement</h2>
-            </div>
-            <div className="pill">XLS only</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 14 }}>
+        {/* ── Left: main wizard card ── */}
+        <div style={{ background: 'var(--ft-surface)', borderRadius: 18, border: '1px solid var(--ft-border)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+
+          {/* Step bar */}
+          <div className="imp-step-bar">
+            {STEPS.map((s, i) => (
+              <div key={i} className="imp-step-bar__item">
+                <div className={`imp-step-bar__node ${s.done ? 'imp-step-bar__node--done' : s.active ? 'imp-step-bar__node--active' : ''}`}>
+                  {s.done ? <IcCheck size={13} /> : i + 1}
+                </div>
+                <span className={`imp-step-bar__label ${s.active ? 'imp-step-bar__label--active' : ''}`}>{s.label}</span>
+                {i < 2 && <div className="imp-step-bar__line" />}
+              </div>
+            ))}
           </div>
 
-          <form className="upload-form" onSubmit={handleUpload}>
-            <label className="file-input">
+          {/* Step 1 — drop zone */}
+          {step === 1 && (
+            <label
+              className={`imp-drop-full${isDragging ? ' imp-drop-full--drag' : ''}`}
+              htmlFor="imp-file-desktop"
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFileInput(e.dataTransfer.files?.[0]); }}
+            >
+              <IcUpload size={32} style={{ color: 'var(--ft-text-faint)', marginBottom: 10 }} />
+              <div style={{ color: 'var(--ft-text)', fontWeight: 600, fontSize: 15 }}>Drop your HDFC statement here</div>
+              <div style={{ color: 'var(--ft-text-dim)', fontSize: 13, marginTop: 4 }}>XLSX or XLS · up to 10 MB</div>
+              <div style={{ marginTop: 16 }}>
+                <span className="imp-browse-btn">Browse file</span>
+              </div>
               <input
+                id="imp-file-desktop"
                 type="file"
-                accept=".xls"
-                onChange={(event) => {
-                  const nextFile = event.target.files?.[0] || null;
-                  setUploadFile(nextFile);
-                  setUploadPreview(null);
-                  setPreviewFileKey('');
-                  setUploadResult(null);
-                  setUploadStatus('');
-                }}
+                accept=".xlsx,.xls"
+                onChange={(e) => handleFileInput(e.target.files?.[0])}
+                style={{ display: 'none' }}
               />
-              <span>{uploadFile ? uploadFile.name : 'Choose statement file'}</span>
             </label>
-            <div className="upload-actions">
-              <button className="secondary" type="button" onClick={handlePreview} disabled={!uploadFile}>
-                Preview import
-              </button>
-              <button className="primary" type="submit" disabled={!uploadFile}>
-                Import now
-              </button>
-            </div>
-          </form>
+          )}
 
-          {uploadStatus && <p className="status">{uploadStatus}</p>}
-          {uploadPreview && (
-            <div className="upload-preview">
-              <div className="upload-result">
-                <table className="friend-tag-mini-table">
-                  <tbody>
-                    <tr>
-                      <th scope="row">Account</th>
-                      <td>
-                        <strong>{uploadPreview.accountNumber || 'unknown'}</strong>
-                      </td>
-                    </tr>
-                    <tr>
-                      <th scope="row">Will insert</th>
-                      <td>
-                        <strong>{formatNumber(uploadPreview.willInsert)}</strong>
-                      </td>
-                    </tr>
-                    <tr>
-                      <th scope="row">Skipped</th>
-                      <td>
-                        <strong>{formatNumber(uploadPreview.skippedRows)}</strong>
-                      </td>
-                    </tr>
-                    <tr>
-                      <th scope="row">Total parsed</th>
-                      <td>
-                        <strong>{formatNumber(uploadPreview.totalParsed)}</strong>
-                      </td>
-                    </tr>
-                    <tr>
-                      <th scope="row">Last date before</th>
-                      <td>
-                        <strong>{formatDate(uploadPreview.lastDateBefore)}</strong>
-                      </td>
-                    </tr>
-                    <tr>
-                      <th scope="row">Period</th>
-                      <td>
-                        <strong>
-                          {formatDate(uploadPreview.periodStart)} → {formatDate(uploadPreview.periodEnd)}
-                        </strong>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+          {/* Step 2 — file selected, no preview yet */}
+          {step === 2 && (
+            <>
+              <FileInfoRow
+                uploadFile={uploadFile}
+                uploadPreview={uploadPreview}
+                lastFour={lastFour}
+                onRemove={resetUpload}
+              />
+              <div style={{ padding: '14px 22px', borderTop: '1px solid var(--ft-border)', display: 'flex', gap: 10, alignItems: 'center' }}>
+                <PrimaryBtn onClick={handlePreview}>Generate preview</PrimaryBtn>
+                <GhostBtn onClick={resetUpload}>Cancel</GhostBtn>
+                {uploadStatus && <span style={{ color: 'var(--ft-spend)', fontSize: 13 }}>{uploadStatus}</span>}
+              </div>
+            </>
+          )}
+
+          {/* Step 3 — preview ready */}
+          {step === 3 && (
+            <>
+              <FileInfoRow
+                uploadFile={uploadFile}
+                uploadPreview={uploadPreview}
+                lastFour={lastFour}
+                onRemove={resetUpload}
+              />
+
+              <div style={{ borderTop: '1px solid var(--ft-border)', overflowX: 'auto' }}>
+                {/* Table header */}
+                <div className="imp-tbl-head">
+                  <span style={{ flex: '0 0 110px' }}>Date</span>
+                  <span style={{ flex: 1 }}>Narration</span>
+                  <span style={{ flex: '0 0 120px', textAlign: 'right' }}>Amount</span>
+                </div>
+
+                {previewRows.length === 0 ? (
+                  <div style={{ padding: '32px 22px', textAlign: 'center', color: 'var(--ft-text-dim)', fontSize: 14 }}>
+                    All {uploadPreview.skippedRows} rows already imported — nothing new to add.
+                  </div>
+                ) : (
+                  previewRows.slice(0, 15).map((r, i) => {
+                    const w = Number(r.withdrawal || 0);
+                    const d = Number(r.deposit || 0);
+                    const isIncome = d > 0;
+                    const amt = isIncome ? d : w;
+                    return (
+                      <div key={i} className="imp-tbl-row">
+                        <span style={{ flex: '0 0 110px', color: 'var(--ft-text-dim)', fontSize: 12.5 }}>
+                          {fmtDate(r.transactionDate)}
+                        </span>
+                        <span style={{ flex: 1, color: 'var(--ft-text-dim)', fontFamily: 'var(--ft-font-mono)', fontSize: 11.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {r.upiName || r.narration}
+                        </span>
+                        <span style={{ flex: '0 0 120px', textAlign: 'right' }}>
+                          <Num size={13} weight={600} color={isIncome ? 'var(--ft-income)' : 'var(--ft-text)'}>
+                            {inr(isIncome ? amt : -amt, { sign: isIncome })}
+                          </Num>
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
               </div>
 
-              {uploadPreview.previewRows.length === 0 ? (
-                <p className="empty">No new entries will be inserted from this statement.</p>
+              {/* Footer */}
+              <div className="imp-tbl-footer">
+                <span style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>
+                  {previewRows.length > 0
+                    ? `${Math.min(previewRows.length, 15)} of ${uploadPreview.willInsert} new · ${uploadPreview.skippedRows} duplicates skipped`
+                    : `${uploadPreview.skippedRows} duplicates skipped`}
+                </span>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  {uploadStatus && <span style={{ color: 'var(--ft-spend)', fontSize: 13 }}>{uploadStatus}</span>}
+                  <GhostBtn onClick={() => { setUploadPreview(null); setPreviewFileKey(''); }}>Back</GhostBtn>
+                  <PrimaryBtn
+                    onClick={handleUpload}
+                    disabled={isUploading || uploadPreview.willInsert === 0}
+                  >
+                    {isUploading ? 'Importing…' : `Import ${uploadPreview.willInsert} transactions`} <IcChevR size={14} />
+                  </PrimaryBtn>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ── Right: summary panel ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Last import */}
+          <Card pad={18}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <Overline>Last import</Overline>
+              <select
+                value={selectedAccount}
+                onChange={(e) => setSelectedAccount(e.target.value)}
+                style={{
+                  background: 'var(--ft-surface-2)',
+                  border: '1px solid var(--ft-border)',
+                  color: 'var(--ft-text)',
+                  borderRadius: 6,
+                  padding: '3px 6px',
+                  fontSize: 11,
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                <option value="">All accounts</option>
+                {accounts.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+            <p style={{ margin: '0 0 12px', color: 'var(--ft-text-faint)', fontSize: 11 }}>
+              Select an account to see the most recent import.
+            </p>
+            {lastImport ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                {[
+                  { l: 'Account',         v: lastImport.account?.accountNumber || '—' },
+                  { l: 'Inserted',        v: lastImport.insertedRows },
+                  { l: 'Rows',            v: lastImport.totalRows },
+                  { l: 'Period',          v: `${fmtDate(lastImport.periodStart)} → ${fmtDate(lastImport.periodEnd)}` },
+                  { l: 'Last date before',v: fmtDate(lastImport.lastTxDateBefore) },
+                  { l: 'Uploaded',        v: fmtDate(lastImport.uploadedAt) },
+                ].map(({ l, v }) => (
+                  <div key={l} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                    <span style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, flexShrink: 0 }}>{l}</span>
+                    <span style={{ color: 'var(--ft-text)', fontSize: 12, fontWeight: 500, textAlign: 'right' }}>{String(v)}</span>
+                  </div>
+                ))}
+                {lastImport.periodEnd && (() => {
+                  const cutoff = isoDateMinusDays(lastImport.periodEnd, 2);
+                  return (
+                    <div style={{
+                      marginTop: 4,
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      background: 'var(--ft-accent-soft)',
+                      border: '1px solid rgba(215,255,61,0.25)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'baseline',
+                      gap: 8,
+                    }}>
+                      <span style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, flexShrink: 0 }}>Next start</span>
+                      <strong style={{ color: 'var(--ft-accent)', fontSize: 12, fontWeight: 700, textAlign: 'right' }}>
+                        On or before {fmtDate(cutoff)}
+                      </strong>
+                    </div>
+                  );
+                })()}
+              </div>
+            ) : (
+              <p style={{ margin: 0, color: 'var(--ft-text-faint)', fontSize: 12, textAlign: 'center', padding: '8px 0' }}>No imports found.</p>
+            )}
+          </Card>
+
+          {/* Summary */}
+          <Card pad={18}>
+            <Overline style={{ marginBottom: 12 }}>Summary</Overline>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <SumCell label="Net" dimmed={!uploadPreview}>
+                <Num size={20} weight={600} color={net >= 0 ? 'var(--ft-income)' : 'var(--ft-spend)'}>
+                  {uploadPreview ? inr(net, { sign: net >= 0 }) : '—'}
+                </Num>
+              </SumCell>
+              <SumCell label="Period" dimmed={!uploadPreview}>
+                <span style={{ color: 'var(--ft-text)', fontSize: 13, fontWeight: 500 }}>{uploadPreview ? period : '—'}</span>
+              </SumCell>
+              <SumCell label="Debits" dimmed={!uploadPreview}>
+                <Num size={14} weight={600} color="var(--ft-spend)">{uploadPreview ? inr(-debits) : '—'}</Num>
+              </SumCell>
+              <SumCell label="Credits" dimmed={!uploadPreview}>
+                <Num size={14} weight={600} color="var(--ft-income)">{uploadPreview ? inr(credits, { sign: true }) : '—'}</Num>
+              </SumCell>
+            </div>
+          </Card>
+
+          {/* Rows breakdown (only when preview loaded) */}
+          {uploadPreview && (
+            <Card pad={18}>
+              <Overline style={{ marginBottom: 10 }}>Rows</Overline>
+              <ProgressRow label="Will import" value={uploadPreview.willInsert} total={uploadPreview.totalParsed} color="var(--ft-accent)" />
+              <ProgressRow label="Duplicates skipped" value={uploadPreview.skippedRows} total={uploadPreview.totalParsed} color="var(--ft-text-faint)" />
+            </Card>
+          )}
+
+          {/* Smart match card */}
+          <div style={{
+            padding: 14, borderRadius: 14,
+            background: 'linear-gradient(135deg, var(--ft-accent-soft), transparent)',
+            border: '1px solid rgba(215,255,61,0.28)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <IcSparkle size={14} style={{ color: 'var(--ft-accent)' }} />
+              <Overline style={{ color: 'var(--ft-accent)', letterSpacing: 0.6 }}>Smart match</Overline>
+            </div>
+            <p style={{ margin: 0, color: 'var(--ft-text)', fontSize: 12.5, lineHeight: 1.5 }}>
+              We match counterparty names against your friends list and suggest categories automatically.
+            </p>
+          </div>
+
+          {/* Success banner */}
+          {uploadResult && (
+            <div style={{ padding: '12px 14px', background: 'var(--ft-income-soft)', color: 'var(--ft-income)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500 }}>
+              <IcCheck size={16} /> Imported {uploadResult.insertedCount ?? uploadResult.added ?? '?'} transactions
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Recent imports — below the grid */}
+      <div style={{ marginTop: 20 }}>
+        <HistoryCard
+          imports={imports}
+          importsLoading={importsLoading}
+          importsError={importsError}
+          importsStatus={importsStatus}
+          revertingImportId={revertingImportId}
+          onRevert={askRevert}
+          onRefresh={loadHistory}
+        />
+      </div>
+    </>
+  );
+}
+
+// ── Mobile view ─────────────────────────────────────────────────────────────
+
+function MobileView({
+  step, uploadFile, uploadPreview, uploadStatus, uploadResult, isUploading,
+  isDragging, previewRows, net, debits, credits, period, lastFour,
+  imports, importsLoading, importsError, importsStatus, revertingImportId, lastImport,
+  confirmState, STEPS, onFileInput, onPreview, onUpload, onReset, onRevert, onRefresh,
+  setIsDragging,
+}) {
+  return (
+    <>
+      <ConfirmDialog {...confirmState} />
+      <header className="ft-mobile__header">
+        <h1 className="ft-mobile__title">Import</h1>
+        <span style={{ width: 40 }} />
+      </header>
+      <main className="ft-mobile__content">
+
+        {/* Step indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {STEPS.map((s, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, flex: i < 2 ? undefined : 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                <div style={{
+                  width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                  background: s.done ? 'var(--ft-accent)' : s.active ? 'var(--ft-surface-2)' : 'transparent',
+                  border: s.active ? '1.5px solid var(--ft-accent)' : s.done ? 'none' : '1.5px solid var(--ft-border)',
+                  color: s.done ? 'var(--ft-text-on-accent)' : s.active ? 'var(--ft-accent)' : 'var(--ft-text-faint)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'var(--ft-font-mono)', fontSize: 11, fontWeight: 700,
+                }}>
+                  {s.done ? <IcCheck size={12} /> : i + 1}
+                </div>
+                <span style={{ color: s.active ? 'var(--ft-text)' : 'var(--ft-text-dim)', fontSize: 13, fontWeight: s.active ? 600 : 500 }}>
+                  {s.label}
+                </span>
+              </div>
+              {i < 2 && <div style={{ flex: 1, height: 1, background: 'var(--ft-border)' }} />}
+            </div>
+          ))}
+        </div>
+
+        {/* Step 1 — drop zone */}
+        {step === 1 && (
+          <label
+            className={`imp-drop${isDragging ? ' imp-drop--dragging' : ''}`}
+            htmlFor="imp-file-mobile"
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => { e.preventDefault(); setIsDragging(false); onFileInput(e.dataTransfer.files?.[0]); }}
+          >
+            <IcUpload size={28} style={{ color: 'var(--ft-text-dim)', marginBottom: 8 }} />
+            <div style={{ color: 'var(--ft-text)', fontWeight: 500 }}>Drop HDFC statement or tap to browse</div>
+            <div style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>XLSX or XLS · up to 10 MB</div>
+            <input id="imp-file-mobile" type="file" accept=".xlsx,.xls" onChange={(e) => onFileInput(e.target.files?.[0])} style={{ display: 'none' }} />
+          </label>
+        )}
+
+        {/* Step 2 & 3 — file summary card */}
+        {step >= 2 && (
+          <Card pad={16}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div className="imp-xlsx-icon">XLSX</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ color: 'var(--ft-text)', fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {uploadFile?.name}
+                </div>
+                <div style={{ color: 'var(--ft-text-dim)', fontSize: 12, marginTop: 2 }}>
+                  {uploadPreview
+                    ? `HDFC · •••• ${lastFour} · ${period}`
+                    : `${((uploadFile?.size || 0) / 1024).toFixed(1)} KB`}
+                </div>
+              </div>
+              {step === 3 ? (
+                <IcCheck size={20} style={{ color: 'var(--ft-income)', flexShrink: 0 }} />
               ) : (
-                <DataTable
-                  columns={previewColumns}
-                  rows={uploadPreview.previewRows}
-                  getRowKey={(row, index) => `${row.transactionDate}-${index}`}
-                  scrollClassName="data-table-scroll transactions-table"
-                  mobileHeroColumnIds={['date', 'amount', 'balance']}
-                  aria-label="Statement import preview"
-                  rowClassName={(row) => {
-                    const withdrawal = Number(row.withdrawal || 0);
-                    return withdrawal > 0 ? 'transaction-withdrawal' : 'transaction-deposit';
-                  }}
-                />
+                <button type="button" onClick={onReset} style={{ background: 'none', border: 0, color: 'var(--ft-text-faint)', cursor: 'pointer', padding: 4 }}>
+                  <IcTrash size={16} />
+                </button>
               )}
             </div>
-          )}
-          {uploadResult && (
-            <div className="upload-result">
-              <table className="friend-tag-mini-table">
-                <tbody>
-                  <tr>
-                    <th scope="row">Account</th>
-                    <td>
-                      <strong>{uploadResult.accountNumber || 'unknown'}</strong>
-                    </td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Inserted</th>
-                    <td>
-                      <strong>{formatNumber(uploadResult.insertedRows)}</strong>
-                    </td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Period</th>
-                    <td>
-                      <strong>
-                        {formatDate(uploadResult.periodStart)} → {formatDate(uploadResult.periodEnd)}
-                      </strong>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
 
-        <div className="card">
-          <div className="card-header">
-            <div>
-              <h2>Last import</h2>
-              <p>Select an account to see the most recent import.</p>
-            </div>
-            <div className="select-wrap">
-              <select value={lastAccount} onChange={(e) => setLastAccount(e.target.value)}>
-                <option value="">All accounts</option>
-                {accounts.map((account) => (
-                  <option value={account} key={account}>
-                    {account}
-                  </option>
+            {/* 3-up stats (step 3 only) */}
+            {step === 3 && uploadPreview && (
+              <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--ft-surface-2)', borderRadius: 12, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+                {[
+                  { l: 'New',       v: uploadPreview.willInsert,  c: 'var(--ft-accent)' },
+                  { l: 'Duplicate', v: uploadPreview.skippedRows, c: 'var(--ft-text-dim)' },
+                  { l: 'Failed',    v: 0,                          c: 'var(--ft-income)' },
+                ].map((s) => (
+                  <div key={s.l}>
+                    <Num size={18} weight={600} color={s.c} style={{ display: 'block' }}>{s.v}</Num>
+                    <div style={{ color: 'var(--ft-text-dim)', fontSize: 11, marginTop: 1 }}>{s.l}</div>
+                  </div>
                 ))}
-              </select>
-            </div>
-          </div>
-          {accountsStatus && <p className="status">{accountsStatus}</p>}
-          {lastImport ? (
-            <div className="stat-grid">
-              <table className="friend-tag-mini-table">
-                <tbody>
-                  <tr>
-                    <th scope="row">Account</th>
-                    <td>
-                      <strong>{lastImport.accountNumber || 'unknown'}</strong>
-                    </td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Inserted</th>
-                    <td>
-                      <strong>{formatNumber(lastImport.insertedRows)}</strong>
-                    </td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Rows</th>
-                    <td>
-                      <strong>{formatNumber(lastImport.totalRows)}</strong>
-                    </td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Period</th>
-                    <td>
-                      <strong>
-                        {formatDate(lastImport.periodStart)} → {formatDate(lastImport.periodEnd)}
-                      </strong>
-                    </td>
-                  </tr>
-                  <tr>
-                    <th scope="row">Last date before</th>
-                    <td>
-                      <strong>{formatDate(lastImport.lastTxDateBefore)}</strong>
-                    </td>
-                  </tr>
-                  {lastImport.periodEnd && (
-                    <tr>
-                      <th scope="row">Next statement start</th>
-                      <td>
-                        <strong className="import-next-start-hint">
-                          On or before {formatDate(isoDateMinusDays(lastImport.periodEnd, 2))}
-                        </strong>
-                      </td>
-                    </tr>
-                  )}
-                  <tr>
-                    <th scope="row">Uploaded</th>
-                    <td>
-                      <strong>{formatDate(lastImport.uploadedAt)}</strong>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="empty">No imports yet.</p>
-          )}
-        </div>
-      </section>
-
-      <section className="card">
-        <div className="card-header">
-          <div>
-            <h2>Recent imports</h2>
-            <p>Filter by account to review historical uploads.</p>
-          </div>
-          <div className="controls">
-            <div className="select-wrap">
-              <select value={importsAccount} onChange={(e) => setImportsAccount(e.target.value)}>
-                <option value="">All accounts</option>
-                {accounts.map((account) => (
-                  <option value={account} key={account}>
-                    {account}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="pager">
-              <button
-                className="ghost"
-                type="button"
-                onClick={() => setImportsPage((prev) => Math.max(1, prev - 1))}
-                disabled={importsPage === 1}
-              >
-                Prev
-              </button>
-              <span>Page {importsPage}</span>
-              <button className="ghost" type="button" onClick={() => setImportsPage((p) => p + 1)}>
-                Next
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {importsLoading ? (
-          <p className="status">Loading imports...</p>
-        ) : importsError ? (
-          <p className="status error">{importsError}</p>
-        ) : imports.length === 0 ? (
-          <p className="empty">No imports found.</p>
-        ) : (
-          <DataTable
-            className="statement-imports-table"
-            storageKey="fintrack-imports-v1"
-            columns={importColumns}
-            rows={imports}
-            getRowKey={(row) => row.id}
-            aria-label="Recent statement imports"
-          />
+              </div>
+            )}
+          </Card>
         )}
-        {importsStatus && <p className="status">{importsStatus}</p>}
-      </section>
+
+        {/* Preview rows (step 3) */}
+        {step === 3 && previewRows.length > 0 && (
+          <>
+            <div style={{ color: 'var(--ft-text)', fontSize: 15, fontWeight: 600, margin: '4px 0 6px' }}>
+              Preview · {Math.min(previewRows.length, 10)} of {uploadPreview.willInsert}
+            </div>
+            <Card pad={0}>
+              {previewRows.slice(0, 10).map((r, i) => {
+                const w = Number(r.withdrawal || 0);
+                const d = Number(r.deposit || 0);
+                const isIncome = d > 0;
+                const amt = isIncome ? d : w;
+                return (
+                  <div key={i} style={{ padding: '12px 16px', borderBottom: i < Math.min(previewRows.length, 10) - 1 ? '1px solid var(--ft-border)' : 'none' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <Num size={11} weight={500} color="var(--ft-text-dim)">{fmtShortDate(r.transactionDate)}</Num>
+                      <Num size={14} weight={600} color={isIncome ? 'var(--ft-income)' : 'var(--ft-text)'}>
+                        {inr(isIncome ? amt : -amt, { sign: isIncome })}
+                      </Num>
+                    </div>
+                    <div style={{ color: 'var(--ft-text-dim)', fontFamily: 'var(--ft-font-mono)', fontSize: 11, marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {r.upiName || r.narration}
+                    </div>
+                  </div>
+                );
+              })}
+            </Card>
+          </>
+        )}
+
+        {step === 3 && previewRows.length === 0 && uploadPreview && (
+          <div style={{ textAlign: 'center', color: 'var(--ft-text-dim)', fontSize: 14, padding: '20px 0' }}>
+            All {uploadPreview.skippedRows} rows already imported.
+          </div>
+        )}
+
+        {uploadStatus && <p className="status" style={{ textAlign: 'center' }}>{uploadStatus}</p>}
+        {uploadResult && (
+          <div style={{ padding: '12px 14px', background: 'var(--ft-income-soft)', color: 'var(--ft-income)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500 }}>
+            <IcCheck size={16} /> Imported {uploadResult.insertedCount ?? uploadResult.added ?? '?'} transactions
+          </div>
+        )}
+
+        {/* CTAs */}
+        {step === 2 && (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <GhostBtn style={{ flex: 1 }} onClick={onReset}>Cancel</GhostBtn>
+            <PrimaryBtn style={{ flex: 2 }} onClick={onPreview}>Generate preview</PrimaryBtn>
+          </div>
+        )}
+        {step === 3 && (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <GhostBtn style={{ flex: 1 }} onClick={() => { setIsDragging(false); onReset(); }}>Cancel</GhostBtn>
+            <PrimaryBtn
+              style={{ flex: 2 }}
+              onClick={onUpload}
+              disabled={isUploading || (uploadPreview && uploadPreview.willInsert === 0)}
+            >
+              {isUploading ? 'Importing…' : `Import ${uploadPreview?.willInsert ?? 0} transactions`}
+            </PrimaryBtn>
+          </div>
+        )}
+
+        <HistoryCard
+          imports={imports}
+          importsLoading={importsLoading}
+          importsError={importsError}
+          importsStatus={importsStatus}
+          revertingImportId={revertingImportId}
+          onRevert={onRevert}
+          onRefresh={onRefresh}
+        />
+      </main>
     </>
+  );
+}
+
+// ── Shared sub-components ────────────────────────────────────────────────────
+
+function FileInfoRow({ uploadFile, uploadPreview, lastFour, onRemove }) {
+  return (
+    <div style={{ padding: '14px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="imp-xlsx-icon">XLSX</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ color: 'var(--ft-text)', fontSize: 13.5, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {uploadFile?.name}
+        </div>
+        <div style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, marginTop: 2 }}>
+          {uploadPreview
+            ? `HDFC Bank · Acct •••• ${lastFour} · ${uploadPreview.totalParsed} detected · ${uploadPreview.skippedRows} duplicates skipped`
+            : `${((uploadFile?.size || 0) / 1024).toFixed(1)} KB · Ready to preview`}
+        </div>
+      </div>
+      {uploadPreview ? (
+        <span style={{ padding: '4px 10px', borderRadius: 6, background: 'var(--ft-income-soft)', color: 'var(--ft-income)', fontSize: 11.5, fontWeight: 600, flexShrink: 0 }}>
+          Auto-mapped
+        </span>
+      ) : (
+        <button type="button" onClick={onRemove} style={{ background: 'none', border: 0, color: 'var(--ft-text-faint)', cursor: 'pointer', padding: 4, flexShrink: 0 }}>
+          <IcTrash size={16} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function SumCell({ label, children, dimmed }) {
+  return (
+    <div style={{ opacity: dimmed ? 0.4 : 1, transition: 'opacity 0.2s' }}>
+      <div style={{ color: 'var(--ft-text-dim)', fontSize: 11, marginBottom: 3 }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function ProgressRow({ label, value, total, color }) {
+  const pct = total > 0 ? (value / total) * 100 : 0;
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+        <span style={{ color: 'var(--ft-text)', fontSize: 12.5 }}>{label}</span>
+        <Num size={12} weight={600} color="var(--ft-text-dim)">{value}/{total}</Num>
+      </div>
+      <div style={{ height: 5, borderRadius: 3, background: 'var(--ft-surface-2)' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 3 }} />
+      </div>
+    </div>
+  );
+}
+
+function HistoryCard({ imports, importsLoading, importsError, importsStatus, revertingImportId, onRevert, onRefresh }) {
+  return (
+    <Card pad={18}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: 'var(--ft-text)', letterSpacing: '-0.2px' }}>Recent imports</h3>
+        <GhostBtn onClick={onRefresh}><IcRefresh size={12} /> Refresh</GhostBtn>
+      </div>
+      {importsLoading ? (
+        <p className="status">Loading…</p>
+      ) : imports.length === 0 ? (
+        <p className="empty">No imports yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {imports.map((imp) => (
+            <div key={imp.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 12, background: 'var(--ft-surface-2)', borderRadius: 10 }}>
+              <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(215,255,61,0.15)', color: 'var(--ft-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <IcReceipt size={14} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ color: 'var(--ft-text)', fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{imp.filename}</div>
+                <div style={{ color: 'var(--ft-text-dim)', fontSize: 11.5 }}>
+                  {fmtDate(imp.uploadedAt)} · {imp.insertedRows} transactions
+                </div>
+              </div>
+              <GhostBtn
+                disabled={revertingImportId === imp.id}
+                onClick={() => onRevert(imp.id)}
+                style={{ color: 'var(--ft-spend)', flexShrink: 0 }}
+              >
+                Revert
+              </GhostBtn>
+            </div>
+          ))}
+        </div>
+      )}
+      {importsStatus && <p className="status">{importsStatus}</p>}
+      {importsError && <p className="status" style={{ color: 'var(--ft-spend)' }}>{importsError}</p>}
+    </Card>
   );
 }
