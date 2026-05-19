@@ -1,0 +1,171 @@
+/* Fintrack design tokens — premium dark fintech */
+
+:root {
+  /* Surfaces */
+  --ft-bg:         #0A0B0E;
+  --ft-surface:    #13151A;
+  --ft-surface-2:  #1A1D24;
+  --ft-surface-3:  #22252D;
+  --ft-border:     #23262D;
+  --ft-border-s:   #2E323A;
+
+  /* Text */
+  --ft-text:       #F1F2F4;
+  --ft-text-dim:   #8D9099;
+  --ft-text-faint: #5C5F66;
+  --ft-text-on-accent: #0A0B0E;
+
+  /* Brand */
+  --ft-accent:     #D7FF3D;
+  --ft-accent-dim: #A8CC2E;
+  --ft-accent-soft: rgba(215, 255, 61, 0.12);
+
+  /* Semantic */
+  --ft-income:      #6EE7B7;
+  --ft-income-soft: rgba(110, 231, 183, 0.10);
+  --ft-spend:       #FF7A7A;
+  --ft-spend-soft:  rgba(255, 122, 122, 0.10);
+  --ft-warn:        #FFB454;
+  --ft-info:        #7DB9FF;
+  --ft-violet:      #B79CFF;
+  --ft-violet-soft: rgba(183, 156, 255, 0.12);
+
+  /* Category palette */
+  --ft-cat-food:      #FF8B6B;
+  --ft-cat-transport: #7DB9FF;
+  --ft-cat-shopping:  #B79CFF;
+  --ft-cat-bills:     #FFB454;
+  --ft-cat-grocery:   #6EE7B7;
+  --ft-cat-rent:      #FF7AB6;
+  --ft-cat-entmt:     #FFD66E;
+  --ft-cat-transfer:  #8D9099;
+  --ft-cat-salary:    #D7FF3D;
+  --ft-cat-health:    #6EE7E7;
+
+  /* Fonts */
+  --ft-font-ui:   'Inter Tight', -apple-system, system-ui, sans-serif;
+  --ft-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Radii */
+  --ft-r-sm:  8px;
+  --ft-r-md:  12px;
+  --ft-r-lg:  14px;
+  --ft-r-xl:  16px;
+  --ft-r-2xl: 20px;
+  --ft-r-3xl: 28px;
+
+  /* Shadows */
+  --ft-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 0 0 1px rgba(255, 255, 255, 0.02);
+  --ft-shadow-pop:  0 12px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+/* Base reset / globals */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--ft-bg);
+  color: var(--ft-text);
+  font-family: var(--ft-font-ui);
+  font-size: 14px;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* Tabular mono helper */
+.ft-mono {
+  font-family: var(--ft-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+
+/* Scrollbar — keep dark, minimal */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--ft-surface-2);
+  border-radius: 999px;
+  border: 2px solid var(--ft-bg);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--ft-surface-3); }
+
+/* Selection */
+::selection {
+  background: var(--ft-accent-soft);
+  color: var(--ft-text);
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid var(--ft-accent);
+  outline-offset: 2px;
+}
+
+/* Utility */
+.ft-hidden { display: none !important; }
+.ft-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Spinner — generic */
+@keyframes ft-spin {
+  to { transform: rotate(360deg); }
+}
+.ft-spin {
+  animation: ft-spin 0.9s linear infinite;
+}
+
+/* Skeleton shimmer */
+@keyframes ft-shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+.ft-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--ft-surface-2) 0%,
+    var(--ft-surface-3) 40%,
+    var(--ft-surface-2) 80%
+  );
+  background-size: 200px 100%;
+  animation: ft-shimmer 1.4s infinite linear;
+  border-radius: var(--ft-r-md);
+}

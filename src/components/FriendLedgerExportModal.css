@@ -1,9 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,500;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+/* Friend ledger export modal — Fintrack design tokens */
 
 .ledger-export-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(30, 27, 22, 0.55);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   display: grid;
   place-items: center;
   z-index: 2000;
@@ -16,10 +17,12 @@
   max-width: 100%;
   min-width: 0;
   max-height: min(92vh, 900px);
-  background: #fff;
-  border-radius: 16px;
+  background: var(--ft-surface);
+  color: var(--ft-text);
+  border: 1px solid var(--ft-border);
+  border-radius: var(--ft-r-2xl);
   padding: 20px 22px;
-  box-shadow: 0 25px 60px rgba(30, 27, 22, 0.28);
+  box-shadow: var(--ft-shadow-pop);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -36,21 +39,22 @@
 
 .ledger-export-modal__header h3 {
   margin: 0 0 4px;
-  font-family: 'Fraunces', serif;
+  font-family: var(--ft-font-ui);
   font-size: 1.25rem;
+  font-weight: 600;
 }
 
 .ledger-export-modal__header p {
   margin: 0;
   font-size: 0.88rem;
-  color: var(--muted);
+  color: var(--ft-text-dim);
 }
 
 .ledger-export-modal__close {
   flex-shrink: 0;
 }
 
-/* Stepper (matches ledger polish) */
+/* Stepper — aligned with import wizard (imp-step) */
 .ledger-export-stepper {
   position: relative;
   flex-shrink: 0;
@@ -64,7 +68,7 @@
   right: 14%;
   top: 22px;
   height: 4px;
-  background: rgba(30, 27, 22, 0.08);
+  background: var(--ft-surface-2);
   border-radius: 4px;
   overflow: hidden;
   z-index: 0;
@@ -73,7 +77,7 @@
 .ledger-export-stepper__track-fill {
   height: 100%;
   border-radius: 4px;
-  background: linear-gradient(90deg, #2563eb 0%, #0d9488 100%);
+  background: var(--ft-accent);
   transition: width 0.35s ease;
 }
 
@@ -106,33 +110,32 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-family: var(--ft-font-mono);
   font-size: 0.9rem;
   font-weight: 700;
-  color: #64748b;
-  background: #fff;
-  border: 2px solid rgba(30, 27, 22, 0.12);
-  box-shadow: 0 2px 8px rgba(30, 27, 22, 0.06);
+  color: var(--ft-text-faint);
+  background: var(--ft-surface-2);
+  border: 1px solid var(--ft-border);
+  box-shadow: var(--ft-shadow-card);
   transition:
     color 0.2s,
     border-color 0.2s,
+    background 0.2s,
     box-shadow 0.2s,
     transform 0.2s;
 }
 
 .ledger-export-stepper__item.is-complete .ledger-export-stepper__node {
-  color: #0f766e;
-  border-color: rgba(13, 148, 136, 0.45);
-  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+  color: var(--ft-text-on-accent);
+  border-color: var(--ft-accent);
+  background: var(--ft-accent);
 }
 
 .ledger-export-stepper__item.is-active .ledger-export-stepper__node {
-  color: #1e40af;
-  border-color: rgba(37, 99, 235, 0.55);
-  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
-  box-shadow:
-    0 0 0 3px rgba(37, 99, 235, 0.12),
-    0 4px 14px rgba(37, 99, 235, 0.15);
+  color: var(--ft-accent);
+  border-color: rgba(215, 255, 61, 0.4);
+  background: var(--ft-accent-soft);
+  box-shadow: 0 0 0 3px var(--ft-accent-soft);
   transform: scale(1.06);
 }
 
@@ -148,36 +151,36 @@
 }
 
 .ledger-export-stepper__title {
-  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-family: var(--ft-font-ui);
   font-size: 0.78rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--ft-text-faint);
   line-height: 1.25;
   letter-spacing: -0.01em;
 }
 
 .ledger-export-stepper__item.is-active .ledger-export-stepper__title {
-  color: #0f172a;
+  color: var(--ft-text);
   font-size: 0.82rem;
 }
 
 .ledger-export-stepper__item.is-complete .ledger-export-stepper__title {
-  color: #475569;
+  color: var(--ft-text-dim);
 }
 
 .ledger-export-stepper__hint {
   font-size: 0.68rem;
   font-weight: 500;
-  color: #cbd5e1;
+  color: var(--ft-text-faint);
   line-height: 1.3;
 }
 
 .ledger-export-stepper__item.is-active .ledger-export-stepper__hint {
-  color: #64748b;
+  color: var(--ft-text-dim);
 }
 
 .ledger-export-stepper__item.is-complete .ledger-export-stepper__hint {
-  color: #94a3b8;
+  color: var(--ft-text-faint);
 }
 
 /* Step 3: preview + export */
@@ -211,13 +214,21 @@
   display: grid;
   gap: 6px;
   font-size: 0.85rem;
+  color: var(--ft-text-dim);
 }
 
 .ledger-export-dates input[type='date'] {
   padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(30, 27, 22, 0.15);
+  border-radius: var(--ft-r-md);
+  border: 1px solid var(--ft-border);
   font-family: inherit;
+  color: var(--ft-text);
+  background: var(--ft-surface-2);
+}
+
+.ledger-export-dates input[type='date']:focus {
+  border-color: var(--ft-accent);
+  background: var(--ft-surface);
 }
 
 .ledger-export-toolbar {
@@ -232,11 +243,17 @@
   margin: 0;
 }
 
+.ledger-export-toolbar__count {
+  color: var(--ft-text-dim);
+  font-size: 0.85rem;
+}
+
 .ledger-select-table-wrap {
   overflow: auto;
   max-height: 42vh;
-  border: 1px solid rgba(30, 27, 22, 0.12);
-  border-radius: 12px;
+  border: 1px solid var(--ft-border);
+  border-radius: var(--ft-r-md);
+  background: var(--ft-surface-2);
 }
 
 .ledger-select-table {
@@ -249,28 +266,35 @@
 .ledger-select-table td {
   padding: 8px 10px;
   text-align: left;
-  border-bottom: 1px solid rgba(30, 27, 22, 0.08);
+  border-bottom: 1px solid var(--ft-border);
   vertical-align: top;
 }
 
 .ledger-select-table th {
-  background: rgba(30, 41, 59, 0.08);
+  background: var(--ft-surface-3);
   font-weight: 600;
+  color: var(--ft-text-dim);
   position: sticky;
   top: 0;
   z-index: 1;
+}
+
+.ledger-select-table td {
+  color: var(--ft-text);
 }
 
 .ledger-select-table td.num,
 .ledger-select-table th.num {
   text-align: right;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .ledger-select-table input[type='checkbox'] {
   width: 18px;
   height: 18px;
   cursor: pointer;
+  accent-color: var(--ft-accent);
 }
 
 .ledger-export-actions {
@@ -279,14 +303,16 @@
   gap: 10px;
   justify-content: flex-end;
   padding-top: 8px;
-  border-top: 1px solid rgba(30, 27, 22, 0.1);
+  border-top: 1px solid var(--ft-border);
   flex-shrink: 0;
 }
 
-/* Ledger preview — matches exported PDF layout (document header + ruled tables) */
+/* Ledger preview — light document on dark chrome (matches exported PDF) */
 .ledger-sheet-outer {
   padding: 16px 20px 20px;
-  background: #dfe3e8;
+  background: var(--ft-surface-2);
+  border: 1px solid var(--ft-border);
+  border-radius: var(--ft-r-md);
   box-sizing: border-box;
   min-width: 0;
   max-width: 100%;
@@ -300,7 +326,7 @@
   max-width: 100%;
   min-width: 0;
   margin: 0 auto;
-  font-family: Helvetica, 'IBM Plex Sans', system-ui, sans-serif;
+  font-family: Helvetica, var(--ft-font-ui), system-ui, sans-serif;
   font-size: 11px;
   line-height: 1.45;
   color: var(--ledger-ink);
@@ -329,16 +355,16 @@
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: #5c6b7e;
+  color: var(--ledger-muted);
   margin-bottom: 18px;
 }
 
 .ledger-sheet__doc-title {
   margin: 0;
-  font-family: Helvetica, 'IBM Plex Sans', system-ui, sans-serif;
+  font-family: Helvetica, var(--ft-font-ui), system-ui, sans-serif;
   font-size: 1.28rem;
   font-weight: 700;
-  color: #0c1929;
+  color: var(--ledger-ink);
   line-height: 1.2;
   letter-spacing: -0.02em;
 }
@@ -361,7 +387,7 @@
 .ledger-sheet__doc-rule {
   height: 1px;
   margin-top: 18px;
-  background: #b4bcc8;
+  background: var(--ledger-border);
 }
 
 .ledger-sheet__body {
@@ -484,10 +510,10 @@
 
 .ledger-summary-table-block__title {
   margin: 0 0 10px;
-  font-family: Helvetica, 'IBM Plex Sans', system-ui, sans-serif;
+  font-family: Helvetica, var(--ft-font-ui), system-ui, sans-serif;
   font-size: 11px;
   font-weight: 700;
-  color: #0c1929;
+  color: var(--ledger-ink);
 }
 
 .ledger-summary-table-wrap {
@@ -524,7 +550,7 @@
 .ledger-summary-table tbody td {
   padding: 9px 10px;
   border: 1px solid #dcdfe4;
-  color: #0c1929;
+  color: var(--ledger-ink);
   background: #fff;
 }
 
@@ -575,11 +601,102 @@
   margin: 0;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
+  .ledger-export-backdrop {
+    align-items: flex-end;
+    justify-content: stretch;
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
   .ledger-export-modal {
-    max-height: 100vh;
-    border-radius: 12px 12px 0 0;
-    align-self: end;
+    width: 100%;
+    max-width: none;
+    max-height: min(96dvh, 100%);
+    border-radius: var(--ft-r-xl) var(--ft-r-xl) 0 0;
+    padding: 16px 16px max(16px, env(safe-area-inset-bottom, 0px));
+    gap: 12px;
+  }
+
+  .ledger-export-modal__header h3 {
+    font-size: 1.1rem;
+  }
+
+  .ledger-export-modal__header p {
+    font-size: 0.82rem;
+  }
+
+  .ledger-export-modal__close {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+
+  .ledger-export-stepper {
+    padding: 4px 0 0;
+  }
+
+  .ledger-export-stepper__track {
+    left: 12%;
+    right: 12%;
+    top: 18px;
+  }
+
+  .ledger-export-stepper__node {
+    width: 32px;
+    height: 32px;
+    font-size: 0.82rem;
+  }
+
+  .ledger-export-stepper__hint {
+    display: none;
+  }
+
+  .ledger-export-stepper__title {
+    font-size: 0.72rem;
+  }
+
+  .ledger-export-dates {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ledger-export-dates label {
+    width: 100%;
+  }
+
+  .ledger-export-dates input[type='date'] {
+    width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+    box-sizing: border-box;
+  }
+
+  .ledger-export-toolbar button {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+
+  .ledger-select-table-wrap {
+    max-height: min(50dvh, 360px);
+  }
+
+  .ledger-select-table input[type='checkbox'] {
+    width: 22px;
+    height: 22px;
+  }
+
+  .ledger-export-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 8px;
+    padding-top: 12px;
+  }
+
+  .ledger-export-actions button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
   }
 
   .ledger-sheet-outer {

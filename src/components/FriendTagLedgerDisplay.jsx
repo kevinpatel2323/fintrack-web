@@ -1,4 +1,7 @@
 import { ledgerDirectionPhrase } from '../utils/ledgerParties.js';
+import { friendTint, initialsOf } from '../utils/categoryColors.js';
+import { IcTrash } from './ui/Icon.jsx';
+import { inr } from '../utils/inr.js';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -11,87 +14,75 @@ function formatDate(value) {
   }).format(date);
 }
 
-function formatNumber(value) {
-  if (value === null || value === undefined) return '—';
-  const num = Number(value);
-  if (Number.isNaN(num)) return String(value);
-  return new Intl.NumberFormat('en-IN').format(num);
+function directionTone(direction) {
+  if (direction === 'OWES_ME') return 'receivable';
+  if (direction === 'I_OWE') return 'payable';
+  if (direction === 'SETTLEMENT') return 'settlement';
+  return 'settled';
 }
 
-/** Feed MobileTransactionCard: tagged amount with same in/out as the parent txn. */
-export function rowForFriendTagCard(tag, fallbackTransaction) {
-  const tx = tag.transaction ?? fallbackTransaction;
-  if (!tx) return {};
-  const w = Number(tx.withdrawal || 0);
-  const isW = w > 0;
-  const n = Number(tag.amount) || 0;
-  return {
-    ...tx,
-    withdrawal: isW ? n : 0,
-    deposit: isW ? 0 : n,
-  };
+function tagAmountColor(direction) {
+  if (direction === 'OWES_ME') return 'var(--ft-income)';
+  if (direction === 'I_OWE') return 'var(--ft-spend)';
+  if (direction === 'SETTLEMENT') return 'var(--ft-violet)';
+  return 'var(--ft-text-dim)';
 }
 
-export function FriendTagAmountCell({ tag }) {
-  const tx = tag.transaction;
-  const withdrawal = Number(tx?.withdrawal || 0);
-  const isWithdrawal = withdrawal > 0;
-  const n = Number(tag.amount) || 0;
+function TransactionMeta({ transaction }) {
+  const items = [
+    formatDate(transaction?.transactionDate),
+    transaction?.upiBank || (transaction?.isManual ? 'Manual' : null),
+  ].filter(Boolean);
+
+  return items.length ? <>{items.join(' · ')}</> : <>Transaction split</>;
+}
+
+export function FriendTagCard({ tag, transaction, friendName, onRemove }) {
+  const displayName = friendName || tag.friend?.name || `Friend #${tag.friendId}`;
+  const tone = directionTone(tag.direction);
+  const amount = Number(tag.amount || 0);
+  const tx = tag.transaction || transaction;
+  const tint = friendTint(displayName);
+  const note = typeof tag.note === 'string' ? tag.note.trim() : '';
+  const settles = tag.settlesTransactions || [];
+  const settledBy = tag.settledBy || [];
+  const settlementSummary = [
+    settles.length > 0 ? `Settles ${settles.length}` : null,
+    settledBy.length > 0 ? `Settled by ${settledBy.length}` : null,
+  ].filter(Boolean).join(' · ');
+
   return (
-    <strong className={`transaction-amount ${isWithdrawal ? 'amount-withdrawal' : 'amount-deposit'}`}>
-      {isWithdrawal ? '-' : '+'}
-      {formatNumber(n)}
-    </strong>
-  );
-}
+    <article className={`friend-tag-card friend-tag-card--${tone}`}>
+      <div
+        className="friend-tag-card__avatar"
+        style={{
+          color: tint,
+          borderColor: `${tint}55`,
+          background: `linear-gradient(135deg, ${tint}33, ${tint}14)`,
+        }}
+        aria-hidden="true"
+      >
+        {initialsOf(displayName)}
+      </div>
 
-export function FriendTagMobileDetails({ tag, friendName }) {
-  const phrase = ledgerDirectionPhrase(tag.direction, friendName);
-  const settles =
-    tag.settlesTransactions?.length > 0
-      ? tag.settlesTransactions.map((s, idx) => (
-          <span key={s.id}>
-            {idx > 0 ? '; ' : ''}
-            {formatDate(s.transaction?.transactionDate)} — {ledgerDirectionPhrase(s.direction, friendName)} — ₹
-            {formatNumber(s.amount)}
-          </span>
-        ))
-      : null;
-  const settledBy =
-    tag.settledBy?.length > 0
-      ? tag.settledBy.map((s, idx) => (
-          <span key={s.id}>
-            {idx > 0 ? '; ' : ''}
-            {formatDate(s.transaction?.transactionDate)} — ₹{formatNumber(s.amount)}
-          </span>
-        ))
-      : null;
-  return (
-    <table className="friend-tag-mini-table">
-      <tbody>
-        <tr>
-          <th scope="row">Direction</th>
-          <td>{phrase}</td>
-        </tr>
-        {tag.note ? (
-          <tr>
-            <th scope="row">Note</th>
-            <td>{tag.note}</td>
-          </tr>
+      <div className="friend-tag-card__copy">
+        <div className="friend-tag-card__eyebrow">
+          <TransactionMeta transaction={tx} />
+        </div>
+        <h4>{displayName}</h4>
+        <p className="friend-tag-card__summary">{ledgerDirectionPhrase(tag.direction, displayName)}</p>
+        {note ? <p className="friend-tag-card__note">{note}</p> : null}
+        {settlementSummary ? <p className="friend-tag-card__note">{settlementSummary}</p> : null}
+      </div>
+
+      <div className="friend-tag-card__side">
+        <strong style={{ color: tagAmountColor(tag.direction) }}>{inr(amount)}</strong>
+        {onRemove ? (
+          <button className="friend-tag-card__delete" type="button" onClick={onRemove} aria-label={`Remove split for ${displayName}`}>
+            <IcTrash size={14} />
+          </button>
         ) : null}
-        {settles ? (
-          <tr>
-            <th scope="row">Settles</th>
-            <td>{settles}</td>
-          </tr>
-        ) : null}
-        {settledBy ? (
-          <tr>
-            <th scope="row">Settled by</th>
-            <td>{settledBy}</td>
-          </tr>
-        ) : null}
-      </tbody>
-    </table>
+      </div>
+    </article>
   );
 }

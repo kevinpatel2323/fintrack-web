@@ -32,6 +32,10 @@
   }
 }
 
+.import-next-start-hint {
+  color: var(--accent);
+}
+
 /* Recent imports DataTable: show labels + values (≤1099px hides labels globally otherwise) */
 @media (max-width: 1099px) {
   .statement-imports-table .data-table-cell-label {
