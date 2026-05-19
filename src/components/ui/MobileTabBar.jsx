@@ -1,12 +1,12 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { IcHome, IcList, IcCal, IcFriends, IcUser } from './Icon.jsx';
+import { IcHome, IcList, IcCard, IcFriends, IcUser } from './Icon.jsx';
 
 const TABS = [
   { to: '/',             label: 'Home',     icon: IcHome,   match: (p) => p === '/' },
   { to: '/transactions', label: 'Activity', icon: IcList,   match: (p) => p.startsWith('/transactions') },
-  { to: '/calendar',     label: 'Calendar', icon: IcCal,    match: (p) => p.startsWith('/calendar') },
+  { to: '/cards',        label: 'Cards',    icon: IcCard,   match: (p) => p.startsWith('/cards') },
   { to: '/friends',      label: 'People',   icon: IcFriends,match: (p) => p.startsWith('/friends') },
-  { to: '/you',          label: 'You',      icon: IcUser,   match: (p) => p.startsWith('/you') || p.startsWith('/categories') || p.startsWith('/import') },
+  { to: '/you',          label: 'You',      icon: IcUser,   match: (p) => p.startsWith('/you') || p.startsWith('/categories') || p.startsWith('/import') || p.startsWith('/calendar') },
 ];
 
 export default function MobileTabBar() {

@@ -11,6 +11,8 @@ import Calendar from './pages/Calendar.jsx';
 import Friends from './pages/Friends.jsx';
 import FriendDetail from './pages/FriendDetail.jsx';
 import Categories from './pages/Categories.jsx';
+import Cards from './pages/Cards.jsx';
+import CardDetail from './pages/CardDetail.jsx';
 import You from './pages/You.jsx';
 
 export default function App() {
@@ -33,6 +35,8 @@ export default function App() {
           <Route path="/friends" element={<Friends />} />
           <Route path="/friends/:id" element={<FriendDetail />} />
           <Route path="/categories" element={<Categories />} />
+          <Route path="/cards" element={<Cards />} />
+          <Route path="/cards/:id" element={<CardDetail />} />
           <Route path="/you" element={<You />} />
         </Routes>
       </Shell>

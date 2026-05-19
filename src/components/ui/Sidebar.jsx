@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import {
-  IcLogo, IcHome, IcList, IcCal, IcFriends, IcTag, IcUpload,
+  IcLogo, IcHome, IcList, IcCal, IcCard, IcFriends, IcTag, IcUpload,
   IcSparkle, IcSettings,
 } from './Icon.jsx';
 import { Avatar } from './primitives.jsx';
@@ -8,6 +8,7 @@ import { Avatar } from './primitives.jsx';
 const NAV = [
   { to: '/',             label: 'Overview',     icon: IcHome,   end: true },
   { to: '/transactions', label: 'Transactions', icon: IcList },
+  { to: '/cards',        label: 'Cards',        icon: IcCard },
   { to: '/calendar',     label: 'Calendar',     icon: IcCal },
   { to: '/friends',      label: 'People',       icon: IcFriends },
   { to: '/categories',   label: 'Categories',   icon: IcTag },

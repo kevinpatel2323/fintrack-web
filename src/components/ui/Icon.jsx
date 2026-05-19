@@ -24,6 +24,7 @@ export const IcCal = (p) => (<Icon {...p}><rect x="3.5" y="5" width="17" height=
 export const IcFriends = (p) => (<Icon {...p}><circle cx="9" cy="9" r="3.5" /><path d="M3 19.5c.5-3.4 3.3-5.5 6-5.5s5.5 2.1 6 5.5" /><path d="M16 11a3 3 0 0 0 0-6" /><path d="M21 18c-.3-2-1.7-3.4-3.5-4" /></Icon>);
 export const IcChart = (p) => (<Icon {...p}><path d="M4 20V8M10 20V4M16 20v-7M22 20H2" /></Icon>);
 export const IcWallet = (p) => (<Icon {...p}><rect x="3" y="6" width="18" height="13" rx="2.5" /><path d="M3 10h18M16 14.5h2" /></Icon>);
+export const IcCard = (p) => (<Icon {...p}><rect x="3" y="6" width="18" height="13" rx="2.5" /><path d="M3 10.5h18M7 15h4" /></Icon>);
 export const IcTag = (p) => (<Icon {...p}><path d="M12 3H4v8l9 9 8-8z" /><circle cx="8" cy="8" r="1.4" /></Icon>);
 export const IcUpload = (p) => (<Icon {...p}><path d="M12 16V4m0 0-4 4m4-4 4 4" /><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" /></Icon>);
 export const IcDownload = (p) => (<Icon {...p}><path d="M12 4v12m0 0 4-4m-4 4-4-4" /><path d="M4 17v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" /></Icon>);
