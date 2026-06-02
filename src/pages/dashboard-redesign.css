@@ -115,3 +115,52 @@
   font-weight: 700;
   letter-spacing: 0.5px;
 }
+
+.dash-date-menu {
+  position: relative;
+}
+
+.dash-date-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  min-width: min(360px, calc(100vw - 48px));
+  padding: 14px;
+  background: var(--ft-surface);
+  border: 1px solid var(--ft-border);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.dash-date-popover .date-input-group label {
+  color: var(--ft-text-dim);
+}
+
+.dash-date-popover .date-input-group input[type='date'] {
+  background: var(--ft-surface-2);
+  border-color: var(--ft-border);
+  color: var(--ft-text);
+}
+
+.dash-date-popover .date-input-group input[type='date']:focus {
+  border-color: var(--ft-accent);
+  box-shadow: 0 0 0 3px rgba(215, 255, 61, 0.12);
+}
+
+.dash-date-popover .preset-button {
+  background: var(--ft-surface-2);
+  border-color: var(--ft-border);
+  color: var(--ft-text);
+}
+
+.dash-date-popover .preset-button:hover {
+  background: var(--ft-bg);
+  border-color: var(--ft-text-dim);
+}
+
+.dash-date-popover .date-range-error {
+  background: rgba(255, 122, 122, 0.12);
+  border-color: rgba(255, 122, 122, 0.35);
+  color: var(--ft-spend);
+}

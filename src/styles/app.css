@@ -299,7 +299,7 @@
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid var(--ft-border);
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   align-items: center;
 }
 
@@ -308,6 +308,7 @@
   flex-direction: column;
   align-items: center;
   gap: 3px;
+  min-width: 0;
   color: var(--ft-text-dim);
   cursor: pointer;
   background: transparent;
@@ -319,9 +320,13 @@
 .ft-tabbar__item--active { color: var(--ft-accent); }
 
 .ft-tabbar__label {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 500;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.1px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Visibility helpers */

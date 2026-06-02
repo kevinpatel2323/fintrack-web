@@ -5,11 +5,13 @@ import { FriendTagCard } from '../components/FriendTagLedgerDisplay.jsx';
 import Portal from '../components/Portal.jsx';
 import SplitTransactionForm from '../components/SplitTransactionForm.jsx';
 import {
-  Card, Num, CatGlyph, Overline, HeroAmount, PrimaryBtn, GhostBtn,
+  Card, Num, CatGlyph, Overline, HeroAmount, GhostBtn,
 } from '../components/ui/primitives.jsx';
 import { IcChevL, IcClose } from '../components/ui/Icon.jsx';
 import { inr } from '../utils/inr.js';
 import { ledgerDirectionPhrase } from '../utils/ledgerParties.js';
+import { calendarPath } from '../utils/calendarParams.js';
+import { transactionsListPath } from '../utils/transactionsListParams.js';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
@@ -24,8 +26,22 @@ export default function TransactionDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const backFromDetail = () => {
+    if (location.state?.calendarSearch) {
+      navigate(calendarPath(location.state.calendarSearch));
+      return;
+    }
+    const listPath = transactionsListPath(location.state?.transactionsSearch);
+    if (location.state?.transactionsSearch) {
+      navigate(listPath);
+      return;
+    }
+    navigate(-1);
+  };
 
   const [tx, setTx] = useState(location.state?.tx || null);
+  const [txLoading, setTxLoading] = useState(!location.state?.tx);
+  const [txError, setTxError] = useState(false);
   const [tags, setTags] = useState([]);
   const [friends, setFriends] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -40,6 +56,40 @@ export default function TransactionDetail() {
     fetch(`${API_BASE}/friends`).then((r) => r.json()).then((d) => setFriends(d.data || [])).catch(() => {});
     fetch(`${API_BASE}/categories`).then((r) => r.json()).then((d) => setCategories(d.data || d || [])).catch(() => {});
   }, []);
+
+  // Load transaction from navigation state or API when opened by id only
+  useEffect(() => {
+    const stateTx = location.state?.tx;
+    if (stateTx && String(stateTx.id) === String(id)) {
+      setTx(stateTx);
+      setTxLoading(false);
+      setTxError(false);
+      return;
+    }
+
+    let cancelled = false;
+    setTx(null);
+    setTxLoading(true);
+    setTxError(false);
+
+    fetch(`${API_BASE}/transactions/${id}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load transaction');
+        return res.json();
+      })
+      .then((body) => {
+        if (cancelled) return;
+        setTx(body.data ?? body);
+        setTxLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setTxError(true);
+        setTxLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [id, location.state?.tx]);
 
   // Fetch tags whenever id changes
   useEffect(() => { fetchTags(); }, [id]);
@@ -130,11 +180,11 @@ export default function TransactionDetail() {
     }
   }, [id, categories]);
 
-  if (!tx) {
+  if (txLoading || !tx) {
     return (
       <>
         <header className="ft-mobile__header">
-          <button className="ft-mobile__icon-btn" onClick={() => navigate('/transactions')} aria-label="Back">
+          <button className="ft-mobile__icon-btn" onClick={backFromDetail} aria-label="Back">
             <IcChevL size={18} />
           </button>
           <h1 className="ft-mobile__title">Transaction</h1>
@@ -142,10 +192,16 @@ export default function TransactionDetail() {
         </header>
         <main className="ft-mobile__content">
           <Card pad={24} style={{ textAlign: 'center' }}>
-            <div style={{ color: 'var(--ft-text-dim)', fontSize: 14, marginBottom: 16 }}>
-              Open this transaction from the transactions list.
-            </div>
-            <GhostBtn onClick={() => navigate('/transactions')}>Go to Transactions</GhostBtn>
+            {txLoading ? (
+              <div style={{ color: 'var(--ft-text-dim)', fontSize: 14 }}>Loading…</div>
+            ) : (
+              <>
+                <div style={{ color: 'var(--ft-text-dim)', fontSize: 14, marginBottom: 16 }}>
+                  {txError ? 'Could not load this transaction.' : 'Transaction not found.'}
+                </div>
+                <GhostBtn onClick={backFromDetail}>Go to Transactions</GhostBtn>
+              </>
+            )}
           </Card>
         </main>
       </>
@@ -240,17 +296,13 @@ export default function TransactionDetail() {
     </Portal>
   );
 
-  const settleHref = tags.length === 1
-    ? `/friends/${tags[0].friendId}`
-    : '/friends';
-
   return (
     <>
       <ConfirmDialog {...confirmState} />
       {splitSheet}
 
       <header className="ft-mobile__header">
-        <button className="ft-mobile__icon-btn" onClick={() => navigate(-1)} aria-label="Back">
+        <button className="ft-mobile__icon-btn" onClick={backFromDetail} aria-label="Back">
           <IcChevL size={18} />
         </button>
         <h1 className="ft-mobile__title" style={{ margin: 0 }}>Transaction</h1>
@@ -305,18 +357,9 @@ export default function TransactionDetail() {
           </Card>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <GhostBtn style={{ width: '100%' }} onClick={() => setSplitSheetOpen(true)}>
-            Edit split
-          </GhostBtn>
-          <PrimaryBtn
-            style={{ width: '100%' }}
-            onClick={() => navigate(settleHref)}
-            disabled={tags.length === 0}
-          >
-            Settle
-          </PrimaryBtn>
-        </div>
+        <GhostBtn style={{ width: '100%' }} onClick={() => setSplitSheetOpen(true)}>
+          Edit split
+        </GhostBtn>
 
         {tagsStatus && <p className="status" style={{ textAlign: 'center', marginTop: 4 }}>{tagsStatus}</p>}
       </main>

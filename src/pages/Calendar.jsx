@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  parseCalendarParams,
+  patchCalendarParams,
+} from '../utils/calendarParams.js';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import Portal from '../components/Portal.jsx';
 import {
@@ -90,12 +94,22 @@ function dayCategorizationState(txs) {
 export default function Calendar() {
   const navigate = useNavigate();
   const isMobile = useMediaQuery('(max-width: 720px)');
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const today = new Date();
   const todayIso = toLocalIso(today);
-  const [viewYear, setViewYear] = useState(today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const calendarDefaults = useMemo(
+    () => ({ viewYear: today.getFullYear(), viewMonth: today.getMonth(), selectedIso: todayIso }),
+    [todayIso],
+  );
+  const { viewYear, viewMonth, selectedIso } = useMemo(
+    () => parseCalendarParams(searchParams, calendarDefaults),
+    [searchParams, calendarDefaults],
+  );
+
+  const patchCalendar = useCallback((patch) => {
+    setSearchParams((prev) => patchCalendarParams(prev, patch), { replace: true });
+  }, [setSearchParams]);
 
   // Primary: transactions
   const [transactions, setTransactions] = useState([]);
@@ -107,7 +121,6 @@ export default function Calendar() {
   const [categories, setCategories] = useState([]);
   const [subLoading, setSubLoading] = useState(false);
 
-  const [selectedIso, setSelectedIso] = useState(todayIso);
   const [rightPanel, setRightPanel] = useState('day'); // 'day' | 'subs'
   const [status, setStatus] = useState('');
 
@@ -212,9 +225,25 @@ export default function Calendar() {
   const selectedTxs = useMemo(() => (selectedIso ? (txByDay.get(selectedIso) || []) : []), [selectedIso, txByDay]);
   const selectedSubs = useMemo(() => (selectedIso ? (subByDay.get(selectedIso) || []) : []), [selectedIso, subByDay]);
 
-  function goPrev() { setViewMonth((m) => m === 0 ? (setViewYear((y) => y - 1), 11) : m - 1); }
-  function goNext() { setViewMonth((m) => m === 11 ? (setViewYear((y) => y + 1), 0) : m + 1); }
-  function goToday() { const t = new Date(); setViewYear(t.getFullYear()); setViewMonth(t.getMonth()); setSelectedIso(todayIso); }
+  function goPrev() {
+    if (viewMonth === 0) patchCalendar({ viewYear: viewYear - 1, viewMonth: 11 });
+    else patchCalendar({ viewYear, viewMonth: viewMonth - 1 });
+  }
+  function goNext() {
+    if (viewMonth === 11) patchCalendar({ viewYear: viewYear + 1, viewMonth: 0 });
+    else patchCalendar({ viewYear, viewMonth: viewMonth + 1 });
+  }
+  function goToday() {
+    const t = new Date();
+    patchCalendar({ viewYear: t.getFullYear(), viewMonth: t.getMonth(), selectedIso: todayIso });
+  }
+
+  const openTransactionDetail = useCallback((tx) => {
+    const qs = searchParams.toString();
+    navigate(`/transactions/${tx.id}`, {
+      state: { tx, ...(qs ? { calendarSearch: qs } : {}) },
+    });
+  }, [navigate, searchParams]);
 
   function openCreate() {
     setEditingId(null); setForm(emptyForm()); setFormStatus(''); setFormOpen(true);
@@ -417,7 +446,7 @@ export default function Calendar() {
             <CalendarGrid
               cells={cells} txByDay={txByDay} subByDay={subByDay}
               todayIso={todayIso} selectedIso={selectedIso}
-              onClickDay={(iso) => setSelectedIso(iso)} compact
+              onClickDay={(iso) => patchCalendar({ selectedIso: iso })} compact
             />
           </Card>
 
@@ -444,7 +473,7 @@ export default function Calendar() {
                       categories={categories}
                       categoryStatus={categoryStatusByTransaction[t.id]}
                       onAssignCategory={assignCategory}
-                      onOpenDetail={() => navigate(`/transactions/${t.id}`, { state: { tx: t } })}
+                      onOpenDetail={() => openTransactionDetail(t)}
                     />
                   ))}
                   {selectedSubs.map((o, i) => (
@@ -517,7 +546,7 @@ export default function Calendar() {
             <CalendarGrid
               cells={cells} txByDay={txByDay} subByDay={subByDay}
               todayIso={todayIso} selectedIso={selectedIso}
-              onClickDay={(iso) => { setSelectedIso(iso); setRightPanel('day'); }}
+              onClickDay={(iso) => { patchCalendar({ selectedIso: iso }); setRightPanel('day'); }}
             />
           )}
           {status && <p className="status">{status}</p>}
@@ -562,7 +591,7 @@ export default function Calendar() {
                           categories={categories}
                           categoryStatus={categoryStatusByTransaction[t.id]}
                           onAssignCategory={assignCategory}
-                          onOpenDetail={() => navigate(`/transactions/${t.id}`, { state: { tx: t } })}
+                          onOpenDetail={() => openTransactionDetail(t)}
                         />
                       ))}
                       {selectedSubs.length > 0 && (
