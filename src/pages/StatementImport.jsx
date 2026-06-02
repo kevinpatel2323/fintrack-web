@@ -211,7 +211,11 @@ export default function StatementImport() {
       previewRows={previewRows}
       net={net} debits={debits} credits={credits} period={period} lastFour={lastFour}
       imports={imports} importsLoading={importsLoading} importsError={importsError} importsStatus={importsStatus}
-      revertingImportId={revertingImportId} lastImport={lastImport}
+      revertingImportId={revertingImportId}
+      lastImport={lastImport}
+      accounts={accounts}
+      selectedAccount={selectedAccount}
+      onAccountChange={setSelectedAccount}
       confirmState={confirmState}
       STEPS={STEPS}
       onFileInput={handleFileInput}
@@ -369,93 +373,13 @@ export default function StatementImport() {
 
         {/* ── Right: summary panel ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Last import */}
-          <Card pad={18}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <Overline>Last import</Overline>
-              <select
-                value={selectedAccount}
-                onChange={(e) => setSelectedAccount(e.target.value)}
-                style={{
-                  background: 'var(--ft-surface-2)',
-                  border: '1px solid var(--ft-border)',
-                  color: 'var(--ft-text)',
-                  borderRadius: 6,
-                  padding: '3px 6px',
-                  fontSize: 11,
-                  cursor: 'pointer',
-                  outline: 'none',
-                }}
-              >
-                <option value="">All accounts</option>
-                {accounts.map((a) => <option key={a} value={a}>{a}</option>)}
-              </select>
-            </div>
-            <p style={{ margin: '0 0 12px', color: 'var(--ft-text-faint)', fontSize: 11 }}>
-              Select an account to see the most recent import.
-            </p>
-            {lastImport ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                {[
-                  { l: 'Account',         v: lastImport.account?.accountNumber || '—' },
-                  { l: 'Inserted',        v: lastImport.insertedRows },
-                  { l: 'Rows',            v: lastImport.totalRows },
-                  { l: 'Period',          v: `${fmtDate(lastImport.periodStart)} → ${fmtDate(lastImport.periodEnd)}` },
-                  { l: 'Last date before',v: fmtDate(lastImport.lastTxDateBefore) },
-                  { l: 'Uploaded',        v: fmtDate(lastImport.uploadedAt) },
-                ].map(({ l, v }) => (
-                  <div key={l} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                    <span style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, flexShrink: 0 }}>{l}</span>
-                    <span style={{ color: 'var(--ft-text)', fontSize: 12, fontWeight: 500, textAlign: 'right' }}>{String(v)}</span>
-                  </div>
-                ))}
-                {lastImport.periodEnd && (() => {
-                  const cutoff = isoDateMinusDays(lastImport.periodEnd, 2);
-                  return (
-                    <div style={{
-                      marginTop: 4,
-                      padding: '8px 10px',
-                      borderRadius: 8,
-                      background: 'var(--ft-accent-soft)',
-                      border: '1px solid rgba(215,255,61,0.25)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'baseline',
-                      gap: 8,
-                    }}>
-                      <span style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, flexShrink: 0 }}>Next start</span>
-                      <strong style={{ color: 'var(--ft-accent)', fontSize: 12, fontWeight: 700, textAlign: 'right' }}>
-                        On or before {fmtDate(cutoff)}
-                      </strong>
-                    </div>
-                  );
-                })()}
-              </div>
-            ) : (
-              <p style={{ margin: 0, color: 'var(--ft-text-faint)', fontSize: 12, textAlign: 'center', padding: '8px 0' }}>No imports found.</p>
-            )}
-          </Card>
-
-          {/* Summary */}
-          <Card pad={18}>
-            <Overline style={{ marginBottom: 12 }}>Summary</Overline>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <SumCell label="Net" dimmed={!uploadPreview}>
-                <Num size={20} weight={600} color={net >= 0 ? 'var(--ft-income)' : 'var(--ft-spend)'}>
-                  {uploadPreview ? inr(net, { sign: net >= 0 }) : '—'}
-                </Num>
-              </SumCell>
-              <SumCell label="Period" dimmed={!uploadPreview}>
-                <span style={{ color: 'var(--ft-text)', fontSize: 13, fontWeight: 500 }}>{uploadPreview ? period : '—'}</span>
-              </SumCell>
-              <SumCell label="Debits" dimmed={!uploadPreview}>
-                <Num size={14} weight={600} color="var(--ft-spend)">{uploadPreview ? inr(-debits) : '—'}</Num>
-              </SumCell>
-              <SumCell label="Credits" dimmed={!uploadPreview}>
-                <Num size={14} weight={600} color="var(--ft-income)">{uploadPreview ? inr(credits, { sign: true }) : '—'}</Num>
-              </SumCell>
-            </div>
-          </Card>
+          <LastImportCard
+            lastImport={lastImport}
+            accounts={accounts}
+            selectedAccount={selectedAccount}
+            onAccountChange={setSelectedAccount}
+          />
+          <SummaryCard uploadPreview={uploadPreview} net={net} period={period} debits={debits} credits={credits} />
 
           {/* Rows breakdown (only when preview loaded) */}
           {uploadPreview && (
@@ -511,7 +435,8 @@ export default function StatementImport() {
 function MobileView({
   step, uploadFile, uploadPreview, uploadStatus, uploadResult, isUploading,
   isDragging, previewRows, net, debits, credits, period, lastFour,
-  imports, importsLoading, importsError, importsStatus, revertingImportId, lastImport,
+  imports, importsLoading, importsError, importsStatus, revertingImportId,
+  lastImport, accounts, selectedAccount, onAccountChange,
   confirmState, STEPS, onFileInput, onPreview, onUpload, onReset, onRevert, onRefresh,
   setIsDragging,
 }) {
@@ -547,6 +472,14 @@ function MobileView({
             </div>
           ))}
         </div>
+
+        <LastImportCard
+          lastImport={lastImport}
+          accounts={accounts}
+          selectedAccount={selectedAccount}
+          onAccountChange={onAccountChange}
+        />
+        <SummaryCard uploadPreview={uploadPreview} net={net} period={period} debits={debits} credits={credits} />
 
         {/* Step 1 — drop zone */}
         {step === 1 && (
@@ -709,6 +642,100 @@ function FileInfoRow({ uploadFile, uploadPreview, lastFour, onRemove }) {
         </button>
       )}
     </div>
+  );
+}
+
+function LastImportCard({ lastImport, accounts, selectedAccount, onAccountChange }) {
+  return (
+    <Card pad={18}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+        <Overline>Last import</Overline>
+        <select
+          value={selectedAccount}
+          onChange={(e) => onAccountChange(e.target.value)}
+          style={{
+            background: 'var(--ft-surface-2)',
+            border: '1px solid var(--ft-border)',
+            color: 'var(--ft-text)',
+            borderRadius: 6,
+            padding: '3px 6px',
+            fontSize: 11,
+            cursor: 'pointer',
+            outline: 'none',
+          }}
+        >
+          <option value="">All accounts</option>
+          {accounts.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
+      </div>
+      <p style={{ margin: '0 0 12px', color: 'var(--ft-text-faint)', fontSize: 11 }}>
+        Select an account to see the most recent import.
+      </p>
+      {lastImport ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          {[
+            { l: 'Account',          v: lastImport.account?.accountNumber || '—' },
+            { l: 'Inserted',         v: lastImport.insertedRows },
+            { l: 'Rows',             v: lastImport.totalRows },
+            { l: 'Period',           v: `${fmtDate(lastImport.periodStart)} → ${fmtDate(lastImport.periodEnd)}` },
+            { l: 'Last date before', v: fmtDate(lastImport.lastTxDateBefore) },
+            { l: 'Uploaded',         v: fmtDate(lastImport.uploadedAt) },
+          ].map(({ l, v }) => (
+            <div key={l} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+              <span style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, flexShrink: 0 }}>{l}</span>
+              <span style={{ color: 'var(--ft-text)', fontSize: 12, fontWeight: 500, textAlign: 'right' }}>{String(v)}</span>
+            </div>
+          ))}
+          {lastImport.periodEnd && (() => {
+            const cutoff = isoDateMinusDays(lastImport.periodEnd, 2);
+            return (
+              <div style={{
+                marginTop: 4,
+                padding: '8px 10px',
+                borderRadius: 8,
+                background: 'var(--ft-accent-soft)',
+                border: '1px solid rgba(215,255,61,0.25)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'baseline',
+                gap: 8,
+              }}>
+                <span style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, flexShrink: 0 }}>Next start</span>
+                <strong style={{ color: 'var(--ft-accent)', fontSize: 12, fontWeight: 700, textAlign: 'right' }}>
+                  On or before {fmtDate(cutoff)}
+                </strong>
+              </div>
+            );
+          })()}
+        </div>
+      ) : (
+        <p style={{ margin: 0, color: 'var(--ft-text-faint)', fontSize: 12, textAlign: 'center', padding: '8px 0' }}>No imports found.</p>
+      )}
+    </Card>
+  );
+}
+
+function SummaryCard({ uploadPreview, net, period, debits, credits }) {
+  return (
+    <Card pad={18}>
+      <Overline style={{ marginBottom: 12 }}>Summary</Overline>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <SumCell label="Net" dimmed={!uploadPreview}>
+          <Num size={20} weight={600} color={net >= 0 ? 'var(--ft-income)' : 'var(--ft-spend)'}>
+            {uploadPreview ? inr(net, { sign: net >= 0 }) : '—'}
+          </Num>
+        </SumCell>
+        <SumCell label="Period" dimmed={!uploadPreview}>
+          <span style={{ color: 'var(--ft-text)', fontSize: 13, fontWeight: 500 }}>{uploadPreview ? period : '—'}</span>
+        </SumCell>
+        <SumCell label="Debits" dimmed={!uploadPreview}>
+          <Num size={14} weight={600} color="var(--ft-spend)">{uploadPreview ? inr(-debits) : '—'}</Num>
+        </SumCell>
+        <SumCell label="Credits" dimmed={!uploadPreview}>
+          <Num size={14} weight={600} color="var(--ft-income)">{uploadPreview ? inr(credits, { sign: true }) : '—'}</Num>
+        </SumCell>
+      </div>
+    </Card>
   );
 }
 

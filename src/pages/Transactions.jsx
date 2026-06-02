@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import { FriendTagCard } from '../components/FriendTagLedgerDisplay.jsx';
 import Portal from '../components/Portal.jsx';
@@ -9,10 +9,15 @@ import {
   Card, Num, Pill, PrimaryBtn, GhostBtn, Avatar, CategoryChip, Overline, SectionTitle,
 } from '../components/ui/primitives.jsx';
 import {
-  IcSearch, IcPlus, IcCommand, IcMore, IcRepeat, IcArrowDL, IcArrowUR, IcClose,
+  IcSearch, IcPlus, IcCommand, IcMore, IcRepeat, IcArrowDL, IcArrowUR, IcClose, IcCal,
 } from '../components/ui/Icon.jsx';
+import { getLast30DayRange } from '../utils/dateUtils.js';
 import { inr } from '../utils/inr.js';
 import { categoryColor, friendTint, initialsOf } from '../utils/categoryColors.js';
+import {
+  parseTransactionsListParams,
+  patchTransactionsListParams,
+} from '../utils/transactionsListParams.js';
 import '../styles/transactions-redesign.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
@@ -43,6 +48,65 @@ function getCurrentMonthRange() {
   const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
   const end = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0));
   return { startIso: start.toISOString().slice(0, 10), endIso: end.toISOString().slice(0, 10) };
+}
+
+function MobileTxnDateRange({ rangeStart, rangeEnd, onStartChange, onEndChange, onRangeChange }) {
+  return (
+    <div className="txn-mobile-range">
+      <div className="txn-mobile-range__dates">
+        <label className="ft-date-chip txn-mobile-range__chip">
+          <IcCal size={14} style={{ color: 'var(--ft-text-dim)', flexShrink: 0 }} />
+          <span className="txn-mobile-range__chip-copy">
+            <span className="txn-mobile-range__chip-label">From</span>
+            <span className="txn-mobile-range__chip-value">{formatDateShort(rangeStart)}</span>
+          </span>
+          <input
+            type="date"
+            value={rangeStart}
+            max={rangeEnd || undefined}
+            onChange={(e) => onStartChange(e.target.value)}
+            aria-label="Start date"
+          />
+        </label>
+        <label className="ft-date-chip txn-mobile-range__chip">
+          <IcCal size={14} style={{ color: 'var(--ft-text-dim)', flexShrink: 0 }} />
+          <span className="txn-mobile-range__chip-copy">
+            <span className="txn-mobile-range__chip-label">To</span>
+            <span className="txn-mobile-range__chip-value">{formatDateShort(rangeEnd)}</span>
+          </span>
+          <input
+            type="date"
+            value={rangeEnd}
+            min={rangeStart || undefined}
+            onChange={(e) => onEndChange(e.target.value)}
+            aria-label="End date"
+          />
+        </label>
+      </div>
+      <div className="txn-mobile-range__presets" role="group" aria-label="Date range presets">
+        <button
+          type="button"
+          className="txn-mobile-range__preset"
+          onClick={() => {
+            const { startIso, endIso } = getCurrentMonthRange();
+            onRangeChange(startIso, endIso);
+          }}
+        >
+          This month
+        </button>
+        <button
+          type="button"
+          className="txn-mobile-range__preset"
+          onClick={() => {
+            const { startIso, endIso } = getLast30DayRange();
+            onRangeChange(startIso, endIso);
+          }}
+        >
+          Last 30 days
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function getTodayIso() {
@@ -95,7 +159,36 @@ function TransactionCategoryGlyph({ category, size = 38 }) {
 
 export default function Transactions() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useMediaQuery('(max-width: 720px)');
+
+  const monthRange = useMemo(() => getCurrentMonthRange(), []);
+  const { rangeStart, rangeEnd, filterTab, search } = useMemo(
+    () => parseTransactionsListParams(searchParams, monthRange),
+    [searchParams, monthRange],
+  );
+
+  const applyDateRange = useCallback((start, end) => {
+    setSearchParams(
+      (prev) => patchTransactionsListParams(prev, { rangeStart: start, rangeEnd: end }),
+      { replace: true },
+    );
+  }, [setSearchParams]);
+
+  const setFilterTab = useCallback((tab) => {
+    setSearchParams((prev) => patchTransactionsListParams(prev, { filterTab: tab }), { replace: true });
+  }, [setSearchParams]);
+
+  const setSearch = useCallback((value) => {
+    setSearchParams((prev) => patchTransactionsListParams(prev, { search: value }), { replace: true });
+  }, [setSearchParams]);
+
+  const openTransactionDetail = useCallback((row) => {
+    const qs = searchParams.toString();
+    navigate(`/transactions/${row.id}`, {
+      state: { tx: row, ...(qs ? { transactionsSearch: qs } : {}) },
+    });
+  }, [navigate, searchParams]);
 
   // -- API state --
   const [accounts, setAccounts] = useState([]);
@@ -105,10 +198,6 @@ export default function Transactions() {
   const [categories, setCategories] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [categoryStatusByTransaction, setCategoryStatusByTransaction] = useState({});
-
-  const monthRange = useMemo(() => getCurrentMonthRange(), []);
-  const [rangeStart, setRangeStart] = useState(monthRange.startIso);
-  const [rangeEnd, setRangeEnd] = useState(monthRange.endIso);
   const [rangeAccount, setRangeAccount] = useState('');
   const [rangeResult, setRangeResult] = useState(null);
   const [rangeStatus, setRangeStatus] = useState('');
@@ -134,9 +223,7 @@ export default function Transactions() {
     upiBank: '',
   });
 
-  const [search, setSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
-  const [filterTab, setFilterTab] = useState('all'); // all, spent, earned
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [sortCol, setSortCol] = useState('date');
@@ -716,6 +803,14 @@ export default function Transactions() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          <MobileTxnDateRange
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            onRangeChange={applyDateRange}
+            onStartChange={(start) => applyDateRange(start, rangeEnd)}
+            onEndChange={(end) => applyDateRange(rangeStart, end)}
+          />
+          {rangeStatus && <p className="status">{rangeStatus}</p>}
           <div className="txn-pills">
             <Pill active={filterTab === 'all'} onClick={() => setFilterTab('all')}>All</Pill>
             <Pill active={filterTab === 'spent'} onClick={() => setFilterTab('spent')}>Spent</Pill>
@@ -739,7 +834,7 @@ export default function Transactions() {
             ) : (
               <GroupedTxList
                 rows={sortedTransactions}
-                onOpenDetail={(row) => navigate(`/transactions/${row.id}`, { state: { tx: row } })}
+                onOpenDetail={openTransactionDetail}
                 onOpenManage={openFriendTagsSheet}
                 categories={categories}
                 onAssignCategory={assignCategory}
@@ -817,11 +912,11 @@ export default function Transactions() {
         <div className="txn-range-row">
           <label className="txn-field">
             <span>Start</span>
-            <input type="date" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} />
+            <input type="date" value={rangeStart} onChange={(e) => applyDateRange(e.target.value, rangeEnd)} />
           </label>
           <label className="txn-field">
             <span>End</span>
-            <input type="date" value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} />
+            <input type="date" value={rangeEnd} onChange={(e) => applyDateRange(rangeStart, e.target.value)} />
           </label>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
             <Num size={13} color="var(--ft-text-dim)">
@@ -863,7 +958,7 @@ export default function Transactions() {
                     categories={categories}
                     onAssignCategory={assignCategory}
                     onOpenManage={openFriendTagsSheet}
-                    onOpenDetail={() => navigate(`/transactions/${row.id}`, { state: { tx: row } })}
+                    onOpenDetail={() => openTransactionDetail(row)}
                   />
                 ))}
               </tbody>
@@ -947,14 +1042,17 @@ function TxTableRow({ row, tagCount, tagsLoaded, categories, onAssignCategory, o
           {formatDateShort(row.transactionDate)}
         </span>
       </td>
-      <td>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+      <td className="txn-cell--description">
+        <div className="txn-row__desc">
           <TransactionCategoryGlyph category={row.category} size={30} />
-          <div style={{ minWidth: 0 }}>
-            <div style={{ color: 'var(--ft-text)', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div className="txn-row__desc-text">
+            <div className="txn-row__title" title={row.upiName || row.narration || undefined}>
               {row.upiName || row.narration || '—'}
             </div>
-            <div style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 360 }}>
+            <div
+              className="txn-row__subtitle"
+              title={row.upiDescription || row.narration || row.upiBank || undefined}
+            >
               {row.upiDescription || row.narration || row.upiBank}
             </div>
           </div>

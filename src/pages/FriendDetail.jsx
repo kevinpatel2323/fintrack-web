@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import FriendLedgerExportModal from '../components/FriendLedgerExportModal.jsx';
 import {
-  Card, Num, Pill, Avatar, PrimaryBtn, GhostBtn, Overline, HeroAmount, SectionTitle,
+  Card, Num, Pill, Avatar, GhostBtn, Overline, HeroAmount, SectionTitle,
 } from '../components/ui/primitives.jsx';
 import {
   IcChevL, IcArrowDL, IcArrowUR, IcCheck, IcDownload, IcPlus,
@@ -150,10 +150,6 @@ export default function FriendDetail() {
             <HeroAmount color={net > 0 ? 'var(--ft-income)' : net < 0 ? 'var(--ft-spend)' : 'var(--ft-text-dim)'}>
               {inr(Math.abs(net))}
             </HeroAmount>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <GhostBtn style={{ width: '100%' }}><IcPlus size={14} /> Add expense</GhostBtn>
-            <PrimaryBtn style={{ width: '100%' }}>Settle</PrimaryBtn>
           </div>
           <Card pad={14}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>

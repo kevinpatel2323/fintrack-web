@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import DateRangePicker from '../components/DateRangePicker.jsx';
 import { useDashboardData } from '../hooks/useDashboardData.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import {
@@ -10,6 +11,8 @@ import {
   IcPlus, IcSearch, IcBell, IcSparkle, IcChevD, IcCal, IcUpload,
 } from '../components/ui/Icon.jsx';
 import { inr, inrCompact } from '../utils/inr.js';
+import { timeOfDayGreeting } from '../utils/dateUtils.js';
+import { LEDGER_OWNER_NAME } from '../utils/ledgerParties.js';
 import { friendTint, initialsOf } from '../utils/categoryColors.js';
 import './dashboard-redesign.css';
 
@@ -26,21 +29,69 @@ function monthLabel(iso) {
   return new Date(iso).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
 }
 
+function dateRangeChipLabel({ startDate, endDate }) {
+  if (!startDate || !endDate) return '—';
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const sameMonth =
+    start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+  if (sameMonth) return monthLabel(startDate);
+  const startPart = start.toLocaleDateString('en-IN', { month: 'short' });
+  const endPart = end.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+  return `${startPart} – ${endPart}`;
+}
+
+const TREND_RANGE_MONTHS = { '1M': 1, '3M': 3, '6M': 6, '1Y': 12 };
+const TREND_RANGE_SUBTITLE = {
+  '1M': 'Last month',
+  '3M': 'Last 3 months',
+  '6M': 'Last 6 months',
+  '1Y': 'Last 12 months',
+};
+
 export default function Dashboard() {
-  const [dateRange] = useState(getDefaultDateRange);
+  const [dateRange, setDateRange] = useState(getDefaultDateRange);
   const { data, loading, error, refresh } = useDashboardData(dateRange, '');
   const isMobile = useMediaQuery('(max-width: 720px)');
 
   if (isMobile) return <MobileHome data={data} loading={loading} error={error} dateRange={dateRange} refresh={refresh} />;
-  return <DesktopOverview data={data} loading={loading} error={error} dateRange={dateRange} refresh={refresh} />;
+  return (
+    <DesktopOverview
+      data={data}
+      loading={loading}
+      error={error}
+      dateRange={dateRange}
+      onDateRangeChange={setDateRange}
+    />
+  );
 }
 
 /* ============ DESKTOP ============ */
 
-function DesktopOverview({ data, loading, error, dateRange, refresh }) {
+function DesktopOverview({ data, loading, error, dateRange, onDateRangeChange }) {
   const navigate = useNavigate();
   const [trendRange, setTrendRange] = useState('6M');
   const [activityTab, setActivityTab] = useState('All');
+  const [dateMenuOpen, setDateMenuOpen] = useState(false);
+  const dateMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!dateMenuOpen) return undefined;
+    const onPointerDown = (e) => {
+      if (dateMenuRef.current && !dateMenuRef.current.contains(e.target)) {
+        setDateMenuOpen(false);
+      }
+    };
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setDateMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [dateMenuOpen]);
 
   const spent = data?.spendingOverview?.totalSpent ?? 0;
   const earned = data?.spendingOverview?.totalIncome ?? 0;
@@ -57,13 +108,39 @@ function DesktopOverview({ data, loading, error, dateRange, refresh }) {
           <h1 className="ft-page-header__title">Overview</h1>
         </div>
         <div className="ft-page-header__actions">
-          <button className="ft-date-chip" type="button" onClick={refresh}>
-            <IcCal size={14} style={{ color: 'var(--ft-text-dim)' }} />
-            <span>{monthLabel(dateRange.startDate)}</span>
-            <span className="ft-date-chip__hint">·</span>
-            <span className="ft-date-chip__hint">vs prev</span>
-            <IcChevD size={12} style={{ color: 'var(--ft-text-dim)' }} />
-          </button>
+          <div className="dash-date-menu" ref={dateMenuRef}>
+            <button
+              className="ft-date-chip"
+              type="button"
+              aria-haspopup="dialog"
+              aria-expanded={dateMenuOpen}
+              onClick={() => setDateMenuOpen((open) => !open)}
+            >
+              <IcCal size={14} style={{ color: 'var(--ft-text-dim)' }} />
+              <span>{dateRangeChipLabel(dateRange)}</span>
+              <span className="ft-date-chip__hint">·</span>
+              <span className="ft-date-chip__hint">vs prev</span>
+              <IcChevD
+                size={12}
+                style={{
+                  color: 'var(--ft-text-dim)',
+                  transform: dateMenuOpen ? 'rotate(180deg)' : undefined,
+                  transition: 'transform 0.15s',
+                }}
+              />
+            </button>
+            {dateMenuOpen && (
+              <div className="dash-date-popover" role="dialog" aria-label="Date range">
+                <DateRangePicker
+                  className="date-range-picker--dashboard"
+                  value={dateRange}
+                  onChange={(range) => {
+                    onDateRangeChange(range);
+                  }}
+                />
+              </div>
+            )}
+          </div>
           <GhostBtn onClick={() => navigate('/import')}>
             <IcUpload size={14} /> Import
           </GhostBtn>
@@ -107,10 +184,10 @@ function DesktopOverview({ data, loading, error, dateRange, refresh }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <WidgetCard
             title="Income vs expenses"
-            subtitle="Last 6 months"
+            subtitle={TREND_RANGE_SUBTITLE[trendRange] ?? 'Last 6 months'}
             actions={{ options: ['1M', '3M', '6M', '1Y'], value: trendRange, onChange: setTrendRange }}
           >
-            <TrendChart trends={data?.monthlyTrends || []} />
+            <TrendChart trends={data?.monthlyTrends || []} range={trendRange} />
           </WidgetCard>
 
           <WidgetCard
@@ -118,14 +195,18 @@ function DesktopOverview({ data, loading, error, dateRange, refresh }) {
             subtitle={`${data?.recentTransactions?.length || 0} transactions`}
             actions={{ options: ['All', 'Spent', 'Earned'], value: activityTab, onChange: setActivityTab }}
           >
-            <RecentList items={data?.recentTransactions || []} filter={activityTab} onOpen={(id) => navigate(`/transactions/${id}`)} />
+            <RecentList
+              items={data?.recentTransactions || []}
+              filter={activityTab}
+              onOpen={(tx) => navigate(`/transactions/${tx.id}`, { state: { tx } })}
+            />
           </WidgetCard>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <WidgetCard
             title="Spending by category"
-            subtitle={monthLabel(dateRange.startDate)}
+            subtitle={dateRangeChipLabel(dateRange)}
             link={{ label: 'See all', onClick: () => navigate('/categories') }}
           >
             <CategoryDonut breakdown={data?.categoryBreakdown} />
@@ -151,8 +232,9 @@ function DesktopOverview({ data, loading, error, dateRange, refresh }) {
   );
 }
 
-function TrendChart({ trends }) {
-  const data = trends.slice(-6);
+function TrendChart({ trends, range = '6M' }) {
+  const months = TREND_RANGE_MONTHS[range] ?? 6;
+  const data = trends.slice(-months);
   if (data.length === 0) {
     return <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ft-text-faint)', fontSize: 13 }}>No trend data yet</div>;
   }
@@ -251,7 +333,7 @@ function TxRow({ tx, onOpen }) {
   return (
     <button
       type="button"
-      onClick={() => onOpen?.(tx.id)}
+      onClick={() => onOpen?.(tx)}
       className="dash-tx-row"
     >
       <CatGlyph category={tx.category} size={36} />
@@ -398,9 +480,9 @@ function MobileHome({ data, error, refresh }) {
     <>
       <header className="ft-mobile__header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Avatar name="You" size={36} />
+          <Avatar name={LEDGER_OWNER_NAME} size={36} />
           <div>
-            <div className="ft-mobile__hello">Good evening</div>
+            <div className="ft-mobile__hello">{timeOfDayGreeting()}</div>
             <div className="ft-mobile__hello-meta">Welcome back</div>
           </div>
         </div>
@@ -459,7 +541,11 @@ function MobileHome({ data, error, refresh }) {
           </SectionTitle>
           <div className="dash-tx-list">
             {(data?.recentTransactions || []).slice(0, 4).map((tx, i) => (
-              <TxRow key={tx.id || i} tx={tx} onOpen={(id) => navigate(`/transactions/${id}`)} />
+              <TxRow
+                key={tx.id || i}
+                tx={tx}
+                onOpen={(row) => navigate(`/transactions/${row.id}`, { state: { tx: row } })}
+              />
             ))}
             {(!data?.recentTransactions || data.recentTransactions.length === 0) && (
               <div className="dash-empty">No transactions yet.</div>
