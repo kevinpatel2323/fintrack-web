@@ -191,8 +191,48 @@
 
 .txn-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-family: var(--ft-font-ui);
+}
+
+/* Description column: shrink below content width so inner ellipsis applies */
+.txn-table thead th:nth-child(2),
+.txn-table tbody td.txn-cell--description {
+  overflow: hidden;
+  max-width: 0;
+}
+
+.txn-row__desc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.txn-row__desc-text {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.txn-row__title,
+.txn-row__subtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.txn-row__title {
+  color: var(--ft-text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.txn-row__subtitle {
+  color: var(--ft-text-dim);
+  font-size: 11.5;
 }
 
 .txn-table thead th {

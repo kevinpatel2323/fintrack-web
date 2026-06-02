@@ -1042,14 +1042,17 @@ function TxTableRow({ row, tagCount, tagsLoaded, categories, onAssignCategory, o
           {formatDateShort(row.transactionDate)}
         </span>
       </td>
-      <td>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+      <td className="txn-cell--description">
+        <div className="txn-row__desc">
           <TransactionCategoryGlyph category={row.category} size={30} />
-          <div style={{ minWidth: 0 }}>
-            <div style={{ color: 'var(--ft-text)', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div className="txn-row__desc-text">
+            <div className="txn-row__title" title={row.upiName || row.narration || undefined}>
               {row.upiName || row.narration || '—'}
             </div>
-            <div style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 360 }}>
+            <div
+              className="txn-row__subtitle"
+              title={row.upiDescription || row.narration || row.upiBank || undefined}
+            >
               {row.upiDescription || row.narration || row.upiBank}
             </div>
           </div>
