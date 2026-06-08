@@ -229,7 +229,6 @@ export default function Transactions() {
   const [sortCol, setSortCol] = useState('date');
   const [sortDir, setSortDir] = useState('desc');
 
-  const fetchedTagIds = useRef(new Set());
   const searchInputRef = useRef(null);
 
   const isMac = useMemo(
@@ -280,22 +279,6 @@ export default function Transactions() {
     })();
   }, []);
 
-  // Prefetch friend-tag counts for all loaded transactions so the Tags column shows immediately
-  useEffect(() => {
-    for (const tx of transactions) {
-      if (fetchedTagIds.current.has(tx.id)) continue;
-      fetchedTagIds.current.add(tx.id);
-      (async () => {
-        try {
-          const res = await fetch(`${API_BASE}/transactions/${tx.id}/friends`);
-          if (!res.ok) return;
-          const data = await res.json();
-          setTagsByTransaction((p) => ({ ...p, [tx.id]: data.data || [] }));
-        } catch {}
-      })();
-    }
-  }, [transactions]);
-
   useEffect(() => {
     if (!canFetchRange) return;
     handleRangeFetch();
@@ -328,15 +311,19 @@ export default function Transactions() {
       );
       if (!res.ok) throw new Error('Failed to fetch transactions');
       const data = await res.json();
+      const rows = data.data || [];
       setRangeResult(data);
-      setTransactions(data.data || []);
+      setTransactions(rows);
       setFriendTagsSheetId(null);
-      setTagsByTransaction({});
+      // The /range payload now carries each transaction's friend tags inline,
+      // so seed the Tags column from it instead of fetching them per row.
+      const tagsByTx = {};
+      for (const tx of rows) tagsByTx[tx.id] = tx.friendTags || [];
+      setTagsByTransaction(tagsByTx);
       setTagsStatusByTransaction({});
       setCategoryStatusByTransaction({});
       setRangeStatus('');
       setPage(1);
-      fetchedTagIds.current.clear();
     } catch (error) {
       setRangeStatus(error.message || 'Failed to fetch transactions');
     } finally {
