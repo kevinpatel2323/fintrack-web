@@ -14,7 +14,7 @@ import {
 } from '../components/ui/Icon.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { inr, inrCompact } from '../utils/inr.js';
-import { CATEGORY_PALETTE, categoryKeyForName } from '../utils/categoryColors.js';
+import { CATEGORY_PALETTE, categoryColor, categoryKeyForName } from '../utils/categoryColors.js';
 import './calendar-redesign.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
@@ -89,6 +89,38 @@ function isTransactionCategorized(tx) {
 function dayCategorizationState(txs) {
   if (txs.length === 0) return null;
   return txs.every(isTransactionCategorized) ? 'categorized' : 'needs-category';
+}
+
+/**
+ * Aggregate the month's withdrawals into category-wise slices for the donut.
+ * Uses the already-loaded transactions, so the total matches the header "spent".
+ * Every category is shown — sorted largest-first, no "Other" bucket.
+ */
+function buildCategorySpend(transactions) {
+  const byCat = new Map();
+  let total = 0;
+  for (const t of transactions) {
+    const amount = Number(t.withdrawal || 0);
+    if (!(amount > 0)) continue;
+    total += amount;
+    const cat = t.category || null;
+    const key = cat?.id != null ? `c${cat.id}` : 'uncategorized';
+    let entry = byCat.get(key);
+    if (!entry) {
+      entry = {
+        key,
+        name: cat?.name || 'Uncategorized',
+        color: cat ? categoryColor(cat) : 'var(--ft-text-faint)',
+        amount: 0,
+      };
+      byCat.set(key, entry);
+    }
+    entry.amount += amount;
+  }
+
+  const list = [...byCat.values()].sort((a, b) => b.amount - a.amount);
+  const segments = list.map((x) => ({ ...x, fraction: total > 0 ? x.amount / total : 0 }));
+  return { segments, total };
 }
 
 export default function Calendar() {
@@ -484,6 +516,9 @@ export default function Calendar() {
             </Card>
           )}
 
+          {/* Month category breakdown */}
+          <CategorySpendCard transactions={transactions} />
+
           {/* Upcoming subscriptions */}
           {occurrences.length > 0 && (
             <Card pad={16}>
@@ -552,7 +587,8 @@ export default function Calendar() {
           {status && <p className="status">{status}</p>}
         </Card>
 
-        {/* Right: day detail OR subscriptions list */}
+        {/* Right column: day detail / subscriptions + month category breakdown */}
+        <div className="cal-right-col">
         {rightPanel === 'day' ? (
           <Card pad={0}>
             {selectedIso ? (
@@ -642,6 +678,8 @@ export default function Calendar() {
             {subLoading && <p className="status" style={{ marginTop: 10 }}>Refreshing…</p>}
           </Card>
         )}
+          <CategorySpendCard transactions={transactions} />
+        </div>
       </div>
     </>
   );
@@ -823,5 +861,79 @@ function UpcomingList({ occurrences, todayIso, onOpenEdit }) {
         );
       })}
     </div>
+  );
+}
+
+// ── Donut ring (SVG) ──────────────────────────────────────────────────────────
+function Donut({ segments, size = 148, stroke = 16, gap = 2.5, children }) {
+  const cx = size / 2;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  let acc = 0;
+  return (
+    <div className="cal-cat__ring" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
+        <circle
+          cx={cx} cy={cx} r={r} fill="none" strokeWidth={stroke}
+          style={{ stroke: 'var(--ft-surface-3)' }}
+        />
+        <g transform={`rotate(-90 ${cx} ${cx})`}>
+          {segments.map((s) => {
+            const len = s.fraction * c;
+            // Subtract the gap from normal slices, but keep tiny slices fully
+            // drawn so small categories stay visible on the ring.
+            const dash = segments.length > 1 && len > gap * 1.6 ? len - gap : len;
+            const node = (
+              <circle
+                key={s.key}
+                cx={cx} cy={cx} r={r} fill="none" strokeWidth={stroke} strokeLinecap="butt"
+                style={{ stroke: s.color }}
+                strokeDasharray={`${dash} ${c - dash}`}
+                strokeDashoffset={-acc * c}
+              />
+            );
+            acc += s.fraction;
+            return node;
+          })}
+        </g>
+      </svg>
+      <div className="cal-cat__center">{children}</div>
+    </div>
+  );
+}
+
+// ── Category spending donut + legend (month overview) ─────────────────────────
+function CategorySpendCard({ transactions, style }) {
+  const { segments, total } = useMemo(() => buildCategorySpend(transactions), [transactions]);
+
+  return (
+    <Card pad={18} style={style}>
+      <div className="cal-cat__head">
+        <Overline>Spending by category</Overline>
+        {total > 0 && <Num size={13} weight={600} color="var(--ft-text-dim)">{inr(total)}</Num>}
+      </div>
+      {total === 0 ? (
+        <p className="empty" style={{ margin: '16px 0 4px' }}>No spending this month yet.</p>
+      ) : (
+        <div className="cal-cat">
+          <Donut segments={segments}>
+            <span className="cal-cat__center-label">Spent</span>
+            <Num size={19} weight={700} style={{ letterSpacing: '-0.6px' }}>{inrCompact(total)}</Num>
+          </Donut>
+          <ul className="cal-cat__legend">
+            {segments.map((s) => (
+              <li key={s.key} className="cal-cat__legend-row">
+                <span className="cal-cat__legend-dot" style={{ background: s.color }} />
+                <span className="cal-cat__legend-name" title={s.name}>{s.name}</span>
+                <span className="cal-cat__legend-pct">{Math.round(s.fraction * 100)}%</span>
+                <span className="cal-cat__legend-amt">
+                  <Num size={12.5} weight={600}>{inr(s.amount)}</Num>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Card>
   );
 }
