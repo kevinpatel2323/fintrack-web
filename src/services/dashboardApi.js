@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import { API_BASE, apiFetch } from './http.js';
 
 /**
  * Fetch complete dashboard summary data
@@ -18,7 +18,7 @@ export async function fetchDashboardData(startDate, endDate, accountNumber) {
       params.append('accountNumber', accountNumber);
     }
     
-    const response = await fetch(`${API_BASE}/dashboard/summary?${params}`);
+    const response = await apiFetch(`${API_BASE}/dashboard/summary?${params}`);
     
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
@@ -47,7 +47,7 @@ export async function fetchSpendingOverview(startDate, endDate, accountNumber) {
     const params = new URLSearchParams({ startDate, endDate });
     if (accountNumber) params.append('accountNumber', accountNumber);
     
-    const response = await fetch(`${API_BASE}/dashboard/spending-overview?${params}`);
+    const response = await apiFetch(`${API_BASE}/dashboard/spending-overview?${params}`);
     if (!response.ok) throw new Error('Failed to fetch spending overview');
     
     return await response.json();
@@ -68,7 +68,7 @@ export async function fetchCategoryBreakdown(startDate, endDate, accountNumber) 
     const params = new URLSearchParams({ startDate, endDate });
     if (accountNumber) params.append('accountNumber', accountNumber);
     
-    const response = await fetch(`${API_BASE}/dashboard/category-breakdown?${params}`);
+    const response = await apiFetch(`${API_BASE}/dashboard/category-breakdown?${params}`);
     if (!response.ok) throw new Error('Failed to fetch category breakdown');
     
     return await response.json();
@@ -83,7 +83,7 @@ export async function fetchCategoryBreakdown(startDate, endDate, accountNumber) 
  */
 export async function fetchFriendBalances() {
   try {
-    const response = await fetch(`${API_BASE}/dashboard/friend-balances`);
+    const response = await apiFetch(`${API_BASE}/dashboard/friend-balances`);
     if (!response.ok) throw new Error('Failed to fetch friend balances');
     
     return await response.json();
@@ -103,7 +103,7 @@ export async function fetchMonthlyTrends(monthsBack = 6, accountNumber) {
     const params = new URLSearchParams({ monthsBack: monthsBack.toString() });
     if (accountNumber) params.append('accountNumber', accountNumber);
     
-    const response = await fetch(`${API_BASE}/dashboard/monthly-trends?${params}`);
+    const response = await apiFetch(`${API_BASE}/dashboard/monthly-trends?${params}`);
     if (!response.ok) throw new Error('Failed to fetch monthly trends');
     
     return await response.json();
@@ -118,7 +118,7 @@ export async function fetchMonthlyTrends(monthsBack = 6, accountNumber) {
  */
 export async function fetchAccountSummary() {
   try {
-    const response = await fetch(`${API_BASE}/dashboard/account-summary`);
+    const response = await apiFetch(`${API_BASE}/dashboard/account-summary`);
     if (!response.ok) throw new Error('Failed to fetch account summary');
     
     return await response.json();
@@ -144,7 +144,7 @@ export async function fetchTopCategories(startDate, endDate, limit = 5, accountN
     });
     if (accountNumber) params.append('accountNumber', accountNumber);
     
-    const response = await fetch(`${API_BASE}/dashboard/top-categories?${params}`);
+    const response = await apiFetch(`${API_BASE}/dashboard/top-categories?${params}`);
     if (!response.ok) throw new Error('Failed to fetch top categories');
     
     return await response.json();
@@ -165,7 +165,7 @@ export async function fetchIncomeVsExpenses(startDate, endDate, accountNumber) {
     const params = new URLSearchParams({ startDate, endDate });
     if (accountNumber) params.append('accountNumber', accountNumber);
     
-    const response = await fetch(`${API_BASE}/dashboard/income-vs-expenses?${params}`);
+    const response = await apiFetch(`${API_BASE}/dashboard/income-vs-expenses?${params}`);
     if (!response.ok) throw new Error('Failed to fetch income vs expenses');
     
     return await response.json();

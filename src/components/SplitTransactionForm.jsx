@@ -18,7 +18,7 @@ import {
   validateSplitTotal,
 } from '../utils/splitValidation.ts';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import { API_BASE, apiFetch } from '../services/http.js';
 
 const METHODS = [
   { id: 'EQUAL', label: 'Equal' },
@@ -160,7 +160,7 @@ export default function SplitTransactionForm({
       if (fetchedLinkableIds.current.has(id)) continue;
       fetchedLinkableIds.current.add(id);
       setLinkableLoadingByParticipant((prev) => ({ ...prev, [id]: true }));
-      fetch(`${API_BASE}/friends/${id}/linkable-transactions`)
+      apiFetch(`${API_BASE}/friends/${id}/linkable-transactions`)
         .then((res) => (res.ok ? res.json() : Promise.reject()))
         .then((data) => setLinkableByParticipant((prev) => ({ ...prev, [id]: data.data || [] })))
         .catch(() => setLinkableByParticipant((prev) => ({ ...prev, [id]: [] })))

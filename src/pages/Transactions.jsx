@@ -20,7 +20,7 @@ import {
 } from '../utils/transactionsListParams.js';
 import '../styles/transactions-redesign.css';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import { API_BASE, apiFetch } from '../services/http.js';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -244,7 +244,7 @@ export default function Transactions() {
     (async () => {
       setAccountsStatus('');
       try {
-        const res = await fetch(`${API_BASE}/imports/accounts`);
+        const res = await apiFetch(`${API_BASE}/imports/accounts`);
         if (!res.ok) throw new Error('Failed to fetch accounts');
         const data = await res.json();
         setAccounts(data.data || []);
@@ -258,7 +258,7 @@ export default function Transactions() {
     (async () => {
       setFriendsStatus('');
       try {
-        const res = await fetch(`${API_BASE}/friends`);
+        const res = await apiFetch(`${API_BASE}/friends`);
         if (!res.ok) throw new Error('Failed to fetch friends');
         const data = await res.json();
         setFriends(data.data || []);
@@ -271,7 +271,7 @@ export default function Transactions() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/categories`);
+        const res = await apiFetch(`${API_BASE}/categories`);
         if (!res.ok) return;
         const data = await res.json();
         setCategories(data.data || []);
@@ -306,7 +306,7 @@ export default function Transactions() {
     setTransactionsLoading(true);
     try {
       const accountQuery = rangeAccount ? `&accountNumber=${encodeURIComponent(rangeAccount)}` : '';
-      const res = await fetch(
+      const res = await apiFetch(
         `${API_BASE}/imports/transactions/range?start=${rangeStart}&end=${rangeEnd}${accountQuery}`,
       );
       if (!res.ok) throw new Error('Failed to fetch transactions');
@@ -344,7 +344,7 @@ export default function Transactions() {
   async function fetchTags(transactionId) {
     setTagsStatusByTransaction((p) => ({ ...p, [transactionId]: 'Loading tags...' }));
     try {
-      const res = await fetch(`${API_BASE}/transactions/${transactionId}/friends`);
+      const res = await apiFetch(`${API_BASE}/transactions/${transactionId}/friends`);
       if (!res.ok) throw new Error('Failed to fetch tags');
       const data = await res.json();
       setTagsByTransaction((p) => ({ ...p, [transactionId]: data.data || [] }));
@@ -368,7 +368,7 @@ export default function Transactions() {
         const lineDirection = amountMinor === 0 ? 'NOTHING_OUTSTANDING' : direction;
         const amountValue = amountMinor === 0 ? 0 : minorToApiAmount(amountMinor, 100);
         const linkedIds = linkedTagsByParticipant?.[r.participantId];
-        const res = await fetch(`${API_BASE}/transactions/${transactionId}/friends`, {
+        const res = await apiFetch(`${API_BASE}/transactions/${transactionId}/friends`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -408,7 +408,7 @@ export default function Transactions() {
   async function runDeleteTag(transactionId, tagId) {
     setTagsStatusByTransaction((p) => ({ ...p, [transactionId]: 'Removing tag...' }));
     try {
-      const res = await fetch(`${API_BASE}/transactions/${transactionId}/friends/${tagId}`, { method: 'DELETE' });
+      const res = await apiFetch(`${API_BASE}/transactions/${transactionId}/friends/${tagId}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to delete tag');
       await fetchTags(transactionId);
@@ -432,7 +432,7 @@ export default function Transactions() {
 
     setManualSubmitting(true);
     try {
-      const res = await fetch(`${API_BASE}/transactions/manual`, {
+      const res = await apiFetch(`${API_BASE}/transactions/manual`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -469,13 +469,13 @@ export default function Transactions() {
       setCategoryStatusByTransaction((p) => ({ ...p, [transactionId]: 'Saving…' }));
       try {
         if (categoryId) {
-          await fetch(`${API_BASE}/transactions/${transactionId}/category`, {
+          await apiFetch(`${API_BASE}/transactions/${transactionId}/category`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ categoryId: Number(categoryId) }),
           });
         } else {
-          await fetch(`${API_BASE}/transactions/${transactionId}/category`, { method: 'DELETE' });
+          await apiFetch(`${API_BASE}/transactions/${transactionId}/category`, { method: 'DELETE' });
         }
         const cat = categories.find((c) => String(c.id) === String(categoryId)) || null;
         setTransactions((prev) =>

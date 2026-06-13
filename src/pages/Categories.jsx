@@ -10,7 +10,7 @@ import { CATEGORY_PALETTE, categoryColor } from '../utils/categoryColors.js';
 import { inr } from '../utils/inr.js';
 import { fetchCategoryBreakdown } from '../services/dashboardApi.js';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import { API_BASE, apiFetch } from '../services/http.js';
 
 const PRESET_COLORS = Object.values(CATEGORY_PALETTE);
 const EMPTY_FORM = { name: '', color: PRESET_COLORS[0], icon: '' };
@@ -39,7 +39,7 @@ export default function Categories() {
   async function fetchCategories() {
     setLoading(true); setStatus('');
     try {
-      const res = await fetch(`${API_BASE}/categories`);
+      const res = await apiFetch(`${API_BASE}/categories`);
       if (!res.ok) throw new Error('Failed to fetch categories');
       setCategories((await res.json()).data || []);
     } catch (err) { setStatus(err.message || 'Failed to fetch categories'); }
@@ -79,7 +79,7 @@ export default function Categories() {
     setFormStatus('');
     try {
       const url = editId ? `${API_BASE}/categories/${editId}` : `${API_BASE}/categories`;
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method: editId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -109,7 +109,7 @@ export default function Categories() {
       onConfirm: async () => {
         setConfirmState({ open: false });
         try {
-          const res = await fetch(`${API_BASE}/categories/${cat.id}`, { method: 'DELETE' });
+          const res = await apiFetch(`${API_BASE}/categories/${cat.id}`, { method: 'DELETE' });
           if (!res.ok) {
             const data = await res.json().catch(() => ({}));
             setStatus(data.message || 'Delete failed');

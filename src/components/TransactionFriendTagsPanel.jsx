@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import ConfirmDialog from './ConfirmDialog.jsx';
 import '../styles/txn-manage-forms.css';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import { API_BASE, apiFetch } from '../services/http.js';
 
 function SettlementSelect({
   rowId,
@@ -116,7 +116,7 @@ export default function TransactionFriendTagsPanel({ transaction, friends, forma
   const fetchTags = useCallback(async () => {
     setStatus('Loading tags...');
     try {
-      const res = await fetch(`${API_BASE}/transactions/${transactionId}/friends`);
+      const res = await apiFetch(`${API_BASE}/transactions/${transactionId}/friends`);
       if (!res.ok) throw new Error('Failed to fetch tags');
       const data = await res.json();
       setTags(data.data || []);
@@ -135,7 +135,7 @@ export default function TransactionFriendTagsPanel({ transaction, friends, forma
     const key = `${transactionId}_${friendId}`;
     setLinkableTransactionsLoading((prev) => ({ ...prev, [key]: true }));
     try {
-      const res = await fetch(`${API_BASE}/friends/${friendId}/linkable-transactions`);
+      const res = await apiFetch(`${API_BASE}/friends/${friendId}/linkable-transactions`);
       if (!res.ok) throw new Error('Failed to fetch linkable transactions');
       const data = await res.json();
       setLinkableTransactions((prev) => ({ ...prev, [key]: data.data || [] }));
@@ -182,7 +182,7 @@ export default function TransactionFriendTagsPanel({ transaction, friends, forma
 
     setStatus('Adding tag...');
     try {
-      const res = await fetch(`${API_BASE}/transactions/${transactionId}/friends`, {
+      const res = await apiFetch(`${API_BASE}/transactions/${transactionId}/friends`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -215,7 +215,7 @@ export default function TransactionFriendTagsPanel({ transaction, friends, forma
   async function runDeleteTag(tagId) {
     setStatus('Removing tag...');
     try {
-      const res = await fetch(`${API_BASE}/transactions/${transactionId}/friends/${tagId}`, {
+      const res = await apiFetch(`${API_BASE}/transactions/${transactionId}/friends/${tagId}`, {
         method: 'DELETE',
       });
       const data = await res.json();

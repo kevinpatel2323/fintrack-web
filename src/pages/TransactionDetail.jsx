@@ -13,7 +13,7 @@ import { ledgerDirectionPhrase } from '../utils/ledgerParties.js';
 import { calendarPath } from '../utils/calendarParams.js';
 import { transactionsListPath } from '../utils/transactionsListParams.js';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import { API_BASE, apiFetch } from '../services/http.js';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -53,8 +53,8 @@ export default function TransactionDetail() {
 
   // Fetch friends and categories once
   useEffect(() => {
-    fetch(`${API_BASE}/friends`).then((r) => r.json()).then((d) => setFriends(d.data || [])).catch(() => {});
-    fetch(`${API_BASE}/categories`).then((r) => r.json()).then((d) => setCategories(d.data || d || [])).catch(() => {});
+    apiFetch(`${API_BASE}/friends`).then((r) => r.json()).then((d) => setFriends(d.data || [])).catch(() => {});
+    apiFetch(`${API_BASE}/categories`).then((r) => r.json()).then((d) => setCategories(d.data || d || [])).catch(() => {});
   }, []);
 
   // Load transaction from navigation state or API when opened by id only
@@ -72,7 +72,7 @@ export default function TransactionDetail() {
     setTxLoading(true);
     setTxError(false);
 
-    fetch(`${API_BASE}/transactions/${id}`)
+    apiFetch(`${API_BASE}/transactions/${id}`)
       .then((res) => {
         if (!res.ok) throw new Error('Failed to load transaction');
         return res.json();
@@ -97,7 +97,7 @@ export default function TransactionDetail() {
   async function fetchTags() {
     setTagsStatus('Loading…');
     try {
-      const res = await fetch(`${API_BASE}/transactions/${id}/friends`);
+      const res = await apiFetch(`${API_BASE}/transactions/${id}/friends`);
       if (!res.ok) throw new Error('Failed to fetch tags');
       const data = await res.json();
       setTags(data.data || []);
@@ -117,7 +117,7 @@ export default function TransactionDetail() {
       for (const r of results) {
         const lineDirection = r.amountMinor === 0 ? 'NOTHING_OUTSTANDING' : direction;
         const linkedIds = linkedTagsByParticipant?.[r.participantId];
-        await fetch(`${API_BASE}/transactions/${id}/friends`, {
+        await apiFetch(`${API_BASE}/transactions/${id}/friends`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -149,7 +149,7 @@ export default function TransactionDetail() {
         setConfirmState({ open: false });
         setTagsStatus('Removing…');
         try {
-          const res = await fetch(`${API_BASE}/transactions/${id}/friends/${tagId}`, { method: 'DELETE' });
+          const res = await apiFetch(`${API_BASE}/transactions/${id}/friends/${tagId}`, { method: 'DELETE' });
           if (!res.ok) throw new Error('Failed to delete');
           await fetchTags();
         } catch (e) {
@@ -164,13 +164,13 @@ export default function TransactionDetail() {
     setCategoryStatus('Saving…');
     try {
       if (categoryId) {
-        await fetch(`${API_BASE}/transactions/${id}/category`, {
+        await apiFetch(`${API_BASE}/transactions/${id}/category`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ categoryId: Number(categoryId) }),
         });
       } else {
-        await fetch(`${API_BASE}/transactions/${id}/category`, { method: 'DELETE' });
+        await apiFetch(`${API_BASE}/transactions/${id}/category`, { method: 'DELETE' });
       }
       const cat = categories.find((c) => String(c.id) === String(categoryId)) || null;
       setTx((prev) => prev ? { ...prev, categoryId: cat?.id || null, category: cat } : prev);

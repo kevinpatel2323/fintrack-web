@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   IcLogo, IcHome, IcList, IcCal, IcCard, IcFriends, IcTag, IcUpload,
-  IcSparkle, IcSettings,
+  IcSparkle, IcSettings, IcCommand,
 } from './Icon.jsx';
 import { Avatar } from './primitives.jsx';
 
@@ -13,6 +13,7 @@ const NAV = [
   { to: '/friends',      label: 'People',       icon: IcFriends },
   { to: '/categories',   label: 'Categories',   icon: IcTag },
   { to: '/import',       label: 'Import',       icon: IcUpload },
+  { to: '/security',     label: 'Security',     icon: IcCommand },
 ];
 
 export default function Sidebar() {

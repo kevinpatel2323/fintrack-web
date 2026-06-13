@@ -1,0 +1,9 @@
+/* Setup reuses the shared .auth-* classes (see Login.css, imported globally via
+   index.css). Page-specific additions only. */
+
+.auth-hint {
+  margin: -6px 0 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ft-text-faint);
+}
