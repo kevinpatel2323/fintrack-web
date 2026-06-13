@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import Portal from '../components/Portal.jsx';
+import CategoryExportModal from '../components/CategoryExportModal.jsx';
 import {
   Card, Num, Pill, PrimaryBtn, GhostBtn, Overline, SectionTitle, CatGlyph,
 } from '../components/ui/primitives.jsx';
-import { IcPlus, IcEdit, IcTrash, IcChevR, IcChevL } from '../components/ui/Icon.jsx';
+import { IcPlus, IcEdit, IcTrash, IcDownload, IcChevR, IcChevL } from '../components/ui/Icon.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { CATEGORY_PALETTE, categoryColor } from '../utils/categoryColors.js';
 import { inr } from '../utils/inr.js';
@@ -35,6 +36,7 @@ export default function Categories() {
   const [formStatus, setFormStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [confirmState, setConfirmState] = useState({ open: false });
+  const [exportCat, setExportCat] = useState(null);
 
   async function fetchCategories() {
     setLoading(true); setStatus('');
@@ -251,6 +253,16 @@ export default function Categories() {
                   type="button"
                   className="ft-mobile__icon-btn"
                   style={{ width: 32, height: 32 }}
+                  onClick={() => setExportCat(c)}
+                  aria-label="Export CSV"
+                  title="Export transactions as CSV"
+                >
+                  <IcDownload size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="ft-mobile__icon-btn"
+                  style={{ width: 32, height: 32 }}
                   onClick={() => openEdit(c)}
                   aria-label="Edit"
                 >
@@ -291,6 +303,11 @@ export default function Categories() {
       <>
         <ConfirmDialog {...confirmState} />
         {formSheet}
+        <CategoryExportModal
+          category={exportCat}
+          open={!!exportCat}
+          onClose={() => setExportCat(null)}
+        />
         <header className="ft-mobile__header">
           <h1 className="ft-mobile__title">Categories</h1>
           <button className="ft-mobile__icon-btn" onClick={openCreate} aria-label="New category">
@@ -309,6 +326,11 @@ export default function Categories() {
     <>
       <ConfirmDialog {...confirmState} />
       {formSheet}
+      <CategoryExportModal
+        category={exportCat}
+        open={!!exportCat}
+        onClose={() => setExportCat(null)}
+      />
       <header className="ft-page-header">
         <div>
           <p className="ft-page-header__sub">{categories.length} categories</p>
