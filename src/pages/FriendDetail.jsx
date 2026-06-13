@@ -11,7 +11,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { inr } from '../utils/inr.js';
 import { friendTint, initialsOf } from '../utils/categoryColors.js';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import { API_BASE, apiFetch } from '../services/http.js';
 
 export default function FriendDetail() {
   const { id } = useParams();
@@ -29,9 +29,9 @@ export default function FriendDetail() {
     (async () => {
       try {
         const [fRes, sRes, tRes] = await Promise.all([
-          fetch(`${API_BASE}/friends/${id}`),
-          fetch(`${API_BASE}/friends/${id}/summary`),
-          fetch(`${API_BASE}/friends/${id}/transactions`),
+          apiFetch(`${API_BASE}/friends/${id}`),
+          apiFetch(`${API_BASE}/friends/${id}/summary`),
+          apiFetch(`${API_BASE}/friends/${id}/transactions`),
         ]);
         if (fRes.ok) { const d = await fRes.json(); setFriend(d.data || d); }
         if (sRes.ok) { const d = await sRes.json(); setSummary(d.data || d); }

@@ -4,7 +4,7 @@ import Portal from '../components/Portal.jsx';
 import './Calendar.css';
 import './SubscriptionsCalendar.css';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import { API_BASE, apiFetch } from '../services/http.js';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -126,7 +126,7 @@ export default function SubscriptionsCalendarContent() {
     setLoading(true);
     setFetchStatus('');
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `${API_BASE}/subscriptions/calendar?start=${encodeURIComponent(startIso)}&end=${encodeURIComponent(endIso)}`,
       );
       const data = await res.json();
@@ -143,7 +143,7 @@ export default function SubscriptionsCalendarContent() {
   const loadSubscriptions = useCallback(async () => {
     setListLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/subscriptions`);
+      const res = await apiFetch(`${API_BASE}/subscriptions`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to list subscriptions');
       setSubscriptionRows(data.data || []);
@@ -165,7 +165,7 @@ export default function SubscriptionsCalendarContent() {
   useEffect(() => {
     async function fetchCategories() {
       try {
-        const res = await fetch(`${API_BASE}/categories`);
+        const res = await apiFetch(`${API_BASE}/categories`);
         if (!res.ok) return;
         const data = await res.json();
         setCategories(data.data || []);
@@ -310,7 +310,7 @@ export default function SubscriptionsCalendarContent() {
     setSaving(true);
     try {
       const url = editingId ? `${API_BASE}/subscriptions/${editingId}` : `${API_BASE}/subscriptions`;
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method: editingId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -338,7 +338,7 @@ export default function SubscriptionsCalendarContent() {
   async function confirmDelete() {
     if (!deleteId) return;
     try {
-      const res = await fetch(`${API_BASE}/subscriptions/${deleteId}`, { method: 'DELETE' });
+      const res = await apiFetch(`${API_BASE}/subscriptions/${deleteId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Delete failed');
       setDeleteId(null);
       await loadCalendar();

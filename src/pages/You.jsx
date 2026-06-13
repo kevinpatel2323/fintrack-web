@@ -2,12 +2,13 @@ import { Link } from 'react-router-dom';
 import {
   Card, Avatar, Overline, SectionTitle, GhostBtn,
 } from '../components/ui/primitives.jsx';
-import { IcUpload, IcTag, IcSettings, IcChevR, IcCal } from '../components/ui/Icon.jsx';
+import { IcUpload, IcTag, IcSettings, IcChevR, IcCal, IcCommand } from '../components/ui/Icon.jsx';
 
 const ROWS = [
   { to: '/import', label: 'Import statement', icon: IcUpload, sub: 'Upload HDFC XLSX' },
   { to: '/calendar', label: 'Calendar', icon: IcCal, sub: 'Month view, bills & activity' },
   { to: '/categories', label: 'Categories', icon: IcTag, sub: 'Manage buckets' },
+  { to: '/security', label: 'Security', icon: IcCommand, sub: 'Passkeys & sign-out' },
 ];
 
 export default function You() {

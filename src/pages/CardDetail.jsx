@@ -39,7 +39,7 @@ import {
 import { inr, inrCompact } from '../utils/inr.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import { API_BASE, apiFetch } from '../services/http.js';
 
 const STATEMENT_STATUS_COLORS = {
   open: 'var(--ft-info)',
@@ -76,7 +76,7 @@ export default function CardDetail() {
         listCardTransactions(id),
         listCardStatements(id),
         listCardPayments(id),
-        fetch(`${API_BASE}/categories`).then((r) => r.json()).catch(() => ({ data: [] })),
+        apiFetch(`${API_BASE}/categories`).then((r) => r.json()).catch(() => ({ data: [] })),
       ]);
       setCard(c);
       setTransactions(t.data ?? []);

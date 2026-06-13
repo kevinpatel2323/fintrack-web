@@ -4,7 +4,7 @@ import { buildLedgerPdf } from '../utils/ledgerPdf';
 import { LEDGER_OWNER_NAME, ledgerDirectionPhrase } from '../utils/ledgerParties';
 import './FriendLedgerExportModal.css';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import { API_BASE, apiFetch } from '../services/http.js';
 
 function monthBounds(d = new Date()) {
   const y = d.getFullYear();
@@ -269,7 +269,7 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
     setLoadStatus('Loading…');
     try {
       const q = `?start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`;
-      const res = await fetch(`${API_BASE}/friends/${friend.id}/transactions${q}`);
+      const res = await apiFetch(`${API_BASE}/friends/${friend.id}/transactions${q}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error || 'Failed to load transactions');
       const rows = data.data || [];

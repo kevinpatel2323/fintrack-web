@@ -17,7 +17,7 @@ import { inr, inrCompact } from '../utils/inr.js';
 import { CATEGORY_PALETTE, categoryColor, categoryKeyForName } from '../utils/categoryColors.js';
 import './calendar-redesign.css';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import { API_BASE, apiFetch } from '../services/http.js';
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function toLocalIso(d) {
@@ -177,7 +177,7 @@ export default function Calendar() {
     setTxLoading(true);
     setStatus('');
     try {
-      const res = await fetch(`${API_BASE}/imports/transactions/range?start=${startIso}&end=${endIso}`);
+      const res = await apiFetch(`${API_BASE}/imports/transactions/range?start=${startIso}&end=${endIso}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to load transactions');
       setTransactions(data.data || []);
@@ -193,7 +193,7 @@ export default function Calendar() {
   const loadOccurrences = useCallback(async () => {
     setSubLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/subscriptions/calendar?start=${encodeURIComponent(startIso)}&end=${encodeURIComponent(endIso)}`);
+      const res = await apiFetch(`${API_BASE}/subscriptions/calendar?start=${encodeURIComponent(startIso)}&end=${encodeURIComponent(endIso)}`);
       const data = await res.json();
       if (res.ok) setOccurrences(data.data || []);
     } catch {}
@@ -202,7 +202,7 @@ export default function Calendar() {
 
   const loadSubs = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/subscriptions`);
+      const res = await apiFetch(`${API_BASE}/subscriptions`);
       const data = await res.json();
       if (res.ok) setSubs(data.data || []);
     } catch {}
@@ -214,7 +214,7 @@ export default function Calendar() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/categories`);
+        const res = await apiFetch(`${API_BASE}/categories`);
         if (res.ok) { const d = await res.json(); setCategories(d.data || []); }
       } catch {}
     })();
@@ -317,7 +317,7 @@ export default function Calendar() {
     setSaving(true);
     try {
       const url = editingId ? `${API_BASE}/subscriptions/${editingId}` : `${API_BASE}/subscriptions`;
-      const res = await fetch(url, { method: editingId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const res = await apiFetch(url, { method: editingId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         let msg = 'Request failed';
@@ -334,7 +334,7 @@ export default function Calendar() {
   async function confirmDelete() {
     if (!deleteId) return;
     try {
-      const res = await fetch(`${API_BASE}/subscriptions/${deleteId}`, { method: 'DELETE' });
+      const res = await apiFetch(`${API_BASE}/subscriptions/${deleteId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Delete failed');
       setDeleteId(null); await loadOccurrences(); await loadSubs();
     } catch (e) { setStatus(e.message || 'Delete failed'); setDeleteId(null); }
@@ -345,12 +345,12 @@ export default function Calendar() {
       setCategoryStatusByTransaction((p) => ({ ...p, [transactionId]: 'Saving…' }));
       try {
         const res = categoryId
-          ? await fetch(`${API_BASE}/transactions/${transactionId}/category`, {
+          ? await apiFetch(`${API_BASE}/transactions/${transactionId}/category`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ categoryId: Number(categoryId) }),
           })
-          : await fetch(`${API_BASE}/transactions/${transactionId}/category`, { method: 'DELETE' });
+          : await apiFetch(`${API_BASE}/transactions/${transactionId}/category`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Failed to save category');
         const cat = categories.find((c) => String(c.id) === String(categoryId)) || null;
         setTransactions((prev) =>

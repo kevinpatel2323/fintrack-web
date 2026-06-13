@@ -10,7 +10,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { inr } from '../utils/inr.js';
 import { friendTint, initialsOf } from '../utils/categoryColors.js';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import { API_BASE, apiFetch } from '../services/http.js';
 
 export default function Friends() {
   const navigate = useNavigate();
@@ -40,7 +40,7 @@ export default function Friends() {
       setStatus('Loading…');
       try {
         const qParam = query ? `?q=${encodeURIComponent(query)}` : '';
-        const res = await fetch(`${API_BASE}/friends${qParam}`, { signal: ctrl.signal });
+        const res = await apiFetch(`${API_BASE}/friends${qParam}`, { signal: ctrl.signal });
         if (!res.ok) throw new Error('Failed to fetch friends');
         const data = await res.json();
         setFriends(data.data || []);
@@ -56,7 +56,7 @@ export default function Friends() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/dashboard/friend-balances`);
+        const res = await apiFetch(`${API_BASE}/dashboard/friend-balances`);
         if (res.ok) setBalances(await res.json());
       } catch {}
     })();
@@ -108,7 +108,7 @@ export default function Friends() {
     setFormStatus('Saving…');
     try {
       const url = editId ? `${API_BASE}/friends/${editId}` : `${API_BASE}/friends`;
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method: editId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -123,7 +123,7 @@ export default function Friends() {
       setCreateOpen(false);
       setEditId(null);
       setQuery((q) => q); // re-trigger fetch
-      const r = await fetch(`${API_BASE}/friends${query ? `?q=${encodeURIComponent(query)}` : ''}`);
+      const r = await apiFetch(`${API_BASE}/friends${query ? `?q=${encodeURIComponent(query)}` : ''}`);
       if (r.ok) setFriends((await r.json()).data || []);
     } catch (err) {
       setFormStatus(err.message || 'Save failed');
@@ -139,7 +139,7 @@ export default function Friends() {
       onConfirm: async () => {
         setConfirmState({ open: false });
         try {
-          const res = await fetch(`${API_BASE}/friends/${f.id}`, { method: 'DELETE' });
+          const res = await apiFetch(`${API_BASE}/friends/${f.id}`, { method: 'DELETE' });
           if (!res.ok) throw new Error('Delete failed');
           setFriends((prev) => prev.filter((x) => x.id !== f.id));
         } catch (err) {

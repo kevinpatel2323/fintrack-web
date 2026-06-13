@@ -10,7 +10,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { inr } from '../utils/inr.js';
 import './import-redesign.css';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+import { API_BASE, apiFetch } from '../services/http.js';
 
 function fmtDate(value) {
   if (!value) return '—';
@@ -59,7 +59,7 @@ export default function StatementImport() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/imports/accounts`);
+        const res = await apiFetch(`${API_BASE}/imports/accounts`);
         if (res.ok) {
           const data = await res.json();
           setAccounts(Array.isArray(data) ? data : (data?.data ?? []));
@@ -78,7 +78,7 @@ export default function StatementImport() {
       const url = acct
         ? `${API_BASE}/imports/last?accountNumber=${encodeURIComponent(acct)}`
         : `${API_BASE}/imports/last`;
-      const res = await fetch(url);
+      const res = await apiFetch(url);
       if (res.status === 404) { setLastImport(null); return; }
       if (res.ok) setLastImport(await res.json());
     } catch {}
@@ -88,7 +88,7 @@ export default function StatementImport() {
     setImportsLoading(true);
     setImportsError('');
     try {
-      const res = await fetch(`${API_BASE}/imports?page=1&limit=6`);
+      const res = await apiFetch(`${API_BASE}/imports?page=1&limit=6`);
       if (!res.ok) throw new Error('Failed to fetch imports');
       const data = await res.json();
       setImports(data.data || []);
@@ -104,7 +104,7 @@ export default function StatementImport() {
     try {
       const fd = new FormData();
       fd.append('statement', uploadFile);
-      const res = await fetch(`${API_BASE}/imports/hdfc/preview`, { method: 'POST', body: fd });
+      const res = await apiFetch(`${API_BASE}/imports/hdfc/preview`, { method: 'POST', body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Preview failed');
       setUploadPreview(data);
@@ -120,7 +120,7 @@ export default function StatementImport() {
     try {
       const fd = new FormData();
       fd.append('statement', uploadFile);
-      const res = await fetch(`${API_BASE}/imports/hdfc`, { method: 'POST', body: fd });
+      const res = await apiFetch(`${API_BASE}/imports/hdfc`, { method: 'POST', body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Import failed');
       setUploadResult(data);
@@ -173,7 +173,7 @@ export default function StatementImport() {
     setImportsStatus(`Reverting…`);
     setRevertingImportId(id);
     try {
-      const res = await fetch(`${API_BASE}/imports/${id}/revert`, { method: 'POST' });
+      const res = await apiFetch(`${API_BASE}/imports/${id}/revert`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error || 'Revert failed');
       setImportsStatus(`Reverted ${data.removedTransactions || 0} transactions.`);

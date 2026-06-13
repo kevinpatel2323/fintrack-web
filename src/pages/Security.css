@@ -1,0 +1,65 @@
+.sec-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.sec-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 6px;
+  border-top: 1px solid var(--ft-border);
+}
+
+.sec-row:first-child {
+  border-top: 0;
+}
+
+.sec-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: var(--ft-surface-2);
+  color: var(--ft-text-dim);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sec-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.sec-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14.5px;
+  font-weight: 550;
+  color: var(--ft-text);
+}
+
+.sec-sub {
+  font-size: 12px;
+  color: var(--ft-text-dim);
+  margin-top: 2px;
+}
+
+.sec-badge {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--ft-income);
+  background: var(--ft-income-soft);
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.sec-empty {
+  color: var(--ft-text-dim);
+  font-size: 13px;
+  padding: 8px 0;
+}
