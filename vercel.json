@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://fintrack-api-alpha.vercel.app/:path*"
+      "destination": "https://fintrack-api-dev.vercel.app/:path*"
     },
     {
       "source": "/((?!api/).*)",
