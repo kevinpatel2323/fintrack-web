@@ -1,5 +1,10 @@
 import { jsPDF } from 'jspdf';
-import { LEDGER_OWNER_NAME, ledgerDirectionPhrase } from './ledgerParties';
+import {
+  LEDGER_OWNER_NAME,
+  ledgerDirectionPhrase,
+  ledgerRowAmount,
+  ledgerRunningBalances,
+} from './ledgerParties';
 
 const MARGIN = 40;
 const TABLE_FONT = 8;
@@ -27,6 +32,22 @@ function balanceImpactPdf(direction, amount) {
   if (direction === 'I_OWE') return `-Rs.${formatNumberPdf(amount)}`;
   if (direction === 'SETTLEMENT') return 'Settled';
   return '-';
+}
+
+// + entries (money owed to the owner) render red; - entries (owner owes) render green.
+const IMPACT_POS_COLOR = [190, 18, 60];
+const IMPACT_NEG_COLOR = [21, 128, 61];
+const IMPACT_SETTLED_COLOR = [161, 98, 7];
+
+function balanceImpactColorPdf(direction) {
+  if (direction === 'OWES_ME') return IMPACT_POS_COLOR;
+  if (direction === 'I_OWE') return IMPACT_NEG_COLOR;
+  if (direction === 'SETTLEMENT') return IMPACT_SETTLED_COLOR;
+  return null;
+}
+
+function formatRunningBalancePdf(value) {
+  return value < 0 ? `-Rs.${formatNumberPdf(Math.abs(value))}` : `Rs.${formatNumberPdf(value)}`;
 }
 
 function formatNumberPdf(value) {
@@ -64,8 +85,9 @@ export function buildLedgerPdf({
   const contentW = pageW - MARGIN * 2;
   const bottomLimit = pageH - MARGIN - FOOTER_H;
 
-  const rawWidths = [24, 58, 86, 158, 56, 92, 54, 54, 136];
+  const rawWidths = [24, 58, 86, 158, 56, 92, 54, 54, 64, 116];
   const colW = scaleWidthsToTotal(rawWidths, contentW);
+  const IMPACT_COL = 7;
 
   const headers = [
     '#',
@@ -76,6 +98,7 @@ export function buildLedgerPdf({
     'Direction',
     'Amount (Rs.)',
     'Balance impact',
+    'Running balance',
     'Note',
   ];
 
@@ -171,7 +194,7 @@ export function buildLedgerPdf({
     return y + rowH;
   }
 
-  function rowCells(tag, index) {
+  function rowCells(tag, index, runningBalance) {
     const t = tag.transaction || {};
     const name = t.upiName || '-';
     const desc = t.upiDescription || t.narration || '-';
@@ -183,13 +206,14 @@ export function buildLedgerPdf({
       cellStr(desc),
       cellStr(bank),
       cellStr(ledgerDirectionPhrase(tag.direction, friendName)),
-      `Rs.${formatNumberPdf(tag.amount)}`,
+      `Rs.${formatNumberPdf(ledgerRowAmount(tag))}`,
       balanceImpactPdf(tag.direction, tag.amount),
+      formatRunningBalancePdf(runningBalance),
       cellStr(tag.note || '-'),
     ];
   }
 
-  function drawDataRow(y, cells) {
+  function drawDataRow(y, cells, impactColor) {
     const pad = 4;
     const lineBundles = cells.map((c, i) => pdf.splitTextToSize(c, colW[i] - pad * 2));
     const linesPerCell = lineBundles.map((l) => l.length);
@@ -199,11 +223,12 @@ export function buildLedgerPdf({
     pdf.setDrawColor(220, 224, 230);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(TABLE_FONT);
-    pdf.setTextColor(12, 25, 41);
 
     let cx = MARGIN;
     for (let i = 0; i < cells.length; i++) {
       pdf.rect(cx, y, colW[i], rowH, 'S');
+      const color = i === IMPACT_COL && impactColor ? impactColor : [12, 25, 41];
+      pdf.setTextColor(...color);
       const lines = lineBundles[i];
       const tx = cx + pad;
       let ly = y + pad + TABLE_LINE - 2;
@@ -275,11 +300,13 @@ export function buildLedgerPdf({
     return tableTop + tableH + 16;
   }
 
+  const runningBalances = ledgerRunningBalances(tags);
+
   let y = drawPageHeader(true);
   y = drawTableHeaderRow(y);
 
   for (let i = 0; i < tags.length; i++) {
-    const cells = rowCells(tags[i], i);
+    const cells = rowCells(tags[i], i, runningBalances[i]);
     const pad = 4;
     const lineBundles = cells.map((c, j) => pdf.splitTextToSize(c, colW[j] - pad * 2));
     const maxL = Math.max(...lineBundles.map((l) => l.length), 1);
@@ -291,7 +318,7 @@ export function buildLedgerPdf({
       y = drawTableHeaderRow(y);
     }
 
-    y = drawDataRow(y, cells);
+    y = drawDataRow(y, cells, balanceImpactColorPdf(tags[i].direction));
   }
 
   y += 16;

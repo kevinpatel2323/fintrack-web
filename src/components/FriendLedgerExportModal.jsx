@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { buildLedgerPdf } from '../utils/ledgerPdf';
-import { LEDGER_OWNER_NAME, ledgerDirectionPhrase } from '../utils/ledgerParties';
+import {
+  LEDGER_OWNER_NAME,
+  ledgerDirectionPhrase,
+  ledgerRowAmount,
+  ledgerRunningBalances,
+} from '../utils/ledgerParties';
 import './FriendLedgerExportModal.css';
 
 import { API_BASE, apiFetch } from '../services/http.js';
@@ -40,6 +45,10 @@ function rowClass(direction) {
   if (direction === 'I_OWE') return 'ledger-row--owe';
   if (direction === 'SETTLEMENT') return 'ledger-row--settlement';
   return 'ledger-row--neutral';
+}
+
+function formatRunningBalance(value) {
+  return value < 0 ? `-Rs.${formatNumberIn(Math.abs(value))}` : `Rs.${formatNumberIn(value)}`;
 }
 
 function balanceImpactCell(direction, amount) {
@@ -162,6 +171,8 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
     );
   }
 
+  const runningBalances = ledgerRunningBalances(tags);
+
   return (
     <div className="ledger-sheet-outer">
       <div className="ledger-sheet">
@@ -179,6 +190,7 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
                   <th>Direction</th>
                   <th className="num">Amount (Rs.)</th>
                   <th className="num">Balance impact</th>
+                  <th className="num">Running balance</th>
                   <th>Note</th>
                 </tr>
               </thead>
@@ -201,8 +213,9 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
                           {ledgerDirectionPhrase(tag.direction, friendName)}
                         </span>
                       </td>
-                      <td className="num ledger-table__amount">Rs.{formatNumberIn(tag.amount)}</td>
+                      <td className="num ledger-table__amount">Rs.{formatNumberIn(ledgerRowAmount(tag))}</td>
                       <td className={`num ${impact.className}`}>{impact.text}</td>
+                      <td className="num ledger-table__running">{formatRunningBalance(runningBalances[i])}</td>
                       <td>{tag.note || '—'}</td>
                     </tr>
                   );
@@ -477,7 +490,7 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
                           </td>
                           <td>{formatDateLedger(t.transactionDate)}</td>
                           <td>{ledgerDirectionPhrase(tag.direction, friend.name)}</td>
-                          <td className="num">₹{formatNumberIn(tag.amount)}</td>
+                          <td className="num">₹{formatNumberIn(ledgerRowAmount(tag))}</td>
                           <td>{t.upiDescription || t.narration || '—'}</td>
                         </tr>
                       );

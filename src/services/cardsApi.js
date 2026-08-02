@@ -1,10 +1,6 @@
 import { API_BASE, apiFetch } from './http.js';
 
-async function request(path, options = {}) {
-  const response = await apiFetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    ...options,
-  });
+async function handle(response) {
   if (!response.ok) {
     let detail;
     try {
@@ -20,6 +16,23 @@ async function request(path, options = {}) {
   }
   if (response.status === 204) return null;
   return response.json();
+}
+
+async function request(path, options = {}) {
+  const response = await apiFetch(`${API_BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    ...options,
+  });
+  return handle(response);
+}
+
+// Multipart upload — must NOT set Content-Type so the browser adds the
+// multipart boundary itself.
+async function upload(path, file) {
+  const form = new FormData();
+  form.append('statement', file);
+  const response = await apiFetch(`${API_BASE}${path}`, { method: 'POST', body: form });
+  return handle(response);
 }
 
 // ── Wallet & Dues ──────────────────────────────────────────────────────
@@ -48,9 +61,12 @@ export const listCardTransactions = (id, opts = {}) => {
   if (opts.start) params.set('start', opts.start);
   if (opts.end) params.set('end', opts.end);
   if (opts.statementId) params.set('statementId', opts.statementId);
+  if (opts.unpaid) params.set('unpaid', 'true');
   const qs = params.toString();
   return request(`/cards/${id}/transactions${qs ? `?${qs}` : ''}`);
 };
+export const listUnpaidCardTransactions = (id) =>
+  listCardTransactions(id, { unpaid: true });
 export const createCardTransaction = (id, data) =>
   request(`/cards/${id}/transactions`, { method: 'POST', body: JSON.stringify(data) });
 export const updateCardTransaction = (txnId, data) =>
@@ -75,6 +91,25 @@ export const deleteCardStatement = (statementId) =>
   request(`/cards/statements/${statementId}`, { method: 'DELETE' });
 export const fetchStatementBreakdown = (statementId) =>
   request(`/cards/statements/${statementId}/breakdown`);
+
+// ── CC statement imports ───────────────────────────────────────────────
+export const previewCcStatement = (cardId, file) =>
+  upload(`/cards/${cardId}/imports/hdfc-cc/preview`, file);
+export const importCcStatement = (cardId, file) =>
+  upload(`/cards/${cardId}/imports/hdfc-cc`, file);
+export const listCardImports = (cardId) => request(`/cards/${cardId}/imports`);
+export const revertCardImport = (importId) =>
+  request(`/cards/imports/${importId}/revert`, { method: 'POST' });
+
+// ── CC bill-payment linking (bank transaction ↔ card transactions) ──────
+export const getCcLink = (txId) => request(`/transactions/${txId}/cc-link`);
+export const linkCcBillPayment = (txId, cardId, cardTransactionIds) =>
+  request(`/transactions/${txId}/cc-link`, {
+    method: 'POST',
+    body: JSON.stringify({ cardId, cardTransactionIds }),
+  });
+export const unlinkCcBillPayment = (txId) =>
+  request(`/transactions/${txId}/cc-link`, { method: 'DELETE' });
 
 // ── Card palettes (visual themes shared with the UI) ───────────────────
 export const CARD_PALETTES = {

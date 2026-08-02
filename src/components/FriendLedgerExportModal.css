@@ -489,13 +489,18 @@
 }
 
 .ledger-impact--pos {
-  color: #15803d;
+  color: #be123c;
   font-weight: 600;
 }
 
 .ledger-impact--neg {
-  color: #be123c;
+  color: #15803d;
   font-weight: 600;
+}
+
+.ledger-table__running {
+  font-weight: 600;
+  color: #1e293b;
 }
 
 .ledger-impact--settled {
