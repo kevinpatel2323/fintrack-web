@@ -260,19 +260,30 @@
 /* ── Day detail rows ── */
 
 .cal-day-tx-row {
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
   width: 100%;
   border-top: 1px solid var(--ft-border);
-  padding: 12px 18px;
   color: inherit;
   font-family: inherit;
   transition: background 0.1s;
 }
 .cal-day-tx-row:first-child { border-top: 0; }
 .cal-day-tx-row:hover { background: var(--ft-surface-2); }
+.cal-day-tx-row.is-cc-open { background: var(--ft-surface-2); }
+
+.cal-day-tx-row__head {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+}
+/* Primary content owns the middle; expand sits in its own trailing column so
+   category chips never collide with the chevron. */
+.cal-day-tx-row__head.has-disclosure {
+  grid-template-columns: 38px minmax(0, 1fr) 36px;
+  gap: 10px;
+  padding-right: 12px;
+}
 
 .cal-day-tx-row__cat-pick {
   position: relative;
@@ -292,6 +303,57 @@
   height: 100%;
   cursor: pointer;
   font-size: 16px;
+}
+
+.cal-day-tx-row__disclosure {
+  background: var(--ft-surface-3);
+  border: 1px solid var(--ft-border-s);
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ft-text-dim);
+  cursor: pointer;
+  flex-shrink: 0;
+  align-self: center;
+  justify-self: end;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.cal-day-tx-row__disclosure svg {
+  display: block;
+  transition: transform 0.18s ease;
+}
+.cal-day-tx-row__disclosure:hover {
+  background: var(--ft-surface-2);
+  color: var(--ft-text);
+  border-color: var(--ft-border-s);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+.cal-day-tx-row__disclosure:focus-visible {
+  outline: 2px solid var(--ft-accent);
+  outline-offset: 1px;
+}
+.cal-day-tx-row__disclosure.is-open {
+  background: var(--ft-accent-soft);
+  border-color: rgba(215, 255, 61, 0.28);
+  color: var(--ft-accent);
+}
+.cal-day-tx-row__disclosure.is-open svg {
+  transform: rotate(90deg);
+}
+.cal-day-tx-row__disclosure.is-open:hover {
+  background: rgba(215, 255, 61, 0.18);
+  color: var(--ft-accent);
+  border-color: rgba(215, 255, 61, 0.4);
 }
 
 .cal-day-tx-row__nav {
@@ -328,6 +390,26 @@
   text-overflow: ellipsis;
 }
 
+.cal-day-tx-row__cc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--ft-surface-3);
+  color: var(--ft-text-dim);
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  vertical-align: middle;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.cal-day-tx-row.is-cc-open .cal-day-tx-row__cc-badge {
+  background: var(--ft-accent-soft);
+  color: var(--ft-accent-dim);
+}
+
 .cal-day-tx-row__sub {
   margin-top: 2px;
   color: var(--ft-text-dim);
@@ -344,6 +426,8 @@
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 6px;
+  min-width: 0;
+  max-width: 100%;
   color: var(--ft-text-dim);
   font-size: 11.5px;
   line-height: 1.2;
@@ -372,14 +456,85 @@
   white-space: nowrap;
 }
 
+.cal-day-tx-row__children {
+  /* The nested rows draw their own rule at this left edge, so line it up with
+     the centre of the parent's category glyph (18px pad + half of 38px) and
+     the tree reads as descending from it. Indenting all the way to the parent's
+     text column would leave too little room for the child's own glyph + text. */
+  padding: 2px 18px 10px 36px;
+  background: var(--ft-surface-2);
+}
+
+.cal-day-tx-row__child-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  border-left: 1px solid var(--ft-border);
+  padding-left: 12px;
+}
+
+.cal-day-tx-row__child-date {
+  flex-shrink: 0;
+  width: 64px;
+  font-family: var(--ft-font-mono);
+  font-size: 11.5px;
+  color: var(--ft-text-faint);
+}
+
+.cal-day-tx-row__child-merchant {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--ft-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-day-tx-row__child-amount {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.cal-day-tx-row__child-note {
+  display: block;
+  padding: 4px 0 6px 12px;
+  border-left: 1px solid var(--ft-border);
+  font-size: 12.5px;
+  color: var(--ft-text-faint);
+}
+
+.cal-day-tx-row__remainder {
+  border-top: 1px dashed var(--ft-border);
+  margin-top: 2px;
+}
+.cal-day-tx-row__remainder .cal-day-tx-row__child-merchant {
+  font-style: italic;
+}
+
 @media (max-width: 720px) {
-  .cal-day-tx-row {
-    grid-template-columns: 38px minmax(0, 1fr) auto;
+  .cal-day-tx-row__head {
     padding: 11px 16px;
   }
-
+  .cal-day-tx-row__head.has-disclosure {
+    grid-template-columns: 38px minmax(0, 1fr) 40px;
+    gap: 8px;
+    padding-right: 10px;
+  }
+  .cal-day-tx-row__disclosure {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 10px;
+  }
   .cal-day-tx-row__meta {
     margin-top: 5px;
+  }
+  .cal-day-tx-row__children {
+    /* 16px pad + half of the 38px glyph. */
+    padding: 2px 14px 10px 34px;
   }
 }
 

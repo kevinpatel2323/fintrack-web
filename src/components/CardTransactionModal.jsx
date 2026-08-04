@@ -2,17 +2,31 @@ import { useEffect, useState } from 'react';
 import Portal from './Portal.jsx';
 import { GhostBtn, Overline, PrimaryBtn } from './ui/primitives.jsx';
 import { IcClose } from './ui/Icon.jsx';
-import { createCardTransaction } from '../services/cardsApi.js';
+import { createCardTransaction, updateCardTransaction } from '../services/cardsApi.js';
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-export default function CardTransactionModal({ cardId, statementId = null, categories = [], onClose, onSaved }) {
-  const [merchant, setMerchant] = useState('');
-  const [amount, setAmount] = useState('');
-  const [txnDate, setTxnDate] = useState(todayIso());
-  const [categoryId, setCategoryId] = useState('');
-  const [isRefund, setIsRefund] = useState(false);
-  const [notes, setNotes] = useState('');
+/**
+ * Add or edit a card transaction. Pass `initial` (an existing card
+ * transaction) to switch the modal into edit mode.
+ */
+export default function CardTransactionModal({
+  cardId,
+  statementId = null,
+  categories = [],
+  initial = null,
+  onClose,
+  onSaved,
+}) {
+  const isEdit = Boolean(initial);
+  const [merchant, setMerchant] = useState(initial?.merchant ?? '');
+  const [amount, setAmount] = useState(initial ? String(initial.amount ?? '') : '');
+  const [txnDate, setTxnDate] = useState(initial?.txnDate ?? todayIso());
+  const [categoryId, setCategoryId] = useState(
+    initial?.categoryId != null ? String(initial.categoryId) : '',
+  );
+  const [isRefund, setIsRefund] = useState(Boolean(initial?.isRefund));
+  const [notes, setNotes] = useState(initial?.notes ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -31,13 +45,19 @@ export default function CardTransactionModal({ cardId, statementId = null, categ
         txnDate,
         isRefund,
         notes: notes.trim() || null,
+        // An edit must be able to clear the category, so send null rather
+        // than omitting the key.
+        categoryId: categoryId || null,
       };
-      if (categoryId) payload.categoryId = categoryId;
-      if (statementId) payload.statementId = statementId;
-      const saved = await createCardTransaction(cardId, payload);
+      const saved = isEdit
+        ? await updateCardTransaction(initial.id, payload)
+        : await createCardTransaction(cardId, {
+            ...payload,
+            ...(statementId ? { statementId } : {}),
+          });
       onSaved?.(saved);
     } catch (err) {
-      setError(err.message || 'Failed to add transaction');
+      setError(err.message || `Failed to ${isEdit ? 'update' : 'add'} transaction`);
     } finally {
       setSubmitting(false);
     }
@@ -85,7 +105,9 @@ export default function CardTransactionModal({ cardId, statementId = null, categ
           >
             <div>
               <Overline>Card transaction</Overline>
-              <h2 style={{ margin: '2px 0 0', fontSize: 18, fontWeight: 600 }}>Add transaction</h2>
+              <h2 style={{ margin: '2px 0 0', fontSize: 18, fontWeight: 600 }}>
+                {isEdit ? 'Edit transaction' : 'Add transaction'}
+              </h2>
             </div>
             <button
               type="button"
@@ -158,7 +180,7 @@ export default function CardTransactionModal({ cardId, statementId = null, categ
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <GhostBtn onClick={onClose} type="button">Cancel</GhostBtn>
               <PrimaryBtn type="submit" disabled={submitting}>
-                {submitting ? 'Saving…' : 'Add transaction'}
+                {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Add transaction'}
               </PrimaryBtn>
             </div>
           </form>

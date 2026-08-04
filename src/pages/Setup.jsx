@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { IcLogo } from '../components/ui/Icon.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -12,7 +12,7 @@ import './Setup.css';
 // First-time enrollment requires the SETUP_TOKEN break-glass. The same page is
 // reused (without a token) by an authenticated user adding another device.
 export default function Setup() {
-  const { status, refresh } = useAuth();
+  const { status, authDisabled, refresh } = useAuth();
   const navigate = useNavigate();
   const authed = status === 'authenticated';
 
@@ -21,6 +21,10 @@ export default function Setup() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const supported = browserSupportsWebAuthn();
+
+  useEffect(() => {
+    if (authDisabled) navigate('/', { replace: true });
+  }, [authDisabled, navigate]);
 
   async function enroll(e) {
     e.preventDefault();

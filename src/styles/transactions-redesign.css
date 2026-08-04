@@ -264,6 +264,178 @@
 }
 .txn-row:hover { background: var(--ft-surface-2); }
 
+/* ── Credit-card bill payments and their nested transactions ───────────── */
+
+.txn-row__disclosure {
+  background: var(--ft-surface-3);
+  border: 1px solid var(--ft-border-s);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  flex-shrink: 0;
+  margin-left: -2px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ft-text-dim);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.txn-row__disclosure svg {
+  display: block;
+  transition: transform 0.18s ease;
+}
+.txn-row__disclosure:hover {
+  background: var(--ft-surface-2);
+  color: var(--ft-text);
+  border-color: var(--ft-border-s);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+.txn-row__disclosure:focus-visible {
+  outline: 2px solid var(--ft-accent);
+  outline-offset: 1px;
+}
+.txn-row__disclosure.is-open {
+  background: var(--ft-accent-soft);
+  border-color: rgba(215, 255, 61, 0.28);
+  color: var(--ft-accent);
+}
+.txn-row__disclosure.is-open svg {
+  transform: rotate(90deg);
+}
+.txn-row__disclosure.is-open:hover {
+  background: rgba(215, 255, 61, 0.18);
+  color: var(--ft-accent);
+  border-color: rgba(215, 255, 61, 0.4);
+}
+
+.txn-row.is-cc-open { background: var(--ft-surface-2); }
+.txn-row.is-cc-open .txn-row__cc-badge {
+  background: var(--ft-accent-soft);
+  color: var(--ft-accent-dim);
+}
+
+.txn-row__cc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--ft-surface-3);
+  color: var(--ft-text-dim);
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  vertical-align: middle;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+/* Nested rows stay on the parent's column grid but read as subordinate:
+   tinted, rule down the left, and the description cell indented. */
+.txn-row--nested > td {
+  background: var(--ft-surface-2);
+  border-top: 0;
+}
+.txn-row--nested:hover > td { background: var(--ft-surface-3); }
+.txn-row--nested > td:first-child {
+  padding-left: 30px !important;
+  position: relative;
+}
+.txn-row--nested > td:first-child::before {
+  content: '';
+  position: absolute;
+  left: 18px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--ft-border);
+}
+/* The rule stops halfway down the final child so the tree terminates.
+   Marked from JS: every row here is a <tr>, so :last-of-type would match the
+   last row of the whole table, not the last nested one. */
+.txn-row--nested.is-last > td:first-child::before { bottom: 50%; }
+.txn-row--nested > td:first-child::after {
+  content: '';
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  width: 7px;
+  height: 1px;
+  background: var(--ft-border);
+}
+.txn-row--nested .txn-row__title { font-weight: 450; }
+
+/* Children read as subordinate: indented, quieter, and not clickable. */
+.txn-row__child { cursor: default; }
+.txn-row__child > td {
+  padding: 0 16px 0 52px !important;
+  background: var(--ft-surface-2);
+  border-top: 0;
+}
+.txn-row__child:last-of-type > td { padding-bottom: 6px !important; }
+
+.txn-row__child-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  border-left: 1px solid var(--ft-border);
+  padding-left: 12px;
+}
+
+.txn-row__child-date {
+  flex-shrink: 0;
+  width: 78px;
+  font-family: var(--ft-font-mono);
+  font-size: 11.5px;
+  color: var(--ft-text-faint);
+}
+
+.txn-row__child-merchant {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--ft-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.txn-row__child-amount { flex-shrink: 0; text-align: right; }
+
+.txn-row__child-refund {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: var(--ft-income-soft);
+  color: var(--ft-income);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.txn-row__child-note {
+  display: block;
+  padding: 8px 0 10px 12px;
+  border-left: 1px solid var(--ft-border);
+  font-size: 12.5px;
+  color: var(--ft-text-faint);
+}
+
+.txn-row__remainder .txn-row__child-merchant { font-style: italic; }
+/* Its left rule continues the nested rows' tree, so it starts where they do
+   rather than at the deeper indent the standalone notes use. */
+.txn-row__remainder > td { padding-left: 18px !important; }
+.txn-row__remainder .txn-row__child-line {
+  border-top: 1px dashed var(--ft-border);
+  margin-top: 2px;
+}
+
 .txn-row__menu {
   background: transparent;
   border: 0;
@@ -599,6 +771,55 @@
   text-overflow: ellipsis;
 }
 
+.txn-mobile-row__title {
+  color: var(--ft-text);
+  font-weight: 500;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.txn-mobile-row__meta-date,
+.txn-mobile-row__meta-trailing {
+  flex-shrink: 0;
+  font-family: var(--ft-font-mono);
+  font-size: 11px;
+  color: var(--ft-text-faint);
+}
+
+/* Nested rows: subordinate to the row above, with a tree rule down the left. */
+.txn-mobile-row--nested {
+  position: relative;
+  gap: 10px;
+  padding: 7px 4px 7px 14px;
+  border-top: 0;
+}
+.txn-mobile-row--nested::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--ft-border);
+}
+.txn-mobile-row--nested.is-last::before { bottom: 50%; }
+.txn-mobile-row--nested::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 8px;
+  height: 1px;
+  background: var(--ft-border);
+}
+.txn-mobile-row--nested .txn-mobile-row__title {
+  font-size: 13px;
+  font-weight: 450;
+}
+.txn-mobile-row--nested .txn-mobile-row__meta { font-size: 11.5px; }
+
 .txn-mobile-row__amount {
   margin-left: auto;
   text-align: right;
@@ -607,3 +828,43 @@
 
 /* Sort header hover */
 .txn-table thead th:hover { color: var(--ft-text); background: var(--ft-surface-3); }
+
+/* ====================== Mobile refinements ====================== */
+
+/* Meta line: the date/badge/account chips hold their size, the free text
+   ellipsises, and nothing escapes the row. */
+.txn-mobile-row__meta { overflow: hidden; }
+.txn-mobile-row__meta > .txn-row__cc-badge { flex-shrink: 0; }
+.txn-mobile-row__meta-copy { flex: 1 1 auto; }
+
+/* Filter control in a ledger toolbar: right-aligned beside the search on wide
+   screens, full width once it wraps onto its own line. */
+.txn-toolbar__filter { margin-left: auto; }
+
+@media (max-width: 720px) {
+  /* iOS zooms the page when a focused control is under 16px. */
+  .txn-search input { font-size: 16px; }
+
+  .txn-toolbar { gap: 10px; }
+  .txn-toolbar__filter {
+    margin-left: 0;
+    width: 100%;
+  }
+  .txn-search--wide { max-width: none; }
+
+  /* Nested rows sit closer in: the rule and tint already carry the hierarchy,
+     and the text column is the scarce resource on a phone. */
+  .txn-mobile-row--nested { padding-left: 12px; }
+  .txn-mobile-row--nested::after { width: 6px; }
+}
+
+/* Touch: grow the category tap target past the glyph without moving it.
+   Pointer-precise devices keep the tight hit area. */
+@media (pointer: coarse) {
+  .txn-mobile-row__cat-pick { overflow: visible; }
+  .txn-mobile-row__cat-pick .txn-mobile-cat-select {
+    inset: -7px;
+    width: auto;
+    height: auto;
+  }
+}

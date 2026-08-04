@@ -29,7 +29,7 @@ function fmtDate(value) {
 export default function Security() {
   const isMobile = useMediaQuery('(max-width: 720px)');
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, authDisabled } = useAuth();
 
   const [credentials, setCredentials] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -49,8 +49,12 @@ export default function Security() {
   }, []);
 
   useEffect(() => {
+    if (authDisabled) {
+      navigate('/', { replace: true });
+      return;
+    }
     load();
-  }, [load]);
+  }, [authDisabled, load, navigate]);
 
   function askDelete(cred) {
     setConfirmState({

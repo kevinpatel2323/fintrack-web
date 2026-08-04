@@ -12,6 +12,14 @@ describe('authSession', () => {
     expect(initialAuthState).toEqual({ status: 'loading', expiresAt: null });
   });
 
+  it('maps an auth-disabled session response', () => {
+    expect(fromSession({ authenticated: true, authDisabled: true })).toEqual({
+      status: 'authenticated',
+      expiresAt: null,
+      authDisabled: true,
+    });
+  });
+
   it('maps an authenticated session response', () => {
     expect(
       fromSession({ authenticated: true, expiresAt: '2099-01-01T00:00:00Z' }),

@@ -191,7 +191,17 @@ export default function StatementImport() {
   const period = uploadPreview?.periodStart && uploadPreview?.periodEnd
     ? `${fmtShortDate(uploadPreview.periodStart)} – ${fmtShortDate(uploadPreview.periodEnd)}`
     : '—';
-  const lastFour = uploadPreview?.accountNumber?.slice(-4) || '';
+  // The API detects whether the upload is a bank or credit card statement and
+  // resolves the target itself, so the label follows whatever came back.
+  const isCardStatement = uploadPreview?.kind === 'card';
+  const lastFour = (isCardStatement
+    ? uploadPreview?.card?.last4
+    : uploadPreview?.accountNumber?.slice(-4)) || '';
+  const destination = !uploadPreview
+    ? ''
+    : isCardStatement
+      ? `${uploadPreview.card?.nickname || uploadPreview.card?.name || 'Card'} · •••• ${lastFour}`
+      : `HDFC Bank · Acct •••• ${lastFour}`;
 
   const STEPS = [
     { label: 'Upload file',      done: step > 1, active: step === 1 },
@@ -209,7 +219,7 @@ export default function StatementImport() {
       isUploading={isUploading}
       isDragging={isDragging}
       previewRows={previewRows}
-      net={net} debits={debits} credits={credits} period={period} lastFour={lastFour}
+      net={net} debits={debits} credits={credits} period={period} lastFour={lastFour} destination={destination}
       imports={imports} importsLoading={importsLoading} importsError={importsError} importsStatus={importsStatus}
       revertingImportId={revertingImportId}
       lastImport={lastImport}
@@ -291,7 +301,7 @@ export default function StatementImport() {
               <FileInfoRow
                 uploadFile={uploadFile}
                 uploadPreview={uploadPreview}
-                lastFour={lastFour}
+                destination={destination}
                 onRemove={resetUpload}
               />
               <div style={{ padding: '14px 22px', borderTop: '1px solid var(--ft-border)', display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -308,7 +318,7 @@ export default function StatementImport() {
               <FileInfoRow
                 uploadFile={uploadFile}
                 uploadPreview={uploadPreview}
-                lastFour={lastFour}
+                destination={destination}
                 onRemove={resetUpload}
               />
 
@@ -408,7 +418,7 @@ export default function StatementImport() {
           {/* Success banner */}
           {uploadResult && (
             <div style={{ padding: '12px 14px', background: 'var(--ft-income-soft)', color: 'var(--ft-income)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500 }}>
-              <IcCheck size={16} /> Imported {uploadResult.insertedCount ?? uploadResult.added ?? '?'} transactions
+              <IcCheck size={16} /> Imported {uploadResult.insertedCount ?? uploadResult.added ?? uploadResult.insertedRows ?? '?'} transactions{uploadResult.card ? ` to ${uploadResult.card.nickname || uploadResult.card.name}` : ''}
             </div>
           )}
         </div>
@@ -434,7 +444,7 @@ export default function StatementImport() {
 
 function MobileView({
   step, uploadFile, uploadPreview, uploadStatus, uploadResult, isUploading,
-  isDragging, previewRows, net, debits, credits, period, lastFour,
+  isDragging, previewRows, net, debits, credits, period, lastFour, destination,
   imports, importsLoading, importsError, importsStatus, revertingImportId,
   lastImport, accounts, selectedAccount, onAccountChange,
   confirmState, STEPS, onFileInput, onPreview, onUpload, onReset, onRevert, onRefresh,
@@ -508,7 +518,7 @@ function MobileView({
                 </div>
                 <div style={{ color: 'var(--ft-text-dim)', fontSize: 12, marginTop: 2 }}>
                   {uploadPreview
-                    ? `HDFC · •••• ${lastFour} · ${period}`
+                    ? `${destination} · ${period}`
                     : `${((uploadFile?.size || 0) / 1024).toFixed(1)} KB`}
                 </div>
               </div>
@@ -578,7 +588,7 @@ function MobileView({
         {uploadStatus && <p className="status" style={{ textAlign: 'center' }}>{uploadStatus}</p>}
         {uploadResult && (
           <div style={{ padding: '12px 14px', background: 'var(--ft-income-soft)', color: 'var(--ft-income)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500 }}>
-            <IcCheck size={16} /> Imported {uploadResult.insertedCount ?? uploadResult.added ?? '?'} transactions
+            <IcCheck size={16} /> Imported {uploadResult.insertedCount ?? uploadResult.added ?? uploadResult.insertedRows ?? '?'} transactions{uploadResult.card ? ` to ${uploadResult.card.nickname || uploadResult.card.name}` : ''}
           </div>
         )}
 
@@ -618,7 +628,7 @@ function MobileView({
 
 // ── Shared sub-components ────────────────────────────────────────────────────
 
-function FileInfoRow({ uploadFile, uploadPreview, lastFour, onRemove }) {
+function FileInfoRow({ uploadFile, uploadPreview, destination, onRemove }) {
   return (
     <div style={{ padding: '14px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
       <div className="imp-xlsx-icon">XLSX</div>
@@ -628,7 +638,7 @@ function FileInfoRow({ uploadFile, uploadPreview, lastFour, onRemove }) {
         </div>
         <div style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, marginTop: 2 }}>
           {uploadPreview
-            ? `HDFC Bank · Acct •••• ${lastFour} · ${uploadPreview.totalParsed} detected · ${uploadPreview.skippedRows} duplicates skipped`
+            ? `${destination} · ${uploadPreview.totalParsed} detected · ${uploadPreview.skippedRows} duplicates skipped`
             : `${((uploadFile?.size || 0) / 1024).toFixed(1)} KB · Ready to preview`}
         </div>
       </div>

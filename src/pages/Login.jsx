@@ -6,16 +6,16 @@ import { browserSupportsWebAuthn, loginWithPasskey } from '../services/authApi.j
 import './Login.css';
 
 export default function Login() {
-  const { status, refresh } = useAuth();
+  const { status, authDisabled, refresh } = useAuth();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const supported = browserSupportsWebAuthn();
 
-  // Already signed in (e.g. opened /login directly) → go home.
+  // Auth disabled locally, or already signed in → go home.
   useEffect(() => {
-    if (status === 'authenticated') navigate('/', { replace: true });
-  }, [status, navigate]);
+    if (authDisabled || status === 'authenticated') navigate('/', { replace: true });
+  }, [authDisabled, status, navigate]);
 
   async function signIn() {
     setBusy(true);

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import Portal from '../components/Portal.jsx';
 import {
-  Card, Num, Pill, Avatar, PrimaryBtn, GhostBtn, Overline, SectionTitle, HeroAmount,
+  Card, Num, Pill, Avatar, PrimaryBtn, GhostBtn, Overline, HeroAmount,
 } from '../components/ui/primitives.jsx';
 import { IcPlus, IcSearch, IcEdit, IcTrash, IcChevR } from '../components/ui/Icon.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
@@ -11,6 +11,14 @@ import { inr } from '../utils/inr.js';
 import { friendTint, initialsOf } from '../utils/categoryColors.js';
 
 import { API_BASE, apiFetch } from '../services/http.js';
+import './friends-redesign.css';
+
+const FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'owed', label: 'They owe' },
+  { id: 'owe', label: 'You owe' },
+  { id: 'settled', label: 'Settled' },
+];
 
 export default function Friends() {
   const navigate = useNavigate();
@@ -75,6 +83,19 @@ export default function Friends() {
     })),
     [friends, balanceByFriend],
   );
+
+  const counts = useMemo(() => {
+    let owed = 0;
+    let owe = 0;
+    let settled = 0;
+    for (const f of merged) {
+      const bal = Number(f.summary?.netBalance || 0);
+      if (Math.abs(bal) < 1) settled += 1;
+      else if (bal > 0) owed += 1;
+      else owe += 1;
+    }
+    return { all: merged.length, owed, owe, settled };
+  }, [merged]);
 
   const filtered = useMemo(() => {
     let list = merged;
@@ -220,114 +241,144 @@ export default function Friends() {
   );
 
   const balanceHero = (
-    <Card pad={18} style={{ marginBottom: 16 }}>
-      <Overline>Net balance</Overline>
-      <HeroAmount style={{ marginTop: 4 }} color={net >= 0 ? 'var(--ft-income)' : 'var(--ft-spend)'}>
-        {inr(net, { sign: true })}
-      </HeroAmount>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
-        <div style={{ background: 'var(--ft-income-soft)', padding: 12, borderRadius: 12 }}>
-          <Overline style={{ color: 'var(--ft-income)' }}>Owed to you</Overline>
-          <Num size={20} weight={600} color="var(--ft-income)" style={{ marginTop: 4 }}>{inr(owedToMe)}</Num>
+    <Card pad={18} className="friends-summary">
+      <div className="friends-summary__net">
+        <Overline>Net balance</Overline>
+        <HeroAmount color={net >= 0 ? 'var(--ft-income)' : 'var(--ft-spend)'}>
+          {inr(net, { sign: true })}
+        </HeroAmount>
+      </div>
+      <div className="friends-summary__split">
+        <div className="friends-summary__stat friends-summary__stat--owed">
+          <Overline style={{ color: 'var(--ft-income)', marginBottom: 4 }}>Owed to you</Overline>
+          <Num size={18} weight={600} color="var(--ft-income)">{inr(owedToMe)}</Num>
         </div>
-        <div style={{ background: 'var(--ft-spend-soft)', padding: 12, borderRadius: 12 }}>
-          <Overline style={{ color: 'var(--ft-spend)' }}>You owe</Overline>
-          <Num size={20} weight={600} color="var(--ft-spend)" style={{ marginTop: 4 }}>{inr(iOwe)}</Num>
+        <div className="friends-summary__stat friends-summary__stat--owe">
+          <Overline style={{ color: 'var(--ft-spend)', marginBottom: 4 }}>You owe</Overline>
+          <Num size={18} weight={600} color="var(--ft-spend)">{inr(iOwe)}</Num>
         </div>
       </div>
     </Card>
   );
 
+  const emptyCopy = (() => {
+    if (status === 'Loading…') return null;
+    if (query) {
+      return {
+        title: 'No matches',
+        sub: `Nothing found for “${query}”. Try another name.`,
+      };
+    }
+    if (filter === 'owed') return { title: 'No one owes you', sub: 'People who owe you will show up here.' };
+    if (filter === 'owe') return { title: 'You’re all clear', sub: 'Balances you owe will show up here.' };
+    if (filter === 'settled') return { title: 'No settled balances', sub: 'Friends at zero will show up here.' };
+    if (merged.length === 0) {
+      return {
+        title: 'No people yet',
+        sub: 'Add someone to start tracking shared expenses.',
+      };
+    }
+    return { title: 'No people match', sub: 'Try a different filter.' };
+  })();
+
   const list = (
-    <Card pad={14}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-        <div className="txn-search" style={{ flex: 1, maxWidth: '100%' }}>
+    <Card pad={16} className="friends-panel">
+      <div className="friends-toolbar">
+        <div className="txn-search">
           <IcSearch size={16} />
           <input
             type="search"
             placeholder="Search people"
             value={queryInput}
             onChange={(e) => setQueryInput(e.target.value)}
+            aria-label="Search people"
           />
         </div>
+        <div className="friends-filters" role="tablist" aria-label="Balance filters">
+          {FILTERS.map((f) => (
+            <Pill
+              key={f.id}
+              active={filter === f.id}
+              onClick={() => setFilter(f.id)}
+              className="friends-filter"
+              data-active={filter === f.id}
+              role="tab"
+              aria-selected={filter === f.id}
+            >
+              {f.label}
+              <span className="friends-filter__count">{counts[f.id]}</span>
+            </Pill>
+          ))}
+        </div>
       </div>
-      <div className="txn-pills" style={{ marginBottom: 12 }}>
-        <Pill active={filter === 'all'} onClick={() => setFilter('all')}>All</Pill>
-        <Pill active={filter === 'owed'} onClick={() => setFilter('owed')}>They owe</Pill>
-        <Pill active={filter === 'owe'} onClick={() => setFilter('owe')}>You owe</Pill>
-        <Pill active={filter === 'settled'} onClick={() => setFilter('settled')}>Settled</Pill>
-      </div>
-      {status && <p className="status">{status}</p>}
-      {filtered.length === 0 ? (
-        <p className="empty">No people match.</p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {filtered.map((f, i) => {
+
+      {status && <p className="friends-status">{status}</p>}
+
+      {!status && filtered.length === 0 && emptyCopy ? (
+        <div className="friends-empty">
+          <p className="friends-empty__title">{emptyCopy.title}</p>
+          <p className="friends-empty__sub">{emptyCopy.sub}</p>
+          {merged.length === 0 && !query && (
+            <PrimaryBtn onClick={openCreate} style={{ marginTop: 8 }}>
+              <IcPlus size={14} /> Add person
+            </PrimaryBtn>
+          )}
+        </div>
+      ) : filtered.length > 0 ? (
+        <div className="friends-list">
+          {filtered.map((f) => {
             const bal = Number(f.summary?.netBalance || 0);
+            const settled = Math.abs(bal) < 1;
             const owed = bal > 0;
+            const metaClass = settled
+              ? 'friends-row__meta friends-row__meta--settled'
+              : owed
+                ? 'friends-row__meta friends-row__meta--owed'
+                : 'friends-row__meta friends-row__meta--owe';
+            const meta = settled
+              ? 'Settled up'
+              : owed
+                ? 'Owes you'
+                : 'You owe';
+
             return (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => navigate(`/friends/${f.id}`)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '12px 8px',
-                  borderTop: i ? '1px solid var(--ft-border)' : 'none',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'inherit',
-                  textAlign: 'left',
-                  width: '100%',
-                  borderRadius: 8,
-                }}
-              >
-                <Avatar name={f.name} initials={initialsOf(f.name)} tint={friendTint(f.id)} size={42} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ color: 'var(--ft-text)', fontWeight: 500, fontSize: 14 }}>{f.name}</div>
-                  <div style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>
-                    {Math.abs(bal) < 1
-                      ? 'Settled up'
-                      : owed
-                        ? `Owes you ${inr(bal)}`
-                        : `You owe ${inr(Math.abs(bal))}`}
-                  </div>
-                </div>
-                {Math.abs(bal) < 1 ? (
-                  <span
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: 999,
-                      background: 'var(--ft-surface-2)',
-                      color: 'var(--ft-text-dim)',
-                      fontSize: 11,
-                      fontWeight: 500,
-                    }}
-                  >
-                    Settled
-                  </span>
-                ) : (
-                  <Num size={14} weight={600} color={owed ? 'var(--ft-income)' : 'var(--ft-spend)'}>
-                    {inr(Math.abs(bal))}
-                  </Num>
-                )}
+              <div key={f.id} className="friends-row">
                 <button
                   type="button"
-                  className="txn-row__menu"
-                  onClick={(e) => { e.stopPropagation(); openEdit(f); }}
-                  aria-label="Edit"
-                  style={{ opacity: 1 }}
+                  className="friends-row__main"
+                  onClick={() => navigate(`/friends/${f.id}`)}
+                >
+                  <Avatar name={f.name} initials={initialsOf(f.name)} tint={friendTint(f.id)} size={42} />
+                  <div className="friends-row__body">
+                    <div className="friends-row__name">{f.name}</div>
+                    <div className={metaClass}>{meta}</div>
+                  </div>
+                  <div className="friends-row__aside">
+                    {settled ? (
+                      <span className="friends-row__settled">Settled</span>
+                    ) : (
+                      <span className="friends-row__amount">
+                        <Num size={14} weight={600} color={owed ? 'var(--ft-income)' : 'var(--ft-spend)'}>
+                          {inr(Math.abs(bal))}
+                        </Num>
+                      </span>
+                    )}
+                    <IcChevR size={14} className="friends-row__chev" aria-hidden="true" />
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  className="friends-row__edit"
+                  onClick={() => openEdit(f)}
+                  aria-label={`Edit ${f.name}`}
                 >
                   <IcEdit size={14} />
                 </button>
-              </button>
+              </div>
             );
           })}
         </div>
-      )}
+      ) : null}
     </Card>
   );
 
@@ -337,7 +388,7 @@ export default function Friends() {
         <ConfirmDialog {...confirmState} />
         {formSheet}
         {header}
-        <main className="ft-mobile__content">
+        <main className="ft-mobile__content friends-layout--mobile">
           {balanceHero}
           {list}
         </main>
@@ -349,9 +400,9 @@ export default function Friends() {
       <ConfirmDialog {...confirmState} />
       {formSheet}
       {header}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 20 }}>
+      <div className="friends-layout">
+        <aside>{balanceHero}</aside>
         {list}
-        <div>{balanceHero}</div>
       </div>
     </>
   );
