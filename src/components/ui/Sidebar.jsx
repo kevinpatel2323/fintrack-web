@@ -4,6 +4,8 @@ import {
   IcSparkle, IcSettings, IcCommand,
 } from './Icon.jsx';
 import { Avatar } from './primitives.jsx';
+import ThemeToggle from './ThemeToggle.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 const NAV = [
   { to: '/',             label: 'Overview',     icon: IcHome,   end: true },
@@ -13,10 +15,12 @@ const NAV = [
   { to: '/friends',      label: 'People',       icon: IcFriends },
   { to: '/categories',   label: 'Categories',   icon: IcTag },
   { to: '/import',       label: 'Import',       icon: IcUpload },
-  { to: '/security',     label: 'Security',     icon: IcCommand },
+  { to: '/security',     label: 'Security',     icon: IcCommand, authOnly: true },
 ];
 
 export default function Sidebar() {
+  const { authDisabled } = useAuth();
+  const nav = authDisabled ? NAV.filter((item) => !item.authOnly) : NAV;
   return (
     <aside className="ft-sidebar">
       <div className="ft-sidebar__brand">
@@ -25,7 +29,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="ft-sidebar__nav" aria-label="Primary">
-        {NAV.map((item) => {
+        {nav.map((item) => {
           const Ic = item.icon;
           return (
             <NavLink
@@ -49,7 +53,7 @@ export default function Sidebar() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
-            color: 'var(--ft-accent)',
+            color: 'var(--ft-accent-fg)',
             marginBottom: 6,
           }}
         >
@@ -61,6 +65,8 @@ export default function Sidebar() {
         <div className="ft-sidebar__insight-title">Your dining spend is up 18%</div>
         <div>Most of it is on weekends — consider setting a category budget.</div>
       </div>
+
+      <ThemeToggle />
 
       <div className="ft-sidebar__user">
         <Avatar name="You" size={32} />

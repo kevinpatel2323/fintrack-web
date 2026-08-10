@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import CcLinkModal from '../components/CcLinkModal.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import { FriendTagCard } from '../components/FriendTagLedgerDisplay.jsx';
 import Portal from '../components/Portal.jsx';
 import SplitTransactionForm from '../components/SplitTransactionForm.jsx';
+import TransactionTable, { sortTableRows } from '../components/TransactionTable.jsx';
+import TransactionListRow from '../components/TransactionListRow.jsx';
+import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
+import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import {
   Card, Num, CatGlyph, Overline, HeroAmount, GhostBtn,
 } from '../components/ui/primitives.jsx';
 import { IcChevL, IcClose } from '../components/ui/Icon.jsx';
+import { getCcLink, unlinkCcBillPayment } from '../services/cardsApi.js';
+import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
+import { cardTxnStatus, toCardTableRow } from '../utils/cardTransactionRow.jsx';
 import { inr } from '../utils/inr.js';
 import { ledgerDirectionPhrase } from '../utils/ledgerParties.js';
 import { calendarPath } from '../utils/calendarParams.js';
@@ -26,6 +34,7 @@ export default function TransactionDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useMediaQuery('(max-width: 720px)');
   const backFromDetail = () => {
     if (location.state?.calendarSearch) {
       navigate(calendarPath(location.state.calendarSearch));
@@ -50,6 +59,11 @@ export default function TransactionDetail() {
   const [splitSheetOpen, setSplitSheetOpen] = useState(false);
   const [categoryStatus, setCategoryStatus] = useState('');
   const [confirmState, setConfirmState] = useState({ open: false });
+  // GET /transactions/:id carries no card-bill info, so the link is a
+  // separate fetch.
+  const [ccLink, setCcLink] = useState(null);
+  const [ccStatus, setCcStatus] = useState('');
+  const [ccModalOpen, setCcModalOpen] = useState(false);
 
   // Fetch friends and categories once
   useEffect(() => {
@@ -93,6 +107,84 @@ export default function TransactionDetail() {
 
   // Fetch tags whenever id changes
   useEffect(() => { fetchTags(); }, [id]);
+
+  // Fetch the credit-card bill link whenever id changes
+  useEffect(() => {
+    let cancelled = false;
+    setCcLink(null);
+    getCcLink(id)
+      .then((data) => !cancelled && setCcLink(data))
+      .catch(() => !cancelled && setCcLink(null));
+    return () => { cancelled = true; };
+  }, [id]);
+
+  const [coveredSortCol, setCoveredSortCol] = useState('date');
+  const [coveredSortDir, setCoveredSortDir] = useState('asc');
+  const [coveredPage, setCoveredPage] = useState(1);
+  const [coveredPageSize, setCoveredPageSize] = useState(25);
+
+  const handleCoveredSort = useCallback((col) => {
+    setCoveredSortCol((current) => {
+      if (current === col) setCoveredSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+      else setCoveredSortDir(col === 'date' ? 'desc' : 'asc');
+      return col;
+    });
+    setCoveredPage(1);
+  }, []);
+
+  // The covered card transactions are managed like any other ledger row.
+  const cardManager = useCardTransactionManager({
+    categories,
+    onRowPatched: (txnId, patch) =>
+      setCcLink((prev) => (prev?.coveredTransactions ? {
+        ...prev,
+        coveredTransactions: prev.coveredTransactions.map((t) =>
+          String(t.id) === String(txnId) ? { ...t, ...patch } : t,
+        ),
+      } : prev)),
+  });
+
+  // Seed split counts from the inline tags the cc-link payload carries.
+  useEffect(() => {
+    if (ccLink?.coveredTransactions) cardManager.seedTags(ccLink.coveredTransactions, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ccLink]);
+
+  const coveredRows = sortTableRows(
+    (ccLink?.coveredTransactions || []).map((t) =>
+      toCardTableRow(t, cardManager.tagsByTransaction),
+    ),
+    coveredSortCol,
+    coveredSortDir,
+  );
+
+  const cardManageRow = cardManager.manageSheetId
+    ? (ccLink?.coveredTransactions || []).find(
+        (t) => String(t.id) === String(cardManager.manageSheetId),
+      )
+    : null;
+
+  function unlinkCc() {
+    setConfirmState({
+      open: true,
+      title: 'Unlink card bill?',
+      message:
+        'The covered card transactions go back to unpaid, and this debit counts as ordinary spend again.',
+      confirmLabel: 'Unlink',
+      onConfirm: async () => {
+        setConfirmState({ open: false });
+        setCcStatus('Unlinking…');
+        try {
+          await unlinkCcBillPayment(id);
+          setCcLink({ linked: false });
+          setCcStatus('');
+        } catch (e) {
+          setCcStatus(e.message || 'Failed to unlink');
+        }
+      },
+      onCancel: () => setConfirmState({ open: false }),
+    });
+  }
 
   async function fetchTags() {
     setTagsStatus('Loading…');
@@ -300,6 +392,16 @@ export default function TransactionDetail() {
     <>
       <ConfirmDialog {...confirmState} />
       {splitSheet}
+      {cardManageRow && (
+        <TransactionManageSheet
+          {...cardManager.manageSheetPropsFor(cardManageRow)}
+          metaLine={[
+            ccLink?.card ? `${ccLink.card.name} ····${ccLink.card.last4}` : null,
+            cardTxnStatus(cardManageRow),
+          ].filter(Boolean).join(' · ')}
+          friends={friends}
+        />
+      )}
 
       <header className="ft-mobile__header">
         <button className="ft-mobile__icon-btn" onClick={backFromDetail} aria-label="Back">
@@ -357,12 +459,106 @@ export default function TransactionDetail() {
           </Card>
         )}
 
+        {ccLink?.linked && (
+          <Card pad={16}>
+            <Overline style={{ marginBottom: 10 }}>
+              Covered card transactions
+            </Overline>
+            <div style={{ color: 'var(--ft-text-dim)', fontSize: 12, marginBottom: 10 }}>
+              {ccLink.card ? `${ccLink.card.name} · ····${ccLink.card.last4}` : 'Credit card'}
+              {' · '}
+              {(ccLink.coveredTransactions || []).length} item
+              {(ccLink.coveredTransactions || []).length === 1 ? '' : 's'}
+            </div>
+            {isMobile ? (
+              /* Not the day-grouped list: these all belong to one bill, and a
+                 statement cycle would emit a date header per row. Each row
+                 carries its own date instead. */
+              coveredRows.length === 0 ? (
+                <p className="empty" style={{ margin: '4px 0 0' }}>No card transactions covered.</p>
+              ) : (
+                coveredRows.map((row) => (
+                  <TransactionListRow
+                    key={row.id}
+                    showDate
+                    row={row}
+                    categories={categories}
+                    onAssignCategory={cardManager.assignCategory}
+                    onOpenDetail={() => cardManager.openManage(row.id)}
+                  />
+                ))
+              )
+            ) : (
+              <div
+                /* Full-bleed inside the padded card; clipped so the table's
+                   rounded header corners stay within the card's. */
+                style={{ margin: '0 -16px', overflow: 'hidden' }}
+              >
+                <TransactionTable
+                  rows={coveredRows}
+                  storageKey="fintrack.ledger.covered"
+                  columnLabels={{ description: 'Merchant', method: 'Status' }}
+                  categories={categories}
+                  onAssignCategory={cardManager.assignCategory}
+                  onOpenManage={cardManager.openManage}
+                  onOpenDetail={(row) => cardManager.openManage(row.id)}
+                  sortCol={coveredSortCol}
+                  sortDir={coveredSortDir}
+                  onSort={handleCoveredSort}
+                  page={coveredPage}
+                  pageSize={coveredPageSize}
+                  onPageChange={setCoveredPage}
+                  onPageSizeChange={setCoveredPageSize}
+                  emptyMessage="No card transactions covered."
+                />
+              </div>
+            )}
+            {Number(ccLink.remainder || 0) !== 0 && (
+              <div
+                style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  gap: 12, marginTop: 10, paddingTop: 10,
+                  borderTop: '1px dashed var(--ft-border)',
+                }}
+              >
+                <span style={{ color: 'var(--ft-text-dim)', fontSize: 12.5, fontStyle: 'italic' }}>
+                  {Number(ccLink.remainder) > 0
+                    ? 'Carried forward / other charges'
+                    : 'Not covered by this payment'}
+                </span>
+                <Num size={13} weight={600} color="var(--ft-text-dim)">
+                  {inr(Number(ccLink.remainder), { decimals: 2 })}
+                </Num>
+              </div>
+            )}
+            <GhostBtn style={{ width: '100%', marginTop: 12 }} onClick={unlinkCc}>
+              Unlink card bill
+            </GhostBtn>
+          </Card>
+        )}
+
         <GhostBtn style={{ width: '100%' }} onClick={() => setSplitSheetOpen(true)}>
           Edit split
         </GhostBtn>
 
+        {/* Only a debit can be a card bill payment — the API enforces this too. */}
+        {ccLink && !ccLink.linked && withdrawal > 0 && deposit === 0 && (
+          <GhostBtn style={{ width: '100%' }} onClick={() => setCcModalOpen(true)}>
+            Link to credit card bill
+          </GhostBtn>
+        )}
+
+        {ccStatus && <p className="status" style={{ textAlign: 'center', marginTop: 4 }}>{ccStatus}</p>}
         {tagsStatus && <p className="status" style={{ textAlign: 'center', marginTop: 4 }}>{tagsStatus}</p>}
       </main>
+
+      {ccModalOpen && (
+        <CcLinkModal
+          transaction={tx}
+          onClose={() => setCcModalOpen(false)}
+          onLinked={(result) => { setCcModalOpen(false); setCcLink(result); }}
+        />
+      )}
     </>
   );
 }

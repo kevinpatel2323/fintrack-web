@@ -3,7 +3,7 @@
 .ledger-export-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--ft-scrim);
   backdrop-filter: blur(4px);
   display: grid;
   place-items: center;
@@ -127,13 +127,13 @@
 
 .ledger-export-stepper__item.is-complete .ledger-export-stepper__node {
   color: var(--ft-text-on-accent);
-  border-color: var(--ft-accent);
+  border-color: var(--ft-accent-strong);
   background: var(--ft-accent);
 }
 
 .ledger-export-stepper__item.is-active .ledger-export-stepper__node {
-  color: var(--ft-accent);
-  border-color: rgba(215, 255, 61, 0.4);
+  color: var(--ft-accent-fg);
+  border-color: var(--ft-accent-hairline);
   background: var(--ft-accent-soft);
   box-shadow: 0 0 0 3px var(--ft-accent-soft);
   transform: scale(1.06);
@@ -227,7 +227,7 @@
 }
 
 .ledger-export-dates input[type='date']:focus {
-  border-color: var(--ft-accent);
+  border-color: var(--ft-accent-strong);
   background: var(--ft-surface);
 }
 
@@ -248,44 +248,26 @@
   font-size: 0.85rem;
 }
 
+/* The wrap is only the frame — DynamicTable owns scrolling and the sticky
+   header, so no overflow/max-height here or the two would fight. */
 .ledger-select-table-wrap {
-  overflow: auto;
-  max-height: 42vh;
   border: 1px solid var(--ft-border);
   border-radius: var(--ft-r-md);
   background: var(--ft-surface-2);
+  overflow: hidden;
 }
 
-.ledger-select-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.82rem;
-}
+.ledger-select-table { font-size: 0.82rem; }
 
-.ledger-select-table th,
-.ledger-select-table td {
+.ledger-select-table .dyn-th { background: var(--ft-surface-3); font-weight: 600; }
+
+.ledger-select-table .dyn-td {
   padding: 8px 10px;
-  text-align: left;
-  border-bottom: 1px solid var(--ft-border);
+  color: var(--ft-text);
   vertical-align: top;
 }
 
-.ledger-select-table th {
-  background: var(--ft-surface-3);
-  font-weight: 600;
-  color: var(--ft-text-dim);
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-.ledger-select-table td {
-  color: var(--ft-text);
-}
-
-.ledger-select-table td.num,
-.ledger-select-table th.num {
-  text-align: right;
+.ledger-select-table .num {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -294,7 +276,76 @@
   width: 18px;
   height: 18px;
   cursor: pointer;
-  accent-color: var(--ft-accent);
+  accent-color: var(--ft-accent-fg);
+}
+
+/* The pin that turns a row's checkbox into a remembered choice. Unpinned it is
+   a faint outline; pinned it takes the accent, or the spend colour when the
+   remembered answer is "leave this out". */
+.ledger-pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--ft-r-sm, 6px);
+  background: none;
+  color: var(--ft-text-faint);
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+
+.ledger-pin:hover {
+  color: var(--ft-text);
+  background: var(--ft-surface-3);
+}
+
+.ledger-pin:focus-visible {
+  outline: 2px solid var(--ft-accent-strong);
+  outline-offset: 1px;
+}
+
+.ledger-pin.is-pinned {
+  color: var(--ft-accent-fg);
+  border-color: var(--ft-accent-hairline);
+  background: var(--ft-accent-soft);
+}
+
+.ledger-pin.is-pinned.is-excluded {
+  color: var(--ft-spend);
+  border-color: var(--ft-spend-hairline);
+  background: var(--ft-spend-soft);
+}
+
+.ledger-export-toolbar__sep {
+  width: 1px;
+  align-self: stretch;
+  min-height: 20px;
+  background: var(--ft-border);
+}
+
+.ledger-export-toolbar__pref-status {
+  color: var(--ft-text-dim);
+  font-size: 0.8rem;
+  margin-left: auto;
+}
+
+.ledger-export-hint {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 10px;
+  color: var(--ft-text-dim);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.ledger-export-hint svg {
+  vertical-align: -2px;
+  color: var(--ft-accent-fg);
 }
 
 .ledger-export-actions {
@@ -307,7 +358,9 @@
   flex-shrink: 0;
 }
 
-/* Ledger preview — light document on dark chrome (matches exported PDF) */
+/* Ledger preview — a WYSIWYG proof of the exported PDF. Everything below
+   .ledger-sheet is deliberately theme-INDEPENDENT: it depicts printed paper,
+   so it stays light under both themes. Only the surrounding chrome themes. */
 .ledger-sheet-outer {
   padding: 16px 20px 20px;
   background: var(--ft-surface-2);
@@ -489,19 +542,60 @@
 }
 
 .ledger-impact--pos {
-  color: #15803d;
-  font-weight: 600;
-}
-
-.ledger-impact--neg {
   color: #be123c;
   font-weight: 600;
 }
 
+.ledger-impact--neg {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.ledger-table__running {
+  font-weight: 600;
+  color: #1e293b;
+}
+
 .ledger-impact--settled {
-  color: #a16207;
+  color: #15803d;
   font-weight: 700;
   letter-spacing: 0.02em;
+}
+
+.ledger-table__links {
+  font-size: 9px;
+  color: #475569;
+  white-space: normal;
+}
+
+.ledger-link-line {
+  display: block;
+  white-space: nowrap;
+}
+
+.ledger-settlement-table td {
+  vertical-align: top;
+}
+
+.ledger-settle-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px;
+  padding: 1px 0;
+}
+
+.ledger-settle-ref {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.ledger-settle-sep {
+  color: #b4bcc8;
+}
+
+.ledger-settle-entry__desc {
+  color: #475569;
 }
 
 .ledger-summary-table-block {
@@ -677,13 +771,22 @@
     padding: 10px 14px;
   }
 
-  .ledger-select-table-wrap {
+  .ledger-select-table-wrap .dyn-table-scroll {
     max-height: min(50dvh, 360px);
   }
 
   .ledger-select-table input[type='checkbox'] {
     width: 22px;
     height: 22px;
+  }
+
+  .ledger-pin {
+    width: 34px;
+    height: 34px;
+  }
+
+  .ledger-export-toolbar__pref-status {
+    margin-left: 0;
   }
 
   .ledger-export-actions {

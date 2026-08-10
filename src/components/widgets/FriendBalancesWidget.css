@@ -17,7 +17,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: #f8f9fa;
+  background: var(--ft-surface-2);
   border-radius: 6px;
   gap: 1rem;
 }
@@ -28,7 +28,7 @@
 }
 
 .friend-balance-item.clickable:hover {
-  background-color: #e9ecef;
+  background-color: var(--ft-surface-3);
   transform: translateY(-1px);
 }
 
@@ -47,7 +47,7 @@
 .friend-name {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: #333;
+  color: var(--ft-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -55,7 +55,7 @@
 
 .friend-last-date {
   font-size: 0.75rem;
-  color: #999;
+  color: var(--ft-text-faint);
 }
 
 .balance-amount {
@@ -78,19 +78,19 @@
 }
 
 .balance-amount.owes-me .balance-label {
-  color: #27ae60;
+  color: var(--ft-income);
 }
 
 .balance-amount.owes-me .balance-value {
-  color: #27ae60;
+  color: var(--ft-income);
 }
 
 .balance-amount.i-owe .balance-label {
-  color: #e74c3c;
+  color: var(--ft-spend);
 }
 
 .balance-amount.i-owe .balance-value {
-  color: #e74c3c;
+  color: var(--ft-spend);
 }
 
 @media (max-width: 768px) {

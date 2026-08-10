@@ -12,18 +12,18 @@
   flex: 1;
   min-height: 44px;
   border-radius: 12px;
-  border: 1px solid var(--stroke, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--ft-border-s);
   background: transparent;
-  color: var(--ink-muted, inherit);
+  color: var(--ft-text-dim);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
 }
 
 .calendar-view-toggle__btn--active {
-  background: var(--accent-soft, rgba(46, 196, 182, 0.18));
-  border-color: var(--accent, #2ec4b6);
-  color: var(--ink, inherit);
+  background: var(--ft-accent-soft);
+  border-color: var(--ft-accent-strong);
+  color: var(--ft-text);
 }
 
 .calendar-card {
@@ -131,7 +131,7 @@
   max-height: 88px;
   border-radius: 14px;
   border: 1px solid var(--stroke);
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--ft-surface);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -149,8 +149,8 @@
 }
 
 .calendar-cell--today {
-  border-color: rgba(31, 95, 89, 0.45);
-  box-shadow: 0 0 0 1px rgba(31, 95, 89, 0.12);
+  border-color: var(--ft-accent-strong);
+  box-shadow: 0 0 0 1px var(--ft-accent-hairline);
 }
 
 .calendar-cell--has-data {
@@ -159,33 +159,33 @@
 
 /* Days with ≥1 transaction: category coverage (see computeCategoryCoverageByDay) */
 .calendar-cell--cats-complete {
-  background: rgba(27, 122, 57, 0.14);
-  border-color: rgba(27, 122, 57, 0.22);
+  background: var(--ft-income-soft);
+  border-color: var(--ft-income-hairline);
 }
 
 .calendar-cell--cats-incomplete {
-  background: rgba(185, 56, 41, 0.12);
-  border-color: rgba(185, 56, 41, 0.28);
+  background: var(--ft-spend-soft);
+  border-color: var(--ft-spend-hairline);
 }
 
 .calendar-cell--has-data:hover,
 .calendar-cell--has-data:focus-visible {
-  background: rgba(31, 95, 89, 0.08);
-  border-color: rgba(31, 95, 89, 0.25);
+  background: var(--ft-accent-soft);
+  border-color: var(--ft-accent-hairline);
   transform: translateY(-1px);
   outline: none;
 }
 
 .calendar-cell--has-data.calendar-cell--cats-complete:hover,
 .calendar-cell--has-data.calendar-cell--cats-complete:focus-visible {
-  background: rgba(27, 122, 57, 0.22);
-  border-color: rgba(27, 122, 57, 0.32);
+  background: var(--ft-income-soft);
+  border-color: var(--ft-income-hairline);
 }
 
 .calendar-cell--has-data.calendar-cell--cats-incomplete:hover,
 .calendar-cell--has-data.calendar-cell--cats-incomplete:focus-visible {
-  background: rgba(185, 56, 41, 0.18);
-  border-color: rgba(185, 56, 41, 0.38);
+  background: var(--ft-spend-soft);
+  border-color: var(--ft-spend-hairline);
 }
 
 .calendar-cell__dow-num {
@@ -264,13 +264,13 @@
 }
 
 .calendar-legend i.cats-ok {
-  background: rgba(27, 122, 57, 0.55);
-  box-shadow: inset 0 0 0 1px rgba(27, 122, 57, 0.35);
+  background: var(--ft-income);
+  box-shadow: inset 0 0 0 1px var(--ft-income-hairline);
 }
 
 .calendar-legend i.cats-miss {
-  background: rgba(185, 56, 41, 0.5);
-  box-shadow: inset 0 0 0 1px rgba(185, 56, 41, 0.35);
+  background: var(--ft-spend);
+  box-shadow: inset 0 0 0 1px var(--ft-spend-hairline);
 }
 
 @media (max-width: 719px) {

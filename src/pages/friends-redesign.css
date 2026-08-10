@@ -1,0 +1,344 @@
+/* Friends / People — shared expenses redesign */
+
+.friends-layout,
+.friends-layout--mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.friends-layout--mobile {
+  gap: 14px;
+}
+
+.friends-layout > aside {
+  width: 100%;
+  max-width: none;
+}
+
+/* —— Balance summary —— */
+
+.friends-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.friends-summary__net {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.friends-summary__split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.friends-summary__stat {
+  padding: 12px 14px;
+  border-radius: var(--ft-r-md);
+  border: 1px solid transparent;
+  min-width: 0;
+}
+
+.friends-summary__stat--owed {
+  background: var(--ft-income-soft);
+  border-color: var(--ft-income-hairline);
+}
+
+.friends-summary__stat--owe {
+  background: var(--ft-spend-soft);
+  border-color: var(--ft-spend-hairline);
+}
+
+.friends-summary__stat-label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* —— List panel —— */
+
+.friends-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.friends-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.friends-toolbar .txn-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: none;
+  width: 100%;
+  min-width: 0;
+  background: var(--ft-surface-2);
+  border: 1px solid var(--ft-border);
+  border-radius: var(--ft-r-md);
+  padding: 8px 12px;
+  color: var(--ft-text-dim);
+  box-sizing: border-box;
+}
+
+.friends-toolbar .txn-search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  min-height: 0;
+  color: var(--ft-text);
+  font-size: 13px;
+  outline: 0;
+  font-family: inherit;
+}
+
+.friends-toolbar .txn-search input::placeholder {
+  color: var(--ft-text-faint);
+}
+
+.friends-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 4px;
+}
+
+.friends-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.friends-filter__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-family: var(--ft-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  background: var(--ft-active);
+  color: inherit;
+  opacity: 0.85;
+}
+
+.friends-filter[data-active='true'] .friends-filter__count {
+  background: var(--ft-scrim);
+  opacity: 1;
+}
+
+/* —— Friend rows —— */
+
+.friends-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+}
+
+.friends-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  border-top: 1px solid var(--ft-border);
+  border-radius: var(--ft-r-md);
+  transition: background 0.12s ease;
+}
+
+.friends-row:first-child {
+  border-top: 0;
+}
+
+.friends-row:hover,
+.friends-row:focus-within {
+  background: var(--ft-surface-2);
+}
+
+.friends-row__main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  padding: 12px 8px 12px 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: var(--ft-r-md);
+}
+
+.friends-row__main:focus-visible {
+  outline: 2px solid var(--ft-focus-ring);
+  outline-offset: -2px;
+}
+
+.friends-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.friends-row__name {
+  color: var(--ft-text);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friends-row__meta {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ft-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friends-row__meta--owed {
+  color: var(--ft-income);
+}
+
+.friends-row__meta--owe {
+  color: var(--ft-spend);
+}
+
+.friends-row__meta--settled {
+  color: var(--ft-text-faint);
+}
+
+.friends-row__aside {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.friends-row__amount {
+  text-align: right;
+  min-width: 72px;
+}
+
+.friends-row__settled {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--ft-surface-3);
+  border: 1px solid var(--ft-border);
+  color: var(--ft-text-dim);
+  font-size: 11px;
+  font-weight: 550;
+  letter-spacing: 0.1px;
+}
+
+.friends-row__edit {
+  flex-shrink: 0;
+  margin-right: 4px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ft-text-dim);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+
+.friends-row:hover .friends-row__edit,
+.friends-row:focus-within .friends-row__edit {
+  opacity: 1;
+}
+
+.friends-row__edit:hover {
+  background: var(--ft-surface-3);
+  color: var(--ft-text);
+}
+
+.friends-row__chev {
+  color: var(--ft-text-faint);
+  flex-shrink: 0;
+  transition: color 0.12s ease, transform 0.12s ease;
+}
+
+.friends-row:hover .friends-row__chev {
+  color: var(--ft-text-dim);
+  transform: translateX(1px);
+}
+
+/* —— Empty / status —— */
+
+.friends-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  padding: 40px 16px 28px;
+}
+
+.friends-empty__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ft-text);
+  letter-spacing: -0.2px;
+}
+
+.friends-empty__sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ft-text-dim);
+  max-width: 28ch;
+  line-height: 1.45;
+}
+
+.friends-status {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--ft-text-dim);
+}
+
+@media (max-width: 720px) {
+  .friends-row__main {
+    padding: 14px 6px 14px 8px;
+  }
+
+  .friends-row__edit {
+    opacity: 1;
+  }
+
+  .friends-row__chev {
+    display: none;
+  }
+
+  .friends-summary__split {
+    gap: 8px;
+  }
+}

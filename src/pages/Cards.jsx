@@ -218,7 +218,7 @@ export default function Cards() {
                             padding: '1px 6px',
                             borderRadius: 6,
                             background: 'var(--ft-accent-soft)',
-                            color: 'var(--ft-accent)',
+                            color: 'var(--ft-accent-fg)',
                             fontSize: 9.5,
                             fontWeight: 700,
                             letterSpacing: 0.4,

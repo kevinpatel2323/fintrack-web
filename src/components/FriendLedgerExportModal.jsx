@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import DynamicTable from './DynamicTable.jsx';
 import { buildLedgerPdf } from '../utils/ledgerPdf';
-import { LEDGER_OWNER_NAME, ledgerDirectionPhrase } from '../utils/ledgerParties';
+import {
+  LEDGER_OWNER_NAME,
+  ledgerDirectionPhrase,
+  ledgerRowAmount,
+  ledgerRunningBalances,
+  ledgerSettlementEntryLabel,
+  ledgerSettlementIndex,
+  ledgerSettlementRefLines,
+} from '../utils/ledgerParties';
 import './FriendLedgerExportModal.css';
 
 import { API_BASE, apiFetch } from '../services/http.js';
@@ -42,6 +51,10 @@ function rowClass(direction) {
   return 'ledger-row--neutral';
 }
 
+function formatRunningBalance(value) {
+  return value < 0 ? `-Rs.${formatNumberIn(Math.abs(value))}` : `Rs.${formatNumberIn(value)}`;
+}
+
 function balanceImpactCell(direction, amount) {
   if (direction === 'OWES_ME') {
     return { text: `+Rs.${formatNumberIn(amount)}`, className: 'ledger-impact--pos' };
@@ -50,7 +63,7 @@ function balanceImpactCell(direction, amount) {
     return { text: `-Rs.${formatNumberIn(amount)}`, className: 'ledger-impact--neg' };
   }
   if (direction === 'SETTLEMENT') {
-    return { text: 'Settled', className: 'ledger-impact--settled' };
+    return { text: `-Rs.${formatNumberIn(amount)}`, className: 'ledger-impact--settled' };
   }
   return { text: '—', className: '' };
 }
@@ -82,6 +95,70 @@ function formatGeneratedStamp() {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date());
+}
+
+function LedgerSettlementDetails({ groups }) {
+  return (
+    <div className="ledger-summary-table-block">
+      <h2 className="ledger-summary-table-block__title">Settlement details</h2>
+      <div className="ledger-summary-table-wrap">
+        <table className="ledger-summary-table ledger-settlement-table">
+          <thead>
+            <tr>
+              <th>Settlement entry</th>
+              <th>Entries it settles</th>
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map((group) => {
+              const st = group.tag.transaction || {};
+              return (
+                <tr key={group.tag.id}>
+                  <td>
+                    <div className="ledger-settle-entry">
+                      <span className="ledger-settle-ref">#{group.row}</span>
+                      <span className="ledger-settle-sep" aria-hidden="true">
+                        |
+                      </span>
+                      <span>{formatDateLedger(st.transactionDate)}</span>
+                      <span className="ledger-settle-sep" aria-hidden="true">
+                        |
+                      </span>
+                      <span>Rs.{formatNumberIn(group.tag.amount)}</span>
+                    </div>
+                  </td>
+                  <td>
+                    {group.settles.map((ref, idx) => {
+                      const t = ref.tag?.transaction || {};
+                      const desc = t.upiDescription || t.narration || t.upiName || '—';
+                      const impact = balanceImpactCell(ref.tag?.direction, ref.tag?.amount);
+                      return (
+                        <div className="ledger-settle-entry" key={ref.tag?.id ?? idx}>
+                          <span className="ledger-settle-ref">{ledgerSettlementEntryLabel(ref)}</span>
+                          <span className="ledger-settle-sep" aria-hidden="true">
+                            |
+                          </span>
+                          <span>{formatDateLedger(t.transactionDate)}</span>
+                          <span className="ledger-settle-sep" aria-hidden="true">
+                            |
+                          </span>
+                          <span className={impact.className}>{impact.text}</span>
+                          <span className="ledger-settle-sep" aria-hidden="true">
+                            |
+                          </span>
+                          <span className="ledger-settle-entry__desc">{desc}</span>
+                        </div>
+                      );
+                    })}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 function LedgerSummaryTable({ summary }) {
@@ -162,6 +239,9 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
     );
   }
 
+  const runningBalances = ledgerRunningBalances(tags);
+  const settlements = ledgerSettlementIndex(tags);
+
   return (
     <div className="ledger-sheet-outer">
       <div className="ledger-sheet">
@@ -179,6 +259,8 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
                   <th>Direction</th>
                   <th className="num">Amount (Rs.)</th>
                   <th className="num">Balance impact</th>
+                  <th className="num">Running balance</th>
+                  <th>Settlement link</th>
                   <th>Note</th>
                 </tr>
               </thead>
@@ -186,6 +268,7 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
                 {tags.map((tag, i) => {
                   const t = tag.transaction || {};
                   const impact = balanceImpactCell(tag.direction, tag.amount);
+                  const refLines = ledgerSettlementRefLines(settlements.rows[i]);
                   const name = t.upiName || '—';
                   const desc = t.upiDescription || t.narration || '—';
                   const bank = t.upiBank || '—';
@@ -201,8 +284,18 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
                           {ledgerDirectionPhrase(tag.direction, friendName)}
                         </span>
                       </td>
-                      <td className="num ledger-table__amount">Rs.{formatNumberIn(tag.amount)}</td>
+                      <td className="num ledger-table__amount">Rs.{formatNumberIn(ledgerRowAmount(tag))}</td>
                       <td className={`num ${impact.className}`}>{impact.text}</td>
+                      <td className="num ledger-table__running">{formatRunningBalance(runningBalances[i])}</td>
+                      <td className="ledger-table__links">
+                        {refLines.length
+                          ? refLines.map((line) => (
+                              <span className="ledger-link-line" key={line}>
+                                {line}
+                              </span>
+                            ))
+                          : '—'}
+                      </td>
                       <td>{tag.note || '—'}</td>
                     </tr>
                   );
@@ -210,11 +303,31 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
               </tbody>
             </table>
           </div>
+          {settlements.groups.length > 0 && (
+            <LedgerSettlementDetails groups={settlements.groups} />
+          )}
           <LedgerSummaryTable summary={summary} />
         </div>
         {footer}
       </div>
     </div>
+  );
+}
+
+/** How long a burst of clicks settles before the pinned choices are saved. */
+const PREF_SAVE_DEBOUNCE_MS = 600;
+
+function PinIcon({ filled }) {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <path
+        d="M4.5 1.75h7a.75.75 0 0 1 .55 1.26L9.25 6.2v5.05l-1.25 3-1.25-3V6.2L3.95 3.01a.75.75 0 0 1 .55-1.26Z"
+        fill={filled ? 'currentColor' : 'none'}
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -224,24 +337,102 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
   const [endDate, setEndDate] = useState(() => monthBounds().end);
   const [loadedTags, setLoadedTags] = useState([]);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
+  // Rows whose include/exclude choice is pinned server-side. The pinned value
+  // is always whatever the checkbox currently says, so this set plus
+  // `selectedIds` is the whole persisted state — no third copy to drift.
+  const [pinnedIds, setPinnedIds] = useState(() => new Set());
+  const [prefStatus, setPrefStatus] = useState('');
   const [loadStatus, setLoadStatus] = useState('');
   const [pdfBusy, setPdfBusy] = useState(false);
   const ledgerOpenIdRef = useRef(null);
 
+  // Mirrors of the two sets, so a save that fires from a timer or an unmount
+  // reads the live values instead of the render that scheduled it.
+  const selectedRef = useRef(selectedIds);
+  const pinnedRef = useRef(pinnedIds);
+  const dirtyRef = useRef(new Set());
+  const saveTimerRef = useRef(null);
+  const flushRef = useRef(null);
+
   const resetForFriend = useCallback(() => {
     const b = monthBounds();
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = null;
+    dirtyRef.current = new Set();
+    selectedRef.current = new Set();
+    pinnedRef.current = new Set();
     setStep(1);
     setStartDate(b.start);
     setEndDate(b.end);
     setLoadedTags([]);
     setSelectedIds(new Set());
+    setPinnedIds(new Set());
+    setPrefStatus('');
     setLoadStatus('');
     setPdfBusy(false);
+  }, []);
+
+  /**
+   * Writes the pinned rows the user has touched since the last save. Only
+   * pinned rows carry a value; un-pinning sends `null`, which is how the API
+   * forgets a choice. A failed save puts the ids back so the next flush
+   * retries them rather than silently dropping the edit.
+   */
+  const flushPrefs = useCallback(async () => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    const ids = [...dirtyRef.current];
+    if (!ids.length || !friend?.id) return;
+    dirtyRef.current = new Set();
+
+    const preferences = ids.map((id) => ({
+      tagId: Number(id),
+      included: pinnedRef.current.has(id) ? selectedRef.current.has(id) : null,
+    }));
+
+    setPrefStatus('Saving…');
+    try {
+      const res = await apiFetch(`${API_BASE}/friends/${friend.id}/ledger-preferences`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preferences }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || data.error || 'Could not save your choices.');
+      setPrefStatus('Saved for next time');
+    } catch (e) {
+      for (const id of ids) dirtyRef.current.add(id);
+      setPrefStatus(e.message || 'Could not save your choices.');
+    }
+  }, [friend?.id]);
+
+  flushRef.current = flushPrefs;
+
+  /**
+   * Single write path for both sets. `touched` lists the rows whose *persisted*
+   * value changed — unchecking an unpinned row changes nothing on the server,
+   * so it must not schedule a save.
+   */
+  const commit = useCallback((nextSelected, nextPinned, touched) => {
+    selectedRef.current = nextSelected;
+    pinnedRef.current = nextPinned;
+    setSelectedIds(nextSelected);
+    setPinnedIds(nextPinned);
+    if (!touched.length) return;
+    for (const id of touched) dirtyRef.current.add(id);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      void flushRef.current?.();
+    }, PREF_SAVE_DEBOUNCE_MS);
   }, []);
 
   useEffect(() => {
     if (!open) {
       ledgerOpenIdRef.current = null;
+      // Covers a close driven by the parent rather than the modal's own buttons.
+      void flushRef.current?.();
       return;
     }
     if (!friend) return;
@@ -249,6 +440,9 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
     ledgerOpenIdRef.current = friend.id;
     resetForFriend();
   }, [open, friend?.id, resetForFriend]);
+
+  // A debounce still pending when the modal goes away would lose the edit.
+  useEffect(() => () => void flushRef.current?.(), []);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -264,6 +458,136 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
     return startDate <= endDate;
   }, [startDate, endDate]);
 
+  const toggleId = useCallback((id) => {
+    const key = String(id);
+    const next = new Set(selectedRef.current);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    // A pinned row's saved value follows its checkbox; an unpinned one is
+    // this export only.
+    commit(next, pinnedRef.current, pinnedRef.current.has(key) ? [key] : []);
+  }, [commit]);
+
+  /** Pins the row's current choice, or forgets it if already pinned. */
+  const togglePin = useCallback((id) => {
+    const key = String(id);
+    const next = new Set(pinnedRef.current);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    commit(selectedRef.current, next, [key]);
+  }, [commit]);
+
+  const selectAll = useCallback(() => {
+    const next = new Set(loadedTags.map((r) => String(r.id)));
+    const touched = [...pinnedRef.current].filter((k) => !selectedRef.current.has(k));
+    commit(next, pinnedRef.current, touched);
+  }, [loadedTags, commit]);
+
+  const selectNone = useCallback(() => {
+    const touched = [...pinnedRef.current].filter((k) => selectedRef.current.has(k));
+    commit(new Set(), pinnedRef.current, touched);
+  }, [commit]);
+
+  const rememberAll = useCallback(() => {
+    const all = new Set(loadedTags.map((r) => String(r.id)));
+    const touched = [...all].filter((k) => !pinnedRef.current.has(k));
+    commit(selectedRef.current, all, touched);
+  }, [loadedTags, commit]);
+
+  const forgetAll = useCallback(() => {
+    const touched = [...pinnedRef.current];
+    commit(selectedRef.current, new Set(), touched);
+  }, [commit]);
+
+  // Step 2's picker. The two control columns are pinned and unsearchable — they
+  // are controls, not data. Everything else sorts and searches.
+  const selectColumns = useMemo(() => [
+    {
+      id: 'include',
+      header: '',
+      width: 44,
+      minWidth: 44,
+      hideable: false,
+      resizable: false,
+      filterable: false,
+      align: 'center',
+      cell: (tag) => (
+        <input
+          type="checkbox"
+          checked={selectedIds.has(String(tag.id))}
+          onChange={() => toggleId(tag.id)}
+          aria-label={`Include transaction ${tag.id}`}
+        />
+      ),
+    },
+    {
+      id: 'remember',
+      header: 'Saved',
+      width: 66,
+      minWidth: 58,
+      hideable: false,
+      resizable: false,
+      filterable: false,
+      align: 'center',
+      cell: (tag) => {
+        const key = String(tag.id);
+        const isPinned = pinnedIds.has(key);
+        const label = isPinned
+          ? `Always ${selectedIds.has(key) ? 'included' : 'excluded'} — click to forget`
+          : 'Remember this choice for future exports';
+        return (
+          <button
+            type="button"
+            className={`ledger-pin${isPinned ? ' is-pinned' : ''}${
+              isPinned && !selectedIds.has(key) ? ' is-excluded' : ''
+            }`}
+            onClick={() => togglePin(tag.id)}
+            aria-pressed={isPinned}
+            aria-label={label}
+            title={label}
+          >
+            <PinIcon filled={isPinned} />
+          </button>
+        );
+      },
+    },
+    {
+      id: 'date',
+      header: 'Date',
+      width: 116,
+      sortable: true,
+      accessor: (tag) => tag.transaction?.transactionDate || '',
+      cell: (tag) => formatDateLedger(tag.transaction?.transactionDate),
+    },
+    {
+      id: 'direction',
+      header: 'Direction',
+      width: 150,
+      sortable: true,
+      accessor: (tag) => ledgerDirectionPhrase(tag.direction, friend?.name),
+      cell: (tag) => ledgerDirectionPhrase(tag.direction, friend?.name),
+    },
+    {
+      id: 'amount',
+      header: 'Amount',
+      width: 120,
+      sortable: true,
+      align: 'right',
+      className: 'num',
+      headerClassName: 'num',
+      accessor: (tag) => Number(ledgerRowAmount(tag)) || 0,
+      cell: (tag) => `₹${formatNumberIn(ledgerRowAmount(tag))}`,
+    },
+    {
+      id: 'description',
+      header: 'Description',
+      width: 260,
+      sortable: true,
+      accessor: (tag) => tag.transaction?.upiDescription || tag.transaction?.narration || '',
+      cell: (tag) => tag.transaction?.upiDescription || tag.transaction?.narration || '—',
+    },
+  ], [selectedIds, pinnedIds, friend?.name, toggleId, togglePin]);
+
   async function loadTransactions() {
     if (!friend || !dateOrderOk) return;
     setLoadStatus('Loading…');
@@ -273,8 +597,29 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error || 'Failed to load transactions');
       const rows = data.data || [];
+
+      // A row with a pinned choice comes back set the way it was left; the rest
+      // start included, which is what the picker has always defaulted to.
+      const selected = new Set();
+      const pinned = new Set();
+      for (const row of rows) {
+        const key = String(row.id);
+        const saved = row.ledgerIncluded;
+        if (saved === true || saved === false) {
+          pinned.add(key);
+          if (saved) selected.add(key);
+        } else {
+          selected.add(key);
+        }
+      }
+
+      dirtyRef.current = new Set();
+      selectedRef.current = selected;
+      pinnedRef.current = pinned;
       setLoadedTags(rows);
-      setSelectedIds(new Set(rows.map((r) => String(r.id))));
+      setSelectedIds(selected);
+      setPinnedIds(pinned);
+      setPrefStatus(pinned.size ? `${pinned.size} saved choice${pinned.size === 1 ? '' : 's'} applied` : '');
       setLoadStatus(rows.length ? '' : 'No transactions in this date range.');
       setStep(2);
     } catch (e) {
@@ -282,23 +627,17 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
     }
   }
 
-  const toggleId = (id) => {
-    const key = String(id);
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
+  // Every exit and every step change is a checkpoint — don't make the user wait
+  // out the debounce to know their pins landed.
+  const handleClose = useCallback(() => {
+    void flushPrefs();
+    onClose?.();
+  }, [flushPrefs, onClose]);
 
-  const selectAll = () => {
-    setSelectedIds(new Set(loadedTags.map((r) => String(r.id))));
-  };
-
-  const selectNone = () => {
-    setSelectedIds(new Set());
-  };
+  const goToStep = useCallback((next) => {
+    void flushRef.current?.();
+    setStep(next);
+  }, []);
 
   const includedTags = useMemo(() => {
     return loadedTags.filter((t) => selectedIds.has(String(t.id)));
@@ -335,7 +674,7 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
       role="dialog"
       aria-modal="true"
       aria-label="Export ledger"
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div className="ledger-export-modal" onClick={(e) => e.stopPropagation()}>
         <div className="ledger-export-modal__header">
@@ -346,7 +685,7 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
               and export.
             </p>
           </div>
-          <button type="button" className="ghost ledger-export-modal__close" onClick={onClose}>
+          <button type="button" className="ghost ledger-export-modal__close" onClick={handleClose}>
             Close
           </button>
         </div>
@@ -446,44 +785,50 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
                 <button type="button" className="ghost" onClick={selectNone}>
                   Clear all
                 </button>
+                <span className="ledger-export-toolbar__sep" aria-hidden="true" />
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={rememberAll}
+                  disabled={!loadedTags.length || pinnedIds.size === loadedTags.length}
+                >
+                  Remember all
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={forgetAll}
+                  disabled={!pinnedIds.size}
+                >
+                  Forget saved
+                </button>
                 <span className="ledger-export-toolbar__count">
                   {selectedIds.size} of {loadedTags.length} selected
+                  {pinnedIds.size > 0 && ` · ${pinnedIds.size} saved`}
                 </span>
+                {prefStatus && (
+                  <span className="ledger-export-toolbar__pref-status">{prefStatus}</span>
+                )}
               </div>
+              <p className="ledger-export-hint">
+                Checkboxes apply to this export only. Use the <PinIcon /> pin to keep a row's
+                choice for every future export of {friend.name}'s ledger.
+              </p>
               <div className="ledger-select-table-wrap">
-                <table className="ledger-select-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: 44 }} />
-                      <th>Date</th>
-                      <th>Direction</th>
-                      <th className="num">Amount</th>
-                      <th>Description</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loadedTags.map((tag) => {
-                      const t = tag.transaction || {};
-                      const checked = selectedIds.has(String(tag.id));
-                      return (
-                        <tr key={tag.id}>
-                          <td>
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleId(tag.id)}
-                              aria-label={`Include transaction ${tag.id}`}
-                            />
-                          </td>
-                          <td>{formatDateLedger(t.transactionDate)}</td>
-                          <td>{ledgerDirectionPhrase(tag.direction, friend.name)}</td>
-                          <td className="num">₹{formatNumberIn(tag.amount)}</td>
-                          <td>{t.upiDescription || t.narration || '—'}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <DynamicTable
+                  columns={selectColumns}
+                  rows={loadedTags}
+                  getRowKey={(tag) => String(tag.id)}
+                  aria-label="Transactions to include in the export"
+                  tableClassName="ledger-select-table"
+                  storageKey="fintrack.ledger-export-select"
+                  enableGlobalFilter
+                  searchPlaceholder="Search transactions…"
+                  defaultPageSize={25}
+                  maxHeight="46vh"
+                  emptyMessage="No transactions in this date range."
+                  filteredEmptyMessage="No transactions match your search."
+                />
               </div>
             </>
           )}
@@ -505,11 +850,11 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
 
         <div className="ledger-export-actions">
           {step > 1 && (
-            <button type="button" className="ghost" onClick={() => setStep((s) => s - 1)}>
+            <button type="button" className="ghost" onClick={() => goToStep(step - 1)}>
               Back
             </button>
           )}
-          <button type="button" className="ghost" onClick={onClose}>
+          <button type="button" className="ghost" onClick={handleClose}>
             Cancel
           </button>
           {step === 1 && (
@@ -523,7 +868,7 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
             </button>
           )}
           {step === 2 && (
-            <button type="button" className="primary" onClick={() => setStep(3)}>
+            <button type="button" className="primary" onClick={() => goToStep(3)}>
               Preview
             </button>
           )}

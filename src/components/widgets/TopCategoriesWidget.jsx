@@ -32,7 +32,7 @@ export default function TopCategoriesWidget({ data, loading, error }) {
               <div className="category-header">
                 <span
                   className="category-indicator"
-                  style={{ backgroundColor: category.categoryColor || '#999' }}
+                  style={{ backgroundColor: category.categoryColor || 'var(--ft-cat-transfer)' }}
                 />
                 <span className="category-name">{category.categoryName}</span>
               </div>
@@ -41,7 +41,7 @@ export default function TopCategoriesWidget({ data, loading, error }) {
                   className="category-bar-fill"
                   style={{
                     width: `${category.percentage}%`,
-                    backgroundColor: category.categoryColor || '#999',
+                    backgroundColor: category.categoryColor || 'var(--ft-cat-transfer)',
                   }}
                 />
               </div>

@@ -199,6 +199,9 @@ export default function SplitTransactionForm({
 
   const results = useMemo(() => {
     if (totalMinor == null || orderedSelected.length === 0) return [];
+    if (splitDirection === 'NOTHING_OUTSTANDING') {
+      return orderedSelected.map((id) => ({ participantId: id, amountMinor: 0 }));
+    }
     try {
       if (method === 'EQUAL') return calculateEqualSplit(totalMinor, orderedSelected);
       if (method === 'EXACT') {
@@ -245,6 +248,7 @@ export default function SplitTransactionForm({
     shareById,
     adjAmountById,
     minorPerMajor,
+    splitDirection,
   ]);
 
   const taggedSet = useMemo(() => new Set(taggedFriendIds.map(String)), [taggedFriendIds]);
@@ -261,61 +265,59 @@ export default function SplitTransactionForm({
     );
     if (!align.valid) errors.push(...align.errors);
 
-    if (totalMinor != null && results.length > 0) {
-      const t = validateSplitTotal(results, totalMinor);
-      if (!t.valid) errors.push(...t.errors);
-    }
-
-    if (method === 'PERCENT') {
-      const entries = orderedSelected.map((id) => ({
-        participantId: id,
-        percentBps: parsePercentStringToBps(percentById[id] ?? '') ?? 0,
-      }));
-      const p = validatePercentTotal(entries);
-      if (!p.valid) errors.push(...p.errors);
-    }
-
-    if (method === 'SHARES') {
-      const entries = orderedSelected.map((id) => ({
-        participantId: id,
-        shareWeight: parseShareStringToWeight(shareById[id] ?? '') ?? 0,
-      }));
-      const s = validateShares(entries);
-      if (!s.valid) errors.push(...s.errors);
-    }
-
-    if (method === 'ADJUSTMENT') {
-      const badAmount = orderedSelected.some((id) => {
-        const raw = (adjAmountById[id] ?? '').trim();
-        if (!raw) return false;
-        return roundCurrencyToMinor(raw, minorPerMajor) == null;
-      });
-      if (badAmount) {
-        errors.push('Enter a valid amount for each filled field, or leave blank for auto split.');
-      } else {
-        const roster = orderedSelected.map((id) => {
-          const raw = (adjAmountById[id] ?? '').trim();
-          if (!raw) return { participantId: id, pinnedMinor: null };
-          return {
-            participantId: id,
-            pinnedMinor: roundCurrencyToMinor(raw, minorPerMajor),
-          };
-        });
-        const a = validateAdjustmentSplit(totalMinor ?? 0, roster);
-        if (!a.valid) errors.push(...a.errors);
+    if (splitDirection !== 'NOTHING_OUTSTANDING') {
+      if (totalMinor != null && results.length > 0) {
+        const t = validateSplitTotal(results, totalMinor);
+        if (!t.valid) errors.push(...t.errors);
       }
-    }
 
-    if (method === 'EXACT' && totalMinor != null && orderedSelected.length > 0) {
-      const incomplete = orderedSelected.some((id) => {
-        const m = roundCurrencyToMinor(exactById[id] ?? '', minorPerMajor);
-        return m == null;
-      });
-      if (incomplete) errors.push('Enter an exact amount for every selected participant.');
-    }
+      if (method === 'PERCENT') {
+        const entries = orderedSelected.map((id) => ({
+          participantId: id,
+          percentBps: parsePercentStringToBps(percentById[id] ?? '') ?? 0,
+        }));
+        const p = validatePercentTotal(entries);
+        if (!p.valid) errors.push(...p.errors);
+      }
 
-    if (splitDirection === 'NOTHING_OUTSTANDING' && results.some((r) => r.amountMinor > 0)) {
-        errors.push('Choose who owes whom when the split has a positive amount.');
+      if (method === 'SHARES') {
+        const entries = orderedSelected.map((id) => ({
+          participantId: id,
+          shareWeight: parseShareStringToWeight(shareById[id] ?? '') ?? 0,
+        }));
+        const s = validateShares(entries);
+        if (!s.valid) errors.push(...s.errors);
+      }
+
+      if (method === 'ADJUSTMENT') {
+        const badAmount = orderedSelected.some((id) => {
+          const raw = (adjAmountById[id] ?? '').trim();
+          if (!raw) return false;
+          return roundCurrencyToMinor(raw, minorPerMajor) == null;
+        });
+        if (badAmount) {
+          errors.push('Enter a valid amount for each filled field, or leave blank for auto split.');
+        } else {
+          const roster = orderedSelected.map((id) => {
+            const raw = (adjAmountById[id] ?? '').trim();
+            if (!raw) return { participantId: id, pinnedMinor: null };
+            return {
+              participantId: id,
+              pinnedMinor: roundCurrencyToMinor(raw, minorPerMajor),
+            };
+          });
+          const a = validateAdjustmentSplit(totalMinor ?? 0, roster);
+          if (!a.valid) errors.push(...a.errors);
+        }
+      }
+
+      if (method === 'EXACT' && totalMinor != null && orderedSelected.length > 0) {
+        const incomplete = orderedSelected.some((id) => {
+          const m = roundCurrencyToMinor(exactById[id] ?? '', minorPerMajor);
+          return m == null;
+        });
+        if (incomplete) errors.push('Enter an exact amount for every selected participant.');
+      }
     }
 
     const clash = results.filter((r) => taggedSet.has(String(r.participantId)));
@@ -407,6 +409,7 @@ export default function SplitTransactionForm({
         {splitNote.length}/{SPLIT_NOTE_MAX_LEN}
       </p>
 
+      {splitDirection !== 'NOTHING_OUTSTANDING' && (
       <div className="split-txn-method-row" role="tablist" aria-label="Split method">
         {METHODS.map((m) => (
           <button
@@ -424,6 +427,7 @@ export default function SplitTransactionForm({
           </button>
         ))}
       </div>
+      )}
 
       <label className="split-txn-label" htmlFor="split-txn-participant-search">
         Participants
@@ -501,7 +505,7 @@ export default function SplitTransactionForm({
         )}
       </div>
 
-      {method === 'EXACT' && orderedSelected.length > 0 && (
+      {splitDirection !== 'NOTHING_OUTSTANDING' && method === 'EXACT' && orderedSelected.length > 0 && (
         <div className="split-txn-grid">
           {orderedSelected.map((id) => {
             const p = participants.find((x) => String(x.id) === id);
@@ -521,7 +525,7 @@ export default function SplitTransactionForm({
         </div>
       )}
 
-      {method === 'PERCENT' && orderedSelected.length > 0 && (
+      {splitDirection !== 'NOTHING_OUTSTANDING' && method === 'PERCENT' && orderedSelected.length > 0 && (
         <div className="split-txn-grid">
           {orderedSelected.map((id) => {
             const p = participants.find((x) => String(x.id) === id);
@@ -541,7 +545,7 @@ export default function SplitTransactionForm({
         </div>
       )}
 
-      {method === 'SHARES' && orderedSelected.length > 0 && (
+      {splitDirection !== 'NOTHING_OUTSTANDING' && method === 'SHARES' && orderedSelected.length > 0 && (
         <div className="split-txn-grid">
           {orderedSelected.map((id) => {
             const p = participants.find((x) => String(x.id) === id);
@@ -561,7 +565,7 @@ export default function SplitTransactionForm({
         </div>
       )}
 
-      {method === 'ADJUSTMENT' && orderedSelected.length > 0 && (
+      {splitDirection !== 'NOTHING_OUTSTANDING' && method === 'ADJUSTMENT' && orderedSelected.length > 0 && (
         <div className="split-txn-grid">
           {orderedSelected.map((id) => {
             const p = participants.find((x) => String(x.id) === id);
@@ -584,7 +588,7 @@ export default function SplitTransactionForm({
         </div>
       )}
 
-      {orderedSelected.length > 0 && results.length > 0 && (
+      {splitDirection !== 'NOTHING_OUTSTANDING' && orderedSelected.length > 0 && results.length > 0 && (
         <div className="split-txn-results">
           <p className="split-txn-results__title">Final split</p>
           <ul className="split-txn-results__list">
@@ -676,11 +680,13 @@ export default function SplitTransactionForm({
       )}
 
       <div
-        className={`split-txn-delta${deltaMinor === 0 ? ' split-txn-delta--ok' : ''}${
-          deltaMinor < 0 ? ' split-txn-delta--over' : ''
-        }`}
+        className={`split-txn-delta${
+          splitDirection === 'NOTHING_OUTSTANDING' || deltaMinor === 0 ? ' split-txn-delta--ok' : ''
+        }${deltaMinor < 0 ? ' split-txn-delta--over' : ''}`}
       >
-        {totalMinor == null || orderedSelected.length === 0 ? (
+        {splitDirection === 'NOTHING_OUTSTANDING' ? (
+          <span>No amount is tracked for these tags.</span>
+        ) : totalMinor == null || orderedSelected.length === 0 ? (
           <span>Select participants to preview the split.</span>
         ) : deltaMinor === 0 ? (
           <span>Balanced</span>

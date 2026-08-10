@@ -144,7 +144,7 @@
 .txn-search__keys:hover:not(.is-hidden) .txn-key {
   color: var(--ft-text-dim);
   border-color: var(--ft-border-s);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--ft-active);
 }
 
 .txn-key {
@@ -159,10 +159,10 @@
   font-weight: 500;
   line-height: 1;
   color: var(--ft-text-faint);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--ft-hover);
   border: 1px solid var(--ft-border);
   border-radius: 6px;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+  box-shadow: var(--ft-inner-highlight);
   transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
 }
 
@@ -189,19 +189,17 @@
 
 /* ---------- Table ---------- */
 
-.txn-table {
-  width: 100%;
-  table-layout: fixed;
-  border-collapse: collapse;
-  font-family: var(--ft-font-ui);
-}
+/* Layout, header and cell chrome come from DynamicTable (.dyn-table / .dyn-th /
+   .dyn-td). Only the ledger-specific decoration lives here — notably the
+   rounded header corners and the nested card-transaction rows.
+   Note: `border-collapse` stays at DynamicTable's `separate`; `collapse` would
+   break the sticky header. */
 
-/* Description column: shrink below content width so inner ellipsis applies */
-.txn-table thead th:nth-child(2),
-.txn-table tbody td.txn-cell--description {
-  overflow: hidden;
-  max-width: 0;
-}
+.txn-table .dyn-th:first-child { border-top-left-radius: 14px; }
+.txn-table .dyn-th:last-child { border-top-right-radius: 14px; }
+
+/* Description column: clip so the inner title/subtitle ellipsis applies. */
+.txn-table .txn-cell--description { overflow: hidden; }
 
 .txn-row__desc {
   display: flex;
@@ -235,34 +233,183 @@
   font-size: 11.5;
 }
 
-.txn-table thead th {
-  background: var(--ft-surface-2);
-  color: var(--ft-text-dim);
-  font-weight: 500;
-  font-size: 11.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  padding: 10px 14px;
-  text-align: left;
-  border-bottom: 1px solid var(--ft-border);
-}
-
-.txn-table thead th:first-child { border-top-left-radius: 14px; padding-left: 16px; }
-.txn-table thead th:last-child { border-top-right-radius: 14px; padding-right: 16px; }
-
-.txn-table tbody td {
-  padding: 12px 14px;
-  border-top: 1px solid var(--ft-border);
-  vertical-align: middle;
-}
-.txn-table tbody td:first-child { padding-left: 16px; }
-.txn-table tbody td:last-child { padding-right: 16px; }
-
 .txn-row {
   cursor: pointer;
   transition: background 0.1s;
 }
 .txn-row:hover { background: var(--ft-surface-2); }
+
+/* ── Credit-card bill payments and their nested transactions ───────────── */
+
+.txn-row__disclosure {
+  background: var(--ft-surface-3);
+  border: 1px solid var(--ft-border-s);
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  flex-shrink: 0;
+  margin-left: -2px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ft-text-dim);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.txn-row__disclosure svg {
+  display: block;
+  transition: transform 0.18s ease;
+}
+.txn-row__disclosure:hover {
+  background: var(--ft-surface-2);
+  color: var(--ft-text);
+  border-color: var(--ft-border-s);
+  box-shadow: 0 0 0 1px var(--ft-overlay-hairline);
+}
+.txn-row__disclosure:focus-visible {
+  outline: 2px solid var(--ft-focus-ring);
+  outline-offset: 1px;
+}
+.txn-row__disclosure.is-open {
+  background: var(--ft-accent-soft);
+  border-color: var(--ft-accent-hairline);
+  color: var(--ft-accent-fg);
+}
+.txn-row__disclosure.is-open svg {
+  transform: rotate(90deg);
+}
+.txn-row__disclosure.is-open:hover {
+  background: var(--ft-accent-soft-s);
+  color: var(--ft-accent-fg);
+  border-color: var(--ft-accent-hairline);
+}
+
+.txn-row.is-cc-open { background: var(--ft-surface-2); }
+.txn-row.is-cc-open .txn-row__cc-badge {
+  background: var(--ft-accent-soft);
+  color: var(--ft-accent-dim);
+}
+
+.txn-row__cc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--ft-surface-3);
+  color: var(--ft-text-dim);
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  vertical-align: middle;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+/* Nested rows stay on the parent's column grid but read as subordinate:
+   tinted, rule down the left, and the description cell indented. */
+.txn-row--nested > td {
+  background: var(--ft-surface-2);
+  border-top: 0;
+}
+.txn-row--nested:hover > td { background: var(--ft-surface-3); }
+.txn-row--nested > td:first-child {
+  padding-left: 30px !important;
+  position: relative;
+}
+.txn-row--nested > td:first-child::before {
+  content: '';
+  position: absolute;
+  left: 18px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--ft-border);
+}
+/* The rule stops halfway down the final child so the tree terminates.
+   Marked from JS: every row here is a <tr>, so :last-of-type would match the
+   last row of the whole table, not the last nested one. */
+.txn-row--nested.is-last > td:first-child::before { bottom: 50%; }
+.txn-row--nested > td:first-child::after {
+  content: '';
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  width: 7px;
+  height: 1px;
+  background: var(--ft-border);
+}
+.txn-row--nested .txn-row__title { font-weight: 450; }
+
+/* Children read as subordinate: indented, quieter, and not clickable. */
+.txn-row__child { cursor: default; }
+.txn-row__child > td {
+  padding: 0 16px 0 52px !important;
+  background: var(--ft-surface-2);
+  border-top: 0;
+}
+.txn-row__child:last-of-type > td { padding-bottom: 6px !important; }
+
+.txn-row__child-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  border-left: 1px solid var(--ft-border);
+  padding-left: 12px;
+}
+
+.txn-row__child-date {
+  flex-shrink: 0;
+  width: 78px;
+  font-family: var(--ft-font-mono);
+  font-size: 11.5px;
+  color: var(--ft-text-faint);
+}
+
+.txn-row__child-merchant {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--ft-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.txn-row__child-amount { flex-shrink: 0; text-align: right; }
+
+.txn-row__child-refund {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: var(--ft-income-soft);
+  color: var(--ft-income);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.txn-row__child-note {
+  display: block;
+  padding: 8px 0 10px 12px;
+  border-left: 1px solid var(--ft-border);
+  font-size: 12.5px;
+  color: var(--ft-text-faint);
+}
+
+.txn-row__remainder .txn-row__child-merchant { font-style: italic; }
+/* Its left rule continues the nested rows' tree, so it starts where they do
+   rather than at the deeper indent the standalone notes use. */
+.txn-row__remainder > td { padding-left: 18px !important; }
+.txn-row__remainder .txn-row__child-line {
+  border-top: 1px dashed var(--ft-border);
+  margin-top: 2px;
+}
 
 .txn-row__menu {
   background: transparent;
@@ -298,183 +445,6 @@
   border-radius: var(--ft-r-md);
   padding: 8px 12px;
   min-width: 200px;
-}
-
-/* ---------- Footer ---------- */
-
-.txn-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 16px 18px 18px;
-  border-top: 1px solid var(--ft-border);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.01), transparent 70%),
-    var(--ft-surface);
-}
-
-.txn-footer__meta {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-.txn-footer__label,
-.txn-footer__summary {
-  color: var(--ft-text-dim);
-  font-size: 12px;
-  line-height: 1;
-}
-
-.txn-footer__summary {
-  font-family: var(--ft-font-mono);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.3px;
-  white-space: nowrap;
-}
-
-.txn-page-size {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.txn-page-size__options {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 999px;
-  background: var(--ft-surface-2);
-  border: 1px solid var(--ft-border);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-}
-
-.txn-page-size__option {
-  min-width: 34px;
-  height: 30px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--ft-text-dim);
-  font-family: var(--ft-font-mono);
-  font-size: 12px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease, transform 0.12s ease;
-}
-
-.txn-page-size__option:hover {
-  color: var(--ft-text);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.txn-page-size__option.is-active {
-  background: var(--ft-accent);
-  color: var(--ft-text-on-accent);
-  box-shadow: 0 6px 16px rgba(215, 255, 61, 0.18);
-}
-
-.txn-pager {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-left: auto;
-  flex-wrap: wrap;
-}
-
-.txn-pager__pages {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.txn-pager__nav,
-.txn-pager__page {
-  height: 38px;
-  min-width: 38px;
-  border-radius: 14px;
-  border: 1px solid var(--ft-border-s);
-  background: transparent;
-  color: var(--ft-text);
-  font-family: var(--ft-font-ui);
-  font-size: 13px;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
-}
-
-.txn-pager__nav {
-  padding: 0 16px;
-}
-
-.txn-pager__nav:hover,
-.txn-pager__page:hover {
-  background: var(--ft-surface-2);
-  border-color: var(--ft-border);
-}
-
-.txn-pager__nav:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.txn-pager__page {
-  font-family: var(--ft-font-mono);
-  font-variant-numeric: tabular-nums;
-  border-color: transparent;
-  background: var(--ft-surface-2);
-  color: var(--ft-text-dim);
-}
-
-.txn-pager__page.is-active {
-  background: var(--ft-text);
-  border-color: rgba(255, 255, 255, 0.08);
-  color: var(--ft-bg);
-}
-
-.txn-pager__ellipsis {
-  width: 20px;
-  text-align: center;
-  color: var(--ft-text-faint);
-  font-size: 16px;
-  line-height: 1;
-}
-
-@media (max-width: 1180px) {
-  .txn-footer {
-    align-items: flex-start;
-  }
-
-  .txn-footer__meta,
-  .txn-page-size {
-    width: 100%;
-  }
-
-  .txn-pager {
-    margin-left: 0;
-  }
-}
-
-@media (max-width: 780px) {
-  .txn-page-size {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .txn-footer__summary {
-    white-space: normal;
-  }
 }
 
 /* ---------- Mobile stats ---------- */
@@ -536,7 +506,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow: var(--ft-inner-highlight);
 }
 
 .txn-category-glyph span {
@@ -599,11 +569,100 @@
   text-overflow: ellipsis;
 }
 
+.txn-mobile-row__title {
+  color: var(--ft-text);
+  font-weight: 500;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.txn-mobile-row__meta-date,
+.txn-mobile-row__meta-trailing {
+  flex-shrink: 0;
+  font-family: var(--ft-font-mono);
+  font-size: 11px;
+  color: var(--ft-text-faint);
+}
+
+/* Nested rows: subordinate to the row above, with a tree rule down the left. */
+.txn-mobile-row--nested {
+  position: relative;
+  gap: 10px;
+  padding: 7px 4px 7px 14px;
+  border-top: 0;
+}
+.txn-mobile-row--nested::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--ft-border);
+}
+.txn-mobile-row--nested.is-last::before { bottom: 50%; }
+.txn-mobile-row--nested::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 8px;
+  height: 1px;
+  background: var(--ft-border);
+}
+.txn-mobile-row--nested .txn-mobile-row__title {
+  font-size: 13px;
+  font-weight: 450;
+}
+.txn-mobile-row--nested .txn-mobile-row__meta { font-size: 11.5px; }
+
 .txn-mobile-row__amount {
   margin-left: auto;
   text-align: right;
   flex-shrink: 0;
 }
 
-/* Sort header hover */
-.txn-table thead th:hover { color: var(--ft-text); background: var(--ft-surface-3); }
+/* Sort header hover — only the sortable ones, which carry the button. */
+.txn-table .dyn-th:has(.dyn-th__btn):hover { background: var(--ft-surface-3); }
+
+/* ====================== Mobile refinements ====================== */
+
+/* Meta line: the date/badge/account chips hold their size, the free text
+   ellipsises, and nothing escapes the row. */
+.txn-mobile-row__meta { overflow: hidden; }
+.txn-mobile-row__meta > .txn-row__cc-badge { flex-shrink: 0; }
+.txn-mobile-row__meta-copy { flex: 1 1 auto; }
+
+/* Filter control in a ledger toolbar: right-aligned beside the search on wide
+   screens, full width once it wraps onto its own line. */
+.txn-toolbar__filter { margin-left: auto; }
+
+@media (max-width: 720px) {
+  /* iOS zooms the page when a focused control is under 16px. */
+  .txn-search input { font-size: 16px; }
+
+  .txn-toolbar { gap: 10px; }
+  .txn-toolbar__filter {
+    margin-left: 0;
+    width: 100%;
+  }
+  .txn-search--wide { max-width: none; }
+
+  /* Nested rows sit closer in: the rule and tint already carry the hierarchy,
+     and the text column is the scarce resource on a phone. */
+  .txn-mobile-row--nested { padding-left: 12px; }
+  .txn-mobile-row--nested::after { width: 6px; }
+}
+
+/* Touch: grow the category tap target past the glyph without moving it.
+   Pointer-precise devices keep the tight hit area. */
+@media (pointer: coarse) {
+  .txn-mobile-row__cat-pick { overflow: visible; }
+  .txn-mobile-row__cat-pick .txn-mobile-cat-select {
+    inset: -7px;
+    width: auto;
+    height: auto;
+  }
+}

@@ -6,10 +6,12 @@ export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 export interface AuthState {
   status: AuthStatus;
   expiresAt: string | null;
+  authDisabled?: boolean;
 }
 
 export interface SessionResponse {
   authenticated: boolean;
+  authDisabled?: boolean;
   expiresAt?: string | null;
 }
 
@@ -20,6 +22,9 @@ export const initialAuthState: AuthState = {
 
 // Map a /auth/session response onto an AuthState.
 export function fromSession(session: SessionResponse): AuthState {
+  if (session.authDisabled) {
+    return { status: 'authenticated', expiresAt: null, authDisabled: true };
+  }
   return session.authenticated
     ? { status: 'authenticated', expiresAt: session.expiresAt ?? null }
     : { status: 'unauthenticated', expiresAt: null };

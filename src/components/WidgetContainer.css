@@ -47,8 +47,8 @@
 .widget-container-error {
   padding: 0.875rem 1rem;
   margin-bottom: 0;
-  background: rgba(255, 238, 238, 0.95);
-  border: 1px solid rgba(252, 204, 204, 0.95);
+  background: var(--ft-spend-soft);
+  border: 1px solid var(--ft-spend-hairline);
   border-radius: 12px;
   display: flex;
   justify-content: space-between;
@@ -59,7 +59,7 @@
 
 .widget-container-error p {
   margin: 0;
-  color: var(--danger, #b93829);
+  color: var(--ft-spend);
   flex: 1;
   min-width: 0;
   font-size: 0.9rem;
@@ -67,8 +67,8 @@
 
 .retry-button {
   padding: 0.5rem 1rem;
-  background: var(--danger, #b93829);
-  color: #fff;
+  background: var(--ft-spend);
+  color: var(--ft-text-on-solid);
   border: none;
   border-radius: 10px;
   font-size: 0.875rem;

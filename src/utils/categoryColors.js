@@ -2,6 +2,9 @@
 // API stores category objects with name + optional color, but the redesign uses
 // a fixed 10-hue palette. We do best-effort matching on the name.
 
+// Authoring palette. These hex values are what the category colour-picker
+// writes to the database, so they must stay literal — a var() reference would
+// be persisted verbatim. Rendering goes through CATEGORY_TOKENS below instead.
 export const CATEGORY_PALETTE = {
   food:      '#FF8B6B',
   transport: '#7DB9FF',
@@ -13,6 +16,21 @@ export const CATEGORY_PALETTE = {
   transfer:  '#8D9099',
   salary:    '#D7FF3D',
   health:    '#6EE7E7',
+};
+
+// Rendering palette — theme-aware. Same ten hues, resolved per theme by
+// tokens.css (see --ft-cat-*), so charts and chips follow light/dark.
+export const CATEGORY_TOKENS = {
+  food:      'var(--ft-cat-food)',
+  transport: 'var(--ft-cat-transport)',
+  shopping:  'var(--ft-cat-shopping)',
+  bills:     'var(--ft-cat-bills)',
+  grocery:   'var(--ft-cat-grocery)',
+  rent:      'var(--ft-cat-rent)',
+  entmt:     'var(--ft-cat-entmt)',
+  transfer:  'var(--ft-cat-transfer)',
+  salary:    'var(--ft-cat-salary)',
+  health:    'var(--ft-cat-health)',
 };
 
 const NAME_RULES = [
@@ -36,12 +54,15 @@ export function categoryKeyForName(name) {
   return 'transfer';
 }
 
+// Returns a user-set hex when the category has one, otherwise a theme token.
+// User-set colours come from the database and cannot be themed — see the
+// unresolved-items note in the light-theme migration.
 export function categoryColor(category) {
-  if (!category) return CATEGORY_PALETTE.transfer;
+  if (!category) return CATEGORY_TOKENS.transfer;
   if (category.color && /^#?[0-9a-fA-F]{3,8}$/.test(String(category.color).replace('#', ''))) {
     return category.color.startsWith('#') ? category.color : `#${category.color}`;
   }
-  return CATEGORY_PALETTE[categoryKeyForName(category.name)] || CATEGORY_PALETTE.transfer;
+  return CATEGORY_TOKENS[categoryKeyForName(category.name)] || CATEGORY_TOKENS.transfer;
 }
 
 export function categoryKey(category) {
@@ -49,10 +70,13 @@ export function categoryKey(category) {
   return categoryKeyForName(category.name);
 }
 
-// Friend tint — deterministic from id
+// Friend tint — deterministic from id. Theme tokens, not literals, so avatars
+// re-tint with the theme.
 const FRIEND_TINTS = [
-  '#FF8B6B', '#7DB9FF', '#B79CFF', '#FFB454', '#6EE7B7',
-  '#FF7AB6', '#FFD66E', '#6EE7E7', '#D7FF3D', '#FF7A7A',
+  'var(--ft-cat-food)', 'var(--ft-cat-transport)', 'var(--ft-cat-shopping)',
+  'var(--ft-cat-bills)', 'var(--ft-cat-grocery)', 'var(--ft-cat-rent)',
+  'var(--ft-cat-entmt)', 'var(--ft-cat-health)', 'var(--ft-cat-salary)',
+  'var(--ft-spend)',
 ];
 
 export function friendTint(idOrName) {

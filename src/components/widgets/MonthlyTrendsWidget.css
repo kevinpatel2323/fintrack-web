@@ -27,7 +27,7 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: #666;
+  color: var(--ft-text-dim);
 }
 
 .legend-color {

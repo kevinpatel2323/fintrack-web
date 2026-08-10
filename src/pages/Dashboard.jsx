@@ -263,12 +263,12 @@ function TrendChart({ trends, range = '6M' }) {
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
         <defs>
           <linearGradient id="gIncome" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#6EE7B7" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="#6EE7B7" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--ft-income)" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="var(--ft-income)" stopOpacity="0" />
           </linearGradient>
           <linearGradient id="gSpend" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#FF7A7A" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="#FF7A7A" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--ft-spend)" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="var(--ft-spend)" stopOpacity="0" />
           </linearGradient>
         </defs>
         {/* gridlines */}
@@ -278,14 +278,14 @@ function TrendChart({ trends, range = '6M' }) {
         ))}
         <path d={area(incomePts)} fill="url(#gIncome)" />
         <path d={area(spendPts)} fill="url(#gSpend)" />
-        <path d={path(incomePts)} fill="none" stroke="#6EE7B7" strokeWidth="2" />
-        <path d={path(spendPts)} fill="none" stroke="#FF7A7A" strokeWidth="2" />
+        <path d={path(incomePts)} fill="none" stroke="var(--ft-income)" strokeWidth="2" />
+        <path d={path(spendPts)} fill="none" stroke="var(--ft-spend)" strokeWidth="2" />
         {incomePts[lastIdx] && (
           <>
             <line x1={incomePts[lastIdx][0]} x2={incomePts[lastIdx][0]} y1={padT} y2={padT + ch}
-              stroke="var(--ft-accent)" strokeDasharray="3 4" strokeWidth="1" opacity="0.55" />
-            <circle cx={incomePts[lastIdx][0]} cy={incomePts[lastIdx][1]} r="4.5" fill="#6EE7B7" stroke="var(--ft-surface)" strokeWidth="2" />
-            <circle cx={spendPts[lastIdx][0]} cy={spendPts[lastIdx][1]} r="4.5" fill="#FF7A7A" stroke="var(--ft-surface)" strokeWidth="2" />
+              stroke="var(--ft-accent-strong)" strokeDasharray="3 4" strokeWidth="1" opacity="0.55" />
+            <circle cx={incomePts[lastIdx][0]} cy={incomePts[lastIdx][1]} r="4.5" fill="var(--ft-income)" stroke="var(--ft-surface)" strokeWidth="2" />
+            <circle cx={spendPts[lastIdx][0]} cy={spendPts[lastIdx][1]} r="4.5" fill="var(--ft-spend)" stroke="var(--ft-surface)" strokeWidth="2" />
           </>
         )}
         {data.map((d, i) => (
@@ -362,7 +362,8 @@ function CategoryDonut({ breakdown }) {
   const items = breakdown.categories.slice(0, 6);
   const total = items.reduce((s, c) => s + (Number(c.totalAmount) || 0), 0) || 1;
   const C = 2 * Math.PI * 70;
-  const fallbacks = ['#FF8B6B', '#7DB9FF', '#B79CFF', '#FFB454', '#6EE7B7', '#FFD66E'];
+  const fallbacks = ['var(--ft-cat-food)', 'var(--ft-cat-transport)', 'var(--ft-cat-shopping)',
+                     'var(--ft-cat-bills)', 'var(--ft-cat-grocery)', 'var(--ft-cat-entmt)'];
   let offset = 0;
   return (
     <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
