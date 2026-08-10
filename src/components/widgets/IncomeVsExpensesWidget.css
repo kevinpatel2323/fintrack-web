@@ -19,12 +19,12 @@
 .comparison-label {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #666;
+  color: var(--ft-text-dim);
 }
 
 .comparison-bar {
   height: 32px;
-  background: #f0f0f0;
+  background: var(--ft-surface-3);
   border-radius: 6px;
   overflow: hidden;
   position: relative;
@@ -37,17 +37,17 @@
 }
 
 .income-fill {
-  background: linear-gradient(90deg, #27ae60 0%, #2ecc71 100%);
+  background: var(--ft-income);
 }
 
 .expenses-fill {
-  background: linear-gradient(90deg, #e74c3c 0%, #ec7063 100%);
+  background: var(--ft-spend);
 }
 
 .comparison-value {
   font-size: 1.125rem;
   font-weight: 700;
-  color: #333;
+  color: var(--ft-text);
 }
 
 .net-savings {
@@ -61,11 +61,11 @@
 }
 
 .net-savings.positive {
-  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+  background: var(--ft-income-soft);
 }
 
 .net-savings.negative {
-  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+  background: var(--ft-spend-soft);
 }
 
 .savings-label {
@@ -76,11 +76,11 @@
 }
 
 .net-savings.positive .savings-label {
-  color: #155724;
+  color: var(--ft-income);
 }
 
 .net-savings.negative .savings-label {
-  color: #721c24;
+  color: var(--ft-spend);
 }
 
 .savings-value {
@@ -89,11 +89,11 @@
 }
 
 .net-savings.positive .savings-value {
-  color: #155724;
+  color: var(--ft-income);
 }
 
 .net-savings.negative .savings-value {
-  color: #721c24;
+  color: var(--ft-spend);
 }
 
 .savings-rate {
@@ -102,11 +102,11 @@
 }
 
 .net-savings.positive .savings-rate {
-  color: #1e7e34;
+  color: var(--ft-income);
 }
 
 .net-savings.negative .savings-rate {
-  color: #a71d2a;
+  color: var(--ft-spend);
 }
 
 @media (max-width: 768px) {

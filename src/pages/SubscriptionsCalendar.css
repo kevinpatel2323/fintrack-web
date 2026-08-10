@@ -34,7 +34,7 @@
 }
 
 .calendar-cell--subs.calendar-cell--has-data {
-  border-color: rgba(220, 120, 140, 0.35);
+  border-color: var(--ft-spend-hairline);
 }
 
 .subscriptions-list-panel h3 {
@@ -57,7 +57,7 @@
   justify-content: space-between;
   gap: 10px;
   padding: 12px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--ft-divider);
 }
 
 .subscriptions-list li:last-child {
@@ -90,7 +90,7 @@
 
 button.danger,
 .subscriptions-list__actions .danger {
-  color: #f0a4a4;
+  color: var(--ft-spend);
 }
 
 .subs-day-list {
@@ -123,7 +123,7 @@ button.danger,
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  background: rgba(120, 180, 255, 0.2);
+  background: var(--ft-info-soft);
   color: var(--ink);
 }
 

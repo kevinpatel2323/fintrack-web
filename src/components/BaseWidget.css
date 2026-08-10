@@ -44,14 +44,14 @@
   justify-content: center;
   padding: 2rem;
   gap: 1rem;
-  color: #666;
+  color: var(--ft-text-dim);
 }
 
 .base-widget-loading .spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #3498db;
+  border: 3px solid var(--ft-surface-3);
+  border-top: 3px solid var(--ft-info);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -63,14 +63,14 @@
 
 .base-widget-error {
   padding: 1rem;
-  background: #fee;
-  border: 1px solid #fcc;
+  background: var(--ft-spend-soft);
+  border: 1px solid var(--ft-spend-hairline);
   border-radius: 4px;
 }
 
 .base-widget-error .error-message {
   margin: 0;
-  color: #c33;
+  color: var(--ft-spend);
   font-size: 0.875rem;
 }
 

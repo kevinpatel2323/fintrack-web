@@ -19,7 +19,7 @@ button.primary,
   letter-spacing: -0.2px;
 }
 button.primary:hover { background: var(--ft-accent-dim); }
-button.primary:disabled { opacity: 0.55; cursor: not-allowed; }
+button.primary:disabled { opacity: var(--ft-disabled-opacity); cursor: not-allowed; }
 
 button.secondary {
   background: var(--ft-surface-2);
@@ -33,7 +33,7 @@ button.secondary {
   cursor: pointer;
 }
 button.secondary:hover { background: var(--ft-surface-3); }
-button.secondary:disabled { opacity: 0.55; cursor: not-allowed; }
+button.secondary:disabled { opacity: var(--ft-disabled-opacity); cursor: not-allowed; }
 
 button.ghost,
 .ghost {
@@ -60,7 +60,7 @@ input:not([type]),
 select,
 textarea {
   background: var(--ft-surface-2);
-  border: 1px solid var(--ft-border);
+  border: 1px solid var(--ft-border-s);
   border-radius: var(--ft-r-md);
   color: var(--ft-text);
   font-family: var(--ft-font-ui);
@@ -76,12 +76,12 @@ input[type='checkbox'],
 input[type='radio'] {
   width: auto;
   min-height: 0;
-  accent-color: var(--ft-accent);
+  accent-color: var(--ft-accent-fg);
 }
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: var(--ft-accent);
+  border-color: var(--ft-accent-strong);
   background: var(--ft-surface);
 }
 input::placeholder,
@@ -89,14 +89,14 @@ textarea::placeholder { color: var(--ft-text-faint); }
 
 input[disabled],
 select[disabled] {
-  opacity: 0.6;
+  opacity: var(--ft-disabled-opacity);
   cursor: not-allowed;
 }
 
 select {
   -webkit-appearance: none;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238D9099' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-image: var(--ft-chevron);
   background-repeat: no-repeat;
   background-position: right 10px center;
   background-size: 14px;
@@ -213,7 +213,7 @@ p.empty,
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--ft-scrim);
   backdrop-filter: blur(4px);
   z-index: 80;
   display: flex;
@@ -376,7 +376,7 @@ p.empty,
 
 .friend-tag-card__delete:hover {
   background: var(--ft-spend-soft);
-  border-color: rgba(255, 122, 122, 0.28);
+  border-color: var(--ft-spend-hairline);
   color: var(--ft-spend);
 }
 
@@ -401,7 +401,7 @@ p.empty,
 .calendar-sheet-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--ft-scrim);
   backdrop-filter: blur(4px);
   z-index: 70;
   display: flex;
@@ -597,8 +597,8 @@ p.empty,
 .split-txn-method:hover { background: var(--ft-surface-3); color: var(--ft-text); }
 .split-txn-method--active {
   background: var(--ft-accent-soft);
-  color: var(--ft-accent);
-  border-color: rgba(215, 255, 61, 0.33);
+  color: var(--ft-accent-fg);
+  border-color: var(--ft-accent-hairline);
 }
 .split-txn-method__icon {
   width: 20px;
@@ -629,7 +629,7 @@ p.empty,
   gap: 4px;
   padding: 4px 4px 4px 10px;
   background: var(--ft-accent-soft);
-  color: var(--ft-accent);
+  color: var(--ft-accent-fg);
   border-radius: 999px;
   font-size: 12px;
   font-weight: 500;
@@ -642,8 +642,8 @@ p.empty,
 }
 .split-txn-chip__remove {
   border: 0;
-  background: rgba(215, 255, 61, 0.2);
-  color: var(--ft-accent);
+  background: var(--ft-accent-soft);
+  color: var(--ft-accent-fg);
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -654,7 +654,7 @@ p.empty,
   align-items: center;
   justify-content: center;
 }
-.split-txn-chip__remove:hover { background: rgba(215, 255, 61, 0.32); }
+.split-txn-chip__remove:hover { background: var(--ft-accent-soft-s); }
 
 .split-txn-friend-list {
   display: flex;
@@ -683,9 +683,9 @@ p.empty,
 .split-txn-friend-row.settlement-link-item--selected {
   background: var(--ft-accent-soft);
   color: var(--ft-text);
-  border-color: rgba(215, 255, 61, 0.33);
+  border-color: var(--ft-accent-hairline);
 }
-.settlement-link-item--selected .split-txn-friend-name { color: var(--ft-accent); font-weight: 600; }
+.settlement-link-item--selected .split-txn-friend-name { color: var(--ft-accent-fg); font-weight: 600; }
 .split-txn-friend-name {
   flex: 1;
   white-space: nowrap;
@@ -802,7 +802,7 @@ p.empty,
   padding: 12px;
   background: var(--ft-violet-soft);
   border-radius: var(--ft-r-md);
-  border: 1px solid rgba(183, 156, 255, 0.25);
+  border: 1px solid var(--ft-violet-hairline);
 }
 .split-txn-settlement-participant {
   display: flex;

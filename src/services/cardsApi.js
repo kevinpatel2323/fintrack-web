@@ -74,6 +74,23 @@ export const updateCardTransaction = (txnId, data) =>
 export const deleteCardTransaction = (txnId) =>
   request(`/cards/transactions/${txnId}`, { method: 'DELETE' });
 
+// ── Friend tags on card transactions ───────────────────────────────────
+// Mirrors /transactions/:id/friends for bank transactions.
+export const listCardTransactionFriends = (txnId) =>
+  request(`/cards/transactions/${txnId}/friends`);
+export const addCardTransactionFriend = (txnId, data) =>
+  request(`/cards/transactions/${txnId}/friends`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+export const updateCardTransactionFriend = (txnId, tagId, data) =>
+  request(`/cards/transactions/${txnId}/friends/${tagId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+export const deleteCardTransactionFriend = (txnId, tagId) =>
+  request(`/cards/transactions/${txnId}/friends/${tagId}`, { method: 'DELETE' });
+
 // ── Payments ───────────────────────────────────────────────────────────
 export const listCardPayments = (id) => request(`/cards/${id}/payments`);
 export const createCardPayment = (id, data) =>
@@ -103,10 +120,16 @@ export const revertCardImport = (importId) =>
 
 // ── CC bill-payment linking (bank transaction ↔ card transactions) ──────
 export const getCcLink = (txId) => request(`/transactions/${txId}/cc-link`);
-export const linkCcBillPayment = (txId, cardId, cardTransactionIds) =>
+// Pass either `statementId` (cover a whole statement) or `cardTransactionIds`
+// (hand-picked rows) — the API rejects both together.
+export const linkCcBillPayment = (txId, { cardId, statementId, cardTransactionIds }) =>
   request(`/transactions/${txId}/cc-link`, {
     method: 'POST',
-    body: JSON.stringify({ cardId, cardTransactionIds }),
+    body: JSON.stringify(
+      statementId != null
+        ? { cardId, statementId }
+        : { cardId, cardTransactionIds },
+    ),
   });
 export const unlinkCcBillPayment = (txId) =>
   request(`/transactions/${txId}/cc-link`, { method: 'DELETE' });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Card,
@@ -15,6 +15,7 @@ import {
   IcEdit,
   IcPlus,
   IcRefresh,
+  IcSearch,
   IcTrash,
 } from '../components/ui/Icon.jsx';
 import CardFace from '../components/ui/CardFace.jsx';
@@ -22,21 +23,31 @@ import CardFormModal from '../components/CardFormModal.jsx';
 import CardTransactionModal from '../components/CardTransactionModal.jsx';
 import CardPaymentModal from '../components/CardPaymentModal.jsx';
 import CardStatementModal from '../components/CardStatementModal.jsx';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
+import TransactionTable from '../components/TransactionTable.jsx';
+import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
+import TransactionMobileList from '../components/TransactionMobileList.jsx';
 import {
+  addCardTransactionFriend,
   deleteCard,
   deleteCardPayment,
   deleteCardStatement,
   deleteCardTransaction,
+  deleteCardTransactionFriend,
   fetchStatementBreakdown,
   getCard,
   listCardPayments,
   listCardStatements,
+  listCardTransactionFriends,
   listCardTransactions,
   setCardControls,
   setCardFreeze,
   setCardPrimary,
+  updateCardTransaction,
 } from '../services/cardsApi.js';
+import { cardTxnStatus, toCardTableRow } from '../utils/cardTransactionRow.jsx';
 import { inr, inrCompact } from '../utils/inr.js';
+import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 
 import { API_BASE, apiFetch } from '../services/http.js';
@@ -68,21 +79,38 @@ export default function CardDetail() {
   const [stmtOpen, setStmtOpen] = useState(false);
   const [activeBreakdown, setActiveBreakdown] = useState(null);
 
+  // ── Transactions tab: same ledger controls as the bank transactions page ──
+  const [friends, setFriends] = useState([]);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [sortCol, setSortCol] = useState('date');
+  const [sortDir, setSortDir] = useState('desc');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [editTxn, setEditTxn] = useState(null);
+  const [confirmState, setConfirmState] = useState({ open: false });
+
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [c, t, s, p, cats] = await Promise.all([
+      const [c, t, s, p, cats, frs] = await Promise.all([
         getCard(id),
         listCardTransactions(id),
         listCardStatements(id),
         listCardPayments(id),
         apiFetch(`${API_BASE}/categories`).then((r) => r.json()).catch(() => ({ data: [] })),
+        apiFetch(`${API_BASE}/friends`).then((r) => r.json()).catch(() => ({ data: [] })),
       ]);
+      const rows = t.data ?? [];
       setCard(c);
-      setTransactions(t.data ?? []);
+      setTransactions(rows);
       setStatements(s.data ?? []);
       setPayments(p.data ?? []);
       setCategories(cats.data ?? cats ?? []);
+      setFriends(frs.data ?? frs ?? []);
+      // The list payload carries each row's friend tags inline, so seed the
+      // split column from it instead of fetching per row.
+      seedTags(rows, { replace: true });
       setError('');
     } catch (e) {
       setError(e.message || 'Failed to load card.');
@@ -138,15 +166,65 @@ export default function CardDetail() {
     }
   };
 
-  const onDeleteTxn = async (txnId) => {
-    if (!confirm('Delete this transaction?')) return;
-    try {
-      await deleteCardTransaction(txnId);
-      await loadAll();
-    } catch (e) {
-      setError(e.message || 'Failed to delete');
-    }
+  const onDeleteTxn = (txnId) => {
+    setConfirmState({
+      open: true,
+      title: 'Delete transaction?',
+      message: 'This removes the card transaction and any friend tags on it.',
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        setConfirmState({ open: false });
+        try {
+          await deleteCardTransaction(txnId);
+          setManageSheetId((current) => (current === txnId ? null : current));
+          await loadAll();
+        } catch (e) {
+          setError(e.message || 'Failed to delete');
+        }
+      },
+      onCancel: () => setConfirmState({ open: false }),
+    });
   };
+
+  // Managing a card transaction (category, splits, friend tags) is shared with
+  // every other place a card ledger is rendered.
+  const manager = useCardTransactionManager({
+    categories,
+    onRowPatched: (txnId, patch) =>
+      setTransactions((prev) =>
+        prev.map((t) => (String(t.id) === String(txnId) ? { ...t, ...patch } : t)),
+      ),
+  });
+  const {
+    tagsByTransaction, categoryStatusByTransaction, manageSheetId,
+    setManageSheetId, seedTags, assignCategory, openManage, manageSheetPropsFor,
+  } = manager;
+
+  const deleteTag = useCallback((txnId, tagId) => {
+    setConfirmState({
+      open: true,
+      title: 'Remove tag?',
+      message: 'This will remove the friend tag from this transaction.',
+      confirmLabel: 'Remove',
+      onConfirm: async () => {
+        setConfirmState({ open: false });
+        await manager.removeTag(txnId, tagId);
+      },
+      onCancel: () => setConfirmState({ open: false }),
+    });
+  }, [manager]);
+
+  const handleSort = useCallback((col) => {
+    setSortCol((currentCol) => {
+      if (currentCol === col) {
+        setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+      } else {
+        setSortDir(col === 'date' ? 'desc' : 'asc');
+      }
+      return col;
+    });
+    setPage(1);
+  }, []);
 
   const onDeletePayment = async (paymentId) => {
     if (!confirm('Delete this payment?')) return;
@@ -181,6 +259,73 @@ export default function CardDetail() {
     () => transactions.reduce((s, t) => s + (t.isRefund ? -Number(t.amount) : Number(t.amount)), 0),
     [transactions],
   );
+
+  // -- Transactions tab derived state --
+  const filteredTransactions = useMemo(() => {
+    let list = transactions;
+    if (categoryFilter) {
+      list = categoryFilter === '__none__'
+        ? list.filter((t) => !t.categoryId)
+        : list.filter((t) => String(t.categoryId) === categoryFilter);
+    }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter((t) =>
+        [t.merchant, t.notes, t.category?.name]
+          .filter(Boolean)
+          .some((v) => String(v).toLowerCase().includes(q)),
+      );
+    }
+    return list;
+  }, [transactions, categoryFilter, search]);
+
+  const sortedTransactions = useMemo(() => {
+    const sorted = [...filteredTransactions];
+    sorted.sort((a, b) => {
+      let va, vb;
+      switch (sortCol) {
+        case 'date':
+          va = a.txnDate || ''; vb = b.txnDate || ''; break;
+        case 'description':
+          va = (a.merchant || '').toLowerCase();
+          vb = (b.merchant || '').toLowerCase(); break;
+        case 'category':
+          va = (a.category?.name || '').toLowerCase();
+          vb = (b.category?.name || '').toLowerCase(); break;
+        case 'method':
+          va = cardTxnStatus(a); vb = cardTxnStatus(b); break;
+        case 'tags':
+          va = (tagsByTransaction[a.id] || []).length;
+          vb = (tagsByTransaction[b.id] || []).length; break;
+        case 'amount':
+          // Sort on the signed ledger effect, matching the bank ledger.
+          va = a.isRefund ? -Number(a.amount || 0) : Number(a.amount || 0);
+          vb = b.isRefund ? -Number(b.amount || 0) : Number(b.amount || 0); break;
+        default:
+          return 0;
+      }
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredTransactions, sortCol, sortDir, tagsByTransaction]);
+
+  const tableRows = useMemo(
+    () => sortedTransactions.map((row) => toCardTableRow(row, tagsByTransaction)),
+    [sortedTransactions, tagsByTransaction],
+  );
+
+  const manageRow = useMemo(
+    () => (manageSheetId ? transactions.find((t) => t.id === manageSheetId) : null),
+    [manageSheetId, transactions],
+  );
+
+  useEffect(() => {
+    if (manageSheetId && !transactions.some((t) => t.id === manageSheetId)) {
+      setManageSheetId(null);
+    }
+  }, [transactions, manageSheetId]);
 
   if (!card && !loading) {
     return (
@@ -348,9 +493,69 @@ export default function CardDetail() {
                     </PrimaryBtn>
                   }
                 >
-                  Recent transactions {totalSpend > 0 && `· ${inr(totalSpend)}`}
+                  Transactions {totalSpend > 0 && `· ${inr(totalSpend)}`}
                 </SectionTitle>
-                <TransactionList transactions={transactions} onDelete={onDeleteTxn} />
+
+                <Card pad={isMobile ? 12 : 14} style={{ marginBottom: 14 }}>
+                  <div className="txn-toolbar">
+                    <div className="txn-search txn-search--wide">
+                      <IcSearch size={16} />
+                      <input
+                        type="search"
+                        placeholder="Search by merchant, note, category…"
+                        value={search}
+                        onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                      />
+                    </div>
+                    <select
+                      className="txn-toolbar__filter"
+                      value={categoryFilter}
+                      onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
+                    >
+                      <option value="">All categories</option>
+                      <option value="__none__">Uncategorised</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </Card>
+
+                {isMobile ? (
+                  <Card pad={14}>
+                    {tableRows.length === 0 ? (
+                      <p className="empty">No transactions match.</p>
+                    ) : (
+                      <TransactionMobileList
+                        rows={tableRows}
+                        categories={categories}
+                        onAssignCategory={assignCategory}
+                        onOpenDetail={(row) => openManage(row.id)}
+                      />
+                    )}
+                  </Card>
+                ) : (
+                  <Card pad={0}>
+                    <TransactionTable
+                      rows={tableRows}
+                      storageKey="fintrack.ledger.card"
+                      columnLabels={{ description: 'Merchant', method: 'Status' }}
+                      categories={categories}
+                      onAssignCategory={assignCategory}
+                      onOpenManage={openManage}
+                      onOpenDetail={(row) => openManage(row.id)}
+                      sortCol={sortCol}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                      page={page}
+                      pageSize={pageSize}
+                      onPageChange={setPage}
+                      onPageSizeChange={setPageSize}
+                      loading={loading}
+                      emptyMessage="No transactions match."
+                    />
+                  </Card>
+                )}
               </>
             )}
 
@@ -413,6 +618,40 @@ export default function CardDetail() {
           }}
         />
       )}
+      {editTxn && (
+        <CardTransactionModal
+          cardId={card?.id}
+          categories={categories}
+          initial={editTxn}
+          onClose={() => setEditTxn(null)}
+          onSaved={async () => {
+            setEditTxn(null);
+            await loadAll();
+          }}
+        />
+      )}
+      {manageRow && (
+        <TransactionManageSheet
+          {...manageSheetPropsFor(manageRow)}
+          metaLine={[
+            card ? `${card.nickname || card.issuer || 'Card'} ····${card.last4}` : null,
+            cardTxnStatus(manageRow),
+          ].filter(Boolean).join(' · ')}
+          friends={friends}
+          onDeleteTag={(tagId) => deleteTag(manageRow.id, tagId)}
+          actions={
+            <>
+              <GhostBtn onClick={() => { setManageSheetId(null); setEditTxn(manageRow); }}>
+                <IcEdit size={14} /> Edit
+              </GhostBtn>
+              <GhostBtn onClick={() => onDeleteTxn(manageRow.id)} style={{ color: 'var(--ft-spend)' }}>
+                <IcTrash size={14} /> Delete
+              </GhostBtn>
+            </>
+          }
+        />
+      )}
+      <ConfirmDialog {...confirmState} />
       {payOpen && (
         <CardPaymentModal
           cardId={card?.id}
@@ -470,76 +709,6 @@ function Toggle({ active, onClick, children, accent }) {
     >
       {children}
     </button>
-  );
-}
-
-function TransactionList({ transactions, onDelete }) {
-  if (transactions.length === 0)
-    return (
-      <Card pad={20}>
-        <span style={{ color: 'var(--ft-text-dim)' }}>No transactions yet.</span>
-      </Card>
-    );
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {transactions.map((t) => (
-        <div
-          key={t.id}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            background: 'var(--ft-surface)',
-            border: '1px solid var(--ft-border)',
-            borderRadius: 12,
-            padding: '12px 14px',
-          }}
-        >
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ color: 'var(--ft-text)', fontSize: 13.5, fontWeight: 500 }}>
-              {t.merchant}
-              {t.isRefund && (
-                <span
-                  style={{
-                    marginLeft: 8,
-                    padding: '1px 6px',
-                    borderRadius: 6,
-                    background: 'var(--ft-income-soft)',
-                    color: 'var(--ft-income)',
-                    fontSize: 10,
-                    fontWeight: 600,
-                  }}
-                >
-                  Refund
-                </span>
-              )}
-            </div>
-            <div style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, marginTop: 2 }}>
-              {t.txnDate}
-              {t.category?.name && <> · {t.category.name}</>}
-            </div>
-          </div>
-          <Num size={14} weight={600} color={t.isRefund ? 'var(--ft-income)' : 'var(--ft-text)'}>
-            {t.isRefund ? '-' : ''}
-            {inr(t.amount)}
-          </Num>
-          <button
-            type="button"
-            onClick={() => onDelete(t.id)}
-            aria-label="Delete"
-            style={{
-              background: 'transparent',
-              border: 0,
-              color: 'var(--ft-text-faint)',
-              cursor: 'pointer',
-              padding: 4,
-            }}
-          >
-            <IcTrash size={15} />
-          </button>
-        </div>
-      ))}
-    </div>
   );
 }
 
@@ -671,7 +840,7 @@ function StatementBreakdownPanel({ data, onClose }) {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(8,9,12,0.6)',
+        background: 'var(--ft-scrim)',
         backdropFilter: 'blur(6px)',
         display: 'flex',
         alignItems: 'center',

@@ -61,7 +61,7 @@
 .dash-link {
   background: transparent;
   border: 0;
-  color: var(--ft-accent);
+  color: var(--ft-accent-fg);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -106,8 +106,8 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: rgba(215, 255, 61, 0.15);
-  color: var(--ft-accent);
+  background: var(--ft-accent-soft);
+  color: var(--ft-accent-fg);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -130,7 +130,7 @@
   background: var(--ft-surface);
   border: 1px solid var(--ft-border);
   border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--ft-shadow-pop);
 }
 
 .dash-date-popover .date-input-group label {
@@ -144,8 +144,8 @@
 }
 
 .dash-date-popover .date-input-group input[type='date']:focus {
-  border-color: var(--ft-accent);
-  box-shadow: 0 0 0 3px rgba(215, 255, 61, 0.12);
+  border-color: var(--ft-accent-strong);
+  box-shadow: 0 0 0 3px var(--ft-accent-soft);
 }
 
 .dash-date-popover .preset-button {
@@ -160,7 +160,7 @@
 }
 
 .dash-date-popover .date-range-error {
-  background: rgba(255, 122, 122, 0.12);
-  border-color: rgba(255, 122, 122, 0.35);
+  background: var(--ft-spend-soft);
+  border-color: var(--ft-spend-hairline);
   color: var(--ft-spend);
 }

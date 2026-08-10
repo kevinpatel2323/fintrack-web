@@ -10,11 +10,16 @@ import {
   Card, Num, Pill, PrimaryBtn, GhostBtn, CatGlyph, CategoryChip, Overline,
 } from '../components/ui/primitives.jsx';
 import {
-  IcPlus, IcChevL, IcChevR, IcClose, IcTrash, IcRepeat,
+  IcPlus, IcChevL, IcChevR, IcClose, IcTrash, IcRepeat, IcCard,
 } from '../components/ui/Icon.jsx';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import { getCcLink } from '../services/cardsApi.js';
+import { cardTxnStatus, toCardTableRow } from '../utils/cardTransactionRow.jsx';
+import TransactionListRow from '../components/TransactionListRow.jsx';
+import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
+import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
 import { inr, inrCompact } from '../utils/inr.js';
-import { CATEGORY_PALETTE, categoryColor, categoryKeyForName } from '../utils/categoryColors.js';
+import { CATEGORY_TOKENS, categoryColor, categoryKeyForName } from '../utils/categoryColors.js';
 import './calendar-redesign.css';
 
 import { API_BASE, apiFetch } from '../services/http.js';
@@ -58,7 +63,7 @@ const emptyForm = () => ({
 });
 
 function subColor(name) {
-  return CATEGORY_PALETTE[categoryKeyForName(name)] || CATEGORY_PALETTE.transfer;
+  return CATEGORY_TOKENS[categoryKeyForName(name)] || CATEGORY_TOKENS.transfer;
 }
 
 function summarizeRRule(rrule) {
@@ -86,9 +91,32 @@ function isTransactionCategorized(tx) {
   return tx.categoryId != null && tx.categoryId !== '';
 }
 
-function dayCategorizationState(txs) {
+/**
+ * CC bill payments only count as fully categorized when every nested card
+ * transaction under them has a category. Prefer a loaded cc-link detail
+ * (reflects in-session edits); fall back to the range payload annotation.
+ * Empty nested lists are vacuously complete. Unknown state → not complete
+ * (do not show green).
+ */
+function ccNestedAllCategorized(tx, ccDetail) {
+  if (!tx.ccBillPayment) return true;
+  if (ccDetail && !ccDetail.loading && !ccDetail.error && Array.isArray(ccDetail.coveredTransactions)) {
+    return ccDetail.coveredTransactions.every(isTransactionCategorized);
+  }
+  if (typeof tx.ccBillPayment.allCoveredCategorized === 'boolean') {
+    return tx.ccBillPayment.allCoveredCategorized;
+  }
+  return false;
+}
+
+function dayCategorizationState(txs, ccDetailByTransaction = {}) {
   if (txs.length === 0) return null;
-  return txs.every(isTransactionCategorized) ? 'categorized' : 'needs-category';
+  const complete = txs.every(
+    (tx) =>
+      isTransactionCategorized(tx) &&
+      ccNestedAllCategorized(tx, ccDetailByTransaction[tx.id]),
+  );
+  return complete ? 'categorized' : 'needs-category';
 }
 
 /**
@@ -164,6 +192,22 @@ export default function Calendar() {
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [categoryStatusByTransaction, setCategoryStatusByTransaction] = useState({});
+
+  // Manual / cash transaction form (mirrors Transactions page)
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [manualStatus, setManualStatus] = useState('');
+  const [manualForm, setManualForm] = useState({
+    transactionDate: todayIso,
+    narration: '',
+    type: 'PAID',
+    settlementDirection: 'WITHDRAWAL',
+    amount: '',
+    balance: '',
+    upiName: '',
+    upiDescription: '',
+    upiBank: '',
+  });
 
   const { startIso, endIso } = useMemo(() => monthBounds(viewYear, viewMonth), [viewYear, viewMonth]);
 
@@ -280,6 +324,64 @@ export default function Calendar() {
   function openCreate() {
     setEditingId(null); setForm(emptyForm()); setFormStatus(''); setFormOpen(true);
   }
+
+  function openManual() {
+    setManualForm({
+      transactionDate: selectedIso || todayIso,
+      narration: '',
+      type: 'PAID',
+      settlementDirection: 'WITHDRAWAL',
+      amount: '',
+      balance: '',
+      upiName: '',
+      upiDescription: '',
+      upiBank: '',
+    });
+    setManualStatus('');
+    setManualOpen(true);
+  }
+
+  async function handleManualSubmit(event) {
+    event.preventDefault();
+    setManualStatus('');
+    const narration = manualForm.narration.trim();
+    const amountValue = Number(manualForm.amount);
+    const balanceValue = manualForm.balance === '' ? undefined : Number(manualForm.balance);
+
+    if (!manualForm.transactionDate) return setManualStatus('Select a transaction date.');
+    if (!narration) return setManualStatus('Enter a narration.');
+    if (!manualForm.amount || Number.isNaN(amountValue) || amountValue <= 0) return setManualStatus('Enter a valid amount.');
+    if (manualForm.type === 'SETTLEMENT' && !manualForm.settlementDirection) return setManualStatus('Select settlement direction.');
+    if (balanceValue !== undefined && (Number.isNaN(balanceValue) || balanceValue < 0)) return setManualStatus('Balance must be zero or positive.');
+
+    setManualSubmitting(true);
+    try {
+      const res = await apiFetch(`${API_BASE}/transactions/manual`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionDate: manualForm.transactionDate,
+          narration,
+          type: manualForm.type,
+          settlementDirection: manualForm.type === 'SETTLEMENT' ? manualForm.settlementDirection : undefined,
+          amount: amountValue,
+          balance: balanceValue,
+          upiName: manualForm.upiName.trim() || undefined,
+          upiDescription: manualForm.upiDescription.trim() || undefined,
+          upiBank: manualForm.upiBank.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add manual transaction.');
+      setManualStatus('Manual transaction added.');
+      setManualOpen(false);
+      await loadTransactions();
+    } catch (error) {
+      setManualStatus(error.message || 'Failed to add manual transaction.');
+    } finally {
+      setManualSubmitting(false);
+    }
+  }
   function openEdit(row) {
     setEditingId(String(row.id));
     setForm({
@@ -364,6 +466,76 @@ export default function Calendar() {
     [categories],
   );
 
+  // Card transactions nested under a bill payment are managed the same way as
+  // anywhere else. They live in each row's local cc-link state, so the tag map
+  // is seeded as those rows load and merged across expanded rows.
+  const [friends, setFriends] = useState([]);
+  // The cc-link payloads live here rather than in each row so that editing a
+  // covered card transaction can write straight back into the rendered copy.
+  const [ccDetailByTransaction, setCcDetailByTransaction] = useState({});
+
+  useEffect(() => {
+    apiFetch(`${API_BASE}/friends`)
+      .then((r) => r.json())
+      .then((d) => setFriends(d.data || []))
+      .catch(() => {});
+  }, []);
+
+  const cardManager = useCardTransactionManager({
+    categories,
+    onRowPatched: (txnId, patch) =>
+      setCcDetailByTransaction((prev) => {
+        const next = { ...prev };
+        for (const [bankId, detail] of Object.entries(next)) {
+          if (!detail?.coveredTransactions) continue;
+          if (!detail.coveredTransactions.some((t) => String(t.id) === String(txnId))) continue;
+          next[bankId] = {
+            ...detail,
+            coveredTransactions: detail.coveredTransactions.map((t) =>
+              String(t.id) === String(txnId) ? { ...t, ...patch } : t,
+            ),
+          };
+        }
+        return next;
+      }),
+  });
+  const { seedTags: seedCardTags, openManage: openCardManage } = cardManager;
+
+  const loadCcDetail = useCallback(async (bankTxId) => {
+    setCcDetailByTransaction((p) => ({ ...p, [bankTxId]: { loading: true } }));
+    try {
+      const data = await getCcLink(bankTxId);
+      setCcDetailByTransaction((p) => ({ ...p, [bankTxId]: data }));
+      // Merge, not replace: other bill payments may already be expanded.
+      seedCardTags(data.coveredTransactions);
+    } catch (error) {
+      setCcDetailByTransaction((p) => ({
+        ...p,
+        [bankTxId]: { error: error.message || 'Failed to load card transactions' },
+      }));
+    }
+  }, [seedCardTags]);
+
+  // Read the sheet's row back out of the cache so it reflects edits.
+  const cardManageRow = useMemo(() => {
+    if (!cardManager.manageSheetId) return null;
+    for (const detail of Object.values(ccDetailByTransaction)) {
+      const hit = (detail?.coveredTransactions || []).find(
+        (t) => String(t.id) === String(cardManager.manageSheetId),
+      );
+      if (hit) return hit;
+    }
+    return null;
+  }, [cardManager.manageSheetId, ccDetailByTransaction]);
+
+  const cardSheet = cardManageRow && (
+    <TransactionManageSheet
+      {...cardManager.manageSheetPropsFor(cardManageRow)}
+      metaLine={cardTxnStatus(cardManageRow)}
+      friends={friends}
+    />
+  );
+
   // Subscription form sheet (shared)
   const formSheet = formOpen && (
     <Portal>
@@ -426,7 +598,7 @@ export default function Calendar() {
             )}
             <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
               {editingId && (
-                <GhostBtn onClick={() => setDeleteId(editingId)} style={{ color: 'var(--ft-spend)', borderColor: 'rgba(255,122,122,0.3)' }}>
+                <GhostBtn onClick={() => setDeleteId(editingId)} style={{ color: 'var(--ft-spend)', borderColor: 'var(--ft-spend-hairline)' }}>
                   <IcTrash size={14} /> Delete
                 </GhostBtn>
               )}
@@ -436,6 +608,77 @@ export default function Calendar() {
               </div>
             </div>
             {formStatus && <p className="status" style={{ gridColumn: '1 / -1' }}>{formStatus}</p>}
+          </form>
+        </div>
+      </div>
+    </Portal>
+  );
+
+  const manualSheet = manualOpen && (
+    <Portal>
+      <div
+        className="calendar-sheet-backdrop"
+        onClick={(e) => e.target === e.currentTarget && setManualOpen(false)}
+      >
+        <div className="calendar-sheet" role="dialog" aria-modal="true">
+          <div className="ft-sheet__grabber" />
+          <h3 className="ft-sheet__title">Add manual transaction</h3>
+          <p className="ft-sheet__sub">Manual entries are posted to the Wallet account.</p>
+          <form onSubmit={handleManualSubmit} className="form-grid" style={{ marginTop: 4 }}>
+            <label className="field"><span>Date</span>
+              <input type="date" value={manualForm.transactionDate}
+                onChange={(e) => setManualForm((p) => ({ ...p, transactionDate: e.target.value }))} />
+            </label>
+            <label className="field"><span>Type</span>
+              <select value={manualForm.type}
+                onChange={(e) => setManualForm((p) => ({ ...p, type: e.target.value }))}>
+                <option value="PAID">Paid</option>
+                <option value="RECEIVED">Received</option>
+                <option value="I_OWE">I owe</option>
+                <option value="SETTLEMENT">Settlement</option>
+              </select>
+            </label>
+            {manualForm.type === 'SETTLEMENT' && (
+              <label className="field"><span>Settlement direction</span>
+                <select value={manualForm.settlementDirection}
+                  onChange={(e) => setManualForm((p) => ({ ...p, settlementDirection: e.target.value }))}>
+                  <option value="WITHDRAWAL">Withdrawal</option>
+                  <option value="DEPOSIT">Deposit</option>
+                </select>
+              </label>
+            )}
+            <label className="field"><span>Amount (₹)</span>
+              <input type="number" min="0" step="0.01" placeholder="0.00"
+                value={manualForm.amount}
+                onChange={(e) => setManualForm((p) => ({ ...p, amount: e.target.value }))} />
+            </label>
+            <label className="field" style={{ gridColumn: '1 / -1' }}><span>Narration</span>
+              <input type="text" placeholder="What was this for?" value={manualForm.narration}
+                onChange={(e) => setManualForm((p) => ({ ...p, narration: e.target.value }))} />
+            </label>
+            <label className="field"><span>Balance (optional)</span>
+              <input type="number" min="0" step="0.01" placeholder="0.00" value={manualForm.balance}
+                onChange={(e) => setManualForm((p) => ({ ...p, balance: e.target.value }))} />
+            </label>
+            <label className="field"><span>UPI name</span>
+              <input type="text" placeholder="Optional" value={manualForm.upiName}
+                onChange={(e) => setManualForm((p) => ({ ...p, upiName: e.target.value }))} />
+            </label>
+            <label className="field"><span>UPI description</span>
+              <input type="text" placeholder="Optional" value={manualForm.upiDescription}
+                onChange={(e) => setManualForm((p) => ({ ...p, upiDescription: e.target.value }))} />
+            </label>
+            <label className="field"><span>UPI bank</span>
+              <input type="text" placeholder="Optional" value={manualForm.upiBank}
+                onChange={(e) => setManualForm((p) => ({ ...p, upiBank: e.target.value }))} />
+            </label>
+            <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 6 }}>
+              <GhostBtn onClick={() => setManualOpen(false)}>Cancel</GhostBtn>
+              <PrimaryBtn type="submit" disabled={manualSubmitting}>
+                {manualSubmitting ? 'Adding…' : 'Save transaction'}
+              </PrimaryBtn>
+            </div>
+            {manualStatus && <p className="status" style={{ gridColumn: '1 / -1' }}>{manualStatus}</p>}
           </form>
         </div>
       </div>
@@ -454,10 +697,12 @@ export default function Calendar() {
       <>
         <ConfirmDialog open={Boolean(deleteId)} title="Delete subscription?" message="This removes the recurring bill." confirmLabel="Delete" onConfirm={confirmDelete} onCancel={() => setDeleteId(null)} />
         {formSheet}
+        {manualSheet}
+        {cardSheet}
 
         <header className="ft-mobile__header">
           <h1 className="ft-mobile__title">Calendar</h1>
-          <button className="ft-mobile__icon-btn" onClick={openCreate} aria-label="New subscription">
+          <button className="ft-mobile__icon-btn" onClick={openManual} aria-label="New transaction">
             <IcPlus size={20} />
           </button>
         </header>
@@ -477,6 +722,7 @@ export default function Calendar() {
             </div>
             <CalendarGrid
               cells={cells} txByDay={txByDay} subByDay={subByDay}
+              ccDetailByTransaction={ccDetailByTransaction}
               todayIso={todayIso} selectedIso={selectedIso}
               onClickDay={(iso) => patchCalendar({ selectedIso: iso })} compact
             />
@@ -506,6 +752,11 @@ export default function Calendar() {
                       categoryStatus={categoryStatusByTransaction[t.id]}
                       onAssignCategory={assignCategory}
                       onOpenDetail={() => openTransactionDetail(t)}
+                      ccDetail={ccDetailByTransaction[t.id]}
+                      onLoadCcDetail={loadCcDetail}
+                      cardTags={cardManager.tagsByTransaction}
+                      onAssignCardCategory={cardManager.assignCategory}
+                      onOpenCardManage={openCardManage}
                     />
                   ))}
                   {selectedSubs.map((o, i) => (
@@ -520,17 +771,19 @@ export default function Calendar() {
           <CategorySpendCard transactions={transactions} />
 
           {/* Upcoming subscriptions */}
-          {occurrences.length > 0 && (
-            <Card pad={16}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <Overline>Upcoming bills</Overline>
-                <GhostBtn onClick={openCreate} style={{ height: 28, padding: '0 10px', fontSize: 12 }}>
-                  <IcPlus size={12} /> Add
-                </GhostBtn>
-              </div>
+          <Card pad={16}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Overline>Upcoming bills</Overline>
+              <GhostBtn onClick={openCreate} style={{ height: 28, padding: '0 10px', fontSize: 12 }}>
+                <IcPlus size={12} /> Add
+              </GhostBtn>
+            </div>
+            {occurrences.length > 0 ? (
               <UpcomingList occurrences={occurrences} todayIso={todayIso} onOpenEdit={openEdit} />
-            </Card>
-          )}
+            ) : (
+              <p className="empty" style={{ margin: 0, padding: '4px 0 2px' }}>No upcoming bills this month.</p>
+            )}
+          </Card>
 
           {status && <p className="status">{status}</p>}
         </main>
@@ -549,6 +802,8 @@ export default function Calendar() {
     <>
       <ConfirmDialog open={Boolean(deleteId)} title="Delete subscription?" message="This removes the recurring bill." confirmLabel="Delete" onConfirm={confirmDelete} onCancel={() => setDeleteId(null)} />
       {formSheet}
+      {manualSheet}
+      {cardSheet}
 
       <header className="ft-page-header">
         <div>
@@ -568,7 +823,8 @@ export default function Calendar() {
           <Pill active={rightPanel === 'subs'} onClick={() => setRightPanel('subs')}>
             <IcRepeat size={12} /> Subscriptions
           </Pill>
-          <PrimaryBtn onClick={openCreate}><IcPlus size={16} /> New subscription</PrimaryBtn>
+          <PrimaryBtn onClick={openManual}><IcPlus size={16} /> New transaction</PrimaryBtn>
+          <GhostBtn onClick={openCreate}><IcPlus size={16} /> New subscription</GhostBtn>
         </div>
       </header>
 
@@ -580,6 +836,7 @@ export default function Calendar() {
           ) : (
             <CalendarGrid
               cells={cells} txByDay={txByDay} subByDay={subByDay}
+              ccDetailByTransaction={ccDetailByTransaction}
               todayIso={todayIso} selectedIso={selectedIso}
               onClickDay={(iso) => { patchCalendar({ selectedIso: iso }); setRightPanel('day'); }}
             />
@@ -628,6 +885,11 @@ export default function Calendar() {
                           categoryStatus={categoryStatusByTransaction[t.id]}
                           onAssignCategory={assignCategory}
                           onOpenDetail={() => openTransactionDetail(t)}
+                          ccDetail={ccDetailByTransaction[t.id]}
+                          onLoadCcDetail={loadCcDetail}
+                          cardTags={cardManager.tagsByTransaction}
+                          onAssignCardCategory={cardManager.assignCategory}
+                          onOpenCardManage={openCardManage}
                         />
                       ))}
                       {selectedSubs.length > 0 && (
@@ -686,7 +948,7 @@ export default function Calendar() {
 }
 
 // ── Calendar Grid ──────────────────────────────────────────────────────────────
-function CalendarGrid({ cells, txByDay, subByDay, todayIso, selectedIso, onClickDay, compact }) {
+function CalendarGrid({ cells, txByDay, subByDay, ccDetailByTransaction = {}, todayIso, selectedIso, onClickDay, compact }) {
   return (
     <div className={`cal-grid${compact ? ' cal-grid--compact' : ''}`}>
       {WEEKDAYS.map((wd) => (
@@ -701,7 +963,7 @@ function CalendarGrid({ cells, txByDay, subByDay, todayIso, selectedIso, onClick
         const earned = txs.reduce((s, t) => s + Number(t.deposit || 0), 0);
         const hasTx = txs.length > 0;
         const hasSub = subs.length > 0;
-        const catState = dayCategorizationState(txs);
+        const catState = dayCategorizationState(txs, ccDetailByTransaction);
 
         return (
           <button
@@ -757,64 +1019,170 @@ function CalendarGrid({ cells, txByDay, subByDay, todayIso, selectedIso, onClick
 }
 
 // ── Day transaction row ────────────────────────────────────────────────────────
-function DayTxRow({ tx, categories, categoryStatus, onAssignCategory, onOpenDetail }) {
+// CC bill payments expand in-place (same getCcLink payload as Transactions) and
+// list covered card txns under the row. Expand state lives on the row so mobile
+// and desktop share one component without Calendar plumbing.
+function DayTxRow({
+  tx, categories, categoryStatus, onAssignCategory, onOpenDetail,
+  ccDetail, onLoadCcDetail, cardTags, onAssignCardCategory, onOpenCardManage,
+}) {
   const withdrawal = Number(tx.withdrawal || 0);
   const deposit = Number(tx.deposit || 0);
   const isIncome = deposit > 0;
   const amount = isIncome ? deposit : withdrawal;
   const account = accountSuffix(tx.accountNumber);
   const description = tx.upiDescription || tx.narration || tx.upiBank || (tx.isManual ? 'Manual entry' : 'Bank transaction');
+  const cc = tx.ccBillPayment;
+  const [expanded, setExpanded] = useState(false);
+
+  // Fetch on first expand only; the page-level cache persists across collapses.
+  const toggleCcExpanded = useCallback(() => {
+    const next = !expanded;
+    setExpanded(next);
+    if (next && !ccDetail) onLoadCcDetail(tx.id);
+  }, [expanded, ccDetail, tx.id, onLoadCcDetail]);
+
   return (
-    <div className="cal-day-tx-row">
-      <label
-        className="cal-day-tx-row__cat-pick"
-        title="Change category"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <CatGlyph category={tx.category} size={38} />
-        <select
-          className="cal-day-tx-row__cat-select"
-          value={tx.categoryId || ''}
-          onChange={(e) => { e.stopPropagation(); onAssignCategory(tx.id, e.target.value); }}
+    <div className={`cal-day-tx-row${cc ? ' is-cc-bill' : ''}${expanded ? ' is-cc-open' : ''}`}>
+      <div className={`cal-day-tx-row__head${cc ? ' has-disclosure' : ''}`}>
+        <label
+          className="cal-day-tx-row__cat-pick"
+          title="Change category"
           onClick={(e) => e.stopPropagation()}
-          aria-label="Category for this transaction"
-          disabled={categoryStatus === 'Saving…'}
         >
-          <option value="">No category</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.icon ? `${c.icon} ` : ''}{c.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <button type="button" className="cal-day-tx-row__nav" onClick={onOpenDetail}>
-      <div className="cal-day-tx-row__copy">
-        <div className="cal-day-tx-row__title">
-          {tx.upiName || tx.narration || '—'}
-        </div>
-        <div className="cal-day-tx-row__sub">
-          {description}
-        </div>
-        <div className="cal-day-tx-row__meta">
-          {tx.category ? (
-            <CategoryChip category={tx.category} />
-          ) : (
-            <span className="cal-day-tx-row__chip">No category</span>
-          )}
-          <span>{txMethod(tx)}</span>
-          {account ? <span className="cal-day-tx-row__account">{account}</span> : null}
-          {categoryStatus ? (
-            <span className="cal-day-tx-row__cat-status">{categoryStatus}</span>
-          ) : null}
-        </div>
+          <CatGlyph category={tx.category} size={38} />
+          <select
+            className="cal-day-tx-row__cat-select"
+            value={tx.categoryId || ''}
+            onChange={(e) => { e.stopPropagation(); onAssignCategory(tx.id, e.target.value); }}
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Category for this transaction"
+            disabled={categoryStatus === 'Saving…'}
+          >
+            <option value="">No category</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.icon ? `${c.icon} ` : ''}{c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="button" className="cal-day-tx-row__nav" onClick={onOpenDetail}>
+          <div className="cal-day-tx-row__copy">
+            <div className="cal-day-tx-row__title">
+              {tx.upiName || tx.narration || '—'}
+              {cc ? (
+                <span className="cal-day-tx-row__cc-badge">
+                  <IcCard size={11} />
+                  CC bill{cc.cardLast4 ? ` · ····${cc.cardLast4}` : ''}
+                </span>
+              ) : null}
+            </div>
+            <div className="cal-day-tx-row__sub">
+              {description}
+            </div>
+            <div className="cal-day-tx-row__meta">
+              {tx.category ? (
+                <CategoryChip category={tx.category} />
+              ) : (
+                <span className="cal-day-tx-row__chip">No category</span>
+              )}
+              <span>{txMethod(tx)}</span>
+              {account ? <span className="cal-day-tx-row__account">{account}</span> : null}
+              {categoryStatus ? (
+                <span className="cal-day-tx-row__cat-status">{categoryStatus}</span>
+              ) : null}
+            </div>
+          </div>
+          <div className="cal-day-tx-row__amount">
+            <Num size={15} weight={700} color={isIncome ? 'var(--ft-income)' : 'var(--ft-spend)'}>
+              {inr(isIncome ? amount : -amount, { sign: isIncome })}
+            </Num>
+          </div>
+        </button>
+        {cc ? (
+          <button
+            type="button"
+            className={`cal-day-tx-row__disclosure${expanded ? ' is-open' : ''}`}
+            aria-label={expanded ? 'Hide linked transactions' : 'Show linked transactions'}
+            aria-expanded={expanded}
+            onClick={(e) => { e.stopPropagation(); toggleCcExpanded(); }}
+          >
+            <IcChevR size={14} stroke={2} />
+          </button>
+        ) : null}
       </div>
-      <div className="cal-day-tx-row__amount">
-        <Num size={15} weight={700} color={isIncome ? 'var(--ft-income)' : 'var(--ft-spend)'}>
-          {inr(isIncome ? amount : -amount, { sign: isIncome })}
-        </Num>
+      {expanded ? (
+        <DayTxCcChildren
+          detail={ccDetail}
+          categories={categories}
+          tagsByTransaction={cardTags}
+          onAssignCategory={onAssignCardCategory}
+          onOpenManage={onOpenCardManage}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+// The card transactions a bill payment covers, rendered with the same row
+// treatment as every other ledger in the app. The remainder is not a
+// transaction, so it keeps its own thin line.
+function DayTxCcChildren({ detail, categories, tagsByTransaction, onAssignCategory, onOpenManage }) {
+  if (!detail || detail.loading) {
+    return (
+      <div className="cal-day-tx-row__children">
+        <span className="cal-day-tx-row__child-note">Loading card transactions…</span>
       </div>
-      </button>
+    );
+  }
+  if (detail.error) {
+    return (
+      <div className="cal-day-tx-row__children">
+        <span className="cal-day-tx-row__child-note">{detail.error}</span>
+      </div>
+    );
+  }
+  if (!detail.linked) {
+    return (
+      <div className="cal-day-tx-row__children">
+        <span className="cal-day-tx-row__child-note">Not linked to a card bill.</span>
+      </div>
+    );
+  }
+
+  const covered = detail.coveredTransactions || [];
+  const remainder = Number(detail.remainder || 0);
+
+  return (
+    <div className="cal-day-tx-row__children">
+      {covered.length === 0 ? (
+        <span className="cal-day-tx-row__child-note">No card transactions covered.</span>
+      ) : null}
+      {covered.map((t, i) => (
+        <TransactionListRow
+          key={t.id}
+          nested
+          nestedLast={i === covered.length - 1}
+          showDate
+          row={toCardTableRow(t, tagsByTransaction)}
+          categories={categories}
+          onAssignCategory={onAssignCategory}
+          onOpenDetail={() => onOpenManage(t.id)}
+        />
+      ))}
+      {remainder !== 0 ? (
+        <div className="cal-day-tx-row__child-line cal-day-tx-row__remainder">
+          <span className="cal-day-tx-row__child-merchant">
+            {remainder > 0 ? 'Carried forward / other charges' : 'Not covered by this payment'}
+          </span>
+          <span className="cal-day-tx-row__child-amount">
+            <Num size={12.5} weight={600} color="var(--ft-text-dim)">
+              {inr(remainder, { decimals: 2 })}
+            </Num>
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 }

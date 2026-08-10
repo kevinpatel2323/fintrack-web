@@ -18,7 +18,7 @@
 
 .stat-label {
   font-size: 0.875rem;
-  color: #666;
+  color: var(--ft-text-dim);
   font-weight: 500;
 }
 
@@ -28,26 +28,26 @@
 }
 
 .stat-value.amount-withdrawal {
-  color: #e74c3c;
+  color: var(--ft-spend);
 }
 
 .stat-value.amount-deposit {
-  color: #27ae60;
+  color: var(--ft-income);
 }
 
 .stat-value.positive {
-  color: #27ae60;
+  color: var(--ft-income);
 }
 
 .stat-value.negative {
-  color: #e74c3c;
+  color: var(--ft-spend);
 }
 
 .spending-details {
   display: flex;
   gap: 2rem;
   padding-top: 1rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--ft-border);
 }
 
 .detail-item {
@@ -58,7 +58,7 @@
 
 .detail-label {
   font-size: 0.75rem;
-  color: #999;
+  color: var(--ft-text-faint);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -66,7 +66,7 @@
 .detail-value {
   font-size: 1rem;
   font-weight: 600;
-  color: #333;
+  color: var(--ft-text);
 }
 
 .comparison {
@@ -74,13 +74,13 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem;
-  background: #f8f9fa;
+  background: var(--ft-surface-2);
   border-radius: 4px;
 }
 
 .comparison-label {
   font-size: 0.875rem;
-  color: #666;
+  color: var(--ft-text-dim);
 }
 
 .comparison-value {
@@ -89,11 +89,11 @@
 }
 
 .comparison-value.increase {
-  color: #e74c3c;
+  color: var(--ft-spend);
 }
 
 .comparison-value.decrease {
-  color: #27ae60;
+  color: var(--ft-income);
 }
 
 @media (max-width: 768px) {

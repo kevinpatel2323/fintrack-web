@@ -1,46 +1,190 @@
-/* Fintrack design tokens — premium dark fintech */
+/* Fintrack design tokens — premium fintech, dual theme.
+ *
+ * Architecture
+ * ------------
+ *   1. PALETTE   raw hex values, declared exactly once. Never referenced by
+ *                components — only by the semantic layer below.
+ *   2. SEMANTIC  --ft-* role tokens. Dark is the base (:root); light is layered
+ *                on top additively. Components only ever use these.
+ *   3. COMPAT    legacy alias names (--ink, --teal, --stroke …) mapped onto the
+ *                semantic layer so older stylesheets follow the theme too.
+ *
+ * Theme resolution
+ * ----------------
+ *   default             -> dark
+ *   OS prefers light    -> light
+ *   [data-theme=light]  -> light  (wins over OS)
+ *   [data-theme=dark]   -> dark   (wins over OS)
+ *
+ * Set the override with:  document.documentElement.dataset.theme = 'light'
+ *
+ * Contrast: every foreground/background pair in the light theme is verified at
+ * WCAG AA — 4.5:1 for body text, 3:1 for large text, icons and functional
+ * boundaries. Ratios are noted inline where a value was chosen to hit a target.
+ */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   1. PALETTE — raw values, one definition each
+   ══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* Surfaces */
-  --ft-bg:         #0A0B0E;
-  --ft-surface:    #13151A;
-  --ft-surface-2:  #1A1D24;
-  --ft-surface-3:  #22252D;
-  --ft-border:     #23262D;
-  --ft-border-s:   #2E323A;
+  /* Ink scale — dark theme surfaces, darkest → lightest */
+  --p-ink-950:   #0A0B0E;
+  --p-ink-900:   #13151A;
+  --p-ink-850:   #1A1D24;
+  --p-ink-800:   #22252D;
+  --p-ink-750:   #23262D;
+  --p-ink-700:   #2E323A;
+  --p-ink-500:   #5C5F66;
+  --p-ink-400:   #8D9099;
+  --p-ink-050:   #F1F2F4;
+
+  /* Paper scale — light theme surfaces, lightest → darkest.
+     Deliberately never #FFFFFF: #FCFCFD keeps a trace of warmth off pure white. */
+  --p-paper-050: #FCFCFD;   /* raised card                                   */
+  --p-paper-100: #F4F5F7;   /* page canvas                                   */
+  --p-paper-200: #EFF1F4;   /* inset — inputs, badges                        */
+  --p-paper-300: #E4E7EC;   /* deeper inset — hover, track                   */
+  --p-hairline:  #E2E5EA;   /* decorative divider, 1.23:1 (non-functional)   */
+  --p-slate-400: #79808E;   /* functional boundary, 3.01:1 on paper-300      */
+  --p-slate-600: #5F6673;   /* placeholder,          4.53:1 on paper-300     */
+  --p-slate-650: #5A5F6B;   /* secondary text,       5.16:1 on paper-300     */
+  --p-slate-950: #1B1D21;   /* body text — near-black, never #000            */
+
+  /* Brand lime — hue 72.4° held constant across every variant */
+  --p-lime-neon:   #D7FF3D; /* dark:  fill + text + ring                     */
+  --p-lime-neon-d: #A8CC2E; /* dark:  fill hover                            */
+  --p-lime-acid:   #BDEE00; /* light: fill        h72.4 s100 l47            */
+  --p-lime-acid-d: #A5D000; /* light: fill hover                            */
+  --p-lime-moss:   #6E8F00; /* light: ring/boundary  3.44:1 on paper-100    */
+  --p-lime-forest: #597000; /* light: text/icon      5.47:1 on paper-050    */
+  --p-lime-ink:    #1A1D0A; /* light: label on lime fill  12.80:1           */
+
+  /* Semantic hues — dark variant / light variant, hue held within ~2° */
+  --p-mint:    #6EE7B7;  --p-emerald: #0B6E4A;  /* income   5.44 / 4.51 */
+  --p-coral:   #FF7A7A;  --p-brick:   #B32B2B;  /* spend    5.81 / 4.81 */
+  --p-amber:   #FFB454;  --p-bronze:  #8A5200;  /* warning  6.23 / 5.15 */
+  --p-sky:     #7DB9FF;  --p-azure:   #1F63B8;  /* info     5.79 / 4.79 */
+  --p-violet:  #B79CFF;  --p-indigo:  #6944D4;  /* violet   6.06 / 5.01 */
+
+  /* Category palette — 10 hues, dark then light. Light variants all clear
+     4.5:1 on both card and deepest-inset so they work as text *and* as marks. */
+  --p-cat-food-d:      #FF8B6B;  --p-cat-food-l:      #A03F1D;
+  --p-cat-transport-d: #7DB9FF;  --p-cat-transport-l: #1F63B8;
+  --p-cat-shopping-d:  #B79CFF;  --p-cat-shopping-l:  #6944D4;
+  --p-cat-bills-d:     #FFB454;  --p-cat-bills-l:     #8A5A00;
+  --p-cat-grocery-d:   #6EE7B7;  --p-cat-grocery-l:   #0B6E4A;
+  --p-cat-rent-d:      #FF7AB6;  --p-cat-rent-l:      #AB2668;
+  --p-cat-entmt-d:     #FFD66E;  --p-cat-entmt-l:     #7A5A00;
+  --p-cat-transfer-d:  #8D9099;  --p-cat-transfer-l:  #5A5F6B;
+  --p-cat-salary-d:    #D7FF3D;  --p-cat-salary-l:    #597000;
+  --p-cat-health-d:    #6EE7E7;  --p-cat-health-l:    #0A6E70;
+
+  /* Shadow ink — light-theme shadows are tinted toward the cool paper hue
+     rather than neutral black, so they read as depth and not as grime. */
+  --p-shadow-ink: 19, 24, 38;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   2a. SEMANTIC — dark (base)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces — elevation reads as *lighter* */
+  --ft-bg:        var(--p-ink-950);
+  --ft-surface:   var(--p-ink-900);
+  --ft-surface-2: var(--p-ink-850);
+  --ft-surface-3: var(--p-ink-800);
+
+  /* Boundaries */
+  --ft-border:   var(--p-ink-750);   /* decorative hairline / divider */
+  --ft-border-s: var(--p-ink-700);   /* functional — controls, inputs */
+  --ft-divider:  var(--p-ink-750);
 
   /* Text */
-  --ft-text:       #F1F2F4;
-  --ft-text-dim:   #8D9099;
-  --ft-text-faint: #5C5F66;
-  --ft-text-on-accent: #0A0B0E;
+  --ft-text:           var(--p-ink-050);
+  --ft-text-dim:       var(--p-ink-400);
+  --ft-text-faint:     var(--p-ink-500);
+  --ft-text-on-accent: var(--p-ink-950);
+  --ft-text-on-solid:  var(--p-ink-950);   /* label on a saturated semantic fill */
 
-  /* Brand */
-  --ft-accent:     #D7FF3D;
-  --ft-accent-dim: #A8CC2E;
-  --ft-accent-soft: rgba(215, 255, 61, 0.12);
+  /* Brand — in dark all four accent roles collapse to the same neon lime */
+  --ft-accent:        var(--p-lime-neon);
+  --ft-accent-dim:    var(--p-lime-neon-d);
+  --ft-accent-strong: var(--p-lime-neon);   /* ring, indicator, boundary */
+  --ft-accent-fg:     var(--p-lime-neon);   /* accent used as text/icon  */
+  --ft-accent-soft:   rgba(215, 255, 61, 0.12);
+  --ft-accent-soft-s: rgba(215, 255, 61, 0.20);
+  --ft-accent-hairline: rgba(215, 255, 61, 0.33);
+  --ft-control-accent: var(--p-lime-neon);  /* accent-color for checkboxes */
 
   /* Semantic */
-  --ft-income:      #6EE7B7;
-  --ft-income-soft: rgba(110, 231, 183, 0.10);
-  --ft-spend:       #FF7A7A;
-  --ft-spend-soft:  rgba(255, 122, 122, 0.10);
-  --ft-warn:        #FFB454;
-  --ft-info:        #7DB9FF;
-  --ft-violet:      #B79CFF;
-  --ft-violet-soft: rgba(183, 156, 255, 0.12);
+  --ft-income:        var(--p-mint);
+  --ft-income-soft:   rgba(110, 231, 183, 0.10);
+  --ft-income-hairline: rgba(110, 231, 183, 0.28);
+  --ft-spend:         var(--p-coral);
+  --ft-spend-soft:    rgba(255, 122, 122, 0.10);
+  --ft-spend-hairline: rgba(255, 122, 122, 0.28);
+  --ft-warn:          var(--p-amber);
+  --ft-warn-soft:     rgba(255, 180, 84, 0.12);
+  --ft-info:          var(--p-sky);
+  --ft-info-soft:     rgba(125, 185, 255, 0.14);
+  --ft-violet:        var(--p-violet);
+  --ft-violet-soft:   rgba(183, 156, 255, 0.12);
+  --ft-violet-hairline: rgba(183, 156, 255, 0.25);
 
   /* Category palette */
-  --ft-cat-food:      #FF8B6B;
-  --ft-cat-transport: #7DB9FF;
-  --ft-cat-shopping:  #B79CFF;
-  --ft-cat-bills:     #FFB454;
-  --ft-cat-grocery:   #6EE7B7;
-  --ft-cat-rent:      #FF7AB6;
-  --ft-cat-entmt:     #FFD66E;
-  --ft-cat-transfer:  #8D9099;
-  --ft-cat-salary:    #D7FF3D;
-  --ft-cat-health:    #6EE7E7;
+  --ft-cat-food:      var(--p-cat-food-d);
+  --ft-cat-transport: var(--p-cat-transport-d);
+  --ft-cat-shopping:  var(--p-cat-shopping-d);
+  --ft-cat-bills:     var(--p-cat-bills-d);
+  --ft-cat-grocery:   var(--p-cat-grocery-d);
+  --ft-cat-rent:      var(--p-cat-rent-d);
+  --ft-cat-entmt:     var(--p-cat-entmt-d);
+  --ft-cat-transfer:  var(--p-cat-transfer-d);
+  --ft-cat-salary:    var(--p-cat-salary-d);
+  --ft-cat-health:    var(--p-cat-health-d);
+
+  /* Data-viz chrome */
+  --ft-chart-grid:  var(--p-ink-750);
+  --ft-chart-label: var(--p-ink-400);
+
+  /* Interaction washes */
+  --ft-hover:  rgba(255, 255, 255, 0.04);
+  --ft-active: rgba(255, 255, 255, 0.07);
+  --ft-disabled-opacity: 0.55;
+
+  /* Overlays. Direction flips in light — see the light block. */
+  --ft-scrim:      rgba(0, 0, 0, 0.60);
+  --ft-glass:      rgba(28, 30, 36, 0.85);
+  --ft-inner-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --ft-overlay-hairline: rgba(255, 255, 255, 0.06);
+
+  /* Selection & focus */
+  --ft-selection-bg: rgba(215, 255, 61, 0.28);
+  --ft-selection-fg: var(--p-ink-050);
+  --ft-focus-ring:   var(--p-lime-neon);
+
+  /* Scrollbar */
+  --ft-scrollbar-thumb:       var(--p-ink-850);
+  --ft-scrollbar-thumb-hover: var(--p-ink-800);
+  --ft-scrollbar-track:       transparent;
+
+  /* Elevation. Dark leans on inset highlights + hairlines; light leans on
+     two-layer ambient+diffuse shadows. Same token, different mechanism. */
+  --ft-shadow-card:  0 1px 0 rgba(255, 255, 255, 0.03) inset,
+                     0 0 0 1px rgba(255, 255, 255, 0.02);
+  --ft-shadow-float: 0 6px 16px rgba(0, 0, 0, 0.35);
+  --ft-shadow-pop:   0 12px 40px rgba(0, 0, 0, 0.5),
+                     0 0 0 1px rgba(255, 255, 255, 0.04);
+  --ft-shadow-sheet: 0 -12px 48px rgba(0, 0, 0, 0.55);
+
+  /* SVG data-URIs bake their own stroke colour, so each needs a per-theme
+     variant — they cannot inherit currentColor. */
+  --ft-chevron-sm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' fill='none' stroke='%238D9099' stroke-width='1.35' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --ft-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238D9099' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 
   /* Fonts */
   --ft-font-ui:   'Inter Tight', -apple-system, system-ui, sans-serif;
@@ -53,13 +197,237 @@
   --ft-r-xl:  16px;
   --ft-r-2xl: 20px;
   --ft-r-3xl: 28px;
-
-  /* Shadows */
-  --ft-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 0 0 1px rgba(255, 255, 255, 0.02);
-  --ft-shadow-pop:  0 12px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
-/* Base reset / globals */
+/* ══════════════════════════════════════════════════════════════════════════
+   2b. SEMANTIC — light
+   ──────────────────────────────────────────────────────────────────────────
+   Two selectors carry the same body: the OS preference (unless explicitly
+   overridden to dark) and the explicit override. Both are alias-only — no hex
+   is repeated, so the palette above stays the single source of truth.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+
+    /* Elevation flips: the page no longer gets lighter as it rises. The card
+       is the lightest surface and depth comes from shadow + hairline; the
+       "raised" tokens become progressively *inset* instead. */
+    --ft-bg:        var(--p-paper-100);
+    --ft-surface:   var(--p-paper-050);
+    --ft-surface-2: var(--p-paper-200);
+    --ft-surface-3: var(--p-paper-300);
+
+    --ft-border:   var(--p-hairline);
+    --ft-border-s: var(--p-slate-400);
+    --ft-divider:  var(--p-hairline);
+
+    --ft-text:           var(--p-slate-950);
+    --ft-text-dim:       var(--p-slate-650);
+    --ft-text-faint:     var(--p-slate-600);
+    --ft-text-on-accent: var(--p-lime-ink);
+    --ft-text-on-solid:  var(--p-paper-050);
+
+    /* The accent roles diverge here: neon lime survives as a *fill* (12.8:1
+       under near-black type) but is invisible as text or as a focus ring on
+       paper, so those roles get progressively darker lime at the same hue. */
+    --ft-accent:        var(--p-lime-acid);
+    --ft-accent-dim:    var(--p-lime-acid-d);
+    --ft-accent-strong: var(--p-lime-moss);
+    --ft-accent-fg:     var(--p-lime-forest);
+    --ft-accent-soft:   rgba(89, 112, 0, 0.14);
+    --ft-accent-soft-s: rgba(89, 112, 0, 0.22);
+    --ft-accent-hairline: rgba(110, 143, 0, 0.45);
+    --ft-control-accent: var(--p-lime-moss);
+
+    --ft-income:        var(--p-emerald);
+    --ft-income-soft:   rgba(11, 110, 74, 0.12);
+    --ft-income-hairline: rgba(11, 110, 74, 0.34);
+    --ft-spend:         var(--p-brick);
+    --ft-spend-soft:    rgba(179, 43, 43, 0.10);
+    --ft-spend-hairline: rgba(179, 43, 43, 0.32);
+    --ft-warn:          var(--p-bronze);
+    --ft-warn-soft:     rgba(138, 82, 0, 0.12);
+    --ft-info:          var(--p-azure);
+    --ft-info-soft:     rgba(31, 99, 184, 0.12);
+    --ft-violet:        var(--p-indigo);
+    --ft-violet-soft:   rgba(105, 68, 212, 0.12);
+    --ft-violet-hairline: rgba(105, 68, 212, 0.30);
+
+    --ft-cat-food:      var(--p-cat-food-l);
+    --ft-cat-transport: var(--p-cat-transport-l);
+    --ft-cat-shopping:  var(--p-cat-shopping-l);
+    --ft-cat-bills:     var(--p-cat-bills-l);
+    --ft-cat-grocery:   var(--p-cat-grocery-l);
+    --ft-cat-rent:      var(--p-cat-rent-l);
+    --ft-cat-entmt:     var(--p-cat-entmt-l);
+    --ft-cat-transfer:  var(--p-cat-transfer-l);
+    --ft-cat-salary:    var(--p-cat-salary-l);
+    --ft-cat-health:    var(--p-cat-health-l);
+
+    --ft-chart-grid:  var(--p-paper-300);
+    --ft-chart-label: var(--p-slate-650);
+
+    /* Dark-on-light reads far stronger than light-on-dark: these washes carry
+       roughly half the alpha of their dark counterparts. */
+    --ft-hover:  rgba(19, 24, 38, 0.035);
+    --ft-active: rgba(19, 24, 38, 0.06);
+    --ft-disabled-opacity: 0.45;
+
+    /* Scrim keeps darkening — a white haze would erase the "content behind is
+       inert" signal — but at a much lower alpha, and tinted to the paper hue. */
+    --ft-scrim:  rgba(19, 24, 38, 0.42);
+    --ft-glass:  rgba(252, 252, 253, 0.82);
+    /* Direction inverts: a raised light surface takes a soft inner shadow at
+       the bottom, not a highlight at the top. */
+    --ft-inner-highlight: inset 0 -1px 0 rgba(19, 24, 38, 0.035);
+    --ft-overlay-hairline: rgba(19, 24, 38, 0.03);
+
+    --ft-selection-bg: rgba(189, 238, 0, 0.45);
+    --ft-selection-fg: var(--p-slate-950);
+    --ft-focus-ring:   var(--p-lime-moss);
+
+    --ft-scrollbar-thumb:       var(--p-paper-300);
+    --ft-scrollbar-thumb-hover: var(--p-slate-400);
+    --ft-scrollbar-track:       transparent;
+
+    /* Two layers everywhere: a tight ambient contact shadow plus a wider,
+       softer diffuse one. Both low-alpha and hue-tinted toward the paper. */
+    --ft-shadow-card:  0 1px 2px rgba(var(--p-shadow-ink), 0.05),
+                       0 4px 10px -2px rgba(var(--p-shadow-ink), 0.05);
+    --ft-shadow-float: 0 1px 3px rgba(var(--p-shadow-ink), 0.06),
+                       0 10px 24px -6px rgba(var(--p-shadow-ink), 0.12);
+    --ft-shadow-pop:   0 2px 6px rgba(var(--p-shadow-ink), 0.06),
+                       0 20px 44px -12px rgba(var(--p-shadow-ink), 0.18);
+    --ft-shadow-sheet: 0 -2px 8px rgba(var(--p-shadow-ink), 0.05),
+                       0 -20px 48px -12px rgba(var(--p-shadow-ink), 0.16);
+
+    --ft-chevron-sm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' fill='none' stroke='%235F6673' stroke-width='1.35' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    --ft-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235F6673' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+}
+
+/* Explicit override — same body, same specificity as the media rule above but
+   later in source order, so it wins under either OS preference. */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --ft-bg:        var(--p-paper-100);
+  --ft-surface:   var(--p-paper-050);
+  --ft-surface-2: var(--p-paper-200);
+  --ft-surface-3: var(--p-paper-300);
+
+  --ft-border:   var(--p-hairline);
+  --ft-border-s: var(--p-slate-400);
+  --ft-divider:  var(--p-hairline);
+
+  --ft-text:           var(--p-slate-950);
+  --ft-text-dim:       var(--p-slate-650);
+  --ft-text-faint:     var(--p-slate-600);
+  --ft-text-on-accent: var(--p-lime-ink);
+  --ft-text-on-solid:  var(--p-paper-050);
+
+  --ft-accent:        var(--p-lime-acid);
+  --ft-accent-dim:    var(--p-lime-acid-d);
+  --ft-accent-strong: var(--p-lime-moss);
+  --ft-accent-fg:     var(--p-lime-forest);
+  --ft-accent-soft:   rgba(89, 112, 0, 0.14);
+  --ft-accent-soft-s: rgba(89, 112, 0, 0.22);
+  --ft-accent-hairline: rgba(110, 143, 0, 0.45);
+  --ft-control-accent: var(--p-lime-moss);
+
+  --ft-income:        var(--p-emerald);
+  --ft-income-soft:   rgba(11, 110, 74, 0.12);
+  --ft-income-hairline: rgba(11, 110, 74, 0.34);
+  --ft-spend:         var(--p-brick);
+  --ft-spend-soft:    rgba(179, 43, 43, 0.10);
+  --ft-spend-hairline: rgba(179, 43, 43, 0.32);
+  --ft-warn:          var(--p-bronze);
+  --ft-warn-soft:     rgba(138, 82, 0, 0.12);
+  --ft-info:          var(--p-azure);
+  --ft-info-soft:     rgba(31, 99, 184, 0.12);
+  --ft-violet:        var(--p-indigo);
+  --ft-violet-soft:   rgba(105, 68, 212, 0.12);
+  --ft-violet-hairline: rgba(105, 68, 212, 0.30);
+
+  --ft-cat-food:      var(--p-cat-food-l);
+  --ft-cat-transport: var(--p-cat-transport-l);
+  --ft-cat-shopping:  var(--p-cat-shopping-l);
+  --ft-cat-bills:     var(--p-cat-bills-l);
+  --ft-cat-grocery:   var(--p-cat-grocery-l);
+  --ft-cat-rent:      var(--p-cat-rent-l);
+  --ft-cat-entmt:     var(--p-cat-entmt-l);
+  --ft-cat-transfer:  var(--p-cat-transfer-l);
+  --ft-cat-salary:    var(--p-cat-salary-l);
+  --ft-cat-health:    var(--p-cat-health-l);
+
+  --ft-chart-grid:  var(--p-paper-300);
+  --ft-chart-label: var(--p-slate-650);
+
+  --ft-hover:  rgba(19, 24, 38, 0.035);
+  --ft-active: rgba(19, 24, 38, 0.06);
+  --ft-disabled-opacity: 0.45;
+
+  --ft-scrim:  rgba(19, 24, 38, 0.42);
+  --ft-glass:  rgba(252, 252, 253, 0.82);
+  --ft-inner-highlight: inset 0 -1px 0 rgba(19, 24, 38, 0.035);
+  --ft-overlay-hairline: rgba(19, 24, 38, 0.03);
+
+  --ft-selection-bg: rgba(189, 238, 0, 0.45);
+  --ft-selection-fg: var(--p-slate-950);
+  --ft-focus-ring:   var(--p-lime-moss);
+
+  --ft-scrollbar-thumb:       var(--p-paper-300);
+  --ft-scrollbar-thumb-hover: var(--p-slate-400);
+  --ft-scrollbar-track:       transparent;
+
+  --ft-shadow-card:  0 1px 2px rgba(var(--p-shadow-ink), 0.05),
+                     0 4px 10px -2px rgba(var(--p-shadow-ink), 0.05);
+  --ft-shadow-float: 0 1px 3px rgba(var(--p-shadow-ink), 0.06),
+                     0 10px 24px -6px rgba(var(--p-shadow-ink), 0.12);
+  --ft-shadow-pop:   0 2px 6px rgba(var(--p-shadow-ink), 0.06),
+                     0 20px 44px -12px rgba(var(--p-shadow-ink), 0.18);
+  --ft-shadow-sheet: 0 -2px 8px rgba(var(--p-shadow-ink), 0.05),
+                     0 -20px 48px -12px rgba(var(--p-shadow-ink), 0.16);
+
+  --ft-chevron-sm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' fill='none' stroke='%235F6673' stroke-width='1.35' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --ft-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235F6673' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   3. COMPAT — legacy alias vocabulary
+   ──────────────────────────────────────────────────────────────────────────
+   These names are referenced ~150 times across older stylesheets but were
+   never declared anywhere, so every one of those declarations was dropped at
+   computed-value time (invisible borders, inherited text colour). Aliasing
+   them onto the semantic layer both repairs that and makes them theme-aware.
+   Declared once: they resolve against whichever --ft-* value won the cascade.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --ink:        var(--ft-text);
+  --ink-muted:  var(--ft-text-dim);
+  --ink-soft:   var(--ft-text-faint);
+  --muted:      var(--ft-text-dim);
+  --stroke:     var(--ft-border);
+  --card:       var(--ft-surface);
+  --teal:       var(--ft-accent-fg);     /* legacy brand accent, unified onto lime */
+  --danger:     var(--ft-spend);
+  --success:    var(--ft-income);
+  --accent:     var(--ft-accent-strong);
+  --accent-soft: var(--ft-accent-soft);
+  --shadow:     var(--ft-shadow-card);
+  --shadow-lg:  var(--ft-shadow-pop);
+  --radius:     var(--ft-r-xl);
+  --radius-sm:  var(--ft-r-md);
+  --radius-xs:  var(--ft-r-sm);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   4. Base reset / globals
+   ══════════════════════════════════════════════════════════════════════════ */
+
 *,
 *::before,
 *::after {
@@ -109,25 +477,31 @@ textarea {
   letter-spacing: -0.5px;
 }
 
-/* Scrollbar — keep dark, minimal */
+/* Scrollbar */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-track { background: var(--ft-scrollbar-track); }
 ::-webkit-scrollbar-thumb {
-  background: var(--ft-surface-2);
+  background: var(--ft-scrollbar-thumb);
   border-radius: 999px;
   border: 2px solid var(--ft-bg);
 }
-::-webkit-scrollbar-thumb:hover { background: var(--ft-surface-3); }
+::-webkit-scrollbar-thumb:hover { background: var(--ft-scrollbar-thumb-hover); }
+
+/* Firefox */
+* {
+  scrollbar-color: var(--ft-scrollbar-thumb) var(--ft-scrollbar-track);
+}
 
 /* Selection */
 ::selection {
-  background: var(--ft-accent-soft);
-  color: var(--ft-text);
+  background: var(--ft-selection-bg);
+  color: var(--ft-selection-fg);
 }
 
-/* Focus ring */
+/* Focus ring — 3.44:1 against the page in light, so it stays a visible
+   indicator rather than a decorative glow. */
 :focus-visible {
-  outline: 2px solid var(--ft-accent);
+  outline: 2px solid var(--ft-focus-ring);
   outline-offset: 2px;
 }
 

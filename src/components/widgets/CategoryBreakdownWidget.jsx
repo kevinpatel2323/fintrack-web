@@ -61,7 +61,7 @@ export default function CategoryBreakdownWidget({ data, loading, error, dateRang
               <div className="category-info">
                 <span
                   className="category-color"
-                  style={{ backgroundColor: category.categoryColor || '#999' }}
+                  style={{ backgroundColor: category.categoryColor || 'var(--ft-cat-transfer)' }}
                 />
                 <span className="category-name" title={category.categoryName}>
                   {category.categoryName}
@@ -73,7 +73,7 @@ export default function CategoryBreakdownWidget({ data, loading, error, dateRang
                   className="category-bar-fill"
                   style={{
                     width: `${category.percentage}%`,
-                    backgroundColor: category.categoryColor || '#999',
+                    backgroundColor: category.categoryColor || 'var(--ft-cat-transfer)',
                   }}
                 />
               </div>

@@ -3,15 +3,18 @@ import {
   Card, Avatar, Overline, SectionTitle, GhostBtn,
 } from '../components/ui/primitives.jsx';
 import { IcUpload, IcTag, IcSettings, IcChevR, IcCal, IcCommand } from '../components/ui/Icon.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const ROWS = [
   { to: '/import', label: 'Import statement', icon: IcUpload, sub: 'Upload HDFC XLSX' },
   { to: '/calendar', label: 'Calendar', icon: IcCal, sub: 'Month view, bills & activity' },
   { to: '/categories', label: 'Categories', icon: IcTag, sub: 'Manage buckets' },
-  { to: '/security', label: 'Security', icon: IcCommand, sub: 'Passkeys & sign-out' },
+  { to: '/security', label: 'Security', icon: IcCommand, sub: 'Passkeys & sign-out', authOnly: true },
 ];
 
 export default function You() {
+  const { authDisabled } = useAuth();
+  const rows = authDisabled ? ROWS.filter((row) => !row.authOnly) : ROWS;
   return (
     <>
       <header className="ft-mobile__header">
@@ -27,7 +30,7 @@ export default function You() {
           </div>
         </Card>
         <Card pad={6}>
-          {ROWS.map((row, i) => {
+          {rows.map((row, i) => {
             const Ic = row.icon;
             return (
               <Link

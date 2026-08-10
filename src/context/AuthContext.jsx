@@ -51,7 +51,7 @@ export function AuthProvider({ children }) {
   // Absolute sessions: when expiry passes, flip to unauthenticated locally so
   // the app redirects to /login without waiting for the next failed request.
   useEffect(() => {
-    if (state.status !== 'authenticated') return undefined;
+    if (state.status !== 'authenticated' || state.authDisabled) return undefined;
     const ms = msUntilExpiry(state.expiresAt);
     if (ms === null) return undefined;
     const timer = setTimeout(() => setState(unauthenticated()), ms);
@@ -61,6 +61,7 @@ export function AuthProvider({ children }) {
   const value = {
     status: state.status,
     expiresAt: state.expiresAt,
+    authDisabled: state.authDisabled ?? false,
     refresh,
     logout,
   };

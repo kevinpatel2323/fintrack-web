@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
+import DynamicTable from '../components/DynamicTable.jsx';
 import {
   Card, Num, GhostBtn, PrimaryBtn, Overline,
 } from '../components/ui/primitives.jsx';
@@ -32,6 +33,73 @@ function isoDateMinusDays(isoDate, days) {
   d.setUTCDate(d.getUTCDate() - days);
   return d.toISOString().slice(0, 10);
 }
+
+/** A parsed statement row's signed amount — deposits credit, withdrawals debit. */
+function previewRowAmount(row) {
+  const deposit = Number(row.deposit || 0);
+  return deposit > 0 ? deposit : -Number(row.withdrawal || 0);
+}
+
+/** Columns for the pre-import preview of the parsed statement. */
+const PREVIEW_COLUMNS = [
+  {
+    id: 'transactionDate',
+    header: 'Date',
+    width: 120,
+    minWidth: 96,
+    sortable: true,
+    accessor: (row) => row.transactionDate || '',
+    filterValue: (row) => fmtDate(row.transactionDate),
+    cell: (row) => (
+      <span style={{ color: 'var(--ft-text-dim)', fontSize: 12.5 }}>{fmtDate(row.transactionDate)}</span>
+    ),
+  },
+  {
+    id: 'narration',
+    header: 'Narration',
+    width: 360,
+    minWidth: 180,
+    sortable: true,
+    hideable: false,
+    accessor: (row) => (row.upiName || row.narration || '').toLowerCase(),
+    filterValue: (row) => `${row.upiName || ''} ${row.narration || ''}`,
+    cell: (row) => (
+      <span
+        title={row.narration || undefined}
+        style={{
+          display: 'block',
+          color: 'var(--ft-text-dim)',
+          fontFamily: 'var(--ft-font-mono)',
+          fontSize: 11.5,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {row.upiName || row.narration}
+      </span>
+    ),
+  },
+  {
+    id: 'amount',
+    header: 'Amount',
+    width: 130,
+    minWidth: 100,
+    sortable: true,
+    align: 'right',
+    accessor: previewRowAmount,
+    filterValue: (row) => String(Math.abs(previewRowAmount(row))),
+    cell: (row) => {
+      const amount = previewRowAmount(row);
+      const isIncome = amount > 0;
+      return (
+        <Num size={13} weight={600} color={isIncome ? 'var(--ft-income)' : 'var(--ft-text)'}>
+          {inr(amount, { sign: isIncome })}
+        </Num>
+      );
+    },
+  },
+];
 
 export default function StatementImport() {
   const isMobile = useMediaQuery('(max-width: 720px)');
@@ -191,7 +259,17 @@ export default function StatementImport() {
   const period = uploadPreview?.periodStart && uploadPreview?.periodEnd
     ? `${fmtShortDate(uploadPreview.periodStart)} – ${fmtShortDate(uploadPreview.periodEnd)}`
     : '—';
-  const lastFour = uploadPreview?.accountNumber?.slice(-4) || '';
+  // The API detects whether the upload is a bank or credit card statement and
+  // resolves the target itself, so the label follows whatever came back.
+  const isCardStatement = uploadPreview?.kind === 'card';
+  const lastFour = (isCardStatement
+    ? uploadPreview?.card?.last4
+    : uploadPreview?.accountNumber?.slice(-4)) || '';
+  const destination = !uploadPreview
+    ? ''
+    : isCardStatement
+      ? `${uploadPreview.card?.nickname || uploadPreview.card?.name || 'Card'} · •••• ${lastFour}`
+      : `HDFC Bank · Acct •••• ${lastFour}`;
 
   const STEPS = [
     { label: 'Upload file',      done: step > 1, active: step === 1 },
@@ -209,7 +287,7 @@ export default function StatementImport() {
       isUploading={isUploading}
       isDragging={isDragging}
       previewRows={previewRows}
-      net={net} debits={debits} credits={credits} period={period} lastFour={lastFour}
+      net={net} debits={debits} credits={credits} period={period} lastFour={lastFour} destination={destination}
       imports={imports} importsLoading={importsLoading} importsError={importsError} importsStatus={importsStatus}
       revertingImportId={revertingImportId}
       lastImport={lastImport}
@@ -291,7 +369,7 @@ export default function StatementImport() {
               <FileInfoRow
                 uploadFile={uploadFile}
                 uploadPreview={uploadPreview}
-                lastFour={lastFour}
+                destination={destination}
                 onRemove={resetUpload}
               />
               <div style={{ padding: '14px 22px', borderTop: '1px solid var(--ft-border)', display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -308,52 +386,31 @@ export default function StatementImport() {
               <FileInfoRow
                 uploadFile={uploadFile}
                 uploadPreview={uploadPreview}
-                lastFour={lastFour}
+                destination={destination}
                 onRemove={resetUpload}
               />
 
-              <div style={{ borderTop: '1px solid var(--ft-border)', overflowX: 'auto' }}>
-                {/* Table header */}
-                <div className="imp-tbl-head">
-                  <span style={{ flex: '0 0 110px' }}>Date</span>
-                  <span style={{ flex: 1 }}>Narration</span>
-                  <span style={{ flex: '0 0 120px', textAlign: 'right' }}>Amount</span>
-                </div>
-
-                {previewRows.length === 0 ? (
-                  <div style={{ padding: '32px 22px', textAlign: 'center', color: 'var(--ft-text-dim)', fontSize: 14 }}>
-                    All {uploadPreview.skippedRows} rows already imported — nothing new to add.
-                  </div>
-                ) : (
-                  previewRows.slice(0, 15).map((r, i) => {
-                    const w = Number(r.withdrawal || 0);
-                    const d = Number(r.deposit || 0);
-                    const isIncome = d > 0;
-                    const amt = isIncome ? d : w;
-                    return (
-                      <div key={i} className="imp-tbl-row">
-                        <span style={{ flex: '0 0 110px', color: 'var(--ft-text-dim)', fontSize: 12.5 }}>
-                          {fmtDate(r.transactionDate)}
-                        </span>
-                        <span style={{ flex: 1, color: 'var(--ft-text-dim)', fontFamily: 'var(--ft-font-mono)', fontSize: 11.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {r.upiName || r.narration}
-                        </span>
-                        <span style={{ flex: '0 0 120px', textAlign: 'right' }}>
-                          <Num size={13} weight={600} color={isIncome ? 'var(--ft-income)' : 'var(--ft-text)'}>
-                            {inr(isIncome ? amt : -amt, { sign: isIncome })}
-                          </Num>
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
+              <div style={{ borderTop: '1px solid var(--ft-border)' }}>
+                <DynamicTable
+                  columns={PREVIEW_COLUMNS}
+                  rows={previewRows}
+                  getRowKey={(row, index) => index}
+                  aria-label="Statement rows to import"
+                  tableClassName="imp-preview-table"
+                  storageKey="fintrack.import-preview"
+                  enableGlobalFilter
+                  searchPlaceholder="Search narration…"
+                  defaultPageSize={25}
+                  maxHeight="52vh"
+                  emptyMessage={`All ${uploadPreview.skippedRows} rows already imported — nothing new to add.`}
+                />
               </div>
 
               {/* Footer */}
               <div className="imp-tbl-footer">
                 <span style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>
                   {previewRows.length > 0
-                    ? `${Math.min(previewRows.length, 15)} of ${uploadPreview.willInsert} new · ${uploadPreview.skippedRows} duplicates skipped`
+                    ? `${uploadPreview.willInsert} new · ${uploadPreview.skippedRows} duplicates skipped`
                     : `${uploadPreview.skippedRows} duplicates skipped`}
                 </span>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -394,11 +451,11 @@ export default function StatementImport() {
           <div style={{
             padding: 14, borderRadius: 14,
             background: 'linear-gradient(135deg, var(--ft-accent-soft), transparent)',
-            border: '1px solid rgba(215,255,61,0.28)',
+            border: '1px solid var(--ft-accent-hairline)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <IcSparkle size={14} style={{ color: 'var(--ft-accent)' }} />
-              <Overline style={{ color: 'var(--ft-accent)', letterSpacing: 0.6 }}>Smart match</Overline>
+              <IcSparkle size={14} style={{ color: 'var(--ft-accent-fg)' }} />
+              <Overline style={{ color: 'var(--ft-accent-fg)', letterSpacing: 0.6 }}>Smart match</Overline>
             </div>
             <p style={{ margin: 0, color: 'var(--ft-text)', fontSize: 12.5, lineHeight: 1.5 }}>
               We match counterparty names against your friends list and suggest categories automatically.
@@ -408,7 +465,7 @@ export default function StatementImport() {
           {/* Success banner */}
           {uploadResult && (
             <div style={{ padding: '12px 14px', background: 'var(--ft-income-soft)', color: 'var(--ft-income)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500 }}>
-              <IcCheck size={16} /> Imported {uploadResult.insertedCount ?? uploadResult.added ?? '?'} transactions
+              <IcCheck size={16} /> Imported {uploadResult.insertedCount ?? uploadResult.added ?? uploadResult.insertedRows ?? '?'} transactions{uploadResult.card ? ` to ${uploadResult.card.nickname || uploadResult.card.name}` : ''}
             </div>
           )}
         </div>
@@ -434,7 +491,7 @@ export default function StatementImport() {
 
 function MobileView({
   step, uploadFile, uploadPreview, uploadStatus, uploadResult, isUploading,
-  isDragging, previewRows, net, debits, credits, period, lastFour,
+  isDragging, previewRows, net, debits, credits, period, lastFour, destination,
   imports, importsLoading, importsError, importsStatus, revertingImportId,
   lastImport, accounts, selectedAccount, onAccountChange,
   confirmState, STEPS, onFileInput, onPreview, onUpload, onReset, onRevert, onRefresh,
@@ -508,7 +565,7 @@ function MobileView({
                 </div>
                 <div style={{ color: 'var(--ft-text-dim)', fontSize: 12, marginTop: 2 }}>
                   {uploadPreview
-                    ? `HDFC · •••• ${lastFour} · ${period}`
+                    ? `${destination} · ${period}`
                     : `${((uploadFile?.size || 0) / 1024).toFixed(1)} KB`}
                 </div>
               </div>
@@ -578,7 +635,7 @@ function MobileView({
         {uploadStatus && <p className="status" style={{ textAlign: 'center' }}>{uploadStatus}</p>}
         {uploadResult && (
           <div style={{ padding: '12px 14px', background: 'var(--ft-income-soft)', color: 'var(--ft-income)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500 }}>
-            <IcCheck size={16} /> Imported {uploadResult.insertedCount ?? uploadResult.added ?? '?'} transactions
+            <IcCheck size={16} /> Imported {uploadResult.insertedCount ?? uploadResult.added ?? uploadResult.insertedRows ?? '?'} transactions{uploadResult.card ? ` to ${uploadResult.card.nickname || uploadResult.card.name}` : ''}
           </div>
         )}
 
@@ -618,7 +675,7 @@ function MobileView({
 
 // ── Shared sub-components ────────────────────────────────────────────────────
 
-function FileInfoRow({ uploadFile, uploadPreview, lastFour, onRemove }) {
+function FileInfoRow({ uploadFile, uploadPreview, destination, onRemove }) {
   return (
     <div style={{ padding: '14px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
       <div className="imp-xlsx-icon">XLSX</div>
@@ -628,7 +685,7 @@ function FileInfoRow({ uploadFile, uploadPreview, lastFour, onRemove }) {
         </div>
         <div style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, marginTop: 2 }}>
           {uploadPreview
-            ? `HDFC Bank · Acct •••• ${lastFour} · ${uploadPreview.totalParsed} detected · ${uploadPreview.skippedRows} duplicates skipped`
+            ? `${destination} · ${uploadPreview.totalParsed} detected · ${uploadPreview.skippedRows} duplicates skipped`
             : `${((uploadFile?.size || 0) / 1024).toFixed(1)} KB · Ready to preview`}
         </div>
       </div>
@@ -694,14 +751,14 @@ function LastImportCard({ lastImport, accounts, selectedAccount, onAccountChange
                 padding: '8px 10px',
                 borderRadius: 8,
                 background: 'var(--ft-accent-soft)',
-                border: '1px solid rgba(215,255,61,0.25)',
+                border: '1px solid var(--ft-accent-hairline)',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'baseline',
                 gap: 8,
               }}>
                 <span style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, flexShrink: 0 }}>Next start</span>
-                <strong style={{ color: 'var(--ft-accent)', fontSize: 12, fontWeight: 700, textAlign: 'right' }}>
+                <strong style={{ color: 'var(--ft-accent-fg)', fontSize: 12, fontWeight: 700, textAlign: 'right' }}>
                   On or before {fmtDate(cutoff)}
                 </strong>
               </div>
@@ -778,7 +835,7 @@ function HistoryCard({ imports, importsLoading, importsError, importsStatus, rev
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {imports.map((imp) => (
             <div key={imp.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 12, background: 'var(--ft-surface-2)', borderRadius: 10 }}>
-              <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(215,255,61,0.15)', color: 'var(--ft-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--ft-accent-soft)', color: 'var(--ft-accent-fg)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <IcReceipt size={14} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>

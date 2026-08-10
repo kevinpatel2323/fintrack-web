@@ -5,7 +5,7 @@
   padding: 1.5rem;
   background: white;
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--ft-shadow-card);
 }
 
 .date-inputs {
@@ -25,12 +25,12 @@
 .date-input-group label {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #333;
+  color: var(--ft-text);
 }
 
 .date-input-group input[type="date"] {
   padding: 0.625rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--ft-border-s);
   border-radius: 4px;
   font-size: 0.9375rem;
   font-family: inherit;
@@ -39,8 +39,8 @@
 
 .date-input-group input[type="date"]:focus {
   outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+  border-color: var(--ft-info);
+  box-shadow: 0 0 0 3px var(--ft-info-soft);
 }
 
 .date-presets {
@@ -51,32 +51,32 @@
 
 .preset-button {
   padding: 0.5rem 1rem;
-  background: #f8f9fa;
-  border: 1px solid #ddd;
+  background: var(--ft-surface-2);
+  border: 1px solid var(--ft-border-s);
   border-radius: 4px;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #333;
+  color: var(--ft-text);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .preset-button:hover {
-  background: #e9ecef;
-  border-color: #adb5bd;
+  background: var(--ft-surface-3);
+  border-color: var(--ft-border-s);
 }
 
 .preset-button:active {
-  background: #dee2e6;
+  background: var(--ft-surface-3);
 }
 
 .date-range-error {
   margin: 0;
   padding: 0.75rem;
-  background: #fee;
-  border: 1px solid #fcc;
+  background: var(--ft-spend-soft);
+  border: 1px solid var(--ft-spend-hairline);
   border-radius: 4px;
-  color: #c33;
+  color: var(--ft-spend);
   font-size: 0.875rem;
 }
 

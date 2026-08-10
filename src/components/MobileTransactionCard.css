@@ -8,7 +8,7 @@
 .mobile-txn-card__clickable {
   position: relative;
   cursor: pointer;
-  -webkit-tap-highlight-color: rgba(31, 95, 89, 0.12);
+  -webkit-tap-highlight-color: var(--ft-accent-soft);
   border-radius: 18px;
 }
 
@@ -17,7 +17,7 @@
 }
 
 .mobile-txn-card__clickable:focus-visible {
-  outline: 2px solid var(--teal);
+  outline: 2px solid var(--ft-focus-ring);
   outline-offset: 2px;
 }
 
@@ -113,7 +113,7 @@
   letter-spacing: 0.08em;
   padding: 3px 8px;
   border-radius: 999px;
-  background: rgba(31, 95, 89, 0.12);
+  background: var(--ft-accent-soft);
   color: var(--teal);
 }
 
@@ -173,7 +173,7 @@
 
 /* Borderless picker: shows emoji + name (or “None”) and opens native menu on tap */
 .mobile-txn-card__category-select {
-  --txn-cat-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' fill='none' stroke='%236c6258' stroke-width='1.35' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --txn-cat-chevron: var(--ft-chevron-sm);
   max-width: 100%;
   width: auto;
   min-width: 0;
@@ -203,7 +203,7 @@
 }
 
 .mobile-txn-card__category-select:focus-visible {
-  outline: 2px solid var(--teal);
+  outline: 2px solid var(--ft-focus-ring);
   outline-offset: 2px;
 }
 
@@ -218,7 +218,7 @@
 
 .mobile-txn-card__category-select option {
   color: var(--ink);
-  background: #fff;
+  background: var(--ft-surface);
 }
 
 .mobile-txn-card__category-status {
@@ -233,18 +233,18 @@
 .mobile-txn-card__expanded {
   border-top: 1px solid var(--stroke);
   padding: 16px 16px 18px 20px;
-  background: rgba(246, 242, 234, 0.45);
+  background: var(--ft-surface-2);
 }
 
 .mobile-txn-card__expanded .friend-tags-panel {
   border-radius: 14px;
   border: 1px solid var(--stroke);
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--ft-surface);
   box-shadow: none;
 }
 
 .mobile-txn-card__expanded .txn-assign-section {
-  background: linear-gradient(135deg, rgba(31, 95, 89, 0.08), rgba(31, 95, 89, 0.03));
+  background: var(--ft-accent-soft);
 }
 
 .mobile-txn-card__expanded .friend-tags-header h3 {

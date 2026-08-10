@@ -1,19 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import CcLinkModal from '../components/CcLinkModal.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import { FriendTagCard } from '../components/FriendTagLedgerDisplay.jsx';
 import Portal from '../components/Portal.jsx';
 import SplitTransactionForm from '../components/SplitTransactionForm.jsx';
+import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
+import TransactionMobileList from '../components/TransactionMobileList.jsx';
+import TransactionTable, {
+  TXN_TABLE_COLSPAN,
+  TransactionTableRow,
+  buildTransactionColumns,
+} from '../components/TransactionTable.jsx';
+import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import {
-  Card, Num, Pill, PrimaryBtn, GhostBtn, Avatar, CategoryChip, Overline, SectionTitle,
+  Card, Num, Pill, PrimaryBtn, GhostBtn, Avatar, Overline, SectionTitle,
 } from '../components/ui/primitives.jsx';
 import {
-  IcSearch, IcPlus, IcCommand, IcMore, IcRepeat, IcArrowDL, IcArrowUR, IcClose, IcCal,
+  IcSearch, IcPlus, IcCommand, IcRepeat, IcArrowDL, IcArrowUR, IcClose, IcCal,
+  IcCard,
 } from '../components/ui/Icon.jsx';
+import { getCcLink, unlinkCcBillPayment } from '../services/cardsApi.js';
+import { cardTxnStatus, toCardTableRow } from '../utils/cardTransactionRow.jsx';
 import { getLast30DayRange } from '../utils/dateUtils.js';
 import { inr } from '../utils/inr.js';
-import { categoryColor, friendTint, initialsOf } from '../utils/categoryColors.js';
+import { friendTint, initialsOf } from '../utils/categoryColors.js';
 import {
   parseTransactionsListParams,
   patchTransactionsListParams,
@@ -48,6 +60,29 @@ function getCurrentMonthRange() {
   const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
   const end = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0));
   return { startIso: start.toISOString().slice(0, 10), endIso: end.toISOString().slice(0, 10) };
+}
+
+/** Last `count` months, newest first, as `{ value: 'YYYY-MM', label, startIso, endIso }`. */
+function getMonthOptions(count = 24) {
+  const now = new Date();
+  const out = [];
+  for (let i = 0; i < count; i += 1) {
+    const start = new Date(Date.UTC(now.getFullYear(), now.getMonth() - i, 1));
+    const end = new Date(Date.UTC(now.getFullYear(), now.getMonth() - i + 1, 0));
+    out.push({
+      value: start.toISOString().slice(0, 7),
+      label: new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(start),
+      startIso: start.toISOString().slice(0, 10),
+      endIso: end.toISOString().slice(0, 10),
+    });
+  }
+  return out;
+}
+
+/** `YYYY-MM` when the range covers exactly one calendar month, else '' (custom range). */
+function matchMonthValue(startIso, endIso, options) {
+  const hit = options.find((m) => m.startIso === startIso && m.endIso === endIso);
+  return hit ? hit.value : '';
 }
 
 function MobileTxnDateRange({ rangeStart, rangeEnd, onStartChange, onEndChange, onRangeChange }) {
@@ -114,47 +149,37 @@ function getTodayIso() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+/** Maps a bank transaction into the shape TransactionTable renders. */
+function toTableRow(row, tagsByTransaction) {
+  const withdrawal = Number(row.withdrawal || 0);
+  const deposit = Number(row.deposit || 0);
+  const isIncome = deposit > 0;
+  const cc = row.ccBillPayment;
+  const tags = tagsByTransaction[row.id];
 
-function getPaginationItems(currentPage, totalPages) {
-  if (totalPages <= 5) return Array.from({ length: totalPages }, (_, index) => index + 1);
-
-  const pages = new Set([1, totalPages, currentPage]);
-  if (currentPage > 2) pages.add(currentPage - 1);
-  if (currentPage < totalPages - 1) pages.add(currentPage + 1);
-
-  const sorted = [...pages].sort((a, b) => a - b);
-  const items = [];
-
-  for (let index = 0; index < sorted.length; index += 1) {
-    const page = sorted[index];
-    const previous = sorted[index - 1];
-    if (previous && page - previous > 1) items.push(`ellipsis-${previous}`);
-    items.push(page);
-  }
-
-  return items;
-}
-
-function TransactionCategoryGlyph({ category, size = 38 }) {
-  const color = categoryColor(category);
-  const emoji = category?.icon?.trim() || '◌';
-
-  return (
-    <div
-      className={`txn-category-glyph${category?.icon ? '' : ' is-empty'}`}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 12,
-        background: `${color}1A`,
-        color,
-      }}
-      aria-hidden="true"
-    >
-      <span>{emoji}</span>
-    </div>
-  );
+  return {
+    id: row.id,
+    raw: row,
+    date: row.transactionDate,
+    title: row.upiName || row.narration || '',
+    subtitle: row.upiDescription || row.narration || row.upiBank,
+    titleBadge: cc ? (
+      <span className="txn-row__cc-badge">
+        <IcCard size={11} />
+        CC bill{cc.cardLast4 ? ` · ····${cc.cardLast4}` : ''}
+      </span>
+    ) : null,
+    category: row.category,
+    categoryId: row.categoryId,
+    method: row.upiBank ? `UPI · ${row.upiBank}` : row.isManual ? 'Manual' : 'Bank',
+    tagCount: tags === undefined ? null : tags.length,
+    amount: isIncome ? deposit : withdrawal,
+    isIncome,
+    expandable: Boolean(cc),
+    // Mobile-only extras.
+    mobileSubtitle: row.upiDescription || row.upiBank || 'Manual',
+    metaTrailing: row.accountNumber ? `····${row.accountNumber.slice(-4)}` : null,
+  };
 }
 
 export default function Transactions() {
@@ -166,6 +191,12 @@ export default function Transactions() {
   const { rangeStart, rangeEnd, filterTab, search } = useMemo(
     () => parseTransactionsListParams(searchParams, monthRange),
     [searchParams, monthRange],
+  );
+
+  const monthOptions = useMemo(() => getMonthOptions(24), []);
+  const selectedMonth = useMemo(
+    () => matchMonthValue(rangeStart, rangeEnd, monthOptions),
+    [rangeStart, rangeEnd, monthOptions],
   );
 
   const applyDateRange = useCallback((start, end) => {
@@ -208,6 +239,11 @@ export default function Transactions() {
   const [friendTagsSheetId, setFriendTagsSheetId] = useState(null);
   const [confirmState, setConfirmState] = useState({ open: false });
   const [splitApplyingTransactionId, setSplitApplyingTransactionId] = useState(null);
+  // CC bill payments: which rows are expanded, and the covered card
+  // transactions fetched lazily on first expand.
+  const [expandedCcIds, setExpandedCcIds] = useState(() => new Set());
+  const [ccDetailByTransaction, setCcDetailByTransaction] = useState({});
+  const [ccLinkModalRow, setCcLinkModalRow] = useState(null);
   const [manualStatus, setManualStatus] = useState('');
   const [manualSubmitting, setManualSubmitting] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
@@ -340,6 +376,120 @@ export default function Transactions() {
   function closeFriendTagsSheet() {
     setFriendTagsSheetId(null);
   }
+
+  // ── CC bill payment nesting ─────────────────────────────────────────────
+  // The nested card transactions are managed exactly like top-level rows;
+  // patching a row writes back into the cached cc-link detail it came from.
+  const cardManager = useCardTransactionManager({
+    categories,
+    onRowPatched: (txnId, patch) =>
+      setCcDetailByTransaction((prev) => {
+        const next = { ...prev };
+        for (const [bankId, detail] of Object.entries(next)) {
+          if (!detail?.coveredTransactions) continue;
+          next[bankId] = {
+            ...detail,
+            coveredTransactions: detail.coveredTransactions.map((t) =>
+              String(t.id) === String(txnId) ? { ...t, ...patch } : t,
+            ),
+          };
+        }
+        return next;
+      }),
+  });
+
+  const cardManageRow = useMemo(() => {
+    if (!cardManager.manageSheetId) return null;
+    for (const detail of Object.values(ccDetailByTransaction)) {
+      const hit = (detail?.coveredTransactions || []).find(
+        (t) => String(t.id) === String(cardManager.manageSheetId),
+      );
+      if (hit) return hit;
+    }
+    return null;
+  }, [cardManager.manageSheetId, ccDetailByTransaction]);
+
+  const { seedTags: seedCardTags } = cardManager;
+  const fetchCcDetail = useCallback(async (transactionId) => {
+    setCcDetailByTransaction((p) => ({ ...p, [transactionId]: { loading: true } }));
+    try {
+      const data = await getCcLink(transactionId);
+      setCcDetailByTransaction((p) => ({ ...p, [transactionId]: data }));
+      // Merge, not replace: other bill payments may already be expanded.
+      seedCardTags(data.coveredTransactions);
+    } catch (error) {
+      setCcDetailByTransaction((p) => ({
+        ...p,
+        [transactionId]: { error: error.message || 'Failed to load card transactions' },
+      }));
+    }
+  }, [seedCardTags]);
+
+  const toggleCcExpanded = useCallback((transactionId) => {
+    const isOpen = expandedCcIds.has(transactionId);
+    setExpandedCcIds((prev) => {
+      const next = new Set(prev);
+      if (isOpen) next.delete(transactionId);
+      else next.add(transactionId);
+      return next;
+    });
+    // Fetch on first expand only; the cache persists across collapses.
+    if (!isOpen && !ccDetailByTransaction[transactionId]) {
+      fetchCcDetail(transactionId);
+    }
+  }, [expandedCcIds, ccDetailByTransaction, fetchCcDetail]);
+
+  const handleCcLinked = useCallback((transactionId, result) => {
+    setCcLinkModalRow(null);
+    setTransactions((prev) =>
+      prev.map((t) =>
+        t.id === transactionId
+          ? {
+              ...t,
+              ccBillPayment: {
+                paymentId: result?.payment?.id,
+                cardId: result?.card?.id,
+                cardLast4: result?.card?.last4,
+              },
+            }
+          : t,
+      ),
+    );
+    setCcDetailByTransaction((p) => ({ ...p, [transactionId]: result }));
+    setExpandedCcIds((prev) => new Set(prev).add(transactionId));
+  }, []);
+
+  const unlinkCc = useCallback((transactionId) => {
+    setConfirmState({
+      open: true,
+      title: 'Unlink card bill?',
+      message:
+        'The covered card transactions go back to unpaid, and this debit counts as ordinary spend again.',
+      confirmLabel: 'Unlink',
+      onConfirm: async () => {
+        setConfirmState({ open: false });
+        try {
+          await unlinkCcBillPayment(transactionId);
+          setTransactions((prev) =>
+            prev.map((t) => (t.id === transactionId ? { ...t, ccBillPayment: null } : t)),
+          );
+          setCcDetailByTransaction((p) => {
+            const next = { ...p };
+            delete next[transactionId];
+            return next;
+          });
+          setExpandedCcIds((prev) => {
+            const next = new Set(prev);
+            next.delete(transactionId);
+            return next;
+          });
+        } catch (error) {
+          setRangeStatus(error.message || 'Failed to unlink');
+        }
+      },
+      onCancel: () => setConfirmState({ open: false }),
+    });
+  }, []);
 
   async function fetchTags(transactionId) {
     setTagsStatusByTransaction((p) => ({ ...p, [transactionId]: 'Loading tags...' }));
@@ -561,13 +711,9 @@ export default function Transactions() {
     [transactions],
   );
 
-  const totalPages = Math.max(1, Math.ceil(sortedTransactions.length / pageSize));
-  const pageStart = sortedTransactions.length === 0 ? 0 : ((page - 1) * pageSize) + 1;
-  const pageEnd = Math.min(page * pageSize, sortedTransactions.length);
-  const paginationItems = useMemo(() => getPaginationItems(page, totalPages), [page, totalPages]);
-  const pageRows = useMemo(
-    () => sortedTransactions.slice((page - 1) * pageSize, page * pageSize),
-    [sortedTransactions, page, pageSize],
+  const tableRows = useMemo(
+    () => sortedTransactions.map((row) => toTableRow(row, tagsByTransaction)),
+    [sortedTransactions, tagsByTransaction],
   );
 
   const friendTagsSheetRow = useMemo(
@@ -581,119 +727,37 @@ export default function Transactions() {
     }
   }, [transactions, friendTagsSheetId]);
 
-  const renderFriendTagsPanel = (row) => (
-    <div className="friend-tags-panel">
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <select
-          className="txn-assign-select"
-          value={row.categoryId || ''}
-          onChange={(e) => assignCategory(row.id, e.target.value)}
-          aria-label="Category for this transaction"
-        >
-          <option value="">No category</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.icon ? `${cat.icon} ` : ''}{cat.name}
-            </option>
-          ))}
-        </select>
-        {categoryStatusByTransaction[row.id] ? (
-          <span className="status">{categoryStatusByTransaction[row.id]}</span>
-        ) : null}
-      </div>
-      {(() => {
-        const withdrawal = Number(row.withdrawal || 0);
-        const deposit = Number(row.deposit || 0);
-        const splitTotal = withdrawal > 0 ? withdrawal : deposit > 0 ? deposit : 0;
-        return splitTotal > 0 ? (
-          <SplitTransactionForm
-            key={`split-${row.id}`}
-            totalAmount={splitTotal}
-            participants={friends.map((f) => ({ id: String(f.id), name: f.name }))}
-            taggedFriendIds={(tagsByTransaction[row.id] || []).map((t) => String(t.friendId))}
-            defaultDirection="OWES_ME"
-            applying={splitApplyingTransactionId === row.id}
-            onApplySplit={(args) => applySplitTags(row.id, args)}
-          />
-        ) : null;
-      })()}
-      {tagsStatusByTransaction[row.id] && <p className="status">{tagsStatusByTransaction[row.id]}</p>}
-      <div className="friend-tags-list">
-        {(tagsByTransaction[row.id] || []).length === 0 ? (
-          <p className="empty">No friend attached.</p>
-        ) : (
-          (tagsByTransaction[row.id] || []).map((tag) => {
-            const friendName = tag.friend?.name || String(tag.friendId);
-            return (
-              <FriendTagCard
-                key={tag.id}
-                tag={tag}
-                transaction={row}
-                friendName={friendName}
-                onRemove={() => deleteTag(row.id, tag.id)}
-              />
-            );
-          })
-        )}
-      </div>
-    </div>
-  );
-
-  // -- Friend tag sheet rendered on both layouts --
   const sheet = friendTagsSheetRow && (
-    <Portal>
-      <div
-        className="calendar-sheet-backdrop"
-        onClick={(e) => e.target === e.currentTarget && closeFriendTagsSheet()}
-      >
-        <div className="calendar-sheet" role="dialog" aria-modal="true">
-          <div className="calendar-sheet__header">
-            <div>
-              <h3>{formatDate(friendTagsSheetRow.transactionDate)}</h3>
-              <p>
-                {(tagsByTransaction[friendTagsSheetRow.id] || []).length}{' '}
-                {(tagsByTransaction[friendTagsSheetRow.id] || []).length === 1 ? 'friend tag' : 'friend tags'}
-                {' · '}
-                {(() => {
-                  const w = Number(friendTagsSheetRow.withdrawal || 0);
-                  const d = Number(friendTagsSheetRow.deposit || 0);
-                  const isW = w > 0;
-                  const amt = isW ? w : d;
-                  return `${isW ? 'Out' : 'In'} ${inr(amt)}`;
-                })()}
-              </p>
-              <p className="calendar-sheet__header-meta">
-                {[friendTagsSheetRow.accountNumber, friendTagsSheetRow.isManual ? 'Manual' : null]
-                  .filter(Boolean).join(' · ')}
-              </p>
-            </div>
-            <button className="ghost calendar-sheet__close" type="button" onClick={closeFriendTagsSheet} aria-label="Close">
-              <IcClose size={16} />
-            </button>
-          </div>
-          <div className="calendar-summary-strip">
-            <div>
-              <span>Total in</span>
-              <strong>{inr(Number(friendTagsSheetRow.deposit || 0))}</strong>
-            </div>
-            <div>
-              <span>Total out</span>
-              <strong>{inr(Number(friendTagsSheetRow.withdrawal || 0))}</strong>
-            </div>
-            <div>
-              <span>Net</span>
-              <strong>
-                {(() => {
-                  const net = Number(friendTagsSheetRow.deposit || 0) - Number(friendTagsSheetRow.withdrawal || 0);
-                  return inr(net, { sign: true });
-                })()}
-              </strong>
-            </div>
-          </div>
-          <div className="calendar-manage-shell">{renderFriendTagsPanel(friendTagsSheetRow)}</div>
-        </div>
-      </div>
-    </Portal>
+    <TransactionManageSheet
+      transaction={friendTagsSheetRow}
+      date={friendTagsSheetRow.transactionDate}
+      metaLine={[friendTagsSheetRow.accountNumber, friendTagsSheetRow.isManual ? 'Manual' : null]
+        .filter(Boolean).join(' \u00b7 ')}
+      amountIn={Number(friendTagsSheetRow.deposit || 0)}
+      amountOut={Number(friendTagsSheetRow.withdrawal || 0)}
+      categories={categories}
+      categoryId={friendTagsSheetRow.categoryId}
+      onAssignCategory={(value) => assignCategory(friendTagsSheetRow.id, value)}
+      categoryStatus={categoryStatusByTransaction[friendTagsSheetRow.id]}
+      actions={
+        /* Only a debit can be a card bill payment \u2014 the API enforces this too. */
+        Number(friendTagsSheetRow.withdrawal || 0) > 0
+        && !(Number(friendTagsSheetRow.deposit || 0) > 0)
+          ? (friendTagsSheetRow.ccBillPayment ? (
+            <GhostBtn onClick={() => unlinkCc(friendTagsSheetRow.id)}>Unlink card bill</GhostBtn>
+          ) : (
+            <GhostBtn onClick={() => setCcLinkModalRow(friendTagsSheetRow)}>Link to card bill</GhostBtn>
+          ))
+          : null
+      }
+      friends={friends}
+      tags={tagsByTransaction[friendTagsSheetRow.id] || []}
+      tagsStatus={tagsStatusByTransaction[friendTagsSheetRow.id]}
+      splitApplying={splitApplyingTransactionId === friendTagsSheetRow.id}
+      onApplySplit={(args) => applySplitTags(friendTagsSheetRow.id, args)}
+      onDeleteTag={(tagId) => deleteTag(friendTagsSheetRow.id, tagId)}
+      onClose={closeFriendTagsSheet}
+    />
   );
 
   const manualSheet = manualOpen && (
@@ -767,12 +831,31 @@ export default function Transactions() {
     </Portal>
   );
 
+  const ccModal = ccLinkModalRow && (
+    <CcLinkModal
+      transaction={ccLinkModalRow}
+      onClose={() => setCcLinkModalRow(null)}
+      onLinked={(result) => handleCcLinked(ccLinkModalRow.id, result)}
+    />
+  );
+
+  // Manage sheet for a nested card transaction (opened from a CC child row).
+  const cardSheet = cardManageRow && (
+    <TransactionManageSheet
+      {...cardManager.manageSheetPropsFor(cardManageRow)}
+      metaLine={cardTxnStatus(cardManageRow)}
+      friends={friends}
+    />
+  );
+
   // ===== MOBILE =====
   if (isMobile) {
     return (
       <>
         <ConfirmDialog {...confirmState} />
         {sheet}
+        {cardSheet}
+        {ccModal}
         {manualSheet}
         <header className="ft-mobile__header">
           <h1 className="ft-mobile__title">Activity</h1>
@@ -819,10 +902,9 @@ export default function Transactions() {
             ) : filteredTransactions.length === 0 ? (
               <p className="empty">No transactions in this range.</p>
             ) : (
-              <GroupedTxList
-                rows={sortedTransactions}
+              <TransactionMobileList
+                rows={tableRows}
                 onOpenDetail={openTransactionDetail}
-                onOpenManage={openFriendTagsSheet}
                 categories={categories}
                 onAssignCategory={assignCategory}
               />
@@ -838,6 +920,8 @@ export default function Transactions() {
     <>
       <ConfirmDialog {...confirmState} />
       {sheet}
+      {cardSheet}
+      {ccModal}
       {manualSheet}
 
       <header className="ft-page-header">
@@ -898,6 +982,19 @@ export default function Transactions() {
         </div>
         <div className="txn-range-row">
           <label className="txn-field">
+            <span>Month</span>
+            <select
+              value={selectedMonth}
+              onChange={(e) => {
+                const m = monthOptions.find((o) => o.value === e.target.value);
+                if (m) applyDateRange(m.startIso, m.endIso);
+              }}
+            >
+              {!selectedMonth && <option value="">Custom range</option>}
+              {monthOptions.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+          </label>
+          <label className="txn-field">
             <span>Start</span>
             <input type="date" value={rangeStart} onChange={(e) => applyDateRange(e.target.value, rangeEnd)} />
           </label>
@@ -917,294 +1014,101 @@ export default function Transactions() {
       </Card>
 
       <Card pad={0}>
-        {transactionsLoading ? (
-          <div style={{ padding: 28 }}><p className="status">Loading transactions…</p></div>
-        ) : pageRows.length === 0 ? (
-          <p className="empty" style={{ margin: 24 }}>No transactions match.</p>
-        ) : (
-          <>
-            <table className="txn-table">
-              <thead>
-                <tr>
-                  <SortTh col="date" active={sortCol} dir={sortDir} onSort={handleSort} width={110}>Date</SortTh>
-                  <SortTh col="description" active={sortCol} dir={sortDir} onSort={handleSort}>Description</SortTh>
-                  <SortTh col="category" active={sortCol} dir={sortDir} onSort={handleSort} width={160}>Category</SortTh>
-                  <SortTh col="method" active={sortCol} dir={sortDir} onSort={handleSort} width={120}>Method</SortTh>
-                  <SortTh col="tags" active={sortCol} dir={sortDir} onSort={handleSort} width={100}>Split count</SortTh>
-                  <SortTh col="amount" active={sortCol} dir={sortDir} onSort={handleSort} width={130} right>Amount</SortTh>
-                  <th style={{ width: 40 }} />
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((row) => (
-                  <TxTableRow
-                    key={row.id}
-                    row={row}
-                    tagCount={(tagsByTransaction[row.id] || []).length}
-                    tagsLoaded={tagsByTransaction[row.id] !== undefined}
-                    categories={categories}
-                    onAssignCategory={assignCategory}
-                    onOpenManage={openFriendTagsSheet}
-                    onOpenDetail={() => openTransactionDetail(row)}
-                  />
-                ))}
-              </tbody>
-            </table>
-            <div className="txn-footer">
-              <div className="txn-footer__meta">
-                <div className="txn-page-size" role="group" aria-label="Rows per page">
-                  <span className="txn-footer__label">Rows per page</span>
-                  <div className="txn-page-size__options">
-                    {PAGE_SIZE_OPTIONS.map((size) => (
-                      <button
-                        key={size}
-                        type="button"
-                        className={`txn-page-size__option${pageSize === size ? ' is-active' : ''}`}
-                        onClick={() => {
-                          setPageSize(size);
-                          setPage(1);
-                        }}
-                        aria-pressed={pageSize === size}
-                      >
-                        {size}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <span className="txn-footer__summary">
-                  Showing {pageStart}–{pageEnd} of {sortedTransactions.length}
-                </span>
-              </div>
-              <div className="txn-pager">
-                <button
-                  type="button"
-                  className="txn-pager__nav"
-                  disabled={page === 1}
-                  onClick={() => setPage(page - 1)}
-                >
-                  Prev
-                </button>
-                <div className="txn-pager__pages" aria-label={`Page ${page} of ${totalPages}`}>
-                  {paginationItems.map((item) => (typeof item === 'string' ? (
-                    <span key={item} className="txn-pager__ellipsis" aria-hidden="true">…</span>
-                  ) : (
-                    <button
-                      key={item}
-                      type="button"
-                      className={`txn-pager__page${item === page ? ' is-active' : ''}`}
-                      onClick={() => setPage(item)}
-                      aria-current={item === page ? 'page' : undefined}
-                    >
-                      {item}
-                    </button>
-                  )))}
-                </div>
-                <button
-                  type="button"
-                  className="txn-pager__nav"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage(page + 1)}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </>
-        )}
+        <TransactionTable
+          rows={tableRows}
+          storageKey="fintrack.ledger.bank"
+          categories={categories}
+          onAssignCategory={assignCategory}
+          onOpenManage={openFriendTagsSheet}
+          onOpenDetail={openTransactionDetail}
+          sortCol={sortCol}
+          sortDir={sortDir}
+          onSort={handleSort}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          expandedIds={expandedCcIds}
+          onToggleExpand={toggleCcExpanded}
+          renderExpansion={(row, { colSpan, columns }) => (
+            <CcChildRows
+              detail={ccDetailByTransaction[row.id]}
+              colSpan={colSpan}
+              columns={columns}
+              categories={categories}
+              tagsByTransaction={cardManager.tagsByTransaction}
+              onAssignCategory={cardManager.assignCategory}
+              onOpenManage={cardManager.openManage}
+            />
+          )}
+          loading={transactionsLoading}
+        />
       </Card>
     </>
   );
 }
 
-function TxTableRow({ row, tagCount, tagsLoaded, categories, onAssignCategory, onOpenManage, onOpenDetail }) {
-  const withdrawal = Number(row.withdrawal || 0);
-  const deposit = Number(row.deposit || 0);
-  const isIncome = deposit > 0;
-  const amount = isIncome ? deposit : withdrawal;
-  const method = row.upiBank ? `UPI · ${row.upiBank}` : row.isManual ? 'Manual' : 'Bank';
-  return (
-    <tr className="txn-row" onClick={onOpenDetail}>
-      <td>
-        <span style={{ fontFamily: 'var(--ft-font-mono)', fontSize: 12.5, color: 'var(--ft-text)', fontWeight: 500 }}>
-          {formatDateShort(row.transactionDate)}
-        </span>
-      </td>
-      <td className="txn-cell--description">
-        <div className="txn-row__desc">
-          <TransactionCategoryGlyph category={row.category} size={30} />
-          <div className="txn-row__desc-text">
-            <div className="txn-row__title" title={row.upiName || row.narration || undefined}>
-              {row.upiName || row.narration || '—'}
-            </div>
-            <div
-              className="txn-row__subtitle"
-              title={row.upiDescription || row.narration || row.upiBank || undefined}
-            >
-              {row.upiDescription || row.narration || row.upiBank}
-            </div>
-          </div>
-        </div>
-      </td>
-      <td onClick={(e) => e.stopPropagation()}>
-        {row.category ? (
-          <CategoryChip category={row.category} />
-        ) : (
-          <select
-            className="txn-inline-select"
-            value={row.categoryId || ''}
-            onChange={(e) => onAssignCategory(row.id, e.target.value)}
-          >
-            <option value="">Set category</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>
-            ))}
-          </select>
-        )}
-      </td>
-      <td>
-        <span style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>{method}</span>
-      </td>
-      <td>
-        {tagsLoaded ? (
-          tagCount > 0 ? (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              background: 'rgba(215,255,61,0.12)', color: 'var(--ft-accent)',
-              fontFamily: 'var(--ft-font-mono)', fontSize: 12, fontWeight: 600,
-              padding: '2px 8px', borderRadius: 6, minWidth: 24,
-            }}>
-              {tagCount}
-            </span>
-          ) : <span style={{ color: 'var(--ft-text-faint)', fontSize: 12 }}>—</span>
-        ) : (
-          <span style={{ color: 'var(--ft-text-faint)', fontSize: 12 }}>·</span>
-        )}
-      </td>
-      <td style={{ textAlign: 'right' }}>
-        <Num size={14} weight={600} color={isIncome ? 'var(--ft-income)' : 'var(--ft-spend)'}>
-          {inr(isIncome ? amount : -amount, { sign: isIncome })}
-        </Num>
-      </td>
-      <td onClick={(e) => e.stopPropagation()}>
-        <button
-          className="txn-row__menu"
-          aria-label="Manage transaction"
-          onClick={(e) => { e.stopPropagation(); onOpenManage(row.id); }}
-        >
-          <IcMore size={16} />
-        </button>
-      </td>
+// The credit-card transactions a bill payment covers, rendered as nested rows
+// of the payment — same columns and same management as any other ledger row.
+// The remainder is not a transaction, so it keeps its own spanned line.
+function CcChildRows({
+  detail, colSpan, columns, categories, tagsByTransaction, onAssignCategory, onOpenManage,
+}) {
+  // The parent hands over its *visible* columns; rebuild them against the card
+  // manager's handlers (a nested row is a card transaction, not a bank one) and
+  // reorder to match, so hiding a column hides it on the nested rows too.
+  const nestedColumns = useMemo(() => {
+    const byId = new Map(
+      buildTransactionColumns({
+        categories,
+        onAssignCategory,
+        onOpenManage,
+      }).map((c) => [c.id, c]),
+    );
+    return columns.map((c) => byId.get(c.id)).filter(Boolean);
+  }, [columns, categories, onAssignCategory, onOpenManage]);
+
+  const cell = (content) => (
+    <tr className="txn-row__child">
+      <td colSpan={colSpan ?? TXN_TABLE_COLSPAN}>{content}</td>
     </tr>
   );
-}
 
-function SortTh({ col, active, dir, onSort, children, width, right }) {
-  const isActive = active === col;
-  return (
-    <th
-      style={{ width, textAlign: right ? 'right' : 'left', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
-      onClick={() => onSort(col)}
-    >
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-        {children}
-        <span style={{
-          opacity: isActive ? 1 : 0.3,
-          fontSize: 9,
-          color: isActive ? 'var(--ft-accent)' : 'var(--ft-text-dim)',
-          lineHeight: 1,
-        }}>
-          {isActive && dir === 'desc' ? '▼' : '▲'}
-        </span>
-      </span>
-    </th>
-  );
-}
+  if (!detail || detail.loading) return cell(<span className="txn-row__child-note">Loading card transactions…</span>);
+  if (detail.error) return cell(<span className="txn-row__child-note">{detail.error}</span>);
+  if (!detail.linked) return cell(<span className="txn-row__child-note">Not linked to a card bill.</span>);
 
-function GroupedTxList({ rows, onOpenDetail, onOpenManage, categories, onAssignCategory }) {
-  const groups = useMemo(() => {
-    const map = new Map();
-    for (const r of rows) {
-      const d = r.transactionDate ? new Date(r.transactionDate) : null;
-      const key = d ? d.toISOString().slice(0, 10) : 'unknown';
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push(r);
-    }
-    return Array.from(map.entries()).sort(([a], [b]) => b.localeCompare(a));
-  }, [rows]);
+  const covered = detail.coveredTransactions || [];
+  const remainder = Number(detail.remainder || 0);
 
   return (
-    <div className="txn-grouped">
-      {groups.map(([dateKey, items]) => {
-        const net = items.reduce((s, r) => s + (Number(r.deposit) || 0) - (Number(r.withdrawal) || 0), 0);
-        return (
-          <div key={dateKey}>
-            <div className="txn-grouped__head">
-              <span>{formatDate(dateKey)}</span>
-              <Num size={12} weight={600} color={net >= 0 ? 'var(--ft-income)' : 'var(--ft-spend)'}>
-                {inr(net, { sign: true })}
-              </Num>
+    <>
+      {covered.length === 0 && cell(<span className="txn-row__child-note">No card transactions covered.</span>)}
+      {covered.map((t, i) => (
+        <TransactionTableRow
+          key={t.id}
+          nested
+          nestedLast={i === covered.length - 1}
+          row={toCardTableRow(t, tagsByTransaction)}
+          columns={nestedColumns}
+        />
+      ))}
+      {remainder !== 0 && (
+        <tr className="txn-row__child txn-row__remainder">
+          <td colSpan={colSpan ?? TXN_TABLE_COLSPAN}>
+            <div className="txn-row__child-line">
+              <span className="txn-row__child-merchant">
+                {remainder > 0 ? 'Carried forward / other charges' : 'Not covered by this payment'}
+              </span>
+              <span className="txn-row__child-amount">
+                <Num size={12.5} weight={600} color="var(--ft-text-dim)">
+                  {inr(remainder, { decimals: 2 })}
+                </Num>
+              </span>
             </div>
-            <div>
-              {items.map((row) => {
-                const isIncome = Number(row.deposit) > 0;
-                const amt = isIncome ? Number(row.deposit) : Number(row.withdrawal);
-                const acctLast4 = row.accountNumber ? row.accountNumber.slice(-4) : null;
-                return (
-                  <div key={row.id} className="txn-mobile-row">
-                    {/* Category glyph — tap to pick category */}
-                    <label
-                      className="txn-mobile-row__cat-pick"
-                      title="Change category"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <TransactionCategoryGlyph category={row.category} size={38} />
-                      <select
-                        className="txn-mobile-cat-select"
-                        value={row.categoryId || ''}
-                        onChange={(e) => { e.stopPropagation(); onAssignCategory(row.id, e.target.value); }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <option value="">No category</option>
-                        {categories.map((c) => (
-                          <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>
-                        ))}
-                      </select>
-                    </label>
-
-                    {/* Tap-to-detail body */}
-                    <button
-                      type="button"
-                      className="txn-mobile-row__body"
-                      onClick={() => onOpenDetail(row)}
-                    >
-                      <div className="txn-mobile-row__copy">
-                        <div style={{ color: 'var(--ft-text)', fontWeight: 500, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {row.upiName || row.narration || '—'}
-                        </div>
-                        <div className="txn-mobile-row__meta">
-                          <span className="txn-mobile-row__meta-copy">
-                            {row.upiDescription || row.upiBank || 'Manual'}
-                          </span>
-                          {acctLast4 && (
-                            <span style={{ flexShrink: 0, fontFamily: 'var(--ft-font-mono)', fontSize: 11, color: 'var(--ft-text-faint)' }}>
-                              ····{acctLast4}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="txn-mobile-row__amount">
-                        <Num size={14} weight={600} color={isIncome ? 'var(--ft-income)' : 'var(--ft-spend)'}>
-                          {inr(isIncome ? amt : -amt, { sign: isIncome })}
-                        </Num>
-                      </div>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }

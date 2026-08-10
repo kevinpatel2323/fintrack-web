@@ -4,6 +4,9 @@ import {
   ledgerDirectionPhrase,
   ledgerRowAmount,
   ledgerRunningBalances,
+  ledgerSettlementEntryLabel,
+  ledgerSettlementIndex,
+  ledgerSettlementRefLines,
 } from './ledgerParties';
 
 const MARGIN = 40;
@@ -30,19 +33,18 @@ function cellStr(v) {
 function balanceImpactPdf(direction, amount) {
   if (direction === 'OWES_ME') return `+Rs.${formatNumberPdf(amount)}`;
   if (direction === 'I_OWE') return `-Rs.${formatNumberPdf(amount)}`;
-  if (direction === 'SETTLEMENT') return 'Settled';
+  if (direction === 'SETTLEMENT') return `-Rs.${formatNumberPdf(amount)}`;
   return '-';
 }
 
-// + entries (money owed to the owner) render red; - entries (owner owes) render green.
+// + entries (money owed to the owner) render red; - entries (owner owes, settlements) render green.
 const IMPACT_POS_COLOR = [190, 18, 60];
 const IMPACT_NEG_COLOR = [21, 128, 61];
-const IMPACT_SETTLED_COLOR = [161, 98, 7];
 
 function balanceImpactColorPdf(direction) {
   if (direction === 'OWES_ME') return IMPACT_POS_COLOR;
   if (direction === 'I_OWE') return IMPACT_NEG_COLOR;
-  if (direction === 'SETTLEMENT') return IMPACT_SETTLED_COLOR;
+  if (direction === 'SETTLEMENT') return IMPACT_NEG_COLOR;
   return null;
 }
 
@@ -85,7 +87,7 @@ export function buildLedgerPdf({
   const contentW = pageW - MARGIN * 2;
   const bottomLimit = pageH - MARGIN - FOOTER_H;
 
-  const rawWidths = [24, 58, 86, 158, 56, 92, 54, 54, 64, 116];
+  const rawWidths = [22, 56, 82, 146, 52, 88, 52, 54, 62, 82, 96];
   const colW = scaleWidthsToTotal(rawWidths, contentW);
   const IMPACT_COL = 7;
 
@@ -99,6 +101,7 @@ export function buildLedgerPdf({
     'Amount (Rs.)',
     'Balance impact',
     'Running balance',
+    'Settlement link',
     'Note',
   ];
 
@@ -194,7 +197,7 @@ export function buildLedgerPdf({
     return y + rowH;
   }
 
-  function rowCells(tag, index, runningBalance) {
+  function rowCells(tag, index, runningBalance, links) {
     const t = tag.transaction || {};
     const name = t.upiName || '-';
     const desc = t.upiDescription || t.narration || '-';
@@ -209,6 +212,7 @@ export function buildLedgerPdf({
       `Rs.${formatNumberPdf(ledgerRowAmount(tag))}`,
       balanceImpactPdf(tag.direction, tag.amount),
       formatRunningBalancePdf(runningBalance),
+      cellStr(ledgerSettlementRefLines(links).join('\n') || '-'),
       cellStr(tag.note || '-'),
     ];
   }
@@ -240,6 +244,103 @@ export function buildLedgerPdf({
     }
 
     return y + rowH;
+  }
+
+  /**
+   * Spells out each settlement: the entries it cleared, with the row numbers the
+   * "Settlement link" column points at, so a settlement can be audited without
+   * cross-checking the app.
+   */
+  function drawSettlementDetails(yStart, groups) {
+    const pad = 4;
+    const widths = [contentW * 0.34, contentW * 0.66];
+    const detailHeaders = ['Settlement entry', 'Entries it settles'];
+
+    const bundlesFor = (cells) =>
+      cells.map((c, i) => pdf.splitTextToSize(c, widths[i] - pad * 2));
+    const heightOf = (bundles) =>
+      Math.max(...bundles.map((b) => b.length), 1) * TABLE_LINE + pad * 2;
+
+    function paint(y, bundles, height, isHeader) {
+      if (isHeader) {
+        pdf.setFillColor(236, 239, 244);
+        pdf.rect(MARGIN, y, contentW, height, 'F');
+        pdf.setDrawColor(200, 206, 214);
+        pdf.setTextColor(30, 41, 59);
+      } else {
+        pdf.setDrawColor(220, 224, 230);
+        pdf.setTextColor(12, 25, 41);
+      }
+      let cx = MARGIN;
+      for (let i = 0; i < bundles.length; i++) {
+        pdf.rect(cx, y, widths[i], height, 'S');
+        let ly = y + pad + TABLE_LINE - 2;
+        for (const line of bundles[i]) {
+          pdf.text(line, cx + pad, ly);
+          ly += TABLE_LINE;
+        }
+        cx += widths[i];
+      }
+      return y + height;
+    }
+
+    function drawTitle(y) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(11);
+      pdf.setTextColor(12, 25, 41);
+      pdf.text('Settlement details', MARGIN, y + 12);
+      return y + 20;
+    }
+
+    function drawHeader(y) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(HEADER_FONT);
+      const bundles = bundlesFor(detailHeaders);
+      return paint(y, bundles, heightOf(bundles), true);
+    }
+
+    function settlementCell(group) {
+      const t = group.tag.transaction || {};
+      return cellStr(
+        `#${group.row} | ${formatDatePdf(t.transactionDate)} | Rs.${formatNumberPdf(group.tag.amount)}`,
+      );
+    }
+
+    function settledCell(group) {
+      return group.settles
+        .map((ref) => {
+          const t = ref.tag?.transaction || {};
+          const desc = t.upiDescription || t.narration || t.upiName || '-';
+          const impact = balanceImpactPdf(ref.tag?.direction, ref.tag?.amount);
+          return cellStr(
+            `${ledgerSettlementEntryLabel(ref)} | ${formatDatePdf(t.transactionDate)} | ${impact} | ${desc}`,
+          );
+        })
+        .join('\n');
+    }
+
+    let y = drawTitle(yStart);
+    y = drawHeader(y);
+
+    for (const group of groups) {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(TABLE_FONT);
+      const bundles = bundlesFor([settlementCell(group), settledCell(group)]);
+      const rowH = heightOf(bundles);
+
+      if (y + rowH > bottomLimit) {
+        pdf.addPage();
+        y = drawPageHeader(false);
+        y = drawTitle(y);
+        y = drawHeader(y);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(TABLE_FONT);
+      }
+
+      y = paint(y, bundles, rowH, false);
+    }
+
+    return y;
   }
 
   function drawSummary(yStart) {
@@ -301,12 +402,13 @@ export function buildLedgerPdf({
   }
 
   const runningBalances = ledgerRunningBalances(tags);
+  const settlements = ledgerSettlementIndex(tags);
 
   let y = drawPageHeader(true);
   y = drawTableHeaderRow(y);
 
   for (let i = 0; i < tags.length; i++) {
-    const cells = rowCells(tags[i], i, runningBalances[i]);
+    const cells = rowCells(tags[i], i, runningBalances[i], settlements.rows[i]);
     const pad = 4;
     const lineBundles = cells.map((c, j) => pdf.splitTextToSize(c, colW[j] - pad * 2));
     const maxL = Math.max(...lineBundles.map((l) => l.length), 1);
@@ -322,6 +424,15 @@ export function buildLedgerPdf({
   }
 
   y += 16;
+  if (settlements.groups.length > 0) {
+    // Title + header row + one row of body needs to clear the fold together.
+    if (y + 74 > bottomLimit) {
+      pdf.addPage();
+      y = drawPageHeader(false);
+    }
+    y = drawSettlementDetails(y, settlements.groups) + 16;
+  }
+
   const summaryBlockH = 170;
   if (y + summaryBlockH > bottomLimit) {
     pdf.addPage();

@@ -53,7 +53,7 @@ function SimpleLineChart({ data }) {
               y1={y}
               x2={width - padding.right}
               y2={y}
-              stroke="#e0e0e0"
+              stroke="var(--ft-chart-grid)"
               strokeWidth="1"
             />
             <text
@@ -61,7 +61,7 @@ function SimpleLineChart({ data }) {
               y={y + 4}
               textAnchor="end"
               fontSize="10"
-              fill="#666"
+              fill="var(--ft-chart-label)"
             >
               {formatCurrency(maxValue * ratio)}
             </text>
@@ -79,7 +79,7 @@ function SimpleLineChart({ data }) {
             y={height - padding.bottom + 20}
             textAnchor="middle"
             fontSize="10"
-            fill="#666"
+            fill="var(--ft-chart-label)"
           >
             {d.monthLabel.split(' ')[0]}
           </text>
@@ -90,13 +90,13 @@ function SimpleLineChart({ data }) {
       <polyline
         points={spentPoints}
         fill="none"
-        stroke="#e74c3c"
+        stroke="var(--ft-spend)"
         strokeWidth="2"
       />
       <polyline
         points={incomePoints}
         fill="none"
-        stroke="#27ae60"
+        stroke="var(--ft-income)"
         strokeWidth="2"
       />
 
@@ -107,8 +107,8 @@ function SimpleLineChart({ data }) {
         const yIncome = padding.top + chartHeight - d.totalIncome * yScale;
         return (
           <g key={i}>
-            <circle cx={x} cy={ySpent} r="3" fill="#e74c3c" />
-            <circle cx={x} cy={yIncome} r="3" fill="#27ae60" />
+            <circle cx={x} cy={ySpent} r="3" fill="var(--ft-spend)" />
+            <circle cx={x} cy={yIncome} r="3" fill="var(--ft-income)" />
           </g>
         );
       })}
@@ -137,11 +137,11 @@ export default function MonthlyTrendsWidget({ data, loading, error }) {
         </div>
         <div className="legend">
           <div className="legend-item">
-            <span className="legend-color" style={{ backgroundColor: '#e74c3c' }} />
+            <span className="legend-color" style={{ backgroundColor: 'var(--ft-spend)' }} />
             <span>Expenses</span>
           </div>
           <div className="legend-item">
-            <span className="legend-color" style={{ backgroundColor: '#27ae60' }} />
+            <span className="legend-color" style={{ backgroundColor: 'var(--ft-income)' }} />
             <span>Income</span>
           </div>
         </div>
