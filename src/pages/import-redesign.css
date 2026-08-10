@@ -29,14 +29,14 @@
 .imp-step--active { color: var(--ft-text); }
 .imp-step--active .imp-step__num {
   background: var(--ft-accent-soft);
-  color: var(--ft-accent);
-  border-color: rgba(215,255,61,0.4);
+  color: var(--ft-accent-fg);
+  border-color: var(--ft-accent-hairline);
 }
 .imp-step--done { color: var(--ft-text-dim); }
 .imp-step--done .imp-step__num {
   background: var(--ft-accent);
   color: var(--ft-text-on-accent);
-  border-color: var(--ft-accent);
+  border-color: var(--ft-accent-strong);
 }
 
 .imp-drop {
@@ -52,9 +52,9 @@
   cursor: pointer;
   transition: border-color 0.12s;
 }
-.imp-drop:hover { border-color: var(--ft-accent); }
+.imp-drop:hover { border-color: var(--ft-accent-strong); }
 .imp-drop--dragging {
-  border-color: var(--ft-accent);
+  border-color: var(--ft-accent-strong);
   background: var(--ft-accent-soft);
 }
 
@@ -69,7 +69,7 @@
 }
 .imp-file-badge {
   background: var(--ft-info);
-  color: #0A0B0E;
+  color: var(--ft-text-on-solid);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.4px;
@@ -168,13 +168,13 @@
 }
 .imp-step-bar__node--done {
   background: var(--ft-accent);
-  border-color: var(--ft-accent);
-  color: #0A0B0E;
+  border-color: var(--ft-accent-strong);
+  color: var(--ft-text-on-accent);
 }
 .imp-step-bar__node--active {
   background: transparent;
-  border-color: var(--ft-accent);
-  color: var(--ft-accent);
+  border-color: var(--ft-accent-strong);
+  color: var(--ft-accent-fg);
 }
 
 .imp-step-bar__label {
@@ -212,7 +212,7 @@
 }
 .imp-drop-full:hover { border-color: var(--ft-text-faint); }
 .imp-drop-full--drag {
-  border-color: var(--ft-accent);
+  border-color: var(--ft-accent-strong);
   background: var(--ft-accent-soft);
 }
 
@@ -223,7 +223,7 @@
   padding: 8px 22px;
   border-radius: 999px;
   background: var(--ft-accent);
-  color: #0A0B0E;
+  color: var(--ft-text-on-accent);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -238,7 +238,7 @@
   flex-shrink: 0;
   border-radius: 8px;
   background: linear-gradient(135deg, var(--ft-accent-soft), transparent);
-  border: 1px solid rgba(215, 255, 61, 0.33);
+  border: 1px solid var(--ft-accent-hairline);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -246,31 +246,18 @@
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  color: var(--ft-accent);
+  color: var(--ft-accent-fg);
 }
 
 /* ── Preview table ─────────────────────────────────────────────── */
-.imp-tbl-head {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 10px 22px;
-  color: var(--ft-text-dim);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid var(--ft-border);
-}
-.imp-tbl-row {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 10px 22px;
-  font-size: 13px;
-  border-top: 1px solid var(--ft-border);
-}
-.imp-tbl-row:hover { background: var(--ft-surface-2); }
+/* Rendered by DynamicTable; only the wizard card's 22px gutter is restated so
+   the table lines up with the step bar and footer above and below it. */
+.imp-preview-table .dyn-th:first-child,
+.imp-preview-table .dyn-td:first-child { padding-left: 22px; }
+
+.imp-preview-table .dyn-th:last-child,
+.imp-preview-table .dyn-td:last-child { padding-right: 22px; }
+
 .imp-tbl-footer {
   display: flex;
   align-items: center;

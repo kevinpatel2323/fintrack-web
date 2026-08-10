@@ -71,7 +71,7 @@ export default function CardTransactionModal({
         style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(8,9,12,0.6)',
+          background: 'var(--ft-scrim)',
           backdropFilter: 'blur(6px)',
           display: 'flex',
           alignItems: 'center',

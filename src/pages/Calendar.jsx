@@ -19,7 +19,7 @@ import TransactionListRow from '../components/TransactionListRow.jsx';
 import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
 import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
 import { inr, inrCompact } from '../utils/inr.js';
-import { CATEGORY_PALETTE, categoryColor, categoryKeyForName } from '../utils/categoryColors.js';
+import { CATEGORY_TOKENS, categoryColor, categoryKeyForName } from '../utils/categoryColors.js';
 import './calendar-redesign.css';
 
 import { API_BASE, apiFetch } from '../services/http.js';
@@ -63,7 +63,7 @@ const emptyForm = () => ({
 });
 
 function subColor(name) {
-  return CATEGORY_PALETTE[categoryKeyForName(name)] || CATEGORY_PALETTE.transfer;
+  return CATEGORY_TOKENS[categoryKeyForName(name)] || CATEGORY_TOKENS.transfer;
 }
 
 function summarizeRRule(rrule) {
@@ -598,7 +598,7 @@ export default function Calendar() {
             )}
             <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
               {editingId && (
-                <GhostBtn onClick={() => setDeleteId(editingId)} style={{ color: 'var(--ft-spend)', borderColor: 'rgba(255,122,122,0.3)' }}>
+                <GhostBtn onClick={() => setDeleteId(editingId)} style={{ color: 'var(--ft-spend)', borderColor: 'var(--ft-spend-hairline)' }}>
                   <IcTrash size={14} /> Delete
                 </GhostBtn>
               )}

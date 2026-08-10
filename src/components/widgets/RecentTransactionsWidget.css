@@ -15,14 +15,14 @@
   grid-template-columns: auto 1fr auto;
   gap: 0.75rem;
   padding: 0.75rem;
-  background: #f8f9fa;
+  background: var(--ft-surface-2);
   border-radius: 6px;
   align-items: center;
 }
 
 .transaction-date {
   font-size: 0.75rem;
-  color: #666;
+  color: var(--ft-text-dim);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -36,7 +36,7 @@
 
 .transaction-narration {
   font-size: 0.875rem;
-  color: #333;
+  color: var(--ft-text);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -45,7 +45,7 @@
 
 .transaction-account {
   font-size: 0.75rem;
-  color: #999;
+  color: var(--ft-text-faint);
 }
 
 .transaction-amount {
@@ -55,11 +55,11 @@
 }
 
 .transaction-amount.withdrawal {
-  color: #e74c3c;
+  color: var(--ft-spend);
 }
 
 .transaction-amount.deposit {
-  color: #27ae60;
+  color: var(--ft-income);
 }
 
 .view-all-link {
@@ -67,7 +67,7 @@
   align-items: center;
   justify-content: center;
   padding: 0.75rem;
-  color: #3498db;
+  color: var(--ft-info);
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 600;
@@ -76,7 +76,7 @@
 }
 
 .view-all-link:hover {
-  background-color: #f0f8ff;
+  background-color: var(--ft-info-soft);
 }
 
 @media (max-width: 768px) {

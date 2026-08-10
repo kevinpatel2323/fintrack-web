@@ -15,7 +15,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: #f8f9fa;
+  background: var(--ft-surface-2);
   border-radius: 6px;
   gap: 1rem;
 }
@@ -26,7 +26,7 @@
 }
 
 .account-item.clickable:hover {
-  background-color: #e9ecef;
+  background-color: var(--ft-surface-3);
   transform: translateY(-1px);
 }
 
@@ -45,20 +45,20 @@
 .account-number {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: #333;
+  color: var(--ft-text);
 }
 
 .account-meta {
   display: flex;
   gap: 1rem;
   font-size: 0.75rem;
-  color: #999;
+  color: var(--ft-text-faint);
 }
 
 .account-balance {
   font-size: 1.125rem;
   font-weight: 700;
-  color: #333;
+  color: var(--ft-text);
   white-space: nowrap;
 }
 
@@ -67,20 +67,20 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  background: #e8f4f8;
+  background: var(--ft-info-soft);
   border-radius: 6px;
   margin-top: 0.5rem;
 }
 
 .total-balance span {
   font-size: 0.875rem;
-  color: #666;
+  color: var(--ft-text-dim);
   font-weight: 600;
 }
 
 .total-balance strong {
   font-size: 1.25rem;
-  color: #2c3e50;
+  color: var(--ft-text);
 }
 
 @media (max-width: 768px) {

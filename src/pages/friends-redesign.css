@@ -46,12 +46,12 @@
 
 .friends-summary__stat--owed {
   background: var(--ft-income-soft);
-  border-color: rgba(110, 231, 183, 0.16);
+  border-color: var(--ft-income-hairline);
 }
 
 .friends-summary__stat--owe {
   background: var(--ft-spend-soft);
-  border-color: rgba(255, 122, 122, 0.16);
+  border-color: var(--ft-spend-hairline);
 }
 
 .friends-summary__stat-label {
@@ -131,13 +131,13 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: -0.3px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--ft-active);
   color: inherit;
   opacity: 0.85;
 }
 
 .friends-filter[data-active='true'] .friends-filter__count {
-  background: rgba(10, 11, 14, 0.18);
+  background: var(--ft-scrim);
   opacity: 1;
 }
 
@@ -185,7 +185,7 @@
 }
 
 .friends-row__main:focus-visible {
-  outline: 2px solid var(--ft-accent);
+  outline: 2px solid var(--ft-focus-ring);
   outline-offset: -2px;
 }
 

@@ -538,6 +538,7 @@ export default function CardDetail() {
                   <Card pad={0}>
                     <TransactionTable
                       rows={tableRows}
+                      storageKey="fintrack.ledger.card"
                       columnLabels={{ description: 'Merchant', method: 'Status' }}
                       categories={categories}
                       onAssignCategory={assignCategory}
@@ -839,7 +840,7 @@ function StatementBreakdownPanel({ data, onClose }) {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(8,9,12,0.6)',
+        background: 'var(--ft-scrim)',
         backdropFilter: 'blur(6px)',
         display: 'flex',
         alignItems: 'center',

@@ -95,7 +95,7 @@
   bottom: 10px;
   width: 2.5px;
   border-radius: 2px;
-  background: var(--ft-accent);
+  background: var(--ft-accent-strong);
 }
 
 .ft-sidebar__nav-badge {
@@ -125,6 +125,46 @@
   margin-bottom: 4px;
   font-size: 13px;
   letter-spacing: -0.1px;
+}
+
+/* ====== Theme toggle (sidebar footer) ====== */
+
+.ft-theme-toggle {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--ft-surface-2);
+  border: 1px solid var(--ft-border);
+}
+
+.ft-theme-toggle__opt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ft-text-dim);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.ft-theme-toggle__opt:hover {
+  background: var(--ft-hover);
+  color: var(--ft-text);
+}
+
+/* Solid accent fill + inverted glyph, matching the app's other active pills.
+   The lightness inversion signals state without relying on hue; the 1px
+   accent-strong ring carries the 3:1 boundary the pale fill cannot. */
+.ft-theme-toggle__opt.is-active {
+  background: var(--ft-accent);
+  color: var(--ft-text-on-accent);
+  box-shadow: inset 0 0 0 1px var(--ft-accent-strong);
 }
 
 .ft-sidebar__user {
@@ -294,7 +334,7 @@
   z-index: 30;
   height: 64px;
   border-radius: 32px;
-  background: rgba(28, 30, 36, 0.85);
+  background: var(--ft-glass);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid var(--ft-border);
@@ -317,7 +357,7 @@
   text-decoration: none;
 }
 
-.ft-tabbar__item--active { color: var(--ft-accent); }
+.ft-tabbar__item--active { color: var(--ft-accent-fg); }
 
 .ft-tabbar__label {
   font-size: 9px;

@@ -157,24 +157,24 @@
 }
 .cal-cell--off { opacity: 0.3; pointer-events: none; }
 .cal-cell:not(.cal-cell--off):hover { border-color: var(--ft-border-s); background: var(--ft-surface-3); }
-.cal-cell--selected { border-color: var(--ft-accent) !important; background: rgba(215,255,61,0.06) !important; }
+.cal-cell--selected { border-color: var(--ft-accent-strong) !important; background: var(--ft-accent-soft) !important; }
 
 /* Transaction days — categorization status (only when cal-cell--has-tx) */
 .cal-cell--has-tx.cal-cell--categorized {
   background: var(--ft-income-soft);
-  border-color: rgba(110, 231, 183, 0.28);
+  border-color: var(--ft-income-hairline);
 }
 .cal-cell--has-tx.cal-cell--needs-category {
   background: var(--ft-spend-soft);
-  border-color: rgba(255, 122, 122, 0.28);
+  border-color: var(--ft-spend-hairline);
 }
 .cal-cell--has-tx.cal-cell--categorized:not(.cal-cell--off):not(.cal-cell--selected):hover {
-  background: rgba(110, 231, 183, 0.14);
-  border-color: rgba(110, 231, 183, 0.38);
+  background: var(--ft-income-soft);
+  border-color: var(--ft-income-hairline);
 }
 .cal-cell--has-tx.cal-cell--needs-category:not(.cal-cell--off):not(.cal-cell--selected):hover {
-  background: rgba(255, 122, 122, 0.14);
-  border-color: rgba(255, 122, 122, 0.38);
+  background: var(--ft-spend-soft);
+  border-color: var(--ft-spend-hairline);
 }
 
 /* Day number row */
@@ -336,24 +336,24 @@
   background: var(--ft-surface-2);
   color: var(--ft-text);
   border-color: var(--ft-border-s);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04);
+  box-shadow: 0 0 0 1px var(--ft-overlay-hairline);
 }
 .cal-day-tx-row__disclosure:focus-visible {
-  outline: 2px solid var(--ft-accent);
+  outline: 2px solid var(--ft-focus-ring);
   outline-offset: 1px;
 }
 .cal-day-tx-row__disclosure.is-open {
   background: var(--ft-accent-soft);
-  border-color: rgba(215, 255, 61, 0.28);
-  color: var(--ft-accent);
+  border-color: var(--ft-accent-hairline);
+  color: var(--ft-accent-fg);
 }
 .cal-day-tx-row__disclosure.is-open svg {
   transform: rotate(90deg);
 }
 .cal-day-tx-row__disclosure.is-open:hover {
-  background: rgba(215, 255, 61, 0.18);
-  color: var(--ft-accent);
-  border-color: rgba(215, 255, 61, 0.4);
+  background: var(--ft-accent-soft-s);
+  color: var(--ft-accent-fg);
+  border-color: var(--ft-accent-hairline);
 }
 
 .cal-day-tx-row__nav {
@@ -440,7 +440,7 @@
   border: 1px dashed var(--ft-border-s);
   border-radius: 6px;
   color: var(--ft-text-dim);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--ft-hover);
   font-size: 12px;
   font-weight: 500;
 }

@@ -496,6 +496,7 @@ export default function TransactionDetail() {
               >
                 <TransactionTable
                   rows={coveredRows}
+                  storageKey="fintrack.ledger.covered"
                   columnLabels={{ description: 'Merchant', method: 'Status' }}
                   categories={categories}
                   onAssignCategory={cardManager.assignCategory}

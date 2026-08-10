@@ -4,6 +4,7 @@ import {
   IcSparkle, IcSettings, IcCommand,
 } from './Icon.jsx';
 import { Avatar } from './primitives.jsx';
+import ThemeToggle from './ThemeToggle.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 const NAV = [
@@ -52,7 +53,7 @@ export default function Sidebar() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
-            color: 'var(--ft-accent)',
+            color: 'var(--ft-accent-fg)',
             marginBottom: 6,
           }}
         >
@@ -64,6 +65,8 @@ export default function Sidebar() {
         <div className="ft-sidebar__insight-title">Your dining spend is up 18%</div>
         <div>Most of it is on weekends — consider setting a category budget.</div>
       </div>
+
+      <ThemeToggle />
 
       <div className="ft-sidebar__user">
         <Avatar name="You" size={32} />

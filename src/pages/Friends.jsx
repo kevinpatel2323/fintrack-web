@@ -204,7 +204,7 @@ export default function Friends() {
                     const f = friends.find((x) => x.id === editId);
                     if (f) askDelete(f);
                   }}
-                  style={{ color: 'var(--ft-spend)', borderColor: 'rgba(255,122,122,0.3)' }}
+                  style={{ color: 'var(--ft-spend)', borderColor: 'var(--ft-spend-hairline)' }}
                 >
                   <IcTrash size={14} /> Delete
                 </GhostBtn>

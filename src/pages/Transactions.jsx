@@ -9,8 +9,8 @@ import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
 import TransactionMobileList from '../components/TransactionMobileList.jsx';
 import TransactionTable, {
   TXN_TABLE_COLSPAN,
-  TransactionCategoryGlyph,
   TransactionTableRow,
+  buildTransactionColumns,
 } from '../components/TransactionTable.jsx';
 import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
 import { useMediaQuery } from '../hooks/useMediaQuery.js';
@@ -60,6 +60,29 @@ function getCurrentMonthRange() {
   const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
   const end = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0));
   return { startIso: start.toISOString().slice(0, 10), endIso: end.toISOString().slice(0, 10) };
+}
+
+/** Last `count` months, newest first, as `{ value: 'YYYY-MM', label, startIso, endIso }`. */
+function getMonthOptions(count = 24) {
+  const now = new Date();
+  const out = [];
+  for (let i = 0; i < count; i += 1) {
+    const start = new Date(Date.UTC(now.getFullYear(), now.getMonth() - i, 1));
+    const end = new Date(Date.UTC(now.getFullYear(), now.getMonth() - i + 1, 0));
+    out.push({
+      value: start.toISOString().slice(0, 7),
+      label: new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(start),
+      startIso: start.toISOString().slice(0, 10),
+      endIso: end.toISOString().slice(0, 10),
+    });
+  }
+  return out;
+}
+
+/** `YYYY-MM` when the range covers exactly one calendar month, else '' (custom range). */
+function matchMonthValue(startIso, endIso, options) {
+  const hit = options.find((m) => m.startIso === startIso && m.endIso === endIso);
+  return hit ? hit.value : '';
 }
 
 function MobileTxnDateRange({ rangeStart, rangeEnd, onStartChange, onEndChange, onRangeChange }) {
@@ -168,6 +191,12 @@ export default function Transactions() {
   const { rangeStart, rangeEnd, filterTab, search } = useMemo(
     () => parseTransactionsListParams(searchParams, monthRange),
     [searchParams, monthRange],
+  );
+
+  const monthOptions = useMemo(() => getMonthOptions(24), []);
+  const selectedMonth = useMemo(
+    () => matchMonthValue(rangeStart, rangeEnd, monthOptions),
+    [rangeStart, rangeEnd, monthOptions],
   );
 
   const applyDateRange = useCallback((start, end) => {
@@ -953,6 +982,19 @@ export default function Transactions() {
         </div>
         <div className="txn-range-row">
           <label className="txn-field">
+            <span>Month</span>
+            <select
+              value={selectedMonth}
+              onChange={(e) => {
+                const m = monthOptions.find((o) => o.value === e.target.value);
+                if (m) applyDateRange(m.startIso, m.endIso);
+              }}
+            >
+              {!selectedMonth && <option value="">Custom range</option>}
+              {monthOptions.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+          </label>
+          <label className="txn-field">
             <span>Start</span>
             <input type="date" value={rangeStart} onChange={(e) => applyDateRange(e.target.value, rangeEnd)} />
           </label>
@@ -974,6 +1016,7 @@ export default function Transactions() {
       <Card pad={0}>
         <TransactionTable
           rows={tableRows}
+          storageKey="fintrack.ledger.bank"
           categories={categories}
           onAssignCategory={assignCategory}
           onOpenManage={openFriendTagsSheet}
@@ -987,9 +1030,11 @@ export default function Transactions() {
           onPageSizeChange={setPageSize}
           expandedIds={expandedCcIds}
           onToggleExpand={toggleCcExpanded}
-          renderExpansion={(row) => (
+          renderExpansion={(row, { colSpan, columns }) => (
             <CcChildRows
               detail={ccDetailByTransaction[row.id]}
+              colSpan={colSpan}
+              columns={columns}
               categories={categories}
               tagsByTransaction={cardManager.tagsByTransaction}
               onAssignCategory={cardManager.assignCategory}
@@ -1006,10 +1051,26 @@ export default function Transactions() {
 // The credit-card transactions a bill payment covers, rendered as nested rows
 // of the payment — same columns and same management as any other ledger row.
 // The remainder is not a transaction, so it keeps its own spanned line.
-function CcChildRows({ detail, categories, tagsByTransaction, onAssignCategory, onOpenManage }) {
+function CcChildRows({
+  detail, colSpan, columns, categories, tagsByTransaction, onAssignCategory, onOpenManage,
+}) {
+  // The parent hands over its *visible* columns; rebuild them against the card
+  // manager's handlers (a nested row is a card transaction, not a bank one) and
+  // reorder to match, so hiding a column hides it on the nested rows too.
+  const nestedColumns = useMemo(() => {
+    const byId = new Map(
+      buildTransactionColumns({
+        categories,
+        onAssignCategory,
+        onOpenManage,
+      }).map((c) => [c.id, c]),
+    );
+    return columns.map((c) => byId.get(c.id)).filter(Boolean);
+  }, [columns, categories, onAssignCategory, onOpenManage]);
+
   const cell = (content) => (
     <tr className="txn-row__child">
-      <td colSpan={TXN_TABLE_COLSPAN}>{content}</td>
+      <td colSpan={colSpan ?? TXN_TABLE_COLSPAN}>{content}</td>
     </tr>
   );
 
@@ -1029,14 +1090,12 @@ function CcChildRows({ detail, categories, tagsByTransaction, onAssignCategory, 
           nested
           nestedLast={i === covered.length - 1}
           row={toCardTableRow(t, tagsByTransaction)}
-          categories={categories}
-          onAssignCategory={onAssignCategory}
-          onOpenManage={onOpenManage}
+          columns={nestedColumns}
         />
       ))}
       {remainder !== 0 && (
         <tr className="txn-row__child txn-row__remainder">
-          <td colSpan={TXN_TABLE_COLSPAN}>
+          <td colSpan={colSpan ?? TXN_TABLE_COLSPAN}>
             <div className="txn-row__child-line">
               <span className="txn-row__child-merchant">
                 {remainder > 0 ? 'Carried forward / other charges' : 'Not covered by this payment'}
