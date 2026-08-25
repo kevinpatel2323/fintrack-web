@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
-import { useMediaQuery } from './hooks/useMediaQuery.js';
+import { useIsCompact } from './styles/breakpoints.js';
 import DesktopShell from './components/ui/DesktopShell.jsx';
 import MobileShell from './components/ui/MobileShell.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
@@ -22,7 +22,7 @@ import Setup from './pages/Setup.jsx';
 
 // Responsive shell layout. Nested routes render through <Outlet/>.
 function ShellLayout() {
-  const isMobile = useMediaQuery('(max-width: 720px)');
+  const isMobile = useIsCompact();
   const Shell = isMobile ? MobileShell : DesktopShell;
   return (
     <Shell>

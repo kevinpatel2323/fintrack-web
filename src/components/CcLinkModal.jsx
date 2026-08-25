@@ -158,7 +158,7 @@ export default function CcLinkModal({ transaction, onClose, onLinked }) {
           style={{
             width: '100%',
             maxWidth: 560,
-            maxHeight: 'calc(100vh - 32px)',
+            maxHeight: 'calc(100dvh - 32px)',
             background: 'var(--ft-surface)',
             border: '1px solid var(--ft-border)',
             borderRadius: 20,

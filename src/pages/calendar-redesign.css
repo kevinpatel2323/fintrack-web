@@ -1,13 +1,16 @@
 /* Calendar — transaction-first month view + subscription management */
 
+/* Same body+aside shape as .ft-split (src/styles/app.css); the aside is the
+   day/subs panel. Kept as its own selector only because the markup predates
+   the shared class — the breakpoint is the shared one. */
 .cal-grid-2 {
   display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(14px, 1.6vw, 20px);
   align-items: start;
 }
-@media (max-width: 1100px) {
-  .cal-grid-2 { grid-template-columns: 1fr; }
+@media (min-width: 980px) {
+  .cal-grid-2 { grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); }
 }
 
 /* Right column stacks the day/subs panel above the category breakdown */
@@ -513,7 +516,7 @@
   font-style: italic;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 767.98px) {
   .cal-day-tx-row__head {
     padding: 11px 16px;
   }

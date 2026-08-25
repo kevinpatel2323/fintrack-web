@@ -12,7 +12,7 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .calendar-sheet-backdrop {
     align-items: center;
     padding: 24px;
@@ -34,10 +34,11 @@
   animation: calendar-sheet-up 0.22s ease-out;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .calendar-sheet {
     border-radius: 20px;
     max-height: min(85vh, 680px);
+    max-height: min(85dvh, 680px);
     animation: calendar-sheet-fade 0.2s ease-out;
   }
 }
@@ -385,7 +386,7 @@
   width: 100% !important;
 }
 
-@media (max-width: 719px) {
+@media (max-width: 767.98px) {
   .calendar-manage-shell {
     padding: 12px 12px;
   }

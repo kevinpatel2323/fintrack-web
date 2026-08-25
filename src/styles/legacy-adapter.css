@@ -179,7 +179,7 @@ label.txn-field > span {
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
   gap: 14px;
 }
 
@@ -408,7 +408,7 @@ p.empty,
   align-items: flex-end;
   justify-content: center;
 }
-@media (min-width: 721px) {
+@media (min-width: 768px) {
   .calendar-sheet-backdrop { align-items: center; padding: 24px; }
 }
 
@@ -419,15 +419,17 @@ p.empty,
   width: 100%;
   max-width: 640px;
   max-height: 92vh;
+  max-height: 92dvh;
   overflow: auto;
   padding: 18px 20px calc(24px + env(safe-area-inset-bottom));
   box-shadow: var(--ft-shadow-pop);
 }
-@media (min-width: 721px) {
+@media (min-width: 768px) {
   .calendar-sheet {
     border-radius: var(--ft-r-2xl);
     border-bottom: 1px solid var(--ft-border);
     max-height: 86vh;
+    max-height: 86dvh;
   }
 }
 
@@ -468,7 +470,7 @@ p.empty,
 
 .calendar-summary-strip {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 14px;
 }
@@ -751,7 +753,7 @@ p.empty,
 
 .split-txn-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr));
   gap: 10px;
 }
 .split-txn-field input {

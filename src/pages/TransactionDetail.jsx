@@ -8,7 +8,7 @@ import SplitTransactionForm from '../components/SplitTransactionForm.jsx';
 import TransactionTable, { sortTableRows } from '../components/TransactionTable.jsx';
 import TransactionListRow from '../components/TransactionListRow.jsx';
 import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
-import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import {
   Card, Num, CatGlyph, Overline, HeroAmount, GhostBtn,
 } from '../components/ui/primitives.jsx';
@@ -34,7 +34,7 @@ export default function TransactionDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const isMobile = useMediaQuery('(max-width: 720px)');
+  const isMobile = useIsCompact();
   const backFromDetail = () => {
     if (location.state?.calendarSearch) {
       navigate(calendarPath(location.state.calendarSearch));

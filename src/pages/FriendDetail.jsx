@@ -7,7 +7,7 @@ import {
 import {
   IcChevL, IcArrowDL, IcArrowUR, IcCheck, IcDownload, IcPlus,
 } from '../components/ui/Icon.jsx';
-import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import { inr } from '../utils/inr.js';
 import { friendTint, initialsOf } from '../utils/categoryColors.js';
 
@@ -16,7 +16,7 @@ import { API_BASE, apiFetch } from '../services/http.js';
 export default function FriendDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const isMobile = useMediaQuery('(max-width: 720px)');
+  const isMobile = useIsCompact();
 
   const [friend, setFriend] = useState(null);
   const [summary, setSummary] = useState(null);
@@ -194,7 +194,7 @@ export default function FriendDetail() {
         </div>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 20 }}>
+      <div className="ft-split" style={{ '--ft-split-aside': '360px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {balanceHero}
           {activityFeed}

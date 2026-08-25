@@ -7,7 +7,7 @@ import {
 import {
   IcUpload, IcCheck, IcChevR, IcSparkle, IcReceipt, IcRefresh, IcTrash,
 } from '../components/ui/Icon.jsx';
-import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import { inr } from '../utils/inr.js';
 import './import-redesign.css';
 
@@ -102,7 +102,7 @@ const PREVIEW_COLUMNS = [
 ];
 
 export default function StatementImport() {
-  const isMobile = useMediaQuery('(max-width: 720px)');
+  const isMobile = useIsCompact();
 
   const [lastImport, setLastImport] = useState(null);
   const [accounts, setAccounts] = useState([]);
@@ -321,7 +321,7 @@ export default function StatementImport() {
         </div>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 14 }}>
+      <div className="ft-split" style={{ '--ft-split-aside': '320px', gap: 14 }}>
         {/* ── Left: main wizard card ── */}
         <div style={{ background: 'var(--ft-surface)', borderRadius: 18, border: '1px solid var(--ft-border)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
 
@@ -506,10 +506,12 @@ function MobileView({
       </header>
       <main className="ft-mobile__content">
 
-        {/* Step indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Step indicator — wraps onto a second line rather than pushing the
+            page sideways on the narrowest phones, where the three labels are
+            together wider than the content column. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', rowGap: 10 }}>
           {STEPS.map((s, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, flex: i < 2 ? undefined : 1 }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: i < 2 ? '0 1 auto' : '1 1 auto' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                 <div style={{
                   width: 22, height: 22, borderRadius: '50%', flexShrink: 0,

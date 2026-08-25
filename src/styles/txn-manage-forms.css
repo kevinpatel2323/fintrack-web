@@ -20,7 +20,7 @@
   outline-offset: 1px;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .txn-premium-filters .select-wrap select {
     min-height: unset;
   }
@@ -85,6 +85,7 @@
   display: grid;
   gap: 8px;
   max-height: min(240px, 42vh);
+  max-height: min(240px, 42dvh);
   overflow: auto;
   padding: 12px;
   background: var(--ft-surface);
@@ -219,7 +220,7 @@
   min-height: 44px;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .txn-tag-form .tag-form-row.txn-tag-form__primary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -230,9 +231,11 @@
 }
 
 @media (min-width: 1100px) {
+  /* Wrap rather than nowrap: the row also renders inside a narrow page aside,
+     where three 140px-minimum controls do not fit on one line. */
   .txn-tag-form .tag-form-row.txn-tag-form__primary {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 12px;
   }
 
@@ -249,7 +252,7 @@
 
   .txn-tag-form .tag-form-row.txn-tag-form__note {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 12px;
     align-items: center;
   }
@@ -319,7 +322,7 @@
   min-height: 46px;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .txn-manual-form__actions {
     flex-direction: row;
     flex-wrap: wrap;
@@ -367,7 +370,7 @@
   min-height: 44px;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .range-form--premium .txn-field input[type='date'] {
     min-height: unset;
   }
@@ -408,7 +411,7 @@
   min-height: 40px;
 }
 
-@media (max-width: 719px) {
+@media (max-width: 767.98px) {
   .friend-tag-row > button.ghost {
     min-height: 44px;
   }
@@ -573,7 +576,7 @@
   z-index: 2;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .split-txn-method-row {
     flex-wrap: wrap;
     gap: 8px;
@@ -782,6 +785,7 @@ button.split-txn-friend-row:focus-visible {
   display: grid;
   gap: 8px;
   max-height: min(220px, 40vh);
+  max-height: min(220px, 40dvh);
   overflow: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -878,7 +882,7 @@ button.split-txn-friend-row:focus-visible {
   cursor: not-allowed;
 }
 
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .split-txn-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

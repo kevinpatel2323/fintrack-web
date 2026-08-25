@@ -6,7 +6,7 @@ import {
   Card, Num, Pill, PrimaryBtn, GhostBtn, Overline, SectionTitle, CatGlyph,
 } from '../components/ui/primitives.jsx';
 import { IcPlus, IcEdit, IcTrash, IcDownload, IcChevR, IcChevL } from '../components/ui/Icon.jsx';
-import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import { CATEGORY_PALETTE, categoryColor } from '../utils/categoryColors.js';
 import { inr } from '../utils/inr.js';
 import { fetchCategoryBreakdown } from '../services/dashboardApi.js';
@@ -24,7 +24,7 @@ function monthRange() {
 }
 
 export default function Categories() {
-  const isMobile = useMediaQuery('(max-width: 720px)');
+  const isMobile = useIsCompact();
 
   const [categories, setCategories] = useState([]);
   const [breakdown, setBreakdown] = useState(null);
@@ -340,7 +340,7 @@ export default function Categories() {
           <PrimaryBtn onClick={openCreate}><IcPlus size={16} /> Add category</PrimaryBtn>
         </div>
       </header>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20 }}>
+      <div className="ft-split">
         {list}
         <div>{donut}</div>
       </div>

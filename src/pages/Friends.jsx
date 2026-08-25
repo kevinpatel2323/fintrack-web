@@ -6,7 +6,7 @@ import {
   Card, Num, Pill, Avatar, PrimaryBtn, GhostBtn, Overline, HeroAmount,
 } from '../components/ui/primitives.jsx';
 import { IcPlus, IcSearch, IcEdit, IcTrash, IcChevR } from '../components/ui/Icon.jsx';
-import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import { inr } from '../utils/inr.js';
 import { friendTint, initialsOf } from '../utils/categoryColors.js';
 
@@ -22,7 +22,7 @@ const FILTERS = [
 
 export default function Friends() {
   const navigate = useNavigate();
-  const isMobile = useMediaQuery('(max-width: 720px)');
+  const isMobile = useIsCompact();
 
   const [friends, setFriends] = useState([]);
   const [balances, setBalances] = useState([]);

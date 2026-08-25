@@ -459,9 +459,15 @@
   padding: 0 2px;
 }
 
+/* Touch: a 14px-tall sort control is not reachable with a fingertip. Padding
+   the button (rather than the cell) keeps the header's own metrics intact. */
+@media (pointer: coarse) {
+  .dyn-th__btn { padding-top: 15px; padding-bottom: 15px; margin: -15px 0; }
+}
+
 /* ---------- Small screens ---------- */
 
-@media (max-width: 720px) {
+@media (max-width: 767.98px) {
   .dyn-toolbar { padding: 10px 12px; }
   .dyn-search { max-width: none; }
   .dyn-footer { padding: 12px 14px 14px; }

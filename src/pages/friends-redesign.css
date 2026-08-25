@@ -280,6 +280,19 @@
   color: var(--ft-text);
 }
 
+/* Touch: there is no hover to raise the button out of its resting dim state,
+   and 28px is below the fingertip minimum. Grow the hit area with padding so
+   the glyph and the row's rhythm stay exactly where they are. */
+@media (pointer: coarse) {
+  .friends-row__edit {
+    opacity: 1;
+    padding: 8px;
+    width: 44px;
+    height: 44px;
+    margin-right: 0;
+  }
+}
+
 .friends-row__chev {
   color: var(--ft-text-faint);
   flex-shrink: 0;
@@ -325,7 +338,7 @@
   color: var(--ft-text-dim);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 767.98px) {
   .friends-row__main {
     padding: 14px 6px 14px 8px;
   }

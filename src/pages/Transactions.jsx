@@ -13,7 +13,7 @@ import TransactionTable, {
   buildTransactionColumns,
 } from '../components/TransactionTable.jsx';
 import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
-import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import {
   Card, Num, Pill, PrimaryBtn, GhostBtn, Avatar, Overline, SectionTitle,
 } from '../components/ui/primitives.jsx';
@@ -185,7 +185,7 @@ function toTableRow(row, tagsByTransaction) {
 export default function Transactions() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const isMobile = useMediaQuery('(max-width: 720px)');
+  const isMobile = useIsCompact();
 
   const monthRange = useMemo(() => getCurrentMonthRange(), []);
   const { rangeStart, rangeEnd, filterTab, search } = useMemo(
