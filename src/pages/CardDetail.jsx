@@ -48,7 +48,7 @@ import {
 import { cardTxnStatus, toCardTableRow } from '../utils/cardTransactionRow.jsx';
 import { inr, inrCompact } from '../utils/inr.js';
 import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
-import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 
 import { API_BASE, apiFetch } from '../services/http.js';
 
@@ -62,7 +62,7 @@ const STATEMENT_STATUS_COLORS = {
 export default function CardDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const isMobile = useMediaQuery('(max-width: 720px)');
+  const isMobile = useIsCompact();
 
   const [card, setCard] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -856,7 +856,7 @@ function StatementBreakdownPanel({ data, onClose }) {
         style={{
           width: '100%',
           maxWidth: 640,
-          maxHeight: '90vh',
+          maxHeight: '90dvh',
           overflow: 'auto',
           background: 'var(--ft-surface)',
           border: '1px solid var(--ft-border)',

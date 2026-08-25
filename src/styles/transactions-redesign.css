@@ -426,7 +426,14 @@
   transition: opacity 0.12s, background 0.12s;
 }
 .txn-row:hover .txn-row__menu { opacity: 1; }
+.txn-row__menu:focus-visible { opacity: 1; }
 .txn-row__menu:hover { background: var(--ft-surface-3); color: var(--ft-text); }
+
+/* Touch devices never fire hover, so a hover-revealed control is simply
+   unreachable there — show it outright on tablets. */
+@media (hover: none) {
+  .txn-row__menu { opacity: 1; }
+}
 
 .txn-inline-select {
   background: transparent;
@@ -639,7 +646,7 @@
    screens, full width once it wraps onto its own line. */
 .txn-toolbar__filter { margin-left: auto; }
 
-@media (max-width: 720px) {
+@media (max-width: 767.98px) {
   /* iOS zooms the page when a focused control is under 16px. */
   .txn-search input { font-size: 16px; }
 
@@ -665,4 +672,16 @@
     width: auto;
     height: auto;
   }
+
+  /* Stretch the field itself so the whole 44px row focuses it, rather than
+     leaving a 16px-tall input inside a padded box. */
+  /* 44px-tall field; the input stretches to fill it so the whole box, not
+     just the text line, is the target. */
+  .txn-search { min-height: 44px; }
+  .txn-search input { align-self: stretch; }
+  .txn-mobile-range__preset { min-height: 44px; }
+  .txn-pills > button { min-height: 44px; }
+
+  /* A ⌘K affordance has nothing to offer a device with no keyboard. */
+  .txn-search__keys { display: none; }
 }

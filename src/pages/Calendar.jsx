@@ -12,7 +12,7 @@ import {
 import {
   IcPlus, IcChevL, IcChevR, IcClose, IcTrash, IcRepeat, IcCard,
 } from '../components/ui/Icon.jsx';
-import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import { getCcLink } from '../services/cardsApi.js';
 import { cardTxnStatus, toCardTableRow } from '../utils/cardTransactionRow.jsx';
 import TransactionListRow from '../components/TransactionListRow.jsx';
@@ -153,7 +153,7 @@ function buildCategorySpend(transactions) {
 
 export default function Calendar() {
   const navigate = useNavigate();
-  const isMobile = useMediaQuery('(max-width: 720px)');
+  const isMobile = useIsCompact();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const today = new Date();

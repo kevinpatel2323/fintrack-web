@@ -1,13 +1,23 @@
-/* App-level layout — desktop sidebar shell + mobile shell */
+/* App-level layout — desktop sidebar shell + mobile shell
+ *
+ * Layout tiers (see src/styles/breakpoints.js — keep the numbers in sync):
+ *   compact   < 768px    MobileShell + bottom tab bar
+ *   medium    768–1099px DesktopShell, sidebar collapsed to an icon rail
+ *   expanded  >= 1100px  DesktopShell, full 240px sidebar
+ *
+ * The medium tier exists because a 240px sidebar eats a third of an iPad in
+ * portrait; the rail gives that space back to the content column.
+ */
 
 /* ====== Desktop shell ====== */
 
 .ft-app {
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--ft-bg);
   color: var(--ft-text);
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: var(--ft-sidebar-w, 240px) minmax(0, 1fr);
 }
 
 .ft-app__main {
@@ -16,17 +26,19 @@
   flex-direction: column;
 }
 
+/* Fluid gutters: identical to the old 28px/32px at >= ~1070px, tightening
+   toward 16px on narrow tablets. env() keeps content clear of the notch when
+   a phone or tablet is held in landscape. */
 .ft-app__content {
   flex: 1;
-  padding: 28px 32px 48px;
+  padding-top: clamp(16px, 2.6vw, 28px);
+  padding-bottom: 48px;
+  padding-left: max(clamp(16px, 3vw, 32px), env(safe-area-inset-left));
+  padding-right: max(clamp(16px, 3vw, 32px), env(safe-area-inset-right));
   min-width: 0;
   max-width: 1280px;
   width: 100%;
   margin: 0 auto;
-}
-
-@media (max-width: 1100px) {
-  .ft-app__content { padding: 24px; }
 }
 
 /* ====== Sidebar (desktop) ====== */
@@ -35,13 +47,16 @@
   background: var(--ft-bg);
   border-right: 1px solid var(--ft-border);
   padding: 22px 14px;
+  padding-left: max(14px, env(safe-area-inset-left));
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   gap: 14px;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .ft-sidebar__brand {
@@ -200,7 +215,7 @@
 }
 
 .ft-page-header__title {
-  font-size: 30px;
+  font-size: clamp(24px, 2.4vw, 30px);
   font-weight: 700;
   letter-spacing: -1px;
   margin: 0 0 4px;
@@ -244,34 +259,59 @@
 
 .ft-stat-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 20px;
 }
 
 .ft-grid-2-col {
   display: grid;
-  grid-template-columns: 1.6fr 1fr;
+  grid-template-columns: 1.6fr minmax(0, 1fr);
   gap: 20px;
 }
 
-@media (max-width: 1100px) {
-  .ft-stat-row { grid-template-columns: repeat(2, 1fr); }
-  .ft-grid-2-col { grid-template-columns: 1fr; }
+/* Page body + fixed-width aside. Stacks below the expanded tier, where the
+   content column is too narrow to carry both. `--ft-split-aside` lets a page
+   widen its own rail without a bespoke media query. */
+.ft-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(14px, 1.6vw, 20px);
+  align-items: start;
+}
+
+/* 980px is where the content column — 72px rail or 240px sidebar deducted —
+   first has room for a body plus a 320px aside, or four stat cards. Below it,
+   both collapse. It is the app's one "wide content" breakpoint; everything
+   narrower is handled by the tier rules above. */
+@media (max-width: 979.98px) {
+  .ft-stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ft-grid-2-col { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (min-width: 980px) {
+  .ft-split {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, var(--ft-split-aside, 320px));
+  }
 }
 
 /* ====== Mobile shell ====== */
 
 .ft-mobile {
   min-height: 100vh;
+  /* dvh tracks the shrinking URL bar on iOS/Android; the vh line above is the
+     fallback for engines that do not know dvh. */
+  min-height: 100dvh;
   background: var(--ft-bg);
   display: flex;
   flex-direction: column;
-  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--ft-tabbar-clearance, 96px) + env(safe-area-inset-bottom));
 }
 
 .ft-mobile__header {
-  padding: calc(env(safe-area-inset-top) + 12px) 20px 4px;
+  padding: calc(env(safe-area-inset-top) + 12px)
+           max(20px, env(safe-area-inset-right)) 4px
+           max(20px, env(safe-area-inset-left));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -296,7 +336,7 @@
 
 .ft-mobile__content {
   flex: 1;
-  padding: 8px 20px 24px;
+  padding: 8px max(20px, env(safe-area-inset-right)) 24px max(20px, env(safe-area-inset-left));
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -328,12 +368,12 @@
 /* Mobile tab bar — glass blur */
 .ft-tabbar {
   position: fixed;
-  left: 12px;
-  right: 12px;
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
   bottom: calc(12px + env(safe-area-inset-bottom));
   z-index: 30;
-  height: 64px;
-  border-radius: 32px;
+  height: var(--ft-tabbar-h, 64px);
+  border-radius: calc(var(--ft-tabbar-h, 64px) / 2);
   background: var(--ft-glass);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -372,12 +412,105 @@
 /* Visibility helpers */
 .ft-show-mobile { display: none; }
 .ft-show-desktop { display: block; }
-@media (max-width: 720px) {
+@media (max-width: 767.98px) {
   .ft-show-mobile { display: block; }
   .ft-show-desktop { display: none !important; }
-  .ft-app { grid-template-columns: 1fr; }
+  .ft-app { grid-template-columns: minmax(0, 1fr); }
   .ft-sidebar { display: none; }
   .ft-app__content { padding: 0; max-width: 100%; }
+}
+
+/* ====== Medium tier: collapsed icon rail (tablet portrait, split windows) ==
+   Same shell and same markup as the expanded tier — only the sidebar's own
+   chrome collapses, so nothing above 1100px is touched. */
+@media (min-width: 768px) and (max-width: 1100px) {
+  .ft-app { --ft-sidebar-w: 72px; }
+
+  .ft-sidebar {
+    padding: 16px 8px;
+    padding-left: max(8px, env(safe-area-inset-left));
+    gap: 10px;
+    align-items: center;
+  }
+
+  .ft-sidebar__brand {
+    padding: 2px 0 8px;
+    justify-content: center;
+    gap: 0;
+  }
+
+  /* Labels, badges and the insight blurb have no room at 72px; the icons keep
+     carrying the nav, and title attributes keep them nameable. */
+  .ft-sidebar__brand > span,
+  .ft-sidebar__nav-item > span,
+  .ft-sidebar__nav-badge,
+  .ft-sidebar__insight,
+  .ft-sidebar__user > div {
+    display: none;
+  }
+
+  /* The insight card carried the `margin-top: auto` that pushed the footer
+     down; with it hidden, the nav takes over pushing from the other side. */
+  .ft-sidebar__nav {
+    width: 100%;
+    gap: 4px;
+    margin-bottom: auto;
+  }
+
+  .ft-sidebar__nav-item {
+    justify-content: center;
+    padding: 0;
+    min-height: 44px;
+    gap: 0;
+  }
+
+  .ft-sidebar__nav-item--active::before { left: -8px; }
+
+  .ft-theme-toggle {
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    border-radius: var(--ft-r-md);
+  }
+  .ft-theme-toggle__opt { border-radius: calc(var(--ft-r-md) - 3px); }
+
+  .ft-sidebar__user { padding: 6px; justify-content: center; }
+}
+
+/* Short viewports — phone/tablet held in landscape. Vertical space is the
+   scarce axis there, so both navigation surfaces give some of it back. */
+@media (max-height: 520px) {
+  .ft-mobile { --ft-tabbar-h: 52px; --ft-tabbar-clearance: 78px; }
+
+  .ft-sidebar { gap: 8px; padding-top: 12px; padding-bottom: 12px; }
+  .ft-sidebar__nav-item { min-height: 38px; }
+  .ft-sidebar__insight { display: none; }
+  .ft-app__content { padding-top: 14px; padding-bottom: 24px; }
+  .ft-mobile__header { padding-top: calc(env(safe-area-inset-top) + 6px); }
+}
+
+/* Touch input — grow the pointer-precise hit areas to the 44px minimum. The
+   query never matches a trackpad or mouse, so desktop metrics are untouched. */
+@media (pointer: coarse) {
+  .ft-sidebar__nav-item { min-height: 44px; }
+  .ft-mobile__icon-btn { width: 44px; height: 44px; }
+  .ft-date-chip { min-height: 44px; }
+  .ft-theme-toggle__opt { height: 44px; }
+
+  /* Segmented toggles and actions in a page header are inline-styled at the
+     call sites, so they are reached through their container. */
+  .ft-page-header__actions > button,
+  .ft-page-header__actions > a { min-height: 44px; }
+
+  /* Inline "View all →" links: pad the row instead of resizing the text. */
+  .dash-link,
+  .ft-panel-link { padding: 12px 0; margin: -12px 0; }
+
+  /* Segmented control in a panel header (Panel `actions` in primitives.jsx). */
+  .ft-seg__opt { min-height: 38px; padding-left: 14px; padding-right: 14px; }
+
+  /* Shared buttons: min-height clamps the inline `height` some call sites set
+     to squeeze a button into a card header. */
+  .ft-btn { min-height: 44px; }
 }
 
 /* ====== Sheet helpers (used inside .calendar-sheet) ====== */
@@ -389,7 +522,7 @@
   background: var(--ft-surface-3);
   margin: 0 auto 14px;
 }
-@media (min-width: 721px) {
+@media (min-width: 768px) {
   .ft-sheet__grabber { display: none; }
 }
 

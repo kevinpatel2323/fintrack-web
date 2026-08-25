@@ -109,7 +109,11 @@
 .imp-preview-table__head,
 .imp-preview-table__row {
   display: grid;
-  grid-template-columns: 28px 100px 1fr 140px 110px;
+  /* Shrinkable tracks: the preview also renders in the narrow left column of
+     the wizard split, where rigid tracks pushed the row past the card edge. */
+  grid-template-columns:
+    28px minmax(64px, 100px) minmax(0, 1fr)
+    minmax(84px, 140px) minmax(72px, 110px);
   gap: 12px;
   align-items: center;
   padding: 10px 12px;
@@ -140,6 +144,7 @@
 .imp-step-bar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   padding: 18px 22px;
   border-bottom: 1px solid var(--ft-border);
   gap: 8px;
@@ -148,6 +153,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 .imp-step-bar__item:not(:last-child) { flex: 1; }
 

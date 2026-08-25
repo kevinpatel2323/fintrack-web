@@ -170,6 +170,7 @@ export function WidgetCard({ title, subtitle, actions, link, children, style }) 
         </div>
         {actions ? (
           <div
+            className="ft-seg"
             style={{
               display: 'flex',
               padding: 3,
@@ -183,6 +184,7 @@ export function WidgetCard({ title, subtitle, actions, link, children, style }) 
               <button
                 key={a}
                 type="button"
+                className="ft-seg__opt"
                 onClick={() => actions.onChange?.(a)}
                 style={{
                   padding: '4px 10px',
@@ -203,6 +205,7 @@ export function WidgetCard({ title, subtitle, actions, link, children, style }) 
         ) : link ? (
           <button
             type="button"
+            className="ft-panel-link"
             onClick={link.onClick}
             style={{
               background: 'transparent',
@@ -224,11 +227,15 @@ export function WidgetCard({ title, subtitle, actions, link, children, style }) 
 }
 
 // — Primary button —
-export function PrimaryBtn({ children, full = false, onClick, tint, style, disabled, type = 'button', ...rest }) {
+export function PrimaryBtn({ children, full = false, onClick, tint, style, disabled, type = 'button', className, ...rest }) {
   return (
     <button
       type={type}
       disabled={disabled}
+      /* `ft-btn` exists so a stylesheet can raise the hit area on touch
+         devices: a CSS min-height clamps an inline `height`, which a plain
+         height rule could not. */
+      className={className ? `ft-btn ${className}` : 'ft-btn'}
       onClick={onClick}
       style={{
         border: 0,
@@ -259,11 +266,12 @@ export function PrimaryBtn({ children, full = false, onClick, tint, style, disab
 }
 
 // — Ghost button —
-export function GhostBtn({ children, onClick, style, disabled, type = 'button', ...rest }) {
+export function GhostBtn({ children, onClick, style, disabled, type = 'button', className, ...rest }) {
   return (
     <button
       type={type}
       disabled={disabled}
+      className={className ? `ft-btn ${className}` : 'ft-btn'}
       onClick={onClick}
       style={{
         border: '1px solid var(--ft-border-s)',

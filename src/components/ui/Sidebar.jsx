@@ -36,6 +36,10 @@ export default function Sidebar() {
               key={item.to}
               to={item.to}
               end={item.end}
+              /* The label is hidden in the collapsed rail tier, so the link
+                 carries its name here instead. */
+              title={item.label}
+              aria-label={item.label}
               className={({ isActive }) =>
                 `ft-sidebar__nav-item${isActive ? ' ft-sidebar__nav-item--active' : ''}`
               }

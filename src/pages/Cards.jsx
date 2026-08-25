@@ -15,7 +15,7 @@ import CardFace from '../components/ui/CardFace.jsx';
 import CardFormModal from '../components/CardFormModal.jsx';
 import { fetchDues, fetchWallet } from '../services/cardsApi.js';
 import { inr, inrCompact } from '../utils/inr.js';
-import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 
 const STATUS_COLORS = {
   overdue: 'var(--ft-spend)',
@@ -35,7 +35,7 @@ const STATUS_LABELS = {
 
 export default function Cards() {
   const navigate = useNavigate();
-  const isMobile = useMediaQuery('(max-width: 720px)');
+  const isMobile = useIsCompact();
   const [wallet, setWallet] = useState(null);
   const [dues, setDues] = useState([]);
   const [error, setError] = useState('');
@@ -147,14 +147,7 @@ export default function Cards() {
           </div>
         </Card>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
-            gap: 12,
-            marginBottom: 22,
-          }}
-        >
+        <div className="ft-stat-row" style={{ gap: 12, marginBottom: 22 }}>
           <StatCard label="Total due" value={inr(totals.totalDue)} accent={totals.totalDue > 0} />
           <StatCard label="Credit cards" value={String(totals.creditCount)} />
           <StatCard label="Debit cards" value={String(totals.debitCount)} />

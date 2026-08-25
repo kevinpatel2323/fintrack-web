@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DateRangePicker from '../components/DateRangePicker.jsx';
 import { useDashboardData } from '../hooks/useDashboardData.js';
-import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import {
   Card, WidgetCard, Num, Pill, StatCard, Overline, SectionTitle,
   Avatar, CatGlyph, HeroAmount, PrimaryBtn, GhostBtn,
@@ -52,7 +52,7 @@ const TREND_RANGE_SUBTITLE = {
 export default function Dashboard() {
   const [dateRange, setDateRange] = useState(getDefaultDateRange);
   const { data, loading, error, refresh } = useDashboardData(dateRange, '');
-  const isMobile = useMediaQuery('(max-width: 720px)');
+  const isMobile = useIsCompact();
 
   if (isMobile) return <MobileHome data={data} loading={loading} error={error} dateRange={dateRange} refresh={refresh} />;
   return (

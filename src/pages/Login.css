@@ -132,6 +132,15 @@
   font-weight: 500;
 }
 
+@media (pointer: coarse) {
+  /* Fingertip-sized without changing where the text sits. */
+  .auth-foot a {
+    display: inline-block;
+    padding: 12px 8px;
+    margin: -12px -8px;
+  }
+}
+
 .auth-spinner {
   width: 28px;
   height: 28px;

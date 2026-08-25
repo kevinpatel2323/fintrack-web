@@ -144,9 +144,17 @@ export default function CardFace({ card, width = 360, height = 220, style = {}, 
     <div
       onClick={onClick}
       style={{
-        width,
-        height,
-        borderRadius: 18 * scale,
+        /* Fluid canvas: renders at exactly `width` when there is room and
+           scales down proportionally when there is not, so the card can never
+           outgrow a narrow grid cell. Every inner offset below is in cqw
+           (1cqw = 1% of this element's width) — which is what the old
+           `N * scale` px math computed, so output at the nominal width is
+           byte-identical. */
+        width: '100%',
+        maxWidth: width,
+        aspectRatio: `${width} / ${height}`,
+        containerType: 'inline-size',
+        borderRadius: '5cqw',
         position: 'relative',
         background: `
           radial-gradient(120% 80% at 0% 0%, ${palette.from}EE, transparent 60%),
@@ -156,7 +164,6 @@ export default function CardFace({ card, width = 360, height = 220, style = {}, 
         color: text,
         overflow: 'hidden',
         cursor: onClick ? 'pointer' : 'default',
-        flexShrink: 0,
         ...style,
       }}
     >
@@ -173,10 +180,10 @@ export default function CardFace({ card, width = 360, height = 220, style = {}, 
         aria-hidden
         style={{
           position: 'absolute',
-          right: -40 * scale,
-          top: -40 * scale,
-          width: 160 * scale,
-          height: 160 * scale,
+          right: '-11.1111cqw',
+          top: '-11.1111cqw',
+          width: '44.4444cqw',
+          height: '44.4444cqw',
           borderRadius: '50%',
           background: `radial-gradient(circle, ${palette.accent}26 0%, transparent 70%)`,
           pointerEvents: 'none',
@@ -187,9 +194,9 @@ export default function CardFace({ card, width = 360, height = 220, style = {}, 
       <div
         style={{
           position: 'absolute',
-          top: 18 * scale,
-          left: 20 * scale,
-          right: 20 * scale,
+          top: '5cqw',
+          left: '5.5556cqw',
+          right: '5.5556cqw',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
@@ -199,7 +206,7 @@ export default function CardFace({ card, width = 360, height = 220, style = {}, 
           <div
             style={{
               fontFamily: 'var(--ft-font-ui)',
-              fontSize: 13 * scale,
+              fontSize: '3.6111cqw',
               fontWeight: 700,
               letterSpacing: '-0.3px',
               color: text,
@@ -210,7 +217,7 @@ export default function CardFace({ card, width = 360, height = 220, style = {}, 
           <div
             style={{
               fontFamily: 'var(--ft-font-ui)',
-              fontSize: 10.5 * scale,
+              fontSize: '2.9167cqw',
               fontWeight: 500,
               color: dim,
               marginTop: 1,
@@ -224,12 +231,12 @@ export default function CardFace({ card, width = 360, height = 220, style = {}, 
         <div
           style={{
             fontFamily: 'var(--ft-font-ui)',
-            fontSize: 11 * scale,
+            fontSize: '3.0556cqw',
             fontWeight: 600,
             color: text,
             opacity: 0.9,
             textAlign: 'right',
-            maxWidth: 140 * scale,
+            maxWidth: '38.8889cqw',
           }}
         >
           {card.name}
@@ -237,7 +244,10 @@ export default function CardFace({ card, width = 360, height = 220, style = {}, 
       </div>
 
       {/* Chip */}
-      <div style={{ position: 'absolute', top: 64 * scale, left: 20 * scale }}>
+      {/* Chip and network mark size in px off the nominal width: their SVG
+          geometry attributes do not take container units. They stay put and
+          stay proportional at every size the card is actually laid out at. */}
+      <div style={{ position: 'absolute', top: '17.7778cqw', left: '5.5556cqw' }}>
         <Chip size={36 * scale} color={palette.accent === '#0A0B0E' ? '#9c8744' : '#D7B14C'} />
       </div>
 
@@ -245,13 +255,13 @@ export default function CardFace({ card, width = 360, height = 220, style = {}, 
       <div
         style={{
           position: 'absolute',
-          bottom: 70 * scale,
-          left: 20 * scale,
-          right: 20 * scale,
+          bottom: '19.4444cqw',
+          left: '5.5556cqw',
+          right: '5.5556cqw',
           fontFamily: 'var(--ft-font-mono)',
-          fontSize: 17 * scale,
+          fontSize: '4.7222cqw',
           fontWeight: 500,
-          letterSpacing: 2 * scale,
+          letterSpacing: '0.5556cqw',
           color: text,
         }}
       >
@@ -262,9 +272,9 @@ export default function CardFace({ card, width = 360, height = 220, style = {}, 
       <div
         style={{
           position: 'absolute',
-          bottom: 36 * scale,
-          left: 20 * scale,
-          right: 20 * scale,
+          bottom: '10cqw',
+          left: '5.5556cqw',
+          right: '5.5556cqw',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-end',
@@ -272,13 +282,13 @@ export default function CardFace({ card, width = 360, height = 220, style = {}, 
         }}
       >
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 8 * scale, color: faint, textTransform: 'uppercase', letterSpacing: 1 }}>
+          <div style={{ fontSize: '2.2222cqw', color: faint, textTransform: 'uppercase', letterSpacing: 1 }}>
             Cardholder
           </div>
           <div
             style={{
               fontFamily: 'var(--ft-font-ui)',
-              fontSize: 11 * scale,
+              fontSize: '3.0556cqw',
               fontWeight: 600,
               color: text,
               letterSpacing: 0.4,
@@ -292,13 +302,13 @@ export default function CardFace({ card, width = 360, height = 220, style = {}, 
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 8 * scale, color: faint, textTransform: 'uppercase', letterSpacing: 1 }}>
+          <div style={{ fontSize: '2.2222cqw', color: faint, textTransform: 'uppercase', letterSpacing: 1 }}>
             Expires
           </div>
           <div
             style={{
               fontFamily: 'var(--ft-font-mono)',
-              fontSize: 11 * scale,
+              fontSize: '3.0556cqw',
               fontWeight: 500,
               color: text,
             }}
@@ -309,7 +319,7 @@ export default function CardFace({ card, width = 360, height = 220, style = {}, 
       </div>
 
       {/* Network mark */}
-      <div style={{ position: 'absolute', bottom: 14 * scale, right: 18 * scale }}>
+      <div style={{ position: 'absolute', bottom: '3.8889cqw', right: '5cqw' }}>
         <NetworkMark network={card.network} color={text} size={scale} />
       </div>
 
@@ -330,7 +340,7 @@ export default function CardFace({ card, width = 360, height = 220, style = {}, 
             fontWeight: 700,
             letterSpacing: 2,
             textTransform: 'uppercase',
-            fontSize: 13 * scale,
+            fontSize: '3.6111cqw',
           }}
         >
           <span

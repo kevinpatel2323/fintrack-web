@@ -136,7 +136,7 @@ export default function CardFormModal({ initial = null, onClose, onSaved }) {
           style={{
             width: '100%',
             maxWidth: 760,
-            maxHeight: '92vh',
+            maxHeight: '92dvh',
             overflow: 'auto',
             background: 'var(--ft-surface)',
             border: '1px solid var(--ft-border)',

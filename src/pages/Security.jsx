@@ -8,7 +8,7 @@ import {
   SectionTitle,
 } from '../components/ui/primitives.jsx';
 import { IcPlus, IcTrash, IcLogout, IcCommand } from '../components/ui/Icon.jsx';
-import { useMediaQuery } from '../hooks/useMediaQuery.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { deleteCredential, listCredentials } from '../services/authApi.js';
 import './Security.css';
@@ -27,7 +27,7 @@ function fmtDate(value) {
 }
 
 export default function Security() {
-  const isMobile = useMediaQuery('(max-width: 720px)');
+  const isMobile = useIsCompact();
   const navigate = useNavigate();
   const { logout, authDisabled } = useAuth();
 
@@ -179,7 +179,7 @@ export default function Security() {
               <h1 className="ft-page-header__title">Security</h1>
             </div>
           </header>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20 }}>
+          <div className="ft-split">
             {passkeyList}
             <div>{sessionCard}</div>
           </div>
