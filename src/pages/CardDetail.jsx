@@ -52,6 +52,11 @@ import { useIsCompact } from '../styles/breakpoints.js';
 
 import { API_BASE, apiFetch } from '../services/http.js';
 
+const shortDay = (iso) =>
+  new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short' }).format(
+    new Date(`${iso}T00:00:00`),
+  );
+
 const STATEMENT_STATUS_COLORS = {
   open: 'var(--ft-info)',
   closed: 'var(--ft-warn)',
@@ -83,6 +88,9 @@ export default function CardDetail() {
   const [friends, setFriends] = useState([]);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  // '' | 'unbilled' | 'billed' — spend made after the last statement closed has
+  // no statement yet, and this is how you pull it up on its own.
+  const [billingFilter, setBillingFilter] = useState('');
   const [sortCol, setSortCol] = useState('date');
   const [sortDir, setSortDir] = useState('desc');
   const [page, setPage] = useState(1);
@@ -255,6 +263,15 @@ export default function CardDetail() {
     }
   };
 
+  // "Spent 17 Aug–16 Sep" reads better than a bare "this cycle" when the point
+  // is precisely which days are still open.
+  const cycleSpendLabel = useMemo(() => {
+    const start = card?.currentCycle?.start;
+    const end = card?.currentCycle?.end;
+    if (!start || !end) return 'Spent this cycle';
+    return `Spent ${shortDay(start)}–${shortDay(end)}`;
+  }, [card]);
+
   const totalSpend = useMemo(
     () => transactions.reduce((s, t) => s + (t.isRefund ? -Number(t.amount) : Number(t.amount)), 0),
     [transactions],
@@ -268,6 +285,8 @@ export default function CardDetail() {
         ? list.filter((t) => !t.categoryId)
         : list.filter((t) => String(t.categoryId) === categoryFilter);
     }
+    if (billingFilter === 'unbilled') list = list.filter((t) => !t.statementId);
+    if (billingFilter === 'billed') list = list.filter((t) => Boolean(t.statementId));
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter((t) =>
@@ -277,7 +296,7 @@ export default function CardDetail() {
       );
     }
     return list;
-  }, [transactions, categoryFilter, search]);
+  }, [transactions, categoryFilter, billingFilter, search]);
 
   const sortedTransactions = useMemo(() => {
     const sorted = [...filteredTransactions];
@@ -410,9 +429,16 @@ export default function CardDetail() {
                             {(card.utilizationPct ?? 0).toFixed(1)}%
                           </Num>
                         </Row>
-                        <Row label="Spent this cycle">
+                        <Row label={cycleSpendLabel}>
                           <Num size={13} weight={600}>{inr(card.thisCycleSpend ?? 0)}</Num>
                         </Row>
+                        {Number(card.unbilledTotal ?? 0) !== 0 && (
+                          <Row label="Not yet billed">
+                            <Num size={13} weight={600} color="var(--ft-warn)">
+                              {inr(card.unbilledTotal)}
+                            </Num>
+                          </Row>
+                        )}
                         {card.currentDue > 0 && (
                           <Row label={`Due ${card.currentDueDate ?? ''}`}>
                             <Num size={13} weight={600} color="var(--ft-warn)">{inr(card.currentDue)}</Num>
@@ -518,6 +544,18 @@ export default function CardDetail() {
                         <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>
                       ))}
                     </select>
+                    {isCredit && (
+                      <select
+                        className="txn-toolbar__filter"
+                        value={billingFilter}
+                        onChange={(e) => { setBillingFilter(e.target.value); setPage(1); }}
+                        aria-label="Billing status"
+                      >
+                        <option value="">Billed &amp; unbilled</option>
+                        <option value="unbilled">Unbilled only</option>
+                        <option value="billed">Billed only</option>
+                      </select>
+                    )}
                   </div>
                 </Card>
 
@@ -610,7 +648,6 @@ export default function CardDetail() {
         <CardTransactionModal
           cardId={card?.id}
           categories={categories}
-          statementId={card?.nextStatementId ?? null}
           onClose={() => setTxnOpen(false)}
           onSaved={async () => {
             setTxnOpen(false);
