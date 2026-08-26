@@ -27,6 +27,74 @@ function fmtShortDate(value) {
   return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short' }).format(d);
 }
 
+const matchKey = (m) => `${m.parsedIndex}:${m.existingId}`;
+
+/**
+ * Rows on this statement that look like transactions already entered by hand —
+ * the mid-cycle spend added before the statement existed. Merging bills the
+ * existing row in place, so its category, notes and friend tags survive;
+ * importing it as a new row instead would double-count the spend in every
+ * ledger it is tagged into.
+ */
+function MatchReview({ matches, confirmedKeys, onToggle }) {
+  if (!matches || matches.length === 0) return null;
+  return (
+    <Card pad={14} style={{ marginBottom: 14 }}>
+      <Overline>Already added by you</Overline>
+      <p style={{ margin: '6px 0 12px', fontSize: 13, color: 'var(--ft-text-dim)' }}>
+        {confirmedKeys.size} of {matches.length} will merge into the entry you
+        already made instead of being added again. Untick any that are actually
+        separate charges.
+      </p>
+      <div style={{ display: 'grid', gap: 8 }}>
+        {matches.map((m) => {
+          const key = matchKey(m);
+          const checked = confirmedKeys.has(key);
+          return (
+            <label
+              key={key}
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+                padding: '9px 11px',
+                borderRadius: 10,
+                border: '1px solid var(--ft-border)',
+                background: checked ? 'var(--ft-surface-2)' : 'transparent',
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => onToggle(key)}
+                style={{ marginTop: 3 }}
+              />
+              <span style={{ display: 'grid', gap: 2, fontSize: 13, minWidth: 0 }}>
+                <span style={{ color: 'var(--ft-text)' }}>
+                  {fmtShortDate(m.statementRow.txnDate)} · {m.statementRow.merchant}
+                  {' · '}
+                  <Num size={13} weight={600}>{inr(m.statementRow.amount)}</Num>
+                  {m.statementRow.isRefund ? ' (refund)' : ''}
+                </span>
+                <span style={{ color: 'var(--ft-text-dim)' }}>
+                  merges into your entry “{m.existingRow.merchant}” of{' '}
+                  {fmtShortDate(m.existingRow.txnDate)}
+                  {m.dateDeltaDays > 0 && (
+                    <span style={{ color: 'var(--ft-warn)' }}>
+                      {' '}· {m.dateDeltaDays} day{m.dateDeltaDays === 1 ? '' : 's'} apart
+                    </span>
+                  )}
+                </span>
+              </span>
+            </label>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 function isoDateMinusDays(isoDate, days) {
   if (!isoDate) return null;
   const d = new Date(isoDate + 'T12:00:00Z');
@@ -118,6 +186,8 @@ export default function StatementImport() {
   const [uploadStatus, setUploadStatus] = useState('');
   const [uploadResult, setUploadResult] = useState(null);
   const [uploadPreview, setUploadPreview] = useState(null);
+  // Which proposed merges the user has left ticked, as `parsedIndex:existingId`.
+  const [confirmedMatchKeys, setConfirmedMatchKeys] = useState(() => new Set());
   const [previewFileKey, setPreviewFileKey] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -176,9 +246,32 @@ export default function StatementImport() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Preview failed');
       setUploadPreview(data);
+      setConfirmedMatchKeys(new Set((data.matches || []).map(matchKey)));
       setPreviewFileKey(fileKey(uploadFile));
       setUploadStatus('');
     } catch (e) { setUploadStatus(e.message || 'Preview failed'); }
+  }
+
+  // Unticking a merge turns that statement row back into a fresh insert, so the
+  // preview's own counts have to move with it.
+  function toggleMatch(key) {
+    setConfirmedMatchKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      setUploadPreview((p) => {
+        if (!p || p.kind !== 'card') return p;
+        const matchedRows = next.size;
+        const newRows = (p.totalParsed ?? 0) - matchedRows;
+        return {
+          ...p,
+          matchedRows,
+          newRows,
+          willInsert: p.alreadyImported ? 0 : newRows,
+        };
+      });
+      return next;
+    });
   }
 
   async function handleUpload() {
@@ -188,11 +281,22 @@ export default function StatementImport() {
     try {
       const fd = new FormData();
       fd.append('statement', uploadFile);
+      if (uploadPreview.kind === 'card' && (uploadPreview.matches || []).length > 0) {
+        fd.append(
+          'confirmedMatches',
+          JSON.stringify(
+            uploadPreview.matches
+              .filter((m) => confirmedMatchKeys.has(matchKey(m)))
+              .map(({ parsedIndex, existingId }) => ({ parsedIndex, existingId })),
+          ),
+        );
+      }
       const res = await apiFetch(`${API_BASE}/imports/hdfc`, { method: 'POST', body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Import failed');
       setUploadResult(data);
       setUploadPreview(null);
+      setConfirmedMatchKeys(new Set());
       setPreviewFileKey('');
       setUploadFile(null);
       setUploadStatus('');
@@ -285,6 +389,8 @@ export default function StatementImport() {
       uploadStatus={uploadStatus}
       uploadResult={uploadResult}
       isUploading={isUploading}
+      confirmedMatchKeys={confirmedMatchKeys}
+      onToggleMatch={toggleMatch}
       isDragging={isDragging}
       previewRows={previewRows}
       net={net} debits={debits} credits={credits} period={period} lastFour={lastFour} destination={destination}
@@ -406,12 +512,22 @@ export default function StatementImport() {
                 />
               </div>
 
+              <div style={{ padding: '14px 22px 0' }}>
+                <MatchReview
+                  matches={uploadPreview.matches}
+                  confirmedKeys={confirmedMatchKeys}
+                  onToggle={toggleMatch}
+                />
+              </div>
+
               {/* Footer */}
               <div className="imp-tbl-footer">
                 <span style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>
-                  {previewRows.length > 0
-                    ? `${uploadPreview.willInsert} new · ${uploadPreview.skippedRows} duplicates skipped`
-                    : `${uploadPreview.skippedRows} duplicates skipped`}
+                  {[
+                    previewRows.length > 0 ? `${uploadPreview.willInsert} new` : null,
+                    uploadPreview.matchedRows > 0 ? `${uploadPreview.matchedRows} merged` : null,
+                    `${uploadPreview.skippedRows} duplicates skipped`,
+                  ].filter(Boolean).join(' · ')}
                 </span>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                   {uploadStatus && <span style={{ color: 'var(--ft-spend)', fontSize: 13 }}>{uploadStatus}</span>}
@@ -491,6 +607,7 @@ export default function StatementImport() {
 
 function MobileView({
   step, uploadFile, uploadPreview, uploadStatus, uploadResult, isUploading,
+  confirmedMatchKeys, onToggleMatch,
   isDragging, previewRows, net, debits, credits, period, lastFour, destination,
   imports, importsLoading, importsError, importsStatus, revertingImportId,
   lastImport, accounts, selectedAccount, onAccountChange,
@@ -585,8 +702,8 @@ function MobileView({
               <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--ft-surface-2)', borderRadius: 12, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
                 {[
                   { l: 'New',       v: uploadPreview.willInsert,  c: 'var(--ft-accent)' },
+                  { l: 'Merged',    v: uploadPreview.matchedRows ?? 0, c: 'var(--ft-warn)' },
                   { l: 'Duplicate', v: uploadPreview.skippedRows, c: 'var(--ft-text-dim)' },
-                  { l: 'Failed',    v: 0,                          c: 'var(--ft-income)' },
                 ].map((s) => (
                   <div key={s.l}>
                     <Num size={18} weight={600} color={s.c} style={{ display: 'block' }}>{s.v}</Num>
@@ -596,6 +713,14 @@ function MobileView({
               </div>
             )}
           </Card>
+        )}
+
+        {step === 3 && uploadPreview && (
+          <MatchReview
+            matches={uploadPreview.matches}
+            confirmedKeys={confirmedMatchKeys}
+            onToggle={onToggleMatch}
+          />
         )}
 
         {/* Preview rows (step 3) */}

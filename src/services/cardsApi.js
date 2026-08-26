@@ -28,9 +28,12 @@ async function request(path, options = {}) {
 
 // Multipart upload — must NOT set Content-Type so the browser adds the
 // multipart boundary itself.
-async function upload(path, file) {
+async function upload(path, file, fields = {}) {
   const form = new FormData();
   form.append('statement', file);
+  for (const [key, value] of Object.entries(fields)) {
+    if (value !== undefined && value !== null) form.append(key, value);
+  }
   const response = await apiFetch(`${API_BASE}${path}`, { method: 'POST', body: form });
   return handle(response);
 }
@@ -112,8 +115,14 @@ export const fetchStatementBreakdown = (statementId) =>
 // ── CC statement imports ───────────────────────────────────────────────
 export const previewCcStatement = (cardId, file) =>
   upload(`/cards/${cardId}/imports/hdfc-cc/preview`, file);
-export const importCcStatement = (cardId, file) =>
-  upload(`/cards/${cardId}/imports/hdfc-cc`, file);
+// `confirmedMatches` narrows which statement rows merge into unbilled entries
+// already on the card; omit it to accept every match the server proposes.
+export const importCcStatement = (cardId, file, confirmedMatches) =>
+  upload(`/cards/${cardId}/imports/hdfc-cc`, file, {
+    confirmedMatches: confirmedMatches
+      ? JSON.stringify(confirmedMatches)
+      : undefined,
+  });
 export const listCardImports = (cardId) => request(`/cards/${cardId}/imports`);
 export const revertCardImport = (importId) =>
   request(`/cards/imports/${importId}/revert`, { method: 'POST' });
