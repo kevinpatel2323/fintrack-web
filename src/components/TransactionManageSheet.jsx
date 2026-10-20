@@ -37,6 +37,7 @@ export default function TransactionManageSheet({
   splitApplying = false,
   onApplySplit,
   onDeleteTag,
+  onTagsChanged,
   onClose,
 }) {
   const inAmount = Number(amountIn || 0);
@@ -120,6 +121,7 @@ export default function TransactionManageSheet({
                       transaction={transaction}
                       friendName={tag.friend?.name || String(tag.friendId)}
                       onRemove={() => onDeleteTag(tag.id)}
+                      onAllocationChanged={onTagsChanged}
                     />
                   ))
                 )}

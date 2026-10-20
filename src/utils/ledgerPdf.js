@@ -1,10 +1,19 @@
 import { jsPDF } from 'jspdf';
 import {
   LEDGER_OWNER_NAME,
+  ledgerBalanceDelta,
+  ledgerDate,
   ledgerDirectionPhrase,
+  ledgerImpactText,
+  ledgerNumber,
+  ledgerOpenText,
+  ledgerOpenTotals,
   ledgerRowAmount,
+  ledgerRs,
   ledgerRunningBalances,
-  ledgerSettlementEntryLabel,
+  ledgerSettledEntryParts,
+  ledgerSettlementCheck,
+  ledgerSettlementHeadParts,
   ledgerSettlementIndex,
   ledgerSettlementRefLines,
 } from './ledgerParties';
@@ -30,45 +39,20 @@ function cellStr(v) {
     .replace(/[\u200B-\u200D\uFEFF]/g, '');
 }
 
-function balanceImpactPdf(direction, amount) {
-  if (direction === 'OWES_ME') return `+Rs.${formatNumberPdf(amount)}`;
-  if (direction === 'I_OWE') return `-Rs.${formatNumberPdf(amount)}`;
-  if (direction === 'SETTLEMENT') return `-Rs.${formatNumberPdf(amount)}`;
-  return '-';
-}
+const MOVES_BALANCE = new Set(['OWES_ME', 'I_OWE', 'SETTLEMENT']);
 
 // + entries (money owed to the owner) render red; - entries (owner owes, settlements) render green.
 const IMPACT_POS_COLOR = [190, 18, 60];
 const IMPACT_NEG_COLOR = [21, 128, 61];
 
-function balanceImpactColorPdf(direction) {
-  if (direction === 'OWES_ME') return IMPACT_POS_COLOR;
-  if (direction === 'I_OWE') return IMPACT_NEG_COLOR;
-  if (direction === 'SETTLEMENT') return IMPACT_NEG_COLOR;
-  return null;
+function balanceImpactColorPdf(tag) {
+  if (!MOVES_BALANCE.has(tag?.direction)) return null;
+  return ledgerBalanceDelta(tag) >= 0 ? IMPACT_POS_COLOR : IMPACT_NEG_COLOR;
 }
 
-function formatRunningBalancePdf(value) {
-  return value < 0 ? `-Rs.${formatNumberPdf(Math.abs(value))}` : `Rs.${formatNumberPdf(value)}`;
-}
-
-function formatNumberPdf(value) {
-  if (value === null || value === undefined) return '-';
-  const num = Number(value);
-  if (Number.isNaN(num)) return String(value);
-  return new Intl.NumberFormat('en-IN').format(num);
-}
-
-function formatDatePdf(value) {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return cellStr(value);
-  return new Intl.DateTimeFormat('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
-}
+// Dates, amounts and settlement lines all come from the shared ledger text
+// helpers in ledgerParties.js, which the export preview renders too.
+const formatDatePdf = (value) => cellStr(ledgerDate(value));
 
 /**
  * Multi-page landscape ledger PDF (vector text + ruled table), independent of viewport.
@@ -87,7 +71,7 @@ export function buildLedgerPdf({
   const contentW = pageW - MARGIN * 2;
   const bottomLimit = pageH - MARGIN - FOOTER_H;
 
-  const rawWidths = [22, 56, 82, 146, 52, 88, 52, 54, 62, 82, 96];
+  const rawWidths = [22, 54, 78, 120, 48, 84, 52, 54, 60, 58, 104, 82];
   const colW = scaleWidthsToTotal(rawWidths, contentW);
   const IMPACT_COL = 7;
 
@@ -101,6 +85,7 @@ export function buildLedgerPdf({
     'Amount (Rs.)',
     'Balance impact',
     'Running balance',
+    'Still open (today)',
     'Settlement link',
     'Note',
   ];
@@ -209,10 +194,11 @@ export function buildLedgerPdf({
       cellStr(desc),
       cellStr(bank),
       cellStr(ledgerDirectionPhrase(tag.direction, friendName)),
-      `Rs.${formatNumberPdf(ledgerRowAmount(tag))}`,
-      balanceImpactPdf(tag.direction, tag.amount),
-      formatRunningBalancePdf(runningBalance),
-      cellStr(ledgerSettlementRefLines(links).join('\n') || '-'),
+      ledgerRs(ledgerRowAmount(tag)),
+      ledgerImpactText(tag),
+      ledgerRs(runningBalance),
+      cellStr(ledgerOpenText(tag)),
+      cellStr(ledgerSettlementRefLines(links, tag).join('\n') || '-'),
       cellStr(tag.note || '-'),
     ];
   }
@@ -247,9 +233,10 @@ export function buildLedgerPdf({
   }
 
   /**
-   * Spells out each settlement: the entries it cleared, with the row numbers the
-   * "Settlement link" column points at, so a settlement can be audited without
-   * cross-checking the app.
+   * Spells out each settlement: how much of it went to each entry (share first,
+   * then what that entry still has open today), with the row numbers the
+   * "Settlement link" column points at, and the sum that shows the split — so
+   * a settlement can be audited without cross-checking the app.
    */
   function drawSettlementDetails(yStart, groups) {
     const pad = 4;
@@ -300,22 +287,17 @@ export function buildLedgerPdf({
     }
 
     function settlementCell(group) {
-      const t = group.tag.transaction || {};
+      const check = ledgerSettlementCheck(group);
       return cellStr(
-        `#${group.row} | ${formatDatePdf(t.transactionDate)} | Rs.${formatNumberPdf(group.tag.amount)}`,
+        [ledgerSettlementHeadParts(group).join(' | '), check ? `Check: ${check}` : null]
+          .filter(Boolean)
+          .join('\n'),
       );
     }
 
     function settledCell(group) {
       return group.settles
-        .map((ref) => {
-          const t = ref.tag?.transaction || {};
-          const desc = t.upiDescription || t.narration || t.upiName || '-';
-          const impact = balanceImpactPdf(ref.tag?.direction, ref.tag?.amount);
-          return cellStr(
-            `${ledgerSettlementEntryLabel(ref)} | ${formatDatePdf(t.transactionDate)} | ${impact} | ${desc}`,
-          );
-        })
+        .map((ref) => cellStr(ledgerSettledEntryParts(group, ref).join(' | ')))
         .join('\n');
     }
 
@@ -349,11 +331,17 @@ export function buildLedgerPdf({
     const rowH = 22;
     const headerH = 22;
     const titleGap = 20;
+    // What is still open today, entry by entry, across the rows in this
+    // statement — the same figures the "Still open" column shows.
+    const open = ledgerOpenTotals(tags);
     const rows = [
-      ['Total they owe you', formatNumberPdf(summary.totalTheyOwe), false],
-      ['Total you owe', formatNumberPdf(summary.totalYouOwe), false],
-      ['Settlements', formatNumberPdf(summary.totalSettlements), false],
-      ['Net balance', formatNumberPdf(summary.net), true],
+      ['Total they owe you', ledgerNumber(summary.totalTheyOwe), false],
+      ['Total you owe', ledgerNumber(summary.totalYouOwe), false],
+      ['Settlements', ledgerNumber(summary.totalSettlements), false],
+      ['Net balance', ledgerNumber(summary.net), true],
+      ['Still open today: they owe you', ledgerNumber(open.theyOwe), false],
+      ['Still open today: you owe', ledgerNumber(open.youOwe), false],
+      ...(open.onAccount > 0 ? [['Money on account (not applied yet)', ledgerNumber(open.onAccount), false]] : []),
     ];
     const bodyH = rows.length * rowH;
     const tableH = headerH + bodyH;
@@ -420,7 +408,7 @@ export function buildLedgerPdf({
       y = drawTableHeaderRow(y);
     }
 
-    y = drawDataRow(y, cells, balanceImpactColorPdf(tags[i].direction));
+    y = drawDataRow(y, cells, balanceImpactColorPdf(tags[i]));
   }
 
   y += 16;
@@ -433,7 +421,7 @@ export function buildLedgerPdf({
     y = drawSettlementDetails(y, settlements.groups) + 16;
   }
 
-  const summaryBlockH = 170;
+  const summaryBlockH = 230;
   if (y + summaryBlockH > bottomLimit) {
     pdf.addPage();
     y = drawPageHeader(false);

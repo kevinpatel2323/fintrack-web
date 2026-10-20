@@ -9,6 +9,7 @@ import { IcPlus, IcSearch, IcEdit, IcTrash, IcChevR } from '../components/ui/Ico
 import { useIsCompact } from '../styles/breakpoints.js';
 import { inr } from '../utils/inr.js';
 import { friendTint, initialsOf } from '../utils/categoryColors.js';
+import { useReviewSummary } from '../hooks/useReviewSummary.js';
 
 import { API_BASE, apiFetch } from '../services/http.js';
 import './friends-redesign.css';
@@ -390,6 +391,7 @@ export default function Friends() {
         {header}
         <main className="ft-mobile__content friends-layout--mobile">
           {balanceHero}
+          <ReviewCard onOpen={(friendId) => navigate(`/friends/${friendId}?review=1`)} />
           {list}
         </main>
       </>
@@ -401,9 +403,52 @@ export default function Friends() {
       {formSheet}
       {header}
       <div className="friends-layout">
-        <aside>{balanceHero}</aside>
+        <aside style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {balanceHero}
+          <ReviewCard onOpen={(friendId) => navigate(`/friends/${friendId}?review=1`)} />
+        </aside>
         {list}
       </div>
     </>
+  );
+}
+
+/**
+ * Friends whose older settlements — saved before amounts were recorded —
+ * don't match their entries. Each opens that friend's review.
+ */
+function ReviewCard({ onOpen }) {
+  const { data } = useReviewSummary();
+  const friends = (data?.friends ?? []).filter((f) => f.needingReview > 0);
+  if (friends.length === 0) return null;
+  return (
+    <Card pad={16} style={{ borderColor: 'var(--ft-warn)' }}>
+      <Overline>Older settlements to review</Overline>
+      <p style={{ margin: '6px 0 10px', color: 'var(--ft-text-dim)', fontSize: 12.5, lineHeight: 1.5 }}>
+        {data.needingReview} settlement{data.needingReview === 1 ? '' : 's'} saved before amounts were
+        recorded {data.needingReview === 1 ? "doesn't" : "don't"} match {data.needingReview === 1 ? 'its' : 'their'} entries.
+      </p>
+      <div style={{ display: 'grid', gap: 6 }}>
+        {friends.map((f) => (
+          <button
+            key={f.friendId}
+            type="button"
+            onClick={() => onOpen(f.friendId)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 10,
+              border: '1px solid var(--ft-border)', background: 'var(--ft-surface-2)', color: 'var(--ft-text)',
+              cursor: 'pointer', textAlign: 'left', fontSize: 13,
+            }}
+          >
+            <span style={{ flex: 1, minWidth: 0 }}>{f.friendName}</span>
+            {f.netChange !== 0 && (
+              <span style={{ color: 'var(--ft-warn)', fontSize: 11.5 }}>balance changes</span>
+            )}
+            <span style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>{f.needingReview}</span>
+            <IcChevR size={14} style={{ color: 'var(--ft-text-faint)' }} />
+          </button>
+        ))}
+      </div>
+    </Card>
   );
 }

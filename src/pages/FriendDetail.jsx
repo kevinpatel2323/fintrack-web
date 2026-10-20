@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import FriendLedgerExportModal from '../components/FriendLedgerExportModal.jsx';
+import SettlementAllocationModal from '../components/SettlementAllocationModal.jsx';
+import NetOffModal, { canNetOff } from '../components/NetOffModal.jsx';
+import WriteOffModal from '../components/WriteOffModal.jsx';
+import LegacyReviewModal from '../components/LegacyReviewModal.jsx';
+import { deleteOffset, deleteWriteOff, fetchOffsets } from '../services/friendsApi.js';
+import { refreshReviewSummary } from '../hooks/useReviewSummary.js';
+import { rupees, toMinor } from '../utils/settlementAllocation.js';
 import {
   Card, Num, Pill, Avatar, GhostBtn, Overline, HeroAmount, SectionTitle,
 } from '../components/ui/primitives.jsx';
@@ -24,23 +31,54 @@ export default function FriendDetail() {
   const [tab, setTab] = useState('all');
   const [status, setStatus] = useState('');
   const [exportOpen, setExportOpen] = useState(false);
+  // The settlement whose bill-wise allocation is being edited, if any.
+  const [allocatingTag, setAllocatingTag] = useState(null);
+  const [writeOffTag, setWriteOffTag] = useState(null);
+  const [netOffOpen, setNetOffOpen] = useState(false);
+  // People links here with ?review=1 to open the review straight away.
+  const [searchParams] = useSearchParams();
+  const [reviewOpen, setReviewOpen] = useState(searchParams.get('review') === '1');
+  const [offsets, setOffsets] = useState([]);
+  const [actionError, setActionError] = useState('');
+
+  async function load() {
+    try {
+      const [fRes, sRes, tRes, oRes] = await Promise.all([
+        apiFetch(`${API_BASE}/friends/${id}`),
+        apiFetch(`${API_BASE}/friends/${id}/summary`),
+        apiFetch(`${API_BASE}/friends/${id}/transactions`),
+        fetchOffsets(id).catch(() => ({ data: [] })),
+      ]);
+      if (fRes.ok) { const d = await fRes.json(); setFriend(d.data || d); }
+      if (sRes.ok) { const d = await sRes.json(); setSummary(d.data || d); }
+      if (tRes.ok) { const d = await tRes.json(); setTags(d.data || []); }
+      setOffsets(oRes?.data || []);
+      setStatus('');
+    } catch (e) {
+      setStatus(e.message || 'Failed to load');
+    }
+  }
+
+  // After anything that changes what is settled: reload this page and the
+  // review badge on People.
+  async function reload() {
+    setActionError('');
+    await Promise.all([load(), refreshReviewSummary()]);
+  }
+
+  async function undo(action) {
+    setActionError('');
+    try {
+      await action();
+      await reload();
+    } catch (e) {
+      setActionError(e.message || 'Could not undo.');
+    }
+  }
 
   useEffect(() => {
-    (async () => {
-      try {
-        const [fRes, sRes, tRes] = await Promise.all([
-          apiFetch(`${API_BASE}/friends/${id}`),
-          apiFetch(`${API_BASE}/friends/${id}/summary`),
-          apiFetch(`${API_BASE}/friends/${id}/transactions`),
-        ]);
-        if (fRes.ok) { const d = await fRes.json(); setFriend(d.data || d); }
-        if (sRes.ok) { const d = await sRes.json(); setSummary(d.data || d); }
-        if (tRes.ok) { const d = await tRes.json(); setTags(d.data || []); }
-        setStatus('');
-      } catch (e) {
-        setStatus(e.message || 'Failed to load');
-      }
-    })();
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   // resilient: friend may be a wrapped object
@@ -51,8 +89,28 @@ export default function FriendDetail() {
   const settlements = Number(summary?.totalSettlements ?? 0);
   const net = Number(summary?.net ?? (owedToMe - iOwe - settlements));
 
+  // Bill-wise: entry by entry, what is still pending, and settlement money not
+  // applied to any entry yet. Entries settled by pre-amount links count as done.
+  const openOwesMe = Number(summary?.openOwesMe ?? 0);
+  const openIOwe = Number(summary?.openIOwe ?? 0);
+  const onAccountReceived = Number(summary?.onAccountReceived ?? summary?.onAccount ?? 0);
+  const onAccountPaid = Number(summary?.onAccountPaid ?? 0);
+  const legacyDifference = Number(summary?.legacyDifference ?? 0);
+  const needingReview = Number(summary?.legacyNeedingReview ?? 0);
+  const openLine = {
+    openOwesMe, openIOwe, onAccountReceived, onAccountPaid, legacyDifference,
+    onReview: () => setReviewOpen(true),
+  };
+
   const filtered = useMemo(() => {
     if (tab === 'all') return tags;
+    if (tab === 'open') {
+      return tags.filter(
+        (t) =>
+          ((t.direction === 'OWES_ME' || t.direction === 'I_OWE') && Number(t.pendingAmount) > 0) ||
+          (t.direction === 'SETTLEMENT' && Number(t.unallocatedAmount) > 0),
+      );
+    }
     if (tab === 'owe') return tags.filter((t) => t.direction === 'I_OWE');
     if (tab === 'owed') return tags.filter((t) => t.direction === 'OWES_ME');
     if (tab === 'settled') return tags.filter((t) => t.direction === 'SETTLEMENT' || t.direction === 'NOTHING_OUTSTANDING');
@@ -103,7 +161,67 @@ export default function FriendDetail() {
         <Mini label="You paid" value={inr(owedToMe)} color="var(--ft-income)" />
         <Mini label="Settled" value={inr(settlements)} color="var(--ft-violet)" />
       </div>
+      <OpenDuesLine {...openLine} name={f.name} />
+      {canNetOff(summary) && (
+        <GhostBtn onClick={() => setNetOffOpen(true)} style={{ marginTop: 12, position: 'relative' }}>
+          Net off what you owe each other
+        </GhostBtn>
+      )}
     </Card>
+  );
+
+  const reviewBanner = needingReview > 0 && (
+    <Card pad={14} style={{ borderColor: 'var(--ft-warn)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <span style={{ flex: 1, minWidth: 200, fontSize: 13, lineHeight: 1.5 }}>
+        <strong>{needingReview} older settlement{needingReview === 1 ? '' : 's'}</strong>{' '}
+        {needingReview === 1 ? "doesn't" : "don't"} match {needingReview === 1 ? 'its' : 'their'} entries. They were saved before
+        Fintrack recorded amounts.
+      </span>
+      <GhostBtn onClick={() => setReviewOpen(true)}>Review</GhostBtn>
+    </Card>
+  );
+
+  const offsetsCard = offsets.length > 0 && (
+    <Card pad={18}>
+      <SectionTitle>Netted off</SectionTitle>
+      <div style={{ display: 'grid', gap: 8 }}>
+        {offsets.map((o) => (
+          <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5 }}>
+            <span style={{ flex: 1, minWidth: 0, color: 'var(--ft-text-dim)' }}>
+              {new Date(o.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+              {' · '}
+              {o.lines.length} entries{o.note ? ` · ${o.note}` : ''}
+            </span>
+            <Num size={13} weight={600}>{rupees(toMinor(o.amount))}</Num>
+            <button type="button" className="friend-tag-card__apply" onClick={() => undo(() => deleteOffset(id, o.id))}>
+              Undo
+            </button>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+
+  const dialogs = (
+    <>
+      {allocatingTag && (
+        <SettlementAllocationModal
+          tag={allocatingTag}
+          friendName={f.name}
+          onClose={() => setAllocatingTag(null)}
+          onSaved={reload}
+        />
+      )}
+      {writeOffTag && (
+        <WriteOffModal friendId={id} tag={writeOffTag} onClose={() => setWriteOffTag(null)} onSaved={reload} />
+      )}
+      {netOffOpen && (
+        <NetOffModal friendId={id} friendName={f.name} onClose={() => setNetOffOpen(false)} onSaved={reload} />
+      )}
+      {reviewOpen && (
+        <LegacyReviewModal friendId={id} friendName={f.name} onClose={() => setReviewOpen(false)} onSaved={reload} />
+      )}
+    </>
   );
 
   const activityFeed = (
@@ -111,6 +229,7 @@ export default function FriendDetail() {
       <SectionTitle>Activity</SectionTitle>
       <div className="txn-pills" style={{ marginBottom: 12 }}>
         <Pill active={tab === 'all'} onClick={() => setTab('all')}>All</Pill>
+        <Pill active={tab === 'open'} onClick={() => setTab('open')}>Open</Pill>
         <Pill active={tab === 'owe'} onClick={() => setTab('owe')}>You owe</Pill>
         <Pill active={tab === 'owed'} onClick={() => setTab('owed')}>They owe</Pill>
         <Pill active={tab === 'settled'} onClick={() => setTab('settled')}>Settled</Pill>
@@ -119,9 +238,19 @@ export default function FriendDetail() {
         <p className="empty">No activity yet.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {filtered.map((t, i) => <LedgerRow key={t.id || i} tag={t} first={i === 0} />)}
+          {filtered.map((t, i) => (
+            <LedgerRow
+              key={t.id || i}
+              tag={t}
+              first={i === 0}
+              onAllocate={setAllocatingTag}
+              onWriteOff={setWriteOffTag}
+              onUndoWriteOff={(writeOffId) => undo(() => deleteWriteOff(id, writeOffId))}
+            />
+          ))}
         </div>
       )}
+      {actionError && <p className="status" style={{ color: 'var(--ft-spend)' }}>{actionError}</p>}
     </Card>
   );
 
@@ -157,9 +286,18 @@ export default function FriendDetail() {
               <Mini label="You paid" value={inr(owedToMe)} color="var(--ft-income)" />
               <Mini label="Settled" value={inr(settlements)} color="var(--ft-violet)" />
             </div>
+            <OpenDuesLine {...openLine} name={f.name} />
+            {canNetOff(summary) && (
+              <GhostBtn onClick={() => setNetOffOpen(true)} style={{ marginTop: 12 }}>
+                Net off what you owe each other
+              </GhostBtn>
+            )}
           </Card>
+          {reviewBanner}
           {activityFeed}
+          {offsetsCard}
         </main>
+        {dialogs}
       </>
     );
   }
@@ -196,6 +334,7 @@ export default function FriendDetail() {
 
       <div className="ft-split" style={{ '--ft-split-aside': '360px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {reviewBanner}
           {balanceHero}
           {activityFeed}
         </div>
@@ -204,8 +343,10 @@ export default function FriendDetail() {
             <SectionTitle>Balance over time</SectionTitle>
             <BalanceSparkline tags={tags} />
           </Card>
+          {offsetsCard}
         </div>
       </div>
+      {dialogs}
     </>
   );
 }
@@ -219,7 +360,65 @@ function Mini({ label, value, color }) {
   );
 }
 
-function LedgerRow({ tag, first }) {
+/**
+ * How the balance splits up entry by entry: what is open on each side, money
+ * on account, and whatever only older amount-less settlements explain — so
+ * the pieces always add back up to the balance above.
+ */
+function OpenDuesLine({ openOwesMe, openIOwe, onAccountReceived, onAccountPaid, legacyDifference, onReview, name }) {
+  const first = String(name || '').trim().split(/\s+/)[0] || 'They';
+  const parts = [
+    openOwesMe > 0 ? `${first} has ${rupees(toMinor(openOwesMe))} open` : null,
+    openIOwe > 0 ? `you have ${rupees(toMinor(openIOwe))} open` : null,
+    onAccountReceived > 0 ? `${rupees(toMinor(onAccountReceived))} of ${first}'s money on account` : null,
+    onAccountPaid > 0 ? `${rupees(toMinor(onAccountPaid))} of your money on account` : null,
+  ].filter(Boolean);
+  const legacy = toMinor(legacyDifference);
+  if (parts.length === 0 && legacy === 0) return null;
+  return (
+    <p style={{ margin: '12px 0 0', color: 'var(--ft-text-dim)', fontSize: 12.5, lineHeight: 1.5, position: 'relative' }}>
+      {parts.length > 0 && <>Entry by entry: {parts.join(' · ')}</>}
+      {legacy !== 0 && (
+        <>
+          {parts.length > 0 && ' · '}
+          <span style={{ color: 'var(--ft-warn)' }}>
+            {rupees(Math.abs(legacy))} from older settlements that don&apos;t match their entries
+          </span>{' '}
+          <button type="button" className="friend-tag-card__apply" style={{ marginTop: 0 }} onClick={onReview}>
+            Review
+          </button>
+        </>
+      )}
+    </p>
+  );
+}
+
+/**
+ * Where a row stands bill-wise: an entry's pending, netted or written-off
+ * amounts, or a settlement's money still on account. Empty for rows settled
+ * by a link from before amounts were recorded — there is nothing to add.
+ */
+function rowSettlementNotes(tag) {
+  if (tag.settlementLegacy !== false) return [];
+  const notes = [];
+  const writtenOff = toMinor(tag.writtenOffAmount);
+  if (tag.direction === 'SETTLEMENT') {
+    if (toMinor(tag.refundedAmount) > 0) notes.push({ text: `${rupees(toMinor(tag.refundedAmount))} refund`, tone: 'dim' });
+    if (writtenOff > 0) notes.push({ text: `${rupees(writtenOff)} written off`, tone: 'dim' });
+    const onAccount = toMinor(tag.unallocatedAmount);
+    if (onAccount > 0) notes.push({ text: `${rupees(onAccount)} on account`, tone: 'warn' });
+    return notes;
+  }
+  if (toMinor(tag.nettedAmount) > 0) notes.push({ text: `${rupees(toMinor(tag.nettedAmount))} netted off`, tone: 'dim' });
+  if (writtenOff > 0) notes.push({ text: `${rupees(writtenOff)} written off`, tone: 'dim' });
+  if (tag.settlementStatus === 'partial') notes.push({ text: `${rupees(toMinor(tag.pendingAmount))} pending`, tone: 'warn' });
+  if (tag.settlementStatus === 'settled') notes.push({ text: 'Settled', tone: 'ok' });
+  return notes;
+}
+
+const NOTE_COLOR = { warn: 'var(--ft-warn)', ok: 'var(--ft-income)', dim: 'var(--ft-text-dim)' };
+
+function LedgerRow({ tag, first, onAllocate, onWriteOff, onUndoWriteOff }) {
   const dir = tag.direction;
   const isSettlement = dir === 'SETTLEMENT';
   const isIOwe = dir === 'I_OWE';
@@ -229,12 +428,22 @@ function LedgerRow({ tag, first }) {
     : isOwesMe ? 'var(--ft-income)'
     : 'var(--ft-text-dim)';
   const Ic = isSettlement ? IcCheck : isIOwe ? IcArrowDL : IcArrowUR;
-  const label = isSettlement ? 'Settled' : isIOwe ? 'You owe' : isOwesMe ? 'They owe' : 'Nothing outstanding';
+  const label = isSettlement
+    ? tag.settlementSide === 'paid' ? 'You paid back' : 'Settled'
+    : isIOwe ? 'You owe' : isOwesMe ? 'They owe' : 'Nothing outstanding';
   const tx = tag.transaction || {};
   const date = tx.transactionDate
     ? new Date(tx.transactionDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
     : '—';
   const amount = Number(tag.amount || 0);
+  const notes = rowSettlementNotes(tag);
+  // A leftover worth closing: money on account, or the open remainder of an
+  // entry that has already been partly paid.
+  const leftover = tag.settlementLegacy === false
+    ? isSettlement
+      ? toMinor(tag.unallocatedAmount)
+      : tag.settlementStatus === 'partial' ? toMinor(tag.pendingAmount) : 0
+    : 0;
   return (
     <div
       style={{
@@ -260,10 +469,45 @@ function LedgerRow({ tag, first }) {
           {tx.upiName || tx.narration || tag.note || 'Transaction'}
         </div>
         <div style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>{date}</div>
+        {(tag.writeOffs || []).map((w) => (
+          <div key={w.id} style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, marginTop: 2 }}>
+            {rupees(toMinor(w.amount))} written off · {w.reason}{' '}
+            <button
+              type="button"
+              onClick={() => onUndoWriteOff?.(w.id)}
+              style={{ background: 'none', border: 0, padding: 0, color: 'var(--ft-accent-fg)', cursor: 'pointer', fontSize: 11.5 }}
+            >
+              Undo
+            </button>
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {isSettlement && onAllocate && (
+            <button
+              type="button"
+              className="friend-tag-card__apply"
+              onClick={() => onAllocate(tag)}
+            >
+              {tag.settlementLegacy === false && toMinor(tag.allocatedAmount) === 0
+                ? 'Apply to entries'
+                : 'Change what it settles'}
+            </button>
+          )}
+          {leftover > 0 && onWriteOff && (
+            <button type="button" className="friend-tag-card__apply" onClick={() => onWriteOff(tag)}>
+              Write off {rupees(leftover)}
+            </button>
+          )}
+        </div>
       </div>
       <div style={{ textAlign: 'right' }}>
         <Num size={14} weight={600} color={color}>{inr(amount)}</Num>
         <div style={{ color: 'var(--ft-text-dim)', fontSize: 11 }}>{label}</div>
+        {notes.map((n) => (
+          <div key={n.text} style={{ color: NOTE_COLOR[n.tone], fontSize: 11, marginTop: 1 }}>
+            {n.text}
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -1,0 +1,202 @@
+/* Bill-wise settlement picker: one payment applied across a friend's entries. */
+
+.settle-alloc {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.settle-alloc__group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+.settle-alloc__group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--ft-text-dim);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.settle-alloc__fill,
+.settle-alloc__clear {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--ft-accent-hairline);
+  background: var(--ft-accent-soft);
+  color: var(--ft-accent-fg);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settle-alloc__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.settle-alloc__fill--quiet {
+  border-color: var(--ft-border);
+  background: transparent;
+  color: var(--ft-text-dim);
+}
+
+.settle-alloc__balance {
+  display: grid;
+  gap: 2px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: var(--ft-surface-2);
+  color: var(--ft-text-dim);
+  font-size: 12.5px;
+}
+
+.settle-alloc__balance strong {
+  color: var(--ft-text);
+}
+
+.settle-alloc__balance-parts {
+  color: var(--ft-text-faint);
+  font-size: 11.5px;
+}
+
+.settle-alloc__explain {
+  margin: 0;
+  color: var(--ft-text-dim);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.settle-alloc__clear {
+  margin-left: auto;
+  border-color: var(--ft-border);
+  background: transparent;
+  color: var(--ft-text-dim);
+}
+
+.settle-alloc__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: var(--ft-surface-2);
+}
+
+.settle-alloc__row--selected {
+  border-color: var(--ft-accent-hairline);
+}
+
+.settle-alloc__row--error {
+  border-color: var(--ft-spend-hairline);
+}
+
+.settle-alloc__pick {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.settle-alloc__pick input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.settle-alloc__what {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settle-alloc__name {
+  color: var(--ft-text);
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settle-alloc__meta {
+  color: var(--ft-text-dim);
+  font-size: 11.5px;
+}
+
+.settle-alloc__apply {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 26px;
+}
+
+/* Two classes: the global input[type='text'] rule (width: 100%) outranks one.
+   Anchored on the row's own container so every dialog that reuses the row
+   markup (apply, net off, review) gets it. */
+.settle-alloc__apply .settle-alloc__amount {
+  flex: 0 0 auto;
+  width: 130px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--ft-border);
+  background: var(--ft-surface);
+  color: var(--ft-text);
+  font-family: var(--ft-font-mono);
+  font-size: 13px;
+}
+
+.settle-alloc__after {
+  color: var(--ft-warn);
+  font-size: 12px;
+}
+
+.settle-alloc__after--full {
+  color: var(--ft-income);
+}
+
+.settle-alloc__after--error {
+  color: var(--ft-spend);
+}
+
+.settle-alloc__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--ft-border);
+  color: var(--ft-text-dim);
+  font-size: 12.5px;
+}
+
+.settle-alloc__foot strong {
+  color: var(--ft-text);
+  font-family: var(--ft-font-mono);
+}
+
+.settle-alloc__on-account strong {
+  color: var(--ft-warn);
+}
+
+.settle-alloc__error {
+  margin: 0;
+  color: var(--ft-spend);
+  font-size: 12.5px;
+}
+
+.settle-alloc__empty {
+  margin: 0;
+  color: var(--ft-text-dim);
+  font-size: 12.5px;
+  line-height: 1.5;
+}

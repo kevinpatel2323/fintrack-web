@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import SettlementAllocator from './SettlementAllocator.jsx';
+import { draftToAllocations } from '../utils/settlementAllocation.js';
 import {
   calculateAdjustmentSplit,
   calculateEqualSplit,
@@ -17,8 +19,6 @@ import {
   validateShares,
   validateSplitTotal,
 } from '../utils/splitValidation.ts';
-
-import { API_BASE, apiFetch } from '../services/http.js';
 
 const METHODS = [
   { id: 'EQUAL', label: 'Equal' },
@@ -69,20 +69,6 @@ function SplitMethodIcon({ methodId }) {
   }
 }
 
-function formatSettlementDate(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
-}
-
-function formatSettlementAmount(value) {
-  if (value === null || value === undefined) return '—';
-  const num = Number(value);
-  if (Number.isNaN(num)) return String(value);
-  return new Intl.NumberFormat('en-IN').format(num);
-}
-
 function formatInr(minor, minorPerMajor) {
   const neg = minor < 0;
   const abs = Math.abs(minor);
@@ -127,10 +113,10 @@ export default function SplitTransactionForm({
   const [adjAmountById, setAdjAmountById] = useState({});
   const [splitNote, setSplitNote] = useState('');
   const [participantSearch, setParticipantSearch] = useState('');
-  const [linkableByParticipant, setLinkableByParticipant] = useState({});
-  const [linkableLoadingByParticipant, setLinkableLoadingByParticipant] = useState({});
-  const [linkedTagsByParticipant, setLinkedTagsByParticipant] = useState({});
-  const fetchedLinkableIds = useRef(new Set());
+  // Settlement only: per participant, which of their entries this payment pays
+  // off and by how much (see SettlementAllocator), and whether that is valid.
+  const [allocationDrafts, setAllocationDrafts] = useState({});
+  const [allocationStatuses, setAllocationStatuses] = useState({});
 
   useEffect(() => {
     setSplitDirection(defaultDirection);
@@ -153,22 +139,6 @@ export default function SplitTransactionForm({
     const order = participants.map((p) => String(p.id));
     return selectedIds.slice().sort((a, b) => order.indexOf(a) - order.indexOf(b));
   }, [selectedIds, participants]);
-
-  useEffect(() => {
-    if (splitDirection !== 'SETTLEMENT') return;
-    for (const id of orderedSelected) {
-      if (fetchedLinkableIds.current.has(id)) continue;
-      fetchedLinkableIds.current.add(id);
-      setLinkableLoadingByParticipant((prev) => ({ ...prev, [id]: true }));
-      apiFetch(`${API_BASE}/friends/${id}/linkable-transactions`)
-        .then((res) => (res.ok ? res.json() : Promise.reject()))
-        .then((data) => setLinkableByParticipant((prev) => ({ ...prev, [id]: data.data || [] })))
-        .catch(() => setLinkableByParticipant((prev) => ({ ...prev, [id]: [] })))
-        .finally(() =>
-          setLinkableLoadingByParticipant((prev) => ({ ...prev, [id]: false })),
-        );
-    }
-  }, [splitDirection, orderedSelected]);
 
   const filteredParticipants = useMemo(() => {
     if (participants.length === 0) return [];
@@ -332,6 +302,16 @@ export default function SplitTransactionForm({
       errors.push(`Note must be at most ${SPLIT_NOTE_MAX_LEN} characters.`);
     }
 
+    if (splitDirection === 'SETTLEMENT') {
+      for (const id of orderedSelected) {
+        const draft = allocationDrafts[id];
+        const status = allocationStatuses[id];
+        if (!draft || Object.keys(draft).length === 0 || !status || status.valid) continue;
+        const name = participants.find((p) => String(p.id) === id)?.name || id;
+        errors.push(`${name}: ${status.errors[0]}`);
+      }
+    }
+
     return { valid: errors.length === 0, errors };
   }, [
     totalMinor,
@@ -348,6 +328,8 @@ export default function SplitTransactionForm({
     taggedSet,
     participants,
     splitNote,
+    allocationDrafts,
+    allocationStatuses,
   ]);
 
   const sumResultsMinor = useMemo(
@@ -360,11 +342,20 @@ export default function SplitTransactionForm({
   const handleApply = async () => {
     if (!validation.valid || !onApplySplit || applying) return;
     const note = splitNote.trim();
+    const allocationsByParticipant = {};
+    if (splitDirection === 'SETTLEMENT') {
+      for (const id of orderedSelected) {
+        const draft = allocationDrafts[id];
+        if (draft && Object.keys(draft).length > 0) {
+          allocationsByParticipant[id] = draftToAllocations(draft);
+        }
+      }
+    }
     await onApplySplit({
       results,
       direction: splitDirection,
       ...(note ? { note } : {}),
-      linkedTagsByParticipant,
+      allocationsByParticipant,
     });
   };
 
@@ -607,71 +598,32 @@ export default function SplitTransactionForm({
 
       {splitDirection === 'SETTLEMENT' && orderedSelected.length > 0 && (
         <div className="split-txn-settlement-section">
-          <p className="split-txn-label">Link settled entries <span className="split-txn-label-optional">(optional)</span></p>
+          <p className="split-txn-label">
+            Apply to their entries <span className="split-txn-label-optional">(optional — anything not applied stays on account)</span>
+          </p>
           {orderedSelected.map((id) => {
             const p = participants.find((x) => String(x.id) === id);
-            const loading = linkableLoadingByParticipant[id];
-            const entries = linkableByParticipant[id] || [];
-            const selectedLinked = linkedTagsByParticipant[id] || [];
+            const amountMinor = results.find((r) => r.participantId === id)?.amountMinor ?? 0;
             return (
               <div key={id} className="split-txn-settlement-participant">
-                <p className="split-txn-settlement-participant__name">{p?.name || id}</p>
-                {loading ? (
-                  <p className="status">Loading linkable entries…</p>
-                ) : entries.length === 0 ? (
-                  <p className="empty">No linkable entries for {p?.name || id}.</p>
+                <p className="split-txn-settlement-participant__name">
+                  {p?.name || id} · {formatInr(amountMinor, minorPerMajor)}
+                </p>
+                {amountMinor > 0 ? (
+                  <SettlementAllocator
+                    friendId={id}
+                    friendName={p?.name || id}
+                    amountMinor={amountMinor}
+                    draft={allocationDrafts[id] || {}}
+                    onDraftChange={(draft) =>
+                      setAllocationDrafts((prev) => ({ ...prev, [id]: draft }))
+                    }
+                    onStatusChange={(status) =>
+                      setAllocationStatuses((prev) => ({ ...prev, [id]: status }))
+                    }
+                  />
                 ) : (
-                  <div className="settlement-link-list">
-                    {entries.map((tag) => {
-                      const isSelected = selectedLinked.includes(String(tag.id));
-                      const dirClass =
-                        tag.direction === 'I_OWE'
-                          ? 'settlement-dir-pill--owe'
-                          : tag.direction === 'OWES_ME'
-                            ? 'settlement-dir-pill--me'
-                            : 'settlement-dir-pill--none';
-                      return (
-                        <label
-                          key={tag.id}
-                          className={`settlement-link-item${isSelected ? ' settlement-link-item--selected' : ''}`}
-                        >
-                          <input
-                            type="checkbox"
-                            className="settlement-link-item__check"
-                            checked={isSelected}
-                            onChange={() => {
-                              const next = isSelected
-                                ? selectedLinked.filter((x) => x !== String(tag.id))
-                                : [...selectedLinked, String(tag.id)];
-                              setLinkedTagsByParticipant((prev) => ({ ...prev, [id]: next }));
-                            }}
-                          />
-                          <div className="settlement-link-item__body">
-                            <div className="settlement-link-item__top">
-                              <span className="settlement-link-item__date">
-                                {formatSettlementDate(tag.transaction?.transactionDate)}
-                              </span>
-                              <span className={`settlement-dir-pill ${dirClass}`}>
-                                {tag.direction === 'I_OWE'
-                                  ? 'I owe'
-                                  : tag.direction === 'OWES_ME'
-                                    ? 'They owe me'
-                                    : 'Nothing'}
-                              </span>
-                              <span className="settlement-link-item__amount">
-                                ₹{formatSettlementAmount(tag.amount)}
-                              </span>
-                            </div>
-                            {tag.transaction?.upiName ? (
-                              <span className="settlement-link-item__upi">
-                                {tag.transaction.upiName}
-                              </span>
-                            ) : null}
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
+                  <p className="empty">Give {p?.name || 'them'} an amount in the split first.</p>
                 )}
               </div>
             );

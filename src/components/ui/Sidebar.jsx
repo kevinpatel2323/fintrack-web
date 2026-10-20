@@ -6,6 +6,8 @@ import {
 import { Avatar } from './primitives.jsx';
 import ThemeToggle from './ThemeToggle.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useImportSchedule } from '../../hooks/useImportSchedule.js';
+import { useReviewSummary } from '../../hooks/useReviewSummary.js';
 
 const NAV = [
   { to: '/',             label: 'Overview',     icon: IcHome,   end: true },
@@ -21,6 +23,16 @@ const NAV = [
 export default function Sidebar() {
   const { authDisabled } = useAuth();
   const nav = authDisabled ? NAV.filter((item) => !item.authOnly) : NAV;
+  // Card statements that are out but not imported yet, badged on Import.
+  const { data: schedule } = useImportSchedule();
+  const toImport = schedule?.pendingCount ?? 0;
+  // Older settlements that don't match their entries, badged on People.
+  const { data: review } = useReviewSummary();
+  const toReview = review?.needingReview ?? 0;
+  const badges = {
+    '/import': [toImport, (n) => `${n} card statement${n === 1 ? '' : 's'} to import`],
+    '/friends': [toReview, (n) => `${n} older settlement${n === 1 ? '' : 's'} to review`],
+  };
   return (
     <aside className="ft-sidebar">
       <div className="ft-sidebar__brand">
@@ -31,6 +43,8 @@ export default function Sidebar() {
       <nav className="ft-sidebar__nav" aria-label="Primary">
         {nav.map((item) => {
           const Ic = item.icon;
+          const [badge = 0, describe] = badges[item.to] ?? [];
+          const name = badge ? `${item.label} · ${describe(badge)}` : item.label;
           return (
             <NavLink
               key={item.to}
@@ -38,14 +52,19 @@ export default function Sidebar() {
               end={item.end}
               /* The label is hidden in the collapsed rail tier, so the link
                  carries its name here instead. */
-              title={item.label}
-              aria-label={item.label}
+              title={name}
+              aria-label={name}
               className={({ isActive }) =>
-                `ft-sidebar__nav-item${isActive ? ' ft-sidebar__nav-item--active' : ''}`
+                `ft-sidebar__nav-item${isActive ? ' ft-sidebar__nav-item--active' : ''}${badge ? ' ft-sidebar__nav-item--alert' : ''}`
               }
             >
               <Ic size={18} />
               <span>{item.label}</span>
+              {badge > 0 && (
+                <span className="ft-sidebar__nav-badge ft-sidebar__nav-badge--alert" aria-hidden>
+                  {badge}
+                </span>
+              )}
             </NavLink>
           );
         })}

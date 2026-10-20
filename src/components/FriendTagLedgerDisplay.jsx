@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { ledgerDirectionPhrase } from '../utils/ledgerParties.js';
 import { friendTint, initialsOf } from '../utils/categoryColors.js';
+import { rupees, toMinor } from '../utils/settlementAllocation.js';
 import { IcTrash } from './ui/Icon.jsx';
 import { inr } from '../utils/inr.js';
+import SettlementAllocationModal from './SettlementAllocationModal.jsx';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -37,19 +40,58 @@ function TransactionMeta({ transaction }) {
   return items.length ? <>{items.join(' · ')}</> : <>Transaction split</>;
 }
 
-export function FriendTagCard({ tag, transaction, friendName, onRemove }) {
+/**
+ * One line on how far a tag is settled, bill-wise: what an entry still has
+ * pending, or how much of a settlement is applied and how much is on account.
+ * Links made before amounts were recorded keep the old "Settles 2" wording —
+ * there are no amounts to show for them.
+ */
+function settlementLine(tag) {
+  const settles = tag.settlesTransactions || [];
+  const settledBy = tag.settledBy || [];
+
+  if (tag.direction === 'SETTLEMENT' && tag.settlementLegacy === false) {
+    const applied = toMinor(tag.allocatedAmount);
+    const onAccount = toMinor(tag.unallocatedAmount);
+    const writtenOff = toMinor(tag.writtenOffAmount);
+    const extra = writtenOff > 0 ? ` · ${rupees(writtenOff)} written off` : '';
+    if (applied === 0 && onAccount > 0) {
+      return { text: `${rupees(onAccount)} on account — not applied to any entry${extra}`, warn: true };
+    }
+    const what = toMinor(tag.refundedAmount) === applied
+      ? 'Refund'
+      : `Applied to ${settles.length} ${settles.length === 1 ? 'entry' : 'entries'}`;
+    return onAccount > 0
+      ? { text: `${rupees(applied)} ${what.toLowerCase()} · ${rupees(onAccount)} on account${extra}`, warn: true }
+      : { text: `${what}${extra}`, warn: false };
+  }
+  if ((tag.direction === 'OWES_ME' || tag.direction === 'I_OWE') && tag.settlementLegacy === false) {
+    // Paid, netted and written off all count as cleared.
+    const cleared = toMinor(tag.settledAmount) + toMinor(tag.nettedAmount) + toMinor(tag.writtenOffAmount);
+    if (tag.settlementStatus === 'partial') {
+      return { text: `${rupees(cleared)} cleared · ${rupees(toMinor(tag.pendingAmount))} pending`, warn: true };
+    }
+    if (tag.settlementStatus === 'settled') return { text: 'Settled', warn: false };
+    return null;
+  }
+
+  const legacy = [
+    settles.length > 0 ? `Settles ${settles.length}` : null,
+    settledBy.length > 0 ? `Settled by ${settledBy.length}` : null,
+  ].filter(Boolean).join(' · ');
+  return legacy ? { text: legacy, warn: false } : null;
+}
+
+export function FriendTagCard({ tag, transaction, friendName, onRemove, onAllocationChanged }) {
   const displayName = friendName || tag.friend?.name || `Friend #${tag.friendId}`;
   const tone = directionTone(tag.direction);
   const amount = Number(tag.amount || 0);
   const tx = tag.transaction || transaction;
   const tint = friendTint(displayName);
   const note = typeof tag.note === 'string' ? tag.note.trim() : '';
-  const settles = tag.settlesTransactions || [];
-  const settledBy = tag.settledBy || [];
-  const settlementSummary = [
-    settles.length > 0 ? `Settles ${settles.length}` : null,
-    settledBy.length > 0 ? `Settled by ${settledBy.length}` : null,
-  ].filter(Boolean).join(' · ');
+  const settlement = settlementLine(tag);
+  const [allocating, setAllocating] = useState(false);
+  const canAllocate = tag.direction === 'SETTLEMENT' && Boolean(onAllocationChanged);
 
   return (
     <article className={`friend-tag-card friend-tag-card--${tone}`}>
@@ -72,7 +114,22 @@ export function FriendTagCard({ tag, transaction, friendName, onRemove }) {
         <h4>{displayName}</h4>
         <p className="friend-tag-card__summary">{ledgerDirectionPhrase(tag.direction, displayName)}</p>
         {note ? <p className="friend-tag-card__note">{note}</p> : null}
-        {settlementSummary ? <p className="friend-tag-card__note">{settlementSummary}</p> : null}
+        {settlement ? (
+          <p className="friend-tag-card__note" style={settlement.warn ? { color: 'var(--ft-warn)' } : undefined}>
+            {settlement.text}
+          </p>
+        ) : null}
+        {canAllocate ? (
+          <button
+            type="button"
+            className="friend-tag-card__apply"
+            onClick={() => setAllocating(true)}
+          >
+            {tag.settlementLegacy === false && toMinor(tag.allocatedAmount) === 0
+              ? 'Apply to entries'
+              : 'Change what it settles'}
+          </button>
+        ) : null}
       </div>
 
       <div className="friend-tag-card__side">
@@ -83,6 +140,15 @@ export function FriendTagCard({ tag, transaction, friendName, onRemove }) {
           </button>
         ) : null}
       </div>
+
+      {allocating ? (
+        <SettlementAllocationModal
+          tag={tag}
+          friendName={displayName}
+          onClose={() => setAllocating(false)}
+          onSaved={onAllocationChanged}
+        />
+      ) : null}
     </article>
   );
 }

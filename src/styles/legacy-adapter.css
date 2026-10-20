@@ -342,6 +342,19 @@ p.empty,
   color: var(--ft-text-faint);
 }
 
+/* Opens the bill-wise allocation for a settlement. */
+.friend-tag-card__apply {
+  margin-top: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--ft-accent-hairline);
+  background: var(--ft-accent-soft);
+  color: var(--ft-accent-fg);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .friend-tag-card__side {
   display: flex;
   align-items: center;

@@ -4,10 +4,19 @@ import DynamicTable from './DynamicTable.jsx';
 import { buildLedgerPdf } from '../utils/ledgerPdf';
 import {
   LEDGER_OWNER_NAME,
+  ledgerBalanceDelta,
+  ledgerDate,
   ledgerDirectionPhrase,
+  ledgerImpactText,
+  ledgerNumber,
+  ledgerOpenText,
+  ledgerOpenTotals,
   ledgerRowAmount,
+  ledgerRs,
   ledgerRunningBalances,
-  ledgerSettlementEntryLabel,
+  ledgerSettledEntryParts,
+  ledgerSettlementCheck,
+  ledgerSettlementHeadParts,
   ledgerSettlementIndex,
   ledgerSettlementRefLines,
 } from '../utils/ledgerParties';
@@ -26,23 +35,11 @@ function monthBounds(d = new Date()) {
   };
 }
 
-function formatDateLedger(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return new Intl.DateTimeFormat('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
-}
-
-function formatNumberIn(value) {
-  if (value === null || value === undefined) return '—';
-  const num = Number(value);
-  if (Number.isNaN(num)) return String(value);
-  return new Intl.NumberFormat('en-IN').format(num);
-}
+// Dates, amounts and settlement lines come from the shared ledger text helpers
+// in ledgerParties.js, which the PDF renders too — so this preview always
+// shows exactly what the exported file will say.
+const formatDateLedger = ledgerDate;
+const formatNumberIn = ledgerNumber;
 
 function rowClass(direction) {
   if (direction === 'OWES_ME') return 'ledger-row--owes';
@@ -51,35 +48,48 @@ function rowClass(direction) {
   return 'ledger-row--neutral';
 }
 
-function formatRunningBalance(value) {
-  return value < 0 ? `-Rs.${formatNumberIn(Math.abs(value))}` : `Rs.${formatNumberIn(value)}`;
+function balanceImpactCell(tag) {
+  const className = {
+    OWES_ME: 'ledger-impact--pos',
+    I_OWE: 'ledger-impact--neg',
+    SETTLEMENT: 'ledger-impact--settled',
+  }[tag?.direction] ?? '';
+  return { text: ledgerImpactText(tag), className };
 }
 
-function balanceImpactCell(direction, amount) {
-  if (direction === 'OWES_ME') {
-    return { text: `+Rs.${formatNumberIn(amount)}`, className: 'ledger-impact--pos' };
-  }
-  if (direction === 'I_OWE') {
-    return { text: `-Rs.${formatNumberIn(amount)}`, className: 'ledger-impact--neg' };
-  }
-  if (direction === 'SETTLEMENT') {
-    return { text: `-Rs.${formatNumberIn(amount)}`, className: 'ledger-impact--settled' };
-  }
-  return { text: '—', className: '' };
+/** One " | "-separated line of the settlement breakdown. */
+function PartsLine({ parts, className = 'ledger-settle-entry' }) {
+  return (
+    <div className={className}>
+      {parts.map((part, i) => (
+        <span key={i} style={{ display: 'contents' }}>
+          {i > 0 && (
+            <span className="ledger-settle-sep" aria-hidden="true">
+              |
+            </span>
+          )}
+          <span className={i === 0 ? 'ledger-settle-ref' : i === parts.length - 1 ? 'ledger-settle-entry__desc' : undefined}>
+            {part}
+          </span>
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function computeSummary(tags) {
   let totalTheyOwe = 0;
   let totalYouOwe = 0;
   let totalSettlements = 0;
+  let net = 0;
   for (const tag of tags) {
     const amt = Number(tag.amount) || 0;
     if (tag.direction === 'OWES_ME') totalTheyOwe += amt;
     else if (tag.direction === 'I_OWE') totalYouOwe += amt;
     else if (tag.direction === 'SETTLEMENT') totalSettlements += amt;
+    net += ledgerBalanceDelta(tag);
   }
-  const net = totalTheyOwe - totalYouOwe - totalSettlements;
-  return { totalTheyOwe, totalYouOwe, totalSettlements, net };
+  return { totalTheyOwe, totalYouOwe, totalSettlements, net, open: ledgerOpenTotals(tags) };
 }
 
 function sanitizeFilePart(name) {
@@ -111,45 +121,17 @@ function LedgerSettlementDetails({ groups }) {
           </thead>
           <tbody>
             {groups.map((group) => {
-              const st = group.tag.transaction || {};
+              const check = ledgerSettlementCheck(group);
               return (
                 <tr key={group.tag.id}>
                   <td>
-                    <div className="ledger-settle-entry">
-                      <span className="ledger-settle-ref">#{group.row}</span>
-                      <span className="ledger-settle-sep" aria-hidden="true">
-                        |
-                      </span>
-                      <span>{formatDateLedger(st.transactionDate)}</span>
-                      <span className="ledger-settle-sep" aria-hidden="true">
-                        |
-                      </span>
-                      <span>Rs.{formatNumberIn(group.tag.amount)}</span>
-                    </div>
+                    <PartsLine parts={ledgerSettlementHeadParts(group)} />
+                    {check && <div className="ledger-settle-check">Check: {check}</div>}
                   </td>
                   <td>
-                    {group.settles.map((ref, idx) => {
-                      const t = ref.tag?.transaction || {};
-                      const desc = t.upiDescription || t.narration || t.upiName || '—';
-                      const impact = balanceImpactCell(ref.tag?.direction, ref.tag?.amount);
-                      return (
-                        <div className="ledger-settle-entry" key={ref.tag?.id ?? idx}>
-                          <span className="ledger-settle-ref">{ledgerSettlementEntryLabel(ref)}</span>
-                          <span className="ledger-settle-sep" aria-hidden="true">
-                            |
-                          </span>
-                          <span>{formatDateLedger(t.transactionDate)}</span>
-                          <span className="ledger-settle-sep" aria-hidden="true">
-                            |
-                          </span>
-                          <span className={impact.className}>{impact.text}</span>
-                          <span className="ledger-settle-sep" aria-hidden="true">
-                            |
-                          </span>
-                          <span className="ledger-settle-entry__desc">{desc}</span>
-                        </div>
-                      );
-                    })}
+                    {group.settles.map((ref, idx) => (
+                      <PartsLine key={ref.tag?.id ?? idx} parts={ledgerSettledEntryParts(group, ref)} />
+                    ))}
                   </td>
                 </tr>
               );
@@ -190,6 +172,22 @@ function LedgerSummaryTable({ summary }) {
               <td>Net balance</td>
               <td className="num">Rs.{formatNumberIn(summary.net)}</td>
             </tr>
+            {/* Today's open amounts for the rows in this statement — the same
+                figures as the "Still open" column. */}
+            <tr>
+              <td>Still open today: they owe you</td>
+              <td className="num">Rs.{formatNumberIn(summary.open?.theyOwe ?? 0)}</td>
+            </tr>
+            <tr>
+              <td>Still open today: you owe</td>
+              <td className="num">Rs.{formatNumberIn(summary.open?.youOwe ?? 0)}</td>
+            </tr>
+            {summary.open?.onAccount > 0 && (
+              <tr>
+                <td>Money on account (not applied yet)</td>
+                <td className="num">Rs.{formatNumberIn(summary.open.onAccount)}</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -260,6 +258,7 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
                   <th className="num">Amount (Rs.)</th>
                   <th className="num">Balance impact</th>
                   <th className="num">Running balance</th>
+                  <th className="num">Still open (today)</th>
                   <th>Settlement link</th>
                   <th>Note</th>
                 </tr>
@@ -267,8 +266,8 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
               <tbody>
                 {tags.map((tag, i) => {
                   const t = tag.transaction || {};
-                  const impact = balanceImpactCell(tag.direction, tag.amount);
-                  const refLines = ledgerSettlementRefLines(settlements.rows[i]);
+                  const impact = balanceImpactCell(tag);
+                  const refLines = ledgerSettlementRefLines(settlements.rows[i], tag);
                   const name = t.upiName || '—';
                   const desc = t.upiDescription || t.narration || '—';
                   const bank = t.upiBank || '—';
@@ -286,7 +285,8 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
                       </td>
                       <td className="num ledger-table__amount">Rs.{formatNumberIn(ledgerRowAmount(tag))}</td>
                       <td className={`num ${impact.className}`}>{impact.text}</td>
-                      <td className="num ledger-table__running">{formatRunningBalance(runningBalances[i])}</td>
+                      <td className="num ledger-table__running">{ledgerRs(runningBalances[i])}</td>
+                      <td className="num">{ledgerOpenText(tag)}</td>
                       <td className="ledger-table__links">
                         {refLines.length
                           ? refLines.map((line) => (

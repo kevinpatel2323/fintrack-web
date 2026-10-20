@@ -80,6 +80,13 @@ Serialization: `serializeSplitPayload` / `parseSplitPayload` encode `SerializedS
 | `FriendLedgerExportModal` | Exports friend ledger to PDF via `jspdf` |
 | `Portal` | Renders children into document.body |
 | `MobileTransactionCard` | Mobile-optimized transaction row |
+| `StatementQueue` | "Card statements · up next" panel on the import page: next statement per card, month strip, file-name hint |
+| `SettlementAllocator` | Bill-wise settlement picker: applies one settlement across a friend's open entries (any amount each, "Fill oldest first"), nets in the other side ("Net all off"), refunds money on account; the rest stays on account. Shows the reconciled balance on top. Used by `SplitTransactionForm` and `SettlementAllocationModal` |
+| `SettlementAllocationModal` | Re-applies an existing settlement (e.g. on-account money later, or a refund); opened from `FriendTagCard` and the friend page |
+| `NetOffModal` | Nets what a friend owes against what the user owes them, no money moving |
+| `WriteOffModal` | Writes off a leftover (round-off) on an entry or a settlement |
+| `LegacyReviewModal` | Reviews a friend's settlements saved before amounts existed, with suggested amounts; opened from the friend page or People (`?review=1`) |
+| `ui/Dialog` | Shared modal frame for the dialogs above |
 
 ## Utility modules
 
@@ -88,9 +95,13 @@ Serialization: `serializeSplitPayload` / `parseSplitPayload` encode `SerializedS
 | `utils/dateUtils.js` | Date formatting helpers |
 | `utils/tableSort.js` | Column sort logic for DataTable |
 | `utils/stringUtils.js` | Text helpers |
-| `utils/ledgerParties.js` | Summarize ledger participants |
+| `utils/ledgerParties.js` | Friend-ledger maths and **all ledger text** (`ledgerRs`, `ledgerDate`, `ledgerImpactText`, `ledgerOpenText`, `ledgerSettledEntryParts`, `ledgerSettlementCheck`, `ledgerSettlementRefLines`). The export preview (`FriendLedgerExportModal`) and the PDF must both render from these — never format ledger amounts or settlement lines locally, or the two drift apart |
 | `utils/ledgerPdf.js` | jsPDF-based ledger PDF export |
+| `utils/settlementAllocation.js` | Bill-wise settlement maths in paise: oldest-first fill, draft checks, API shape. Settlement direction for balances lives in `ledgerBalanceDelta` (`settlementSide: 'paid'` adds) |
 | `hooks/useMediaQuery.js` | Responsive breakpoint hook |
+| `hooks/useImportSchedule.js` | Shared card import schedule (one request for nav badges + pages); call `refreshImportSchedule()` after anything that changes imports or a card's statement day |
+| `hooks/useReviewSummary.js` | Shared count of older settlements to review (People badge); call `refreshReviewSummary()` after reviewing |
+| `hooks/createSharedResource.js` | The one-request-for-every-view store both hooks above are built on |
 
 ## Styling
 

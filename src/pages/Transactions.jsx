@@ -508,7 +508,7 @@ export default function Transactions() {
     return Number((amountMinor / minorPerMajor).toFixed(2));
   }
 
-  async function applySplitTags(transactionId, { results, direction, note, linkedTagsByParticipant }) {
+  async function applySplitTags(transactionId, { results, direction, note, allocationsByParticipant }) {
     setTagsStatusByTransaction((p) => ({ ...p, [transactionId]: '' }));
     setSplitApplyingTransactionId(transactionId);
     const noteTrimmed = typeof note === 'string' ? note.trim() : '';
@@ -517,7 +517,7 @@ export default function Transactions() {
         const amountMinor = r.amountMinor;
         const lineDirection = amountMinor === 0 ? 'NOTHING_OUTSTANDING' : direction;
         const amountValue = amountMinor === 0 ? 0 : minorToApiAmount(amountMinor, 100);
-        const linkedIds = linkedTagsByParticipant?.[r.participantId];
+        const allocations = allocationsByParticipant?.[r.participantId];
         const res = await apiFetch(`${API_BASE}/transactions/${transactionId}/friends`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -526,8 +526,7 @@ export default function Transactions() {
             amount: amountValue,
             direction: lineDirection,
             ...(noteTrimmed ? { note: noteTrimmed } : {}),
-            ...(lineDirection === 'SETTLEMENT' && linkedIds?.length > 0
-              ? { linkedTransactionIds: linkedIds.map(Number) } : {}),
+            ...(lineDirection === 'SETTLEMENT' && allocations?.length > 0 ? { allocations } : {}),
           }),
         });
         const data = await res.json();
@@ -756,6 +755,7 @@ export default function Transactions() {
       splitApplying={splitApplyingTransactionId === friendTagsSheetRow.id}
       onApplySplit={(args) => applySplitTags(friendTagsSheetRow.id, args)}
       onDeleteTag={(tagId) => deleteTag(friendTagsSheetRow.id, tagId)}
+      onTagsChanged={() => fetchTags(friendTagsSheetRow.id)}
       onClose={closeFriendTagsSheet}
     />
   );

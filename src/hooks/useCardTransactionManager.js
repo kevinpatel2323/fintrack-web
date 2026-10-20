@@ -79,7 +79,7 @@ export function useCardTransactionManager({
 
   const applySplit = useCallback(async (
     txnId,
-    { results, direction, note, linkedTagsByParticipant },
+    { results, direction, note, allocationsByParticipant },
   ) => {
     setTagsStatusByTransaction((p) => ({ ...p, [txnId]: '' }));
     setSplitApplyingTransactionId(txnId);
@@ -89,14 +89,13 @@ export function useCardTransactionManager({
         const amountMinor = r.amountMinor;
         const lineDirection = amountMinor === 0 ? 'NOTHING_OUTSTANDING' : direction;
         const amountValue = amountMinor === 0 ? 0 : Number((amountMinor / 100).toFixed(2));
-        const linkedIds = linkedTagsByParticipant?.[r.participantId];
+        const allocations = allocationsByParticipant?.[r.participantId];
         await addCardTransactionFriend(txnId, {
           friendId: Number(r.participantId),
           amount: amountValue,
           direction: lineDirection,
           ...(noteTrimmed ? { note: noteTrimmed } : {}),
-          ...(lineDirection === 'SETTLEMENT' && linkedIds?.length > 0
-            ? { linkedTransactionIds: linkedIds.map(Number) } : {}),
+          ...(lineDirection === 'SETTLEMENT' && allocations?.length > 0 ? { allocations } : {}),
         });
       }
       setTagsStatusByTransaction((p) => ({ ...p, [txnId]: 'Split applied — friend tags added.' }));
@@ -139,11 +138,13 @@ export function useCardTransactionManager({
       splitApplying: splitApplyingTransactionId === txn.id,
       onApplySplit: (args) => applySplit(txn.id, args),
       onDeleteTag: (tagId) => removeTag(txn.id, tagId),
+      onTagsChanged: () => fetchTags(txn.id),
       onClose: closeManage,
     };
   }, [
     categories, assignCategory, categoryStatusByTransaction, tagsByTransaction,
     tagsStatusByTransaction, splitApplyingTransactionId, applySplit, removeTag, closeManage,
+    fetchTags,
   ]);
 
   return {

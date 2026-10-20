@@ -201,15 +201,15 @@ export default function TransactionDetail() {
 
   function minorToApiAmount(minor) { return Number((minor / 100).toFixed(2)); }
 
-  async function applySplit({ results, direction, note, linkedTagsByParticipant }) {
+  async function applySplit({ results, direction, note, allocationsByParticipant }) {
     setTagsStatus('');
     setSplitApplying(true);
     const noteTrimmed = typeof note === 'string' ? note.trim() : '';
     try {
       for (const r of results) {
         const lineDirection = r.amountMinor === 0 ? 'NOTHING_OUTSTANDING' : direction;
-        const linkedIds = linkedTagsByParticipant?.[r.participantId];
-        await apiFetch(`${API_BASE}/transactions/${id}/friends`, {
+        const allocations = allocationsByParticipant?.[r.participantId];
+        const res = await apiFetch(`${API_BASE}/transactions/${id}/friends`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -217,10 +217,15 @@ export default function TransactionDetail() {
             amount: r.amountMinor === 0 ? 0 : minorToApiAmount(r.amountMinor),
             direction: lineDirection,
             ...(noteTrimmed ? { note: noteTrimmed } : {}),
-            ...(lineDirection === 'SETTLEMENT' && linkedIds?.length > 0
-              ? { linkedTransactionIds: linkedIds.map(Number) } : {}),
+            ...(lineDirection === 'SETTLEMENT' && allocations?.length > 0 ? { allocations } : {}),
           }),
         });
+        // A rejected tag (an allocation the server refused, say) must not read
+        // as "Split applied".
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message || data.error || 'Failed to add tag');
+        }
       }
       setTagsStatus('Split applied.');
       await fetchTags();
@@ -376,6 +381,7 @@ export default function TransactionDetail() {
                         transaction={tx}
                         friendName={friendName}
                         onRemove={() => deleteTag(tag.id)}
+                        onAllocationChanged={fetchTags}
                       />
                     );
                   })
