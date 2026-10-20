@@ -14,6 +14,7 @@ import { IcPlus, IcChevR, IcWallet } from '../components/ui/Icon.jsx';
 import CardFace from '../components/ui/CardFace.jsx';
 import CardFormModal from '../components/CardFormModal.jsx';
 import { fetchDues, fetchWallet } from '../services/cardsApi.js';
+import { useImportSchedule } from '../hooks/useImportSchedule.js';
 import { inr, inrCompact } from '../utils/inr.js';
 import { useIsCompact } from '../styles/breakpoints.js';
 
@@ -33,6 +34,25 @@ const STATUS_LABELS = {
   'no-due': 'No due',
 };
 
+/** One line under a credit card: the statement to import next, or when it lands. */
+function NextStatementHint({ schedule }) {
+  if (!schedule?.next) return null;
+  const { status, next, pending } = schedule;
+  if (status === 'ready') {
+    return (
+      <div style={{ color: 'var(--ft-warn)', fontSize: 11.5, marginTop: 2, fontWeight: 500 }}>
+        Import next · {next.label}
+        {pending.length > 1 ? ` (+${pending.length - 1} more)` : ''}
+      </div>
+    );
+  }
+  return (
+    <div style={{ color: 'var(--ft-text-faint)', fontSize: 11.5, marginTop: 2 }}>
+      Statements up to date · {next.label} in {next.daysAway} day{next.daysAway === 1 ? '' : 's'}
+    </div>
+  );
+}
+
 export default function Cards() {
   const navigate = useNavigate();
   const isMobile = useIsCompact();
@@ -41,6 +61,8 @@ export default function Cards() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
+  const { data: schedule } = useImportSchedule();
+  const scheduleByCard = new Map((schedule?.cards ?? []).map((s) => [s.card.id, s]));
 
   const load = async () => {
     setLoading(true);
@@ -227,6 +249,7 @@ export default function Cards() {
                         ? `Outstanding · ${inrCompact(card.outstanding)}`
                         : `Spent this month · ${inrCompact(card.thisMonthSpend)}`}
                     </div>
+                    <NextStatementHint schedule={scheduleByCard.get(card.id)} />
                   </div>
                   <IcChevR size={16} style={{ color: 'var(--ft-text-dim)' }} />
                 </div>

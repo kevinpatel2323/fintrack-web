@@ -4,6 +4,7 @@ import { GhostBtn, PrimaryBtn, Overline } from './ui/primitives.jsx';
 import CardFace from './ui/CardFace.jsx';
 import { IcClose } from './ui/Icon.jsx';
 import { BANK_TINTS, CARD_PALETTES, NETWORKS, createCard, updateCard } from '../services/cardsApi.js';
+import { refreshImportSchedule } from '../hooks/useImportSchedule.js';
 
 const BANK_OPTIONS = Object.entries(BANK_TINTS).map(([key, v]) => ({ key, label: v.name }));
 
@@ -104,6 +105,8 @@ export default function CardFormModal({ initial = null, onClose, onSaved }) {
         payload.atmLimit = form.atmLimit === '' ? null : Number(form.atmLimit);
       }
       const saved = initial?.id ? await updateCard(initial.id, payload) : await createCard(payload);
+      // A new card or a changed statement day moves what is due for import.
+      refreshImportSchedule();
       onSaved?.(saved);
     } catch (err) {
       setError(err.message || 'Failed to save card');

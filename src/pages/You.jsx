@@ -4,6 +4,7 @@ import {
 } from '../components/ui/primitives.jsx';
 import { IcUpload, IcTag, IcSettings, IcChevR, IcCal, IcCommand } from '../components/ui/Icon.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useImportSchedule } from '../hooks/useImportSchedule.js';
 
 const ROWS = [
   { to: '/import', label: 'Import statement', icon: IcUpload, sub: 'Upload HDFC XLSX' },
@@ -15,6 +16,10 @@ const ROWS = [
 export default function You() {
   const { authDisabled } = useAuth();
   const rows = authDisabled ? ROWS.filter((row) => !row.authOnly) : ROWS;
+  const { data: schedule } = useImportSchedule();
+  const toImport = schedule?.pendingCount ?? 0;
+  // Name the oldest waiting statement, so the row says what to go and get.
+  const nextUp = schedule?.cards?.find((c) => c.status === 'ready');
   return (
     <>
       <header className="ft-mobile__header">
@@ -32,6 +37,7 @@ export default function You() {
         <Card pad={6}>
           {rows.map((row, i) => {
             const Ic = row.icon;
+            const alert = row.to === '/import' && toImport > 0 && nextUp;
             return (
               <Link
                 key={row.to}
@@ -53,8 +59,24 @@ export default function You() {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 500 }}>{row.label}</div>
-                  <div style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>{row.sub}</div>
+                  <div style={{ color: alert ? 'var(--ft-warn)' : 'var(--ft-text-dim)', fontSize: 12 }}>
+                    {alert
+                      ? `Next: ${nextUp.next.label} · ${nextUp.card.nickname || nextUp.card.name} •• ${nextUp.card.last4}`
+                      : row.sub}
+                  </div>
                 </div>
+                {alert && (
+                  <span
+                    aria-label={`${toImport} card statement${toImport === 1 ? '' : 's'} to import`}
+                    style={{
+                      fontFamily: 'var(--ft-font-mono)', fontSize: 11.5, fontWeight: 600,
+                      color: 'var(--ft-warn)', background: 'var(--ft-warn-soft)',
+                      padding: '2px 7px', borderRadius: 999,
+                    }}
+                  >
+                    {toImport}
+                  </span>
+                )}
                 <IcChevR size={14} style={{ color: 'var(--ft-text-faint)' }} />
               </Link>
             );

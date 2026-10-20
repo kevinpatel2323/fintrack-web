@@ -123,6 +123,13 @@
   border-radius: 999px;
 }
 
+/* Something is waiting on the user behind this item (e.g. statements to import). */
+.ft-sidebar__nav-badge--alert {
+  color: var(--ft-warn);
+  background: var(--ft-warn-soft);
+  font-weight: 600;
+}
+
 .ft-sidebar__insight {
   margin-top: auto;
   background: var(--ft-surface);
@@ -399,6 +406,22 @@
 
 .ft-tabbar__item--active { color: var(--ft-accent-fg); }
 
+.ft-tabbar__icon {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Nudge on a tab whose section has something waiting, e.g. statements to import. */
+.ft-tabbar__dot {
+  position: absolute;
+  top: -1px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ft-warn);
+}
+
 .ft-tabbar__label {
   font-size: 9px;
   font-weight: 500;
@@ -465,6 +488,18 @@
   }
 
   .ft-sidebar__nav-item--active::before { left: -8px; }
+
+  /* The count badge is hidden at this width, so an alert shows as a dot. */
+  .ft-sidebar__nav-item--alert::after {
+    content: '';
+    position: absolute;
+    top: 9px;
+    right: 14px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ft-warn);
+  }
 
   .ft-theme-toggle {
     grid-template-columns: minmax(0, 1fr);

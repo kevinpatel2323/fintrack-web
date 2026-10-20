@@ -124,6 +124,8 @@ export const importCcStatement = (cardId, file, confirmedMatches) =>
       : undefined,
   });
 export const listCardImports = (cardId) => request(`/cards/${cardId}/imports`);
+// Per credit card: which statement is out and waiting, and when the next lands.
+export const fetchImportSchedule = () => request('/cards/import-schedule');
 export const revertCardImport = (importId) =>
   request(`/cards/imports/${importId}/revert`, { method: 'POST' });
 

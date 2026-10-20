@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import DynamicTable from '../components/DynamicTable.jsx';
+import StatementQueue from '../components/StatementQueue.jsx';
+import { refreshImportSchedule } from '../hooks/useImportSchedule.js';
 import {
   Card, Num, GhostBtn, PrimaryBtn, Overline,
 } from '../components/ui/primitives.jsx';
@@ -92,6 +94,32 @@ function MatchReview({ matches, confirmedKeys, onToggle }) {
         })}
       </div>
     </Card>
+  );
+}
+
+/**
+ * The card statement being previewed jumps past ones that are already out but
+ * not imported. Importing out of order works, but it is usually a slip — the
+ * skipped months then show as missing until they are imported too.
+ */
+function SkipWarning({ preview }) {
+  const skipped = preview?.skippedStatements || [];
+  if (skipped.length === 0) return null;
+  const labels = skipped.map((s) => s.label);
+  const list = labels.length > 1
+    ? `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}`
+    : labels[0];
+  return (
+    <div style={{
+      padding: '10px 12px', borderRadius: 10,
+      background: 'var(--ft-warn-soft)', color: 'var(--ft-text)',
+      fontSize: 12.5, lineHeight: 1.5,
+    }}>
+      <strong style={{ color: 'var(--ft-warn)' }}>Out of order.</strong>{' '}
+      {list} {labels.length > 1 ? 'are' : 'is'} out but not imported yet, and this
+      statement comes after {labels.length > 1 ? 'them' : 'it'}. You can still
+      import it — or go back and import {list} first.
+    </div>
   );
 }
 
@@ -306,7 +334,11 @@ export default function StatementImport() {
   }
 
   async function refreshAfterUpload() {
-    await Promise.all([loadLastImport(selectedAccount), loadHistory()]);
+    await Promise.all([
+      loadLastImport(selectedAccount),
+      loadHistory(),
+      refreshImportSchedule(),
+    ]);
   }
 
   function resetUpload() {
@@ -496,6 +528,12 @@ export default function StatementImport() {
                 onRemove={resetUpload}
               />
 
+              {uploadPreview.skippedStatements?.length > 0 && (
+                <div style={{ padding: '0 22px 14px' }}>
+                  <SkipWarning preview={uploadPreview} />
+                </div>
+              )}
+
               <div style={{ borderTop: '1px solid var(--ft-border)' }}>
                 <DynamicTable
                   columns={PREVIEW_COLUMNS}
@@ -546,6 +584,7 @@ export default function StatementImport() {
 
         {/* ── Right: summary panel ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <StatementQueue />
           <LastImportCard
             lastImport={lastImport}
             accounts={accounts}
@@ -649,6 +688,9 @@ function MobileView({
           ))}
         </div>
 
+        {/* What to upload is only a question before a file is picked. */}
+        {step === 1 && <StatementQueue />}
+
         <LastImportCard
           lastImport={lastImport}
           accounts={accounts}
@@ -714,6 +756,8 @@ function MobileView({
             )}
           </Card>
         )}
+
+        {step === 3 && uploadPreview && <SkipWarning preview={uploadPreview} />}
 
         {step === 3 && uploadPreview && (
           <MatchReview

@@ -48,6 +48,7 @@ import {
 import { cardTxnStatus, toCardTableRow } from '../utils/cardTransactionRow.jsx';
 import { inr, inrCompact } from '../utils/inr.js';
 import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
+import { refreshImportSchedule } from '../hooks/useImportSchedule.js';
 import { useIsCompact } from '../styles/breakpoints.js';
 
 import { API_BASE, apiFetch } from '../services/http.js';
@@ -168,6 +169,7 @@ export default function CardDetail() {
     if (!confirm('Delete this card? Statements, transactions and payments will also be removed.')) return;
     try {
       await deleteCard(card.id);
+      refreshImportSchedule();
       navigate('/cards');
     } catch (e) {
       setError(e.message || 'Failed to delete');
