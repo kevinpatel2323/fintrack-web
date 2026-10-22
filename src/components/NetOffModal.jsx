@@ -138,6 +138,7 @@ export default function NetOffModal({ friendId, friendName, onClose, onSaved }) 
                         <span className="settle-alloc__name">{tx.upiName || tx.narration || due.note || 'Entry'}</span>
                         <span className="settle-alloc__meta">
                           {formatDate(tx.transactionDate)} · {rupees(availableMinor(due))} open
+                          {due.entryGroup?.title ? ` · ${due.entryGroup.title}` : ''}
                         </span>
                       </span>
                     </label>

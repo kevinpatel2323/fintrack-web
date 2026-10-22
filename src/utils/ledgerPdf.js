@@ -4,19 +4,24 @@ import {
   ledgerBalanceDelta,
   ledgerDate,
   ledgerDirectionPhrase,
+  ledgerGroupDateText,
+  ledgerGroupDirectionText,
+  ledgerGroupHeadParts,
+  ledgerGroupImpactText,
+  ledgerGroupMemberParts,
+  ledgerGroupOpenText,
   ledgerImpactText,
   ledgerNumber,
   ledgerOpenText,
   ledgerOpenTotals,
   ledgerRowAmount,
   ledgerRs,
-  ledgerRunningBalances,
   ledgerSettledEntryParts,
   ledgerSettlementCheck,
   ledgerSettlementHeadParts,
-  ledgerSettlementIndex,
   ledgerSettlementRefLines,
 } from './ledgerParties';
+import { ledgerStatement } from './entryGroups.js';
 
 const MARGIN = 40;
 const TABLE_FONT = 8;
@@ -182,13 +187,31 @@ export function buildLedgerPdf({
     return y + rowH;
   }
 
-  function rowCells(tag, index, runningBalance, links) {
+  function rowCells(row) {
+    if (row.kind === 'group') {
+      const { totals } = row;
+      return [
+        String(row.no),
+        cellStr(ledgerGroupDateText(totals)),
+        cellStr(row.group.title),
+        `${totals.count} entries - see Group details`,
+        '-',
+        cellStr(ledgerGroupDirectionText(totals, friendName)),
+        ledgerRs(Math.abs(totals.totalAmount)),
+        ledgerGroupImpactText(totals),
+        ledgerRs(row.running),
+        cellStr(ledgerGroupOpenText(totals, friendName)),
+        cellStr(ledgerSettlementRefLines(row.links, null).join('\n') || '-'),
+        '-',
+      ];
+    }
+    const { tag, links } = row;
     const t = tag.transaction || {};
     const name = t.upiName || '-';
     const desc = t.upiDescription || t.narration || '-';
     const bank = t.upiBank || '-';
     return [
-      String(index + 1),
+      String(row.no),
       formatDatePdf(t.transactionDate),
       cellStr(name),
       cellStr(desc),
@@ -196,7 +219,7 @@ export function buildLedgerPdf({
       cellStr(ledgerDirectionPhrase(tag.direction, friendName)),
       ledgerRs(ledgerRowAmount(tag)),
       ledgerImpactText(tag),
-      ledgerRs(runningBalance),
+      ledgerRs(row.running),
       cellStr(ledgerOpenText(tag)),
       cellStr(ledgerSettlementRefLines(links, tag).join('\n') || '-'),
       cellStr(tag.note || '-'),
@@ -233,15 +256,13 @@ export function buildLedgerPdf({
   }
 
   /**
-   * Spells out each settlement: how much of it went to each entry (share first,
-   * then what that entry still has open today), with the row numbers the
-   * "Settlement link" column points at, and the sum that shows the split — so
-   * a settlement can be audited without cross-checking the app.
+   * A titled two-column table under the ledger — "Group details" and
+   * "Settlement details" — repeating its title and header on a new page.
+   * `cells` is one [left, right] pair of text per row.
    */
-  function drawSettlementDetails(yStart, groups) {
+  function drawDetailTable(yStart, title, detailHeaders, cells) {
     const pad = 4;
     const widths = [contentW * 0.34, contentW * 0.66];
-    const detailHeaders = ['Settlement entry', 'Entries it settles'];
 
     const bundlesFor = (cells) =>
       cells.map((c, i) => pdf.splitTextToSize(c, widths[i] - pad * 2));
@@ -275,7 +296,7 @@ export function buildLedgerPdf({
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(11);
       pdf.setTextColor(12, 25, 41);
-      pdf.text('Settlement details', MARGIN, y + 12);
+      pdf.text(title, MARGIN, y + 12);
       return y + 20;
     }
 
@@ -286,28 +307,13 @@ export function buildLedgerPdf({
       return paint(y, bundles, heightOf(bundles), true);
     }
 
-    function settlementCell(group) {
-      const check = ledgerSettlementCheck(group);
-      return cellStr(
-        [ledgerSettlementHeadParts(group).join(' | '), check ? `Check: ${check}` : null]
-          .filter(Boolean)
-          .join('\n'),
-      );
-    }
-
-    function settledCell(group) {
-      return group.settles
-        .map((ref) => cellStr(ledgerSettledEntryParts(group, ref).join(' | ')))
-        .join('\n');
-    }
-
     let y = drawTitle(yStart);
     y = drawHeader(y);
 
-    for (const group of groups) {
+    for (const pair of cells) {
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(TABLE_FONT);
-      const bundles = bundlesFor([settlementCell(group), settledCell(group)]);
+      const bundles = bundlesFor(pair);
       const rowH = heightOf(bundles);
 
       if (y + rowH > bottomLimit) {
@@ -389,14 +395,42 @@ export function buildLedgerPdf({
     return tableTop + tableH + 16;
   }
 
-  const runningBalances = ledgerRunningBalances(tags);
-  const settlements = ledgerSettlementIndex(tags);
+  /**
+   * Spells out each settlement: how much of it went to each entry (share first,
+   * then what that entry still has open today), with the row numbers the
+   * "Settlement link" column points at, and the sum that shows the split — so
+   * a settlement can be audited without cross-checking the app.
+   */
+  function settlementDetailCells(group) {
+    const check = ledgerSettlementCheck(group);
+    return [
+      cellStr(
+        [ledgerSettlementHeadParts(group).join(' | '), check ? `Check: ${check}` : null]
+          .filter(Boolean)
+          .join('\n'),
+      ),
+      group.settles.map((ref) => cellStr(ledgerSettledEntryParts(group, ref).join(' | '))).join('\n'),
+    ];
+  }
+
+  /** A group's one row, opened up: every entry in it. */
+  function groupDetailCells(row) {
+    return [
+      cellStr(ledgerGroupHeadParts(row, friendName).join(' | ')),
+      row.members
+        .map((tag, i) => cellStr(ledgerGroupMemberParts(tag, row.memberLinks[i], friendName).join(' | ')))
+        .join('\n'),
+    ];
+  }
+
+  const statement = ledgerStatement(tags);
+  const groupRows = statement.rows.filter((row) => row.kind === 'group');
 
   let y = drawPageHeader(true);
   y = drawTableHeaderRow(y);
 
-  for (let i = 0; i < tags.length; i++) {
-    const cells = rowCells(tags[i], i, runningBalances[i], settlements.rows[i]);
+  for (const row of statement.rows) {
+    const cells = rowCells(row);
     const pad = 4;
     const lineBundles = cells.map((c, j) => pdf.splitTextToSize(c, colW[j] - pad * 2));
     const maxL = Math.max(...lineBundles.map((l) => l.length), 1);
@@ -408,17 +442,28 @@ export function buildLedgerPdf({
       y = drawTableHeaderRow(y);
     }
 
-    y = drawDataRow(y, cells, balanceImpactColorPdf(tags[i]));
+    const impactColor = row.kind === 'group'
+      ? row.totals.balanceDelta >= 0 ? IMPACT_POS_COLOR : IMPACT_NEG_COLOR
+      : balanceImpactColorPdf(row.tag);
+    y = drawDataRow(y, cells, impactColor);
   }
 
   y += 16;
-  if (settlements.groups.length > 0) {
+  const detailTables = [
+    groupRows.length > 0 && ['Group details', ['Group', 'Entries in it'], groupRows.map(groupDetailCells)],
+    statement.settlements.length > 0 && [
+      'Settlement details',
+      ['Settlement entry', 'Entries it settles'],
+      statement.settlements.map(settlementDetailCells),
+    ],
+  ].filter(Boolean);
+  for (const [title, detailHeaders, cells] of detailTables) {
     // Title + header row + one row of body needs to clear the fold together.
     if (y + 74 > bottomLimit) {
       pdf.addPage();
       y = drawPageHeader(false);
     }
-    y = drawSettlementDetails(y, settlements.groups) + 16;
+    y = drawDetailTable(y, title, detailHeaders, cells) + 16;
   }
 
   const summaryBlockH = 230;

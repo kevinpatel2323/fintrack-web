@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import SettlementAllocator from './SettlementAllocator.jsx';
+import { fetchGroups } from '../services/friendsApi.js';
 import { draftToAllocations } from '../utils/settlementAllocation.js';
 import {
   calculateAdjustmentSplit,
@@ -91,7 +92,7 @@ function formatInr(minor, minorPerMajor) {
  * @param {string} [props.defaultDirection] Initial direction (same values as the tag form).
  * @param {boolean} [props.applying]
  * @param {number} [props.minorPerMajor]
- * @param {(args: { results: import('../utils/splitTypes.ts').SplitResult[], direction: string, note?: string }) => void | Promise<void>} [props.onApplySplit]
+ * @param {(args: { results: import('../utils/splitTypes.ts').SplitResult[], direction: string, note?: string, allocationsByParticipant: Record<string, object[]>, groupByParticipant: Record<string, string> }) => void | Promise<void>} [props.onApplySplit]
  */
 const SPLIT_NOTE_MAX_LEN = 500;
 
@@ -117,6 +118,11 @@ export default function SplitTransactionForm({
   // off and by how much (see SettlementAllocator), and whether that is valid.
   const [allocationDrafts, setAllocationDrafts] = useState({});
   const [allocationStatuses, setAllocationStatuses] = useState({});
+  // Not a settlement: per participant, one of their entry groups to put the
+  // new entry in ("Ketul's wedding"), and each friend's groups to pick from.
+  const [groupByParticipant, setGroupByParticipant] = useState({});
+  const [groupsByFriend, setGroupsByFriend] = useState({});
+  const requestedGroups = useRef(new Set());
 
   useEffect(() => {
     setSplitDirection(defaultDirection);
@@ -339,6 +345,21 @@ export default function SplitTransactionForm({
 
   const deltaMinor = totalMinor != null ? totalMinor - sumResultsMinor : 0;
 
+  useEffect(() => {
+    if (splitDirection === 'SETTLEMENT') return;
+    for (const id of orderedSelected) {
+      if (requestedGroups.current.has(id)) continue;
+      requestedGroups.current.add(id);
+      fetchGroups(id)
+        .then((res) => setGroupsByFriend((prev) => ({ ...prev, [id]: res?.data || [] })))
+        .catch(() => setGroupsByFriend((prev) => ({ ...prev, [id]: [] })));
+    }
+  }, [orderedSelected, splitDirection]);
+
+  const groupPickIds = splitDirection === 'SETTLEMENT'
+    ? []
+    : orderedSelected.filter((id) => groupsByFriend[id]?.length > 0);
+
   const handleApply = async () => {
     if (!validation.valid || !onApplySplit || applying) return;
     const note = splitNote.trim();
@@ -351,11 +372,16 @@ export default function SplitTransactionForm({
         }
       }
     }
+    const groupPicks = {};
+    for (const id of groupPickIds) {
+      if (groupByParticipant[id]) groupPicks[id] = groupByParticipant[id];
+    }
     await onApplySplit({
       results,
       direction: splitDirection,
       ...(note ? { note } : {}),
       allocationsByParticipant,
+      groupByParticipant: groupPicks,
     });
   };
 
@@ -626,6 +652,33 @@ export default function SplitTransactionForm({
                   <p className="empty">Give {p?.name || 'them'} an amount in the split first.</p>
                 )}
               </div>
+            );
+          })}
+        </div>
+      )}
+
+      {groupPickIds.length > 0 && (
+        <div className="split-txn-settlement-section">
+          <p className="split-txn-label">
+            Add to a group <span className="split-txn-label-optional">(optional)</span>
+          </p>
+          {groupPickIds.map((id) => {
+            const p = participants.find((x) => String(x.id) === id);
+            return (
+              <label key={id} className="split-txn-settlement-participant">
+                <span className="split-txn-settlement-participant__name">{p?.name || id}</span>
+                <select
+                  value={groupByParticipant[id] || ''}
+                  onChange={(e) => setGroupByParticipant((prev) => ({ ...prev, [id]: e.target.value }))}
+                >
+                  <option value="">Not in a group</option>
+                  {groupsByFriend[id].map((g) => (
+                    <option key={g.id} value={String(g.id)}>
+                      {g.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
             );
           })}
         </div>

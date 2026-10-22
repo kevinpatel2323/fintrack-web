@@ -5,9 +5,14 @@ import SettlementAllocationModal from '../components/SettlementAllocationModal.j
 import NetOffModal, { canNetOff } from '../components/NetOffModal.jsx';
 import WriteOffModal from '../components/WriteOffModal.jsx';
 import LegacyReviewModal from '../components/LegacyReviewModal.jsx';
-import { deleteOffset, deleteWriteOff, fetchOffsets } from '../services/friendsApi.js';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
+import { GroupRow, GroupSelectionBar, GroupTitleDialog } from '../components/EntryGroups.jsx';
+import {
+  createGroup, deleteGroup, deleteOffset, deleteWriteOff, fetchOffsets, updateGroup,
+} from '../services/friendsApi.js';
 import { refreshReviewSummary } from '../hooks/useReviewSummary.js';
 import { rupees, toMinor } from '../utils/settlementAllocation.js';
+import { groupIdOf, groupLedgerRows } from '../utils/entryGroups.js';
 import {
   Card, Num, Pill, Avatar, GhostBtn, Overline, HeroAmount, SectionTitle,
 } from '../components/ui/primitives.jsx';
@@ -40,6 +45,12 @@ export default function FriendDetail() {
   const [reviewOpen, setReviewOpen] = useState(searchParams.get('review') === '1');
   const [offsets, setOffsets] = useState([]);
   const [actionError, setActionError] = useState('');
+  // Entry groups: ticking entries to group (or to add to `picking.target`),
+  // the title dialog, and the group waiting on "Ungroup?".
+  const [picking, setPicking] = useState(null);
+  const [picked, setPicked] = useState(() => new Set());
+  const [groupDialog, setGroupDialog] = useState(null);
+  const [ungrouping, setUngrouping] = useState(null);
 
   async function load() {
     try {
@@ -74,6 +85,57 @@ export default function FriendDetail() {
     } catch (e) {
       setActionError(e.message || 'Could not undo.');
     }
+  }
+
+  function startPicking(target = null) {
+    setPicked(new Set());
+    setPicking({ target });
+  }
+
+  function stopPicking() {
+    setPicking(null);
+    setPicked(new Set());
+  }
+
+  function togglePicked(tagId) {
+    setPicked((prev) => {
+      const next = new Set(prev);
+      const key = String(tagId);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  async function groupAction(action) {
+    setActionError('');
+    try {
+      await action();
+      stopPicking();
+      await load();
+    } catch (e) {
+      setActionError(e.message || 'Could not change the group.');
+    }
+  }
+
+  function confirmPicked() {
+    if (picking?.target) {
+      groupAction(() => updateGroup(id, picking.target.id, { addTagIds: [...picked].map(Number) }));
+    } else {
+      setGroupDialog({ mode: 'create', members: tags.filter((t) => picked.has(String(t.id))) });
+    }
+  }
+
+  // Create and rename both come through the title dialog, which shows the
+  // error itself if saving fails.
+  async function saveGroupTitle(title) {
+    if (groupDialog.mode === 'create') {
+      await createGroup(id, title, groupDialog.members.map((t) => t.id));
+      stopPicking();
+    } else {
+      await updateGroup(id, groupDialog.group.id, { title });
+    }
+    await load();
   }
 
   useEffect(() => {
@@ -116,6 +178,20 @@ export default function FriendDetail() {
     if (tab === 'settled') return tags.filter((t) => t.direction === 'SETTLEMENT' || t.direction === 'NOTHING_OUTSTANDING');
     return tags;
   }, [tags, tab]);
+
+  // A group shows when any of its entries passes the tab, always with all of
+  // its entries, so what it adds up to is the whole group.
+  const rows = useMemo(() => {
+    const members = new Map();
+    for (const t of tags) {
+      const groupId = groupIdOf(t);
+      if (groupId) members.set(groupId, [...(members.get(groupId) || []), t]);
+    }
+    return groupLedgerRows(filtered).map((r) =>
+      r.kind === 'group' ? { ...r, members: members.get(r.group.id) } : r,
+    );
+  }, [tags, filtered]);
+  const canGroup = tags.filter(isGroupable).length >= 2;
 
   if (!f) {
     return (
@@ -221,12 +297,54 @@ export default function FriendDetail() {
       {reviewOpen && (
         <LegacyReviewModal friendId={id} friendName={f.name} onClose={() => setReviewOpen(false)} onSaved={reload} />
       )}
+      {groupDialog && (
+        <GroupTitleDialog
+          mode={groupDialog.mode}
+          initialTitle={groupDialog.group?.title}
+          members={groupDialog.members}
+          friendName={f.name}
+          onClose={() => setGroupDialog(null)}
+          onSubmit={saveGroupTitle}
+        />
+      )}
+      <ConfirmDialog
+        open={Boolean(ungrouping)}
+        title={`Ungroup "${ungrouping?.title}"?`}
+        message="Its entries go back to being listed one by one. Nothing about the balance changes."
+        confirmLabel="Ungroup"
+        onConfirm={() => {
+          const group = ungrouping;
+          setUngrouping(null);
+          groupAction(() => deleteGroup(id, group.id));
+        }}
+        onCancel={() => setUngrouping(null)}
+      />
     </>
+  );
+
+  const ledgerRow = (t, first, extra = {}) => (
+    <LedgerRow
+      key={t.id}
+      tag={t}
+      first={first}
+      onAllocate={setAllocatingTag}
+      onWriteOff={setWriteOffTag}
+      onUndoWriteOff={(writeOffId) => undo(() => deleteWriteOff(id, writeOffId))}
+      pick={picking && isGroupable(t) ? { checked: picked.has(String(t.id)), onToggle: () => togglePicked(t.id) } : null}
+      {...extra}
+    />
   );
 
   const activityFeed = (
     <Card pad={18}>
-      <SectionTitle>Activity</SectionTitle>
+      <SectionTitle
+        action={canGroup && !picking ? <GhostBtn onClick={() => startPicking()}>Group entries</GhostBtn> : null}
+      >
+        Activity
+      </SectionTitle>
+      {picking && (
+        <GroupSelectionBar count={picked.size} target={picking.target} onConfirm={confirmPicked} onCancel={stopPicking} />
+      )}
       <div className="txn-pills" style={{ marginBottom: 12 }}>
         <Pill active={tab === 'all'} onClick={() => setTab('all')}>All</Pill>
         <Pill active={tab === 'open'} onClick={() => setTab('open')}>Open</Pill>
@@ -238,16 +356,22 @@ export default function FriendDetail() {
         <p className="empty">No activity yet.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {filtered.map((t, i) => (
-            <LedgerRow
-              key={t.id || i}
-              tag={t}
+          {rows.map((r, i) => (r.kind === 'group' ? (
+            <GroupRow
+              key={`group-${r.group.id}`}
+              group={r.group}
+              members={r.members}
+              friendName={f.name}
               first={i === 0}
-              onAllocate={setAllocatingTag}
-              onWriteOff={setWriteOffTag}
-              onUndoWriteOff={(writeOffId) => undo(() => deleteWriteOff(id, writeOffId))}
+              onRename={() => setGroupDialog({ mode: 'rename', group: r.group, members: r.members })}
+              onAddEntries={() => startPicking(r.group)}
+              onUngroup={() => setUngrouping(r.group)}
+              renderEntry={(t, j) => ledgerRow(t, j === 0, {
+                onRemoveFromGroup: () =>
+                  groupAction(() => updateGroup(id, r.group.id, { removeTagIds: [Number(t.id)] })),
+              })}
             />
-          ))}
+          ) : ledgerRow(r.tag, i === 0)))}
         </div>
       )}
       {actionError && <p className="status" style={{ color: 'var(--ft-spend)' }}>{actionError}</p>}
@@ -418,7 +542,12 @@ function rowSettlementNotes(tag) {
 
 const NOTE_COLOR = { warn: 'var(--ft-warn)', ok: 'var(--ft-income)', dim: 'var(--ft-text-dim)' };
 
-function LedgerRow({ tag, first, onAllocate, onWriteOff, onUndoWriteOff }) {
+// What can be bundled into a group; settlements are paid against entries and
+// stay outside. Mirrors the API's rule.
+const GROUPABLE = new Set(['OWES_ME', 'I_OWE', 'NOTHING_OUTSTANDING']);
+const isGroupable = (t) => GROUPABLE.has(t.direction) && !groupIdOf(t);
+
+function LedgerRow({ tag, first, onAllocate, onWriteOff, onUndoWriteOff, pick, onRemoveFromGroup }) {
   const dir = tag.direction;
   const isSettlement = dir === 'SETTLEMENT';
   const isIOwe = dir === 'I_OWE';
@@ -444,16 +573,28 @@ function LedgerRow({ tag, first, onAllocate, onWriteOff, onUndoWriteOff }) {
       ? toMinor(tag.unallocatedAmount)
       : tag.settlementStatus === 'partial' ? toMinor(tag.pendingAmount) : 0
     : 0;
+  const title = tx.upiName || tx.narration || tag.note || 'Transaction';
   return (
     <div
+      onClick={pick ? (e) => { if (!e.target.closest('input, button')) pick.onToggle(); } : undefined}
       style={{
         display: 'flex',
         alignItems: 'center',
         gap: 12,
         padding: '12px 4px',
         borderTop: first ? 'none' : '1px solid var(--ft-border)',
+        cursor: pick ? 'pointer' : undefined,
       }}
     >
+      {pick && (
+        <input
+          type="checkbox"
+          checked={pick.checked}
+          onChange={pick.onToggle}
+          aria-label={`Select ${title}`}
+          style={{ width: 18, height: 18, flexShrink: 0, accentColor: 'var(--ft-accent)' }}
+        />
+      )}
       <div
         style={{
           width: 34, height: 34, borderRadius: 10,
@@ -465,9 +606,7 @@ function LedgerRow({ tag, first, onAllocate, onWriteOff, onUndoWriteOff }) {
         <Ic size={16} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ color: 'var(--ft-text)', fontSize: 14, fontWeight: 500 }}>
-          {tx.upiName || tx.narration || tag.note || 'Transaction'}
-        </div>
+        <div style={{ color: 'var(--ft-text)', fontSize: 14, fontWeight: 500 }}>{title}</div>
         <div style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>{date}</div>
         {(tag.writeOffs || []).map((w) => (
           <div key={w.id} style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, marginTop: 2 }}>
@@ -496,6 +635,11 @@ function LedgerRow({ tag, first, onAllocate, onWriteOff, onUndoWriteOff }) {
           {leftover > 0 && onWriteOff && (
             <button type="button" className="friend-tag-card__apply" onClick={() => onWriteOff(tag)}>
               Write off {rupees(leftover)}
+            </button>
+          )}
+          {onRemoveFromGroup && (
+            <button type="button" className="friend-tag-card__apply" onClick={onRemoveFromGroup}>
+              Take out of group
             </button>
           )}
         </div>

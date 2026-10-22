@@ -86,6 +86,7 @@ Serialization: `serializeSplitPayload` / `parseSplitPayload` encode `SerializedS
 | `NetOffModal` | Nets what a friend owes against what the user owes them, no money moving |
 | `WriteOffModal` | Writes off a leftover (round-off) on an entry or a settlement |
 | `LegacyReviewModal` | Reviews a friend's settlements saved before amounts existed, with suggested amounts; opened from the friend page or People (`?review=1`) |
+| `EntryGroups` | Entry groups on the friend page ("Ketul's wedding"): the collapsible group row, the name/rename dialog and the "tick entries to group" bar. Groups also show as one row in `SettlementAllocator` (tick to settle the group; its smaller side is netted in), as a pick in `SplitTransactionForm`, and as one row plus "Group details" in the ledger export |
 | `ui/Dialog` | Shared modal frame for the dialogs above |
 
 ## Utility modules
@@ -97,6 +98,7 @@ Serialization: `serializeSplitPayload` / `parseSplitPayload` encode `SerializedS
 | `utils/stringUtils.js` | Text helpers |
 | `utils/ledgerParties.js` | Friend-ledger maths and **all ledger text** (`ledgerRs`, `ledgerDate`, `ledgerImpactText`, `ledgerOpenText`, `ledgerSettledEntryParts`, `ledgerSettlementCheck`, `ledgerSettlementRefLines`). The export preview (`FriendLedgerExportModal`) and the PDF must both render from these — never format ledger amounts or settlement lines locally, or the two drift apart |
 | `utils/ledgerPdf.js` | jsPDF-based ledger PDF export |
+| `utils/entryGroups.js` | Entry groups: collapsing a group into one row (`groupLedgerRows`), its totals from its entries (`groupTotals`, same sums as the API's `groupFigures`), settling it as one (`fillGroup`), and `ledgerStatement` — the numbered rows the export preview and PDF both print, with settlement links to grouped entries pointing at the group's row |
 | `utils/settlementAllocation.js` | Bill-wise settlement maths in paise: oldest-first fill, draft checks, API shape. Settlement direction for balances lives in `ledgerBalanceDelta` (`settlementSide: 'paid'` adds) |
 | `hooks/useMediaQuery.js` | Responsive breakpoint hook |
 | `hooks/useImportSchedule.js` | Shared card import schedule (one request for nav badges + pages); call `refreshImportSchedule()` after anything that changes imports or a card's statement day |

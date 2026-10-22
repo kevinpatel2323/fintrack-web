@@ -508,7 +508,7 @@ export default function Transactions() {
     return Number((amountMinor / minorPerMajor).toFixed(2));
   }
 
-  async function applySplitTags(transactionId, { results, direction, note, allocationsByParticipant }) {
+  async function applySplitTags(transactionId, { results, direction, note, allocationsByParticipant, groupByParticipant }) {
     setTagsStatusByTransaction((p) => ({ ...p, [transactionId]: '' }));
     setSplitApplyingTransactionId(transactionId);
     const noteTrimmed = typeof note === 'string' ? note.trim() : '';
@@ -518,6 +518,7 @@ export default function Transactions() {
         const lineDirection = amountMinor === 0 ? 'NOTHING_OUTSTANDING' : direction;
         const amountValue = amountMinor === 0 ? 0 : minorToApiAmount(amountMinor, 100);
         const allocations = allocationsByParticipant?.[r.participantId];
+        const groupId = groupByParticipant?.[r.participantId];
         const res = await apiFetch(`${API_BASE}/transactions/${transactionId}/friends`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -527,6 +528,7 @@ export default function Transactions() {
             direction: lineDirection,
             ...(noteTrimmed ? { note: noteTrimmed } : {}),
             ...(lineDirection === 'SETTLEMENT' && allocations?.length > 0 ? { allocations } : {}),
+            ...(lineDirection !== 'SETTLEMENT' && groupId ? { entryGroupId: Number(groupId) } : {}),
           }),
         });
         const data = await res.json();

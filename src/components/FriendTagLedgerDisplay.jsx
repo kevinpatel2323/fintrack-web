@@ -114,6 +114,9 @@ export function FriendTagCard({ tag, transaction, friendName, onRemove, onAlloca
         <h4>{displayName}</h4>
         <p className="friend-tag-card__summary">{ledgerDirectionPhrase(tag.direction, displayName)}</p>
         {note ? <p className="friend-tag-card__note">{note}</p> : null}
+        {tag.entryGroup?.title ? (
+          <p className="friend-tag-card__note">Part of {tag.entryGroup.title}</p>
+        ) : null}
         {settlement ? (
           <p className="friend-tag-card__note" style={settlement.warn ? { color: 'var(--ft-warn)' } : undefined}>
             {settlement.text}

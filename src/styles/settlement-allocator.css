@@ -200,3 +200,26 @@
   font-size: 12.5px;
   line-height: 1.5;
 }
+
+/* A group of entries ("Ketul's wedding") as one row, its entries inside. */
+.settle-alloc__expand {
+  justify-self: start;
+  margin-left: 26px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ft-accent-fg);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settle-alloc__members {
+  display: grid;
+  gap: 6px;
+  margin-left: 26px;
+}
+
+.settle-alloc__members .settle-alloc__row {
+  background: var(--ft-surface);
+}

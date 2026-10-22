@@ -201,7 +201,7 @@ export default function TransactionDetail() {
 
   function minorToApiAmount(minor) { return Number((minor / 100).toFixed(2)); }
 
-  async function applySplit({ results, direction, note, allocationsByParticipant }) {
+  async function applySplit({ results, direction, note, allocationsByParticipant, groupByParticipant }) {
     setTagsStatus('');
     setSplitApplying(true);
     const noteTrimmed = typeof note === 'string' ? note.trim() : '';
@@ -209,6 +209,7 @@ export default function TransactionDetail() {
       for (const r of results) {
         const lineDirection = r.amountMinor === 0 ? 'NOTHING_OUTSTANDING' : direction;
         const allocations = allocationsByParticipant?.[r.participantId];
+        const groupId = groupByParticipant?.[r.participantId];
         const res = await apiFetch(`${API_BASE}/transactions/${id}/friends`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -218,6 +219,7 @@ export default function TransactionDetail() {
             direction: lineDirection,
             ...(noteTrimmed ? { note: noteTrimmed } : {}),
             ...(lineDirection === 'SETTLEMENT' && allocations?.length > 0 ? { allocations } : {}),
+            ...(lineDirection !== 'SETTLEMENT' && groupId ? { entryGroupId: Number(groupId) } : {}),
           }),
         });
         // A rejected tag (an allocation the server refused, say) must not read

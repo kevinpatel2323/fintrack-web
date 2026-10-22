@@ -7,19 +7,24 @@ import {
   ledgerBalanceDelta,
   ledgerDate,
   ledgerDirectionPhrase,
+  ledgerGroupDateText,
+  ledgerGroupDirectionText,
+  ledgerGroupHeadParts,
+  ledgerGroupImpactText,
+  ledgerGroupMemberParts,
+  ledgerGroupOpenText,
   ledgerImpactText,
   ledgerNumber,
   ledgerOpenText,
   ledgerOpenTotals,
   ledgerRowAmount,
   ledgerRs,
-  ledgerRunningBalances,
   ledgerSettledEntryParts,
   ledgerSettlementCheck,
   ledgerSettlementHeadParts,
-  ledgerSettlementIndex,
   ledgerSettlementRefLines,
 } from '../utils/ledgerParties';
+import { groupIdOf, ledgerStatement } from '../utils/entryGroups.js';
 import './FriendLedgerExportModal.css';
 
 import { API_BASE, apiFetch } from '../services/http.js';
@@ -46,6 +51,12 @@ function rowClass(direction) {
   if (direction === 'I_OWE') return 'ledger-row--owe';
   if (direction === 'SETTLEMENT') return 'ledger-row--settlement';
   return 'ledger-row--neutral';
+}
+
+/** A group row reads by which way its entries net. */
+function groupRowClass(totals) {
+  const net = Math.round(Number(totals.totalAmount) * 100);
+  return `ledger-row--group ${net > 0 ? 'ledger-row--owes' : net < 0 ? 'ledger-row--owe' : 'ledger-row--neutral'}`;
 }
 
 function balanceImpactCell(tag) {
@@ -136,6 +147,39 @@ function LedgerSettlementDetails({ groups }) {
                 </tr>
               );
             })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/** Each entry group's entries, under the one row the group prints as. */
+function LedgerGroupDetails({ rows, friendName }) {
+  return (
+    <div className="ledger-summary-table-block">
+      <h2 className="ledger-summary-table-block__title">Group details</h2>
+      <div className="ledger-summary-table-wrap">
+        <table className="ledger-summary-table ledger-settlement-table">
+          <thead>
+            <tr>
+              <th>Group</th>
+              <th>Entries in it</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.group.id}>
+                <td>
+                  <PartsLine parts={ledgerGroupHeadParts(row, friendName)} />
+                </td>
+                <td>
+                  {row.members.map((tag, idx) => (
+                    <PartsLine key={tag.id} parts={ledgerGroupMemberParts(tag, row.memberLinks[idx], friendName)} />
+                  ))}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -237,8 +281,8 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
     );
   }
 
-  const runningBalances = ledgerRunningBalances(tags);
-  const settlements = ledgerSettlementIndex(tags);
+  const statement = ledgerStatement(tags);
+  const groupRows = statement.rows.filter((row) => row.kind === 'group');
 
   return (
     <div className="ledger-sheet-outer">
@@ -264,16 +308,49 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
                 </tr>
               </thead>
               <tbody>
-                {tags.map((tag, i) => {
+                {statement.rows.map((row) => {
+                  if (row.kind === 'group') {
+                    const { totals } = row;
+                    const refLines = ledgerSettlementRefLines(row.links, null);
+                    return (
+                      <tr key={`group-${row.group.id}`} className={groupRowClass(totals)}>
+                        <td className="idx">{row.no}</td>
+                        <td>{ledgerGroupDateText(totals)}</td>
+                        <td className="ledger-table__group-title">{row.group.title}</td>
+                        <td>{totals.count} entries · see Group details</td>
+                        <td>—</td>
+                        <td>
+                          <span className="ledger-dir">{ledgerGroupDirectionText(totals, friendName)}</span>
+                        </td>
+                        <td className="num ledger-table__amount">Rs.{formatNumberIn(Math.abs(totals.totalAmount))}</td>
+                        <td className={`num ${totals.balanceDelta >= 0 ? 'ledger-impact--pos' : 'ledger-impact--neg'}`}>
+                          {ledgerGroupImpactText(totals)}
+                        </td>
+                        <td className="num ledger-table__running">{ledgerRs(row.running)}</td>
+                        <td className="num">{ledgerGroupOpenText(totals, friendName)}</td>
+                        <td className="ledger-table__links">
+                          {refLines.length
+                            ? refLines.map((line) => (
+                                <span className="ledger-link-line" key={line}>
+                                  {line}
+                                </span>
+                              ))
+                            : '—'}
+                        </td>
+                        <td>—</td>
+                      </tr>
+                    );
+                  }
+                  const { tag } = row;
                   const t = tag.transaction || {};
                   const impact = balanceImpactCell(tag);
-                  const refLines = ledgerSettlementRefLines(settlements.rows[i], tag);
+                  const refLines = ledgerSettlementRefLines(row.links, tag);
                   const name = t.upiName || '—';
                   const desc = t.upiDescription || t.narration || '—';
                   const bank = t.upiBank || '—';
                   return (
                     <tr key={tag.id} className={rowClass(tag.direction)}>
-                      <td className="idx">{i + 1}</td>
+                      <td className="idx">{row.no}</td>
                       <td>{formatDateLedger(t.transactionDate)}</td>
                       <td>{name}</td>
                       <td>{desc}</td>
@@ -285,7 +362,7 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
                       </td>
                       <td className="num ledger-table__amount">Rs.{formatNumberIn(ledgerRowAmount(tag))}</td>
                       <td className={`num ${impact.className}`}>{impact.text}</td>
-                      <td className="num ledger-table__running">{ledgerRs(runningBalances[i])}</td>
+                      <td className="num ledger-table__running">{ledgerRs(row.running)}</td>
                       <td className="num">{ledgerOpenText(tag)}</td>
                       <td className="ledger-table__links">
                         {refLines.length
@@ -303,8 +380,9 @@ function LedgerSheet({ friendName, startDate, endDate, tags, summary }) {
               </tbody>
             </table>
           </div>
-          {settlements.groups.length > 0 && (
-            <LedgerSettlementDetails groups={settlements.groups} />
+          {groupRows.length > 0 && <LedgerGroupDetails rows={groupRows} friendName={friendName} />}
+          {statement.settlements.length > 0 && (
+            <LedgerSettlementDetails groups={statement.settlements} />
           )}
           <LedgerSummaryTable summary={summary} />
         </div>
@@ -458,24 +536,44 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
     return startDate <= endDate;
   }, [startDate, endDate]);
 
+  // A group's entries print as one row, so they go in or out together.
+  const groupMates = useMemo(() => {
+    const byGroup = new Map();
+    for (const tag of loadedTags) {
+      const groupId = groupIdOf(tag);
+      if (groupId) byGroup.set(groupId, [...(byGroup.get(groupId) || []), String(tag.id)]);
+    }
+    const mates = new Map();
+    for (const ids of byGroup.values()) for (const id of ids) mates.set(id, ids);
+    return mates;
+  }, [loadedTags]);
+
   const toggleId = useCallback((id) => {
     const key = String(id);
+    const keys = groupMates.get(key) ?? [key];
+    const include = !selectedRef.current.has(key);
     const next = new Set(selectedRef.current);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
+    for (const k of keys) {
+      if (include) next.add(k);
+      else next.delete(k);
+    }
     // A pinned row's saved value follows its checkbox; an unpinned one is
     // this export only.
-    commit(next, pinnedRef.current, pinnedRef.current.has(key) ? [key] : []);
-  }, [commit]);
+    commit(next, pinnedRef.current, keys.filter((k) => pinnedRef.current.has(k)));
+  }, [commit, groupMates]);
 
   /** Pins the row's current choice, or forgets it if already pinned. */
   const togglePin = useCallback((id) => {
     const key = String(id);
+    const keys = groupMates.get(key) ?? [key];
+    const pin = !pinnedRef.current.has(key);
     const next = new Set(pinnedRef.current);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
-    commit(selectedRef.current, next, [key]);
-  }, [commit]);
+    for (const k of keys) {
+      if (pin) next.add(k);
+      else next.delete(k);
+    }
+    commit(selectedRef.current, next, keys);
+  }, [commit, groupMates]);
 
   const selectAll = useCallback(() => {
     const next = new Set(loadedTags.map((r) => String(r.id)));
@@ -558,6 +656,14 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
       sortable: true,
       accessor: (tag) => tag.transaction?.transactionDate || '',
       cell: (tag) => formatDateLedger(tag.transaction?.transactionDate),
+    },
+    {
+      id: 'group',
+      header: 'Group',
+      width: 140,
+      sortable: true,
+      accessor: (tag) => tag.entryGroup?.title || '',
+      cell: (tag) => tag.entryGroup?.title || '—',
     },
     {
       id: 'direction',

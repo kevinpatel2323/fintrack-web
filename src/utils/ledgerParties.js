@@ -66,14 +66,18 @@ export function ledgerRunningBalances(tags) {
  *
  * Returns `rows[i]` aligned with `tags[i]`, plus `groups` for the settlements
  * that actually settle something.
+ *
+ * When the statement prints entry groups as one row each, `rowOf` (built by
+ * `ledgerStatement` in entryGroups.js) gives every tag its printed row and its group's
+ * title, so a link to a grouped entry points at the group's row.
  */
-export function ledgerSettlementIndex(tags) {
-  const rowByTagId = new Map(tags.map((tag, i) => [String(tag.id), i + 1]));
+export function ledgerSettlementIndex(tags, rowOf = null) {
+  const placeOf = rowOf ?? new Map(tags.map((tag, i) => [String(tag.id), { row: i + 1, group: null }]));
   const resolve = (linked) =>
-    (linked || []).map((entry) => ({
-      tag: entry,
-      row: rowByTagId.get(String(entry?.id)) ?? null,
-    }));
+    (linked || []).map((entry) => {
+      const place = placeOf.get(String(entry?.id));
+      return { tag: entry, row: place?.row ?? null, group: place?.group ?? null };
+    });
 
   // An offset nets entries of the two sides with no money moving. Each entry
   // in one points at the other-side entries it was netted with. Only exported
@@ -104,7 +108,7 @@ export function ledgerSettlementIndex(tags) {
   return {
     rows,
     groups: rows
-      .map((row, i) => ({ tag: tags[i], row: i + 1, settles: row.settles }))
+      .map((row, i) => ({ tag: tags[i], row: placeOf.get(String(tags[i].id))?.row ?? i + 1, settles: row.settles }))
       .filter((group) => group.settles.length > 0),
   };
 }
@@ -201,7 +205,9 @@ function refList(refs, describe) {
       continue;
     }
     const extra = describe ? describe(ref) : '';
-    listed.push(extra ? `#${ref.row} ${extra}` : `#${ref.row}`);
+    const label = extra ? `#${ref.row} ${extra}` : `#${ref.row}`;
+    // Entries of one group share a row number; name the row once.
+    if (!listed.includes(label)) listed.push(label);
   }
   if (missing > 0) listed.push(`+${missing} not listed`);
   return listed.join(', ');
@@ -218,12 +224,14 @@ export function ledgerSettlementRefLines(links, tag) {
   const lines = [];
 
   if (links.settles.length > 0) {
-    const by = (kind) => links.settles.filter((ref) => linkKind(tag, ref.tag) === kind);
+    const loose = links.settles.filter((ref) => !ref.group);
+    const by = (kind) => loose.filter((ref) => linkKind(tag, ref.tag) === kind);
     const amountOf = (ref) => ledgerRs(ref.tag.linkAmount);
     const settles = [
       by('full').length ? `${refList(by('full'))} in full` : null,
       ...by('part').map((ref) => refList([ref], () => `${amountOf(ref)} (part)`)),
       by('legacy').length ? refList(by('legacy')) : null,
+      ...groupedSettles(links.settles, tag),
     ].filter(Boolean);
     if (settles.length) lines.push(`Settles ${settles.join(' · ')}`);
     if (by('netted').length) lines.push(`Nets off ${refList(by('netted'), amountOf)}`);
@@ -239,9 +247,29 @@ export function ledgerSettlementRefLines(links, tag) {
   return lines;
 }
 
+/**
+ * A settlement's grouped entries, one item per group with what the settlement
+ * did to the group as a whole: "#3 Ketul's wedding Rs.6,511" — what it
+ * cleared less what it netted in.
+ */
+function groupedSettles(refs, settlement) {
+  const byRow = new Map();
+  for (const ref of refs) {
+    if (!ref.group || ref.row === null) continue;
+    const kind = linkKind(settlement, ref.tag);
+    const item = byRow.get(ref.row) ?? { title: ref.group, minor: 0, legacy: false };
+    if (kind === 'legacy') item.legacy = true;
+    else item.minor += (kind === 'netted' ? -1 : 1) * paise(ref.tag.linkAmount);
+    byRow.set(ref.row, item);
+  }
+  return [...byRow].map(([row, item]) =>
+    item.legacy ? `#${row} ${item.title}` : `#${row} ${item.title} ${ledgerRs(Math.abs(item.minor) / 100)}`);
+}
+
 /** Row pointer for a single linked entry, for use inside a settlement breakdown. */
 export function ledgerSettlementEntryLabel(ref) {
-  return ref.row !== null ? `#${ref.row}` : 'Not in this statement';
+  if (ref.row === null) return 'Not in this statement';
+  return ref.group ? `#${ref.row} ${ref.group}` : `#${ref.row}`;
 }
 
 /** A settlement's own line in the breakdown: "#55 | 27 Aug 2026 | Rs.10,000". */
@@ -295,4 +323,96 @@ export function ledgerSettlementCheck(group) {
   if (paise(group.tag.writtenOffAmount) > 0) terms.push(`+ ${ledgerRs(group.tag.writtenOffAmount)} written off`);
   if (terms.length === 0) return null;
   return `${ledgerRs(group.tag.amount)} = ${terms.join(' ').replace(/^\+ /, '')}`;
+}
+
+// ── Entry groups in a statement ────────────────────────────────────────────
+// A group ("Ketul's wedding") prints as one row with its entries' totals
+// (`groupTotals` in entryGroups.js), and its entries are listed under
+// "Group details".
+
+/** "30 Nov 2025 - 13 Jan 2026", or one date. */
+export function ledgerGroupDateText(totals) {
+  if (!totals.dateFrom || totals.dateFrom === totals.dateTo) return ledgerDate(totals.dateFrom);
+  return `${ledgerDate(totals.dateFrom)} - ${ledgerDate(totals.dateTo)}`;
+}
+
+/** Which way the group's entries net: "Kevin owes Yash", or "Nets to nothing". */
+export function ledgerGroupDirectionText(totals, friendFullName) {
+  const net = paise(totals.totalAmount);
+  if (net > 0) return ledgerDirectionPhrase('OWES_ME', friendFullName);
+  if (net < 0) return ledgerDirectionPhrase('I_OWE', friendFullName);
+  return 'Nets to nothing';
+}
+
+/** The group's balance impact, "+Rs.2,289" / "-Rs.6,511". */
+export function ledgerGroupImpactText(totals) {
+  const delta = Number(totals.balanceDelta) || 0;
+  return `${delta >= 0 ? '+' : '-'}Rs.${ledgerNumber(Math.abs(delta))}`;
+}
+
+/** What the group still has open today, net: "Rs.450 (Yash owes)", "Settled". */
+export function ledgerGroupOpenText(totals, friendFullName) {
+  if (paise(totals.pendingOwesMe) + paise(totals.pendingIOwe) === 0) return 'Settled';
+  const net = paise(totals.pendingNet);
+  if (net === 0) return 'Rs.0 net';
+  const who = net > 0 ? friendFirstName(friendFullName) : LEDGER_OWNER_FIRST;
+  return `${ledgerRs(Math.abs(net) / 100)} (${who} owes)`;
+}
+
+/**
+ * The "Settlement link" column for a group row: its entries' links merged,
+ * one per settlement, with what that settlement did to the group as a whole
+ * ("Settled by #55 Rs.6,511"). Offsets between the group's own entries are
+ * left out.
+ */
+export function ledgerGroupLinks(members, memberLinks, ownRow) {
+  const settledBy = new Map();
+  const nettedWith = new Map();
+  members.forEach((member, i) => {
+    const links = memberLinks[i];
+    for (const ref of links?.settledBy || []) {
+      const key = String(ref.tag?.id);
+      const item = settledBy.get(key) ?? { ref, minor: 0, legacy: false };
+      if (ref.tag?.linkAmount === null || ref.tag?.linkAmount === undefined) item.legacy = true;
+      else item.minor += (member.direction === clearedSide(ref.tag) ? 1 : -1) * paise(ref.tag.linkAmount);
+      settledBy.set(key, item);
+    }
+    for (const ref of links?.nettedWith || []) {
+      if (ref.row !== ownRow) nettedWith.set(String(ref.tag?.id), ref);
+    }
+  });
+  return {
+    settles: [],
+    settledBy: [...settledBy.values()].map(({ ref, minor, legacy }) => ({
+      ...ref,
+      tag: { ...ref.tag, linkAmount: legacy ? null : Math.abs(minor) / 100 },
+    })),
+    nettedWith: [...nettedWith.values()],
+  };
+}
+
+/** A group's line in "Group details": "#3 | Ketul's wedding | 5 entries | Kevin owes Yash Rs.6,511". */
+export function ledgerGroupHeadParts(row, friendFullName) {
+  const { totals } = row;
+  const net = paise(totals.totalAmount);
+  return [
+    `#${row.no}`,
+    row.group.title,
+    `${totals.count} ${totals.count === 1 ? 'entry' : 'entries'}`,
+    net === 0 ? 'Nets to nothing' : `${ledgerGroupDirectionText(totals, friendFullName)} ${ledgerRs(Math.abs(net) / 100)}`,
+  ];
+}
+
+/**
+ * One entry of a group in "Group details":
+ * "07 Dec 2025 | Kevin owes Yash | Rs.8,800 | Settled | Settled by #55 Rs.8,800 | Ketul wedding outfit".
+ */
+export function ledgerGroupMemberParts(tag, links, friendFullName) {
+  const t = tag.transaction || {};
+  const parts = [ledgerDate(t.transactionDate), ledgerDirectionPhrase(tag.direction, friendFullName), ledgerRs(ledgerRowAmount(tag))];
+  const open = ledgerOpenText(tag);
+  if (open !== '-') parts.push(open === 'Settled' ? 'Settled' : `${open} still open`);
+  parts.push(...ledgerSettlementRefLines(links, tag));
+  parts.push(t.upiDescription || t.narration || t.upiName || tag.note || '-');
+  return parts;
 }

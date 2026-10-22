@@ -829,3 +829,13 @@
     padding: 6px 5px;
   }
 }
+
+/* An entry group ("Ketul's wedding") printed as one row. */
+.ledger-row--group td {
+  background: #f8fafc;
+}
+
+.ledger-table__group-title {
+  font-weight: 700;
+  color: #1e293b;
+}

@@ -79,7 +79,7 @@ export function useCardTransactionManager({
 
   const applySplit = useCallback(async (
     txnId,
-    { results, direction, note, allocationsByParticipant },
+    { results, direction, note, allocationsByParticipant, groupByParticipant },
   ) => {
     setTagsStatusByTransaction((p) => ({ ...p, [txnId]: '' }));
     setSplitApplyingTransactionId(txnId);
@@ -90,12 +90,14 @@ export function useCardTransactionManager({
         const lineDirection = amountMinor === 0 ? 'NOTHING_OUTSTANDING' : direction;
         const amountValue = amountMinor === 0 ? 0 : Number((amountMinor / 100).toFixed(2));
         const allocations = allocationsByParticipant?.[r.participantId];
+        const groupId = groupByParticipant?.[r.participantId];
         await addCardTransactionFriend(txnId, {
           friendId: Number(r.participantId),
           amount: amountValue,
           direction: lineDirection,
           ...(noteTrimmed ? { note: noteTrimmed } : {}),
           ...(lineDirection === 'SETTLEMENT' && allocations?.length > 0 ? { allocations } : {}),
+          ...(lineDirection !== 'SETTLEMENT' && groupId ? { entryGroupId: Number(groupId) } : {}),
         });
       }
       setTagsStatusByTransaction((p) => ({ ...p, [txnId]: 'Split applied — friend tags added.' }));

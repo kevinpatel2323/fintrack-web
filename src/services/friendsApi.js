@@ -49,6 +49,22 @@ export const createWriteOff = (friendId, { tagId, amount, reason }) =>
 export const deleteWriteOff = (friendId, writeOffId) =>
   request(`/friends/${friendId}/write-offs/${writeOffId}`, { method: 'DELETE' });
 
+// ── Entry groups ("Ketul's wedding") ───────────────────────────────────
+export const fetchGroups = (friendId) => request(`/friends/${friendId}/groups`);
+export const createGroup = (friendId, title, tagIds) =>
+  request(`/friends/${friendId}/groups`, {
+    method: 'POST',
+    body: JSON.stringify({ title, tagIds: tagIds.map(Number) }),
+  });
+/** `changes`: `{ title?, addTagIds?, removeTagIds? }`. */
+export const updateGroup = (friendId, groupId, changes) =>
+  request(`/friends/${friendId}/groups/${groupId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(changes),
+  });
+export const deleteGroup = (friendId, groupId) =>
+  request(`/friends/${friendId}/groups/${groupId}`, { method: 'DELETE' });
+
 // ── Settlements saved before amounts existed ───────────────────────────
 export const fetchReviewSummary = () => request('/friends/review-summary');
 export const fetchLegacyReview = (friendId) => request(`/friends/${friendId}/legacy-review`);
