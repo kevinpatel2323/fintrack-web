@@ -3,24 +3,35 @@ import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import Portal from '../components/Portal.jsx';
 import CategoryExportModal from '../components/CategoryExportModal.jsx';
 import {
-  Card, Num, Pill, PrimaryBtn, GhostBtn, Overline, SectionTitle, CatGlyph,
+  Card, Num, PrimaryBtn, GhostBtn, Overline, CatGlyph,
 } from '../components/ui/primitives.jsx';
-import { IcPlus, IcEdit, IcTrash, IcDownload, IcChevR, IcChevL } from '../components/ui/Icon.jsx';
+import { IcPlus, IcEdit, IcTrash, IcDownload, IcChevR, IcChevL, IcSearch } from '../components/ui/Icon.jsx';
 import { useIsCompact } from '../styles/breakpoints.js';
 import { CATEGORY_PALETTE, categoryColor } from '../utils/categoryColors.js';
 import { inr } from '../utils/inr.js';
 import { fetchCategoryBreakdown } from '../services/dashboardApi.js';
 
 import { API_BASE, apiFetch } from '../services/http.js';
+import './categories-redesign.css';
 
 const PRESET_COLORS = Object.values(CATEGORY_PALETTE);
 const EMPTY_FORM = { name: '', color: PRESET_COLORS[0], icon: '' };
 
-function monthRange() {
+/** First and last day of the month `offset` months from now, as ISO dates. */
+function monthRange(offset = 0) {
   const now = new Date();
-  const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
-  const end = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0));
-  return { startDate: start.toISOString().slice(0, 10), endDate: end.toISOString().slice(0, 10) };
+  const start = new Date(Date.UTC(now.getFullYear(), now.getMonth() + offset, 1));
+  const end = new Date(Date.UTC(now.getFullYear(), now.getMonth() + offset + 1, 0));
+  return {
+    startDate: start.toISOString().slice(0, 10),
+    endDate: end.toISOString().slice(0, 10),
+    label: new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(start),
+    short: new Intl.DateTimeFormat('en-IN', { month: 'long', timeZone: 'UTC' }).format(start),
+  };
+}
+
+function plural(n, one, many) {
+  return `${n} ${n === 1 ? one : many}`;
 }
 
 export default function Categories() {
@@ -37,6 +48,9 @@ export default function Categories() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmState, setConfirmState] = useState({ open: false });
   const [exportCat, setExportCat] = useState(null);
+  const [monthOffset, setMonthOffset] = useState(0);
+  const [query, setQuery] = useState('');
+  const month = useMemo(() => monthRange(monthOffset), [monthOffset]);
 
   async function fetchCategories() {
     setLoading(true); setStatus('');
@@ -50,14 +64,16 @@ export default function Categories() {
 
   useEffect(() => { fetchCategories(); }, []);
   useEffect(() => {
+    let cancelled = false;
+    setBreakdown(null);
     (async () => {
       try {
-        const r = monthRange();
-        const b = await fetchCategoryBreakdown(r.startDate, r.endDate);
-        setBreakdown(b);
+        const b = await fetchCategoryBreakdown(month.startDate, month.endDate);
+        if (!cancelled) setBreakdown(b);
       } catch {}
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [month]);
 
   function openCreate() {
     setEditId(null);
@@ -126,11 +142,48 @@ export default function Categories() {
     });
   }
 
-  const totalForCat = (catId) => {
-    if (!breakdown?.categories) return null;
-    const item = breakdown.categories.find((c) => String(c.categoryId) === String(catId));
-    return item || null;
-  };
+  // Spend for the chosen month, keyed by category id.
+  const statById = useMemo(() => {
+    const m = new Map();
+    for (const item of breakdown?.categories || []) {
+      if (item.categoryId != null) m.set(String(item.categoryId), item);
+    }
+    return m;
+  }, [breakdown]);
+
+  // Categories with movement this month first, biggest spend on top; the rest
+  // alphabetically underneath, where they are out of the way but findable.
+  const { active, idle } = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const matches = categories.filter((c) => !q || c.name.toLowerCase().includes(q));
+    const withStat = matches.map((c) => ({ cat: c, stat: statById.get(String(c.id)) || null }));
+    return {
+      active: withStat
+        .filter((r) => r.stat && r.stat.totalAmount !== 0)
+        .sort((x, y) => y.stat.totalAmount - x.stat.totalAmount),
+      idle: withStat
+        .filter((r) => !r.stat || r.stat.totalAmount === 0)
+        .sort((x, y) => x.cat.name.localeCompare(y.cat.name)),
+    };
+  }, [categories, statById, query]);
+
+  const uncategorized = breakdown?.uncategorizedAmount > 0 && !query.trim()
+    ? breakdown.categories.find((c) => c.categoryId == null)
+    : null;
+
+  const rowActions = (c) => (
+    <div className="cat-row__actions">
+      <button type="button" className="cat-icon-btn" onClick={() => setExportCat(c)} aria-label={`Export ${c.name} as CSV`} title="Export transactions as CSV">
+        <IcDownload size={14} />
+      </button>
+      <button type="button" className="cat-icon-btn" onClick={() => openEdit(c)} aria-label={`Edit ${c.name}`} title="Edit">
+        <IcEdit size={14} />
+      </button>
+      <button type="button" className="cat-icon-btn cat-icon-btn--danger" onClick={() => askDelete(c)} aria-label={`Delete ${c.name}`} title="Delete">
+        <IcTrash size={14} />
+      </button>
+    </div>
+  );
 
   const formSheet = formOpen && (
     <Portal>
@@ -183,119 +236,91 @@ export default function Categories() {
   );
 
   const list = (
-    <Card pad={14}>
-      <SectionTitle action={
-        <GhostBtn onClick={openCreate}>
-          <IcPlus size={14} /> Add category
-        </GhostBtn>
-      }>
-        All categories
-      </SectionTitle>
-      {loading ? (
-        <p className="status">Loading…</p>
+    <Card pad={0}>
+      <div className="cat-toolbar">
+        <label className="cat-search">
+          <IcSearch size={14} />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={`Search ${categories.length} categories`}
+            aria-label="Search categories"
+          />
+        </label>
+        {isMobile && (
+          <MonthSwitch month={month} offset={monthOffset} onChange={setMonthOffset} />
+        )}
+      </div>
+
+      {loading && categories.length === 0 ? (
+        <p className="status" style={{ padding: '0 18px 16px' }}>Loading…</p>
       ) : categories.length === 0 ? (
-        <p className="empty">No categories yet.</p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {categories.map((c, i) => {
-            const stat = totalForCat(c.id);
-            const total = stat?.totalAmount ?? 0;
-            const pct = stat?.percentage ?? 0;
-            const color = categoryColor(c);
-            return (
-              <div
-                key={c.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 14,
-                  padding: '14px 6px',
-                  borderTop: i ? '1px solid var(--ft-border)' : 'none',
-                }}
-              >
-                <CatGlyph category={c} size={44} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-                    <span
-                      style={{
-                        color: 'var(--ft-text)',
-                        fontWeight: 500,
-                        fontSize: 15,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {c.name}
-                    </span>
-                    <Num size={14} weight={600} style={{ flexShrink: 0 }}>
-                      {total > 0 ? inr(total) : '—'}
-                    </Num>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                    <div style={{ flex: 1, height: 5, background: 'var(--ft-surface-2)', borderRadius: 999 }}>
-                      <div
-                        style={{
-                          width: `${Math.min(100, pct)}%`,
-                          height: '100%',
-                          background: color,
-                          borderRadius: 999,
-                          transition: 'width 0.2s ease',
-                        }}
-                      />
-                    </div>
-                    <Num size={11} weight={500} color="var(--ft-text-dim)" style={{ flexShrink: 0, minWidth: 28, textAlign: 'right' }}>
-                      {pct.toFixed(0)}%
-                    </Num>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="ft-mobile__icon-btn"
-                  style={{ width: 32, height: 32 }}
-                  onClick={() => setExportCat(c)}
-                  aria-label="Export CSV"
-                  title="Export transactions as CSV"
-                >
-                  <IcDownload size={14} />
-                </button>
-                <button
-                  type="button"
-                  className="ft-mobile__icon-btn"
-                  style={{ width: 32, height: 32 }}
-                  onClick={() => openEdit(c)}
-                  aria-label="Edit"
-                >
-                  <IcEdit size={14} />
-                </button>
-                <button
-                  type="button"
-                  className="ft-mobile__icon-btn"
-                  style={{ width: 32, height: 32, color: 'var(--ft-spend)' }}
-                  onClick={() => askDelete(c)}
-                  aria-label="Delete"
-                >
-                  <IcTrash size={14} />
-                </button>
-              </div>
-            );
-          })}
+        <div className="cat-empty">
+          <p>No categories yet.</p>
+          <GhostBtn onClick={openCreate}><IcPlus size={14} /> Add your first category</GhostBtn>
         </div>
+      ) : (
+        <>
+          {(active.length > 0 || uncategorized) && (
+            <section>
+              <div className="cat-section-head">
+                <Overline>Spent in {month.short}</Overline>
+                <span>{plural(active.length, 'category', 'categories')}</span>
+              </div>
+              {active.map(({ cat, stat }) => (
+                <CategoryRow key={cat.id} cat={cat} stat={stat} actions={rowActions(cat)} />
+              ))}
+              {uncategorized && (
+                <CategoryRow
+                  cat={{ id: 'none', name: 'Uncategorised', color: null, icon: '?' }}
+                  stat={uncategorized}
+                  hint="Not in any category yet"
+                />
+              )}
+            </section>
+          )}
+
+          {idle.length > 0 && (
+            <section>
+              <div className="cat-section-head">
+                <Overline>{breakdown ? `Nothing in ${month.short}` : 'All categories'}</Overline>
+                <span>{plural(idle.length, 'category', 'categories')}</span>
+              </div>
+              <div className="cat-idle-grid">
+                {idle.map(({ cat }) => (
+                  <div key={cat.id} className="cat-idle">
+                    <CatGlyph category={cat} size={32} />
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div className="cat-row__name">{cat.name}</div>
+                      <div className="cat-row__meta">
+                        {cat.transactionCount ? plural(cat.transactionCount, 'transaction', 'transactions') + ' all time' : 'Not used yet'}
+                      </div>
+                    </div>
+                    {rowActions(cat)}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {active.length === 0 && idle.length === 0 && (
+            <p className="empty" style={{ padding: '4px 18px 18px' }}>No category matches “{query}”.</p>
+          )}
+        </>
       )}
-      {status && <p className="status">{status}</p>}
+      {status && <p className="status" style={{ padding: '0 18px 14px' }}>{status}</p>}
     </Card>
   );
 
-  const donut = breakdown?.categories?.length > 0 && (
-    <Card pad={18}>
-      <SectionTitle>This month</SectionTitle>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-        <div style={{ fontFamily: 'var(--ft-font-mono)', fontSize: 28, fontWeight: 500, color: 'var(--ft-text)', letterSpacing: '-1px' }}>
-          {inr(breakdown.totalSpent || 0)}
-        </div>
-        <Overline style={{ marginTop: 6 }}>Total spent</Overline>
-      </div>
-    </Card>
+  const donut = (
+    <MonthSummary
+      breakdown={breakdown}
+      month={month}
+      offset={monthOffset}
+      onOffsetChange={setMonthOffset}
+      showSwitch={!isMobile}
+    />
   );
 
   if (isMobile) {
@@ -333,17 +358,149 @@ export default function Categories() {
       />
       <header className="ft-page-header">
         <div>
-          <p className="ft-page-header__sub">{categories.length} categories</p>
+          <p className="ft-page-header__sub">
+            {plural(categories.length, 'category', 'categories')}
+            {breakdown ? ` · ${active.length} used in ${month.short}` : ''}
+          </p>
           <h1 className="ft-page-header__title">Categories</h1>
         </div>
         <div className="ft-page-header__actions">
           <PrimaryBtn onClick={openCreate}><IcPlus size={16} /> Add category</PrimaryBtn>
         </div>
       </header>
-      <div className="ft-split">
+      <div className="ft-split" style={{ '--ft-split-aside': '340px' }}>
         {list}
-        <div>{donut}</div>
+        <div className="cat-aside">{donut}</div>
       </div>
     </>
+  );
+}
+
+function MonthSwitch({ month, offset, onChange }) {
+  return (
+    <div className="cat-month">
+      <button type="button" className="cat-icon-btn" onClick={() => onChange(offset - 1)} aria-label="Previous month">
+        <IcChevL size={14} />
+      </button>
+      <span>{month.label}</span>
+      <button type="button" className="cat-icon-btn" onClick={() => onChange(offset + 1)} disabled={offset >= 0} aria-label="Next month">
+        <IcChevR size={14} />
+      </button>
+    </div>
+  );
+}
+
+/**
+ * One category with spend in the month. A category can net to a credit (a
+ * card bill paid from the account, refunds) — that shows as money in, with no
+ * share-of-spend bar, since it is not part of the total spent.
+ */
+function CategoryRow({ cat, stat, actions, hint }) {
+  const amount = stat.totalAmount;
+  const isCredit = amount < 0;
+  const pct = Math.max(0, stat.percentage || 0);
+  const color = categoryColor(cat);
+  return (
+    <div className="cat-row">
+      <CatGlyph category={cat} size={36} />
+      <div className="cat-row__body">
+        <div className="cat-row__line">
+          <span className="cat-row__name">{cat.name}</span>
+          <Num size={14} weight={600} color={isCredit ? 'var(--ft-income)' : undefined} style={{ flexShrink: 0 }}>
+            {isCredit ? inr(-amount, { sign: true }) : inr(amount)}
+          </Num>
+        </div>
+        <div className="cat-row__line" style={{ marginTop: 6 }}>
+          {isCredit ? (
+            <span className="cat-row__meta">Net money in · {plural(stat.transactionCount, 'transaction', 'transactions')}</span>
+          ) : (
+            <>
+              <div className="cat-bar"><div style={{ width: `${Math.min(100, Math.max(pct, 1))}%`, background: color }} /></div>
+              <span className="cat-row__meta" style={{ flexShrink: 0 }}>
+                {hint ? `${hint} · ` : ''}{plural(stat.transactionCount, 'txn', 'txns')} · {pct < 1 ? '<1' : pct.toFixed(0)}%
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+      {actions || <div className="cat-row__actions" aria-hidden />}
+    </div>
+  );
+}
+
+const DONUT_SLICES = 5;
+
+/** Total spent in the month, and a donut of where it went — top five plus the rest. */
+function MonthSummary({ breakdown, month, offset, onOffsetChange, showSwitch }) {
+  const spend = (breakdown?.categories || [])
+    .filter((c) => c.totalAmount > 0)
+    .sort((a, b) => b.totalAmount - a.totalAmount);
+  const total = spend.reduce((sum, c) => sum + c.totalAmount, 0);
+  const top = spend.slice(0, DONUT_SLICES).map((c) => ({
+    name: c.categoryId == null ? 'Uncategorised' : c.categoryName,
+    amount: c.totalAmount,
+    color: c.categoryId == null ? 'var(--ft-text-faint)' : categoryColor({ name: c.categoryName, color: c.categoryColor }),
+  }));
+  const rest = spend.slice(DONUT_SLICES).reduce((sum, c) => sum + c.totalAmount, 0);
+  if (rest > 0) top.push({ name: `${spend.length - DONUT_SLICES} more`, amount: rest, color: 'var(--ft-surface-3)' });
+
+  const R = 52;
+  const C = 2 * Math.PI * R;
+  let offsetAcc = 0;
+
+  return (
+    <Card pad={18}>
+      {showSwitch ? (
+        <MonthSwitch month={month} offset={offset} onChange={onOffsetChange} />
+      ) : (
+        <Overline>{month.label}</Overline>
+      )}
+
+      {!breakdown ? (
+        <p className="status" style={{ margin: '18px 0 4px' }}>Loading…</p>
+      ) : total === 0 ? (
+        <p className="empty" style={{ margin: '18px 0 4px' }}>No spending in {month.short}.</p>
+      ) : (
+        <>
+          <div className="cat-donut">
+            <svg viewBox="0 0 128 128" width="148" height="148" aria-hidden>
+              <circle cx="64" cy="64" r={R} fill="none" stroke="var(--ft-surface-2)" strokeWidth="14" />
+              {top.map((s) => {
+                const len = (s.amount / total) * C;
+                // A hairline gap between slices, unless the slice is too thin to spare it.
+                const gap = len > 4 ? 1.5 : 0;
+                const el = (
+                  <circle
+                    key={s.name}
+                    cx="64" cy="64" r={R} fill="none"
+                    stroke={s.color} strokeWidth="14"
+                    strokeDasharray={`${len - gap} ${C - len + gap}`}
+                    strokeDashoffset={-offsetAcc}
+                    transform="rotate(-90 64 64)"
+                  />
+                );
+                offsetAcc += len;
+                return el;
+              })}
+            </svg>
+            <div className="cat-donut__center">
+              <Num size={19} weight={600}>{inr(breakdown.totalSpent || total)}</Num>
+              <span>spent</span>
+            </div>
+          </div>
+
+          <div className="cat-legend">
+            {top.map((s) => (
+              <div key={s.name} className="cat-legend__row">
+                <span className="cat-legend__dot" style={{ background: s.color }} />
+                <span className="cat-legend__name">{s.name}</span>
+                <Num size={12} weight={500} color="var(--ft-text-dim)">{((s.amount / total) * 100).toFixed(0)}%</Num>
+                <Num size={12.5} weight={600} style={{ minWidth: 72, textAlign: 'right' }}>{inr(s.amount)}</Num>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </Card>
   );
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   parseCalendarParams,
@@ -10,7 +10,7 @@ import {
   Card, Num, Pill, PrimaryBtn, GhostBtn, CatGlyph, CategoryChip, Overline,
 } from '../components/ui/primitives.jsx';
 import {
-  IcPlus, IcChevL, IcChevR, IcClose, IcTrash, IcRepeat, IcCard,
+  IcPlus, IcChevL, IcChevR, IcClose, IcTrash, IcRepeat, IcCard, IcCheck,
 } from '../components/ui/Icon.jsx';
 import { useIsCompact } from '../styles/breakpoints.js';
 import { getCcLink } from '../services/cardsApi.js';
@@ -38,8 +38,12 @@ function monthBounds(year, month) {
 
 function buildCells(year, month) {
   const first = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // Only the weeks the month touches (4–6); a trailing week of nothing but
+  // next month's days is just a dimmed row of noise.
+  const weeks = Math.ceil((first.getDay() + daysInMonth) / 7);
   const cells = [];
-  for (let i = 0; i < 42; i++) {
+  for (let i = 0; i < weeks * 7; i++) {
     const cur = new Date(year, month, 1 - first.getDay() + i);
     cells.push({
       iso: toLocalIso(cur),
@@ -182,6 +186,12 @@ export default function Calendar() {
   const [subLoading, setSubLoading] = useState(false);
 
   const [rightPanel, setRightPanel] = useState('day'); // 'day' | 'subs'
+  // The side column scrolls on its own (see .cal-right-col); a new day or
+  // panel starts at its top rather than wherever the last one was left.
+  const rightColRef = useRef(null);
+  useEffect(() => {
+    if (rightColRef.current) rightColRef.current.scrollTop = 0;
+  }, [selectedIso, rightPanel]);
   const [status, setStatus] = useState('');
 
   // Subscription form state
@@ -726,6 +736,7 @@ export default function Calendar() {
               todayIso={todayIso} selectedIso={selectedIso}
               onClickDay={(iso) => patchCalendar({ selectedIso: iso })} compact
             />
+            <CalendarLegend />
           </Card>
 
           {/* Selected day transactions */}
@@ -815,14 +826,22 @@ export default function Calendar() {
           <h1 className="ft-page-header__title">{monthTitle}</h1>
         </div>
         <div className="ft-page-header__actions">
-          <GhostBtn onClick={goPrev} aria-label="Prev month"><IcChevL size={14} /></GhostBtn>
-          <GhostBtn onClick={goToday}>Today</GhostBtn>
-          <GhostBtn onClick={goNext} aria-label="Next month"><IcChevR size={14} /></GhostBtn>
-          <div style={{ width: 1, height: 24, background: 'var(--ft-border)', margin: '0 4px' }} />
-          <Pill active={rightPanel === 'day'} onClick={() => setRightPanel('day')}>Transactions</Pill>
-          <Pill active={rightPanel === 'subs'} onClick={() => setRightPanel('subs')}>
-            <IcRepeat size={12} /> Subscriptions
-          </Pill>
+          <div className="cal-nav" role="group" aria-label="Month">
+            <button type="button" onClick={goPrev} aria-label="Previous month"><IcChevL size={14} /></button>
+            <button type="button" onClick={goToday}>Today</button>
+            <button type="button" onClick={goNext} aria-label="Next month"><IcChevR size={14} /></button>
+          </div>
+          <div className="cal-seg" role="group" aria-label="Side panel">
+            <Pill active={rightPanel === 'day'} onClick={() => setRightPanel('day')} aria-pressed={rightPanel === 'day'}>Transactions</Pill>
+            <Pill
+              active={rightPanel === 'subs'}
+              onClick={() => setRightPanel('subs')}
+              aria-pressed={rightPanel === 'subs'}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+            >
+              <IcRepeat size={12} /> Subscriptions
+            </Pill>
+          </div>
           <PrimaryBtn onClick={openManual}><IcPlus size={16} /> New transaction</PrimaryBtn>
           <GhostBtn onClick={openCreate}><IcPlus size={16} /> New subscription</GhostBtn>
         </div>
@@ -831,21 +850,23 @@ export default function Calendar() {
       <div className="cal-grid-2">
         {/* Left: calendar grid */}
         <Card pad={20}>
-          {txLoading ? (
-            <p className="status">Loading…</p>
-          ) : (
+          {/* The grid stays mounted while a month loads: swapping it for a
+              one-line "Loading…" collapsed the page and threw the scroll
+              position back to the top on every month change. */}
+          <div className={`cal-grid-wrap${txLoading ? ' cal-grid-wrap--loading' : ''}`} aria-busy={txLoading}>
             <CalendarGrid
               cells={cells} txByDay={txByDay} subByDay={subByDay}
               ccDetailByTransaction={ccDetailByTransaction}
               todayIso={todayIso} selectedIso={selectedIso}
               onClickDay={(iso) => { patchCalendar({ selectedIso: iso }); setRightPanel('day'); }}
             />
-          )}
+          </div>
+          <CalendarLegend />
           {status && <p className="status">{status}</p>}
         </Card>
 
         {/* Right column: day detail / subscriptions + month category breakdown */}
-        <div className="cal-right-col">
+        <div className="cal-right-col" ref={rightColRef}>
         {rightPanel === 'day' ? (
           <Card pad={0}>
             {selectedIso ? (
@@ -872,7 +893,7 @@ export default function Calendar() {
                     </div>
                   </div>
                 </div>
-                <div style={{ overflowY: 'auto', maxHeight: 480 }}>
+                <div>
                   {selectedTxs.length === 0 && selectedSubs.length === 0 ? (
                     <p className="empty" style={{ padding: '24px 18px', margin: 0 }}>No activity this day.</p>
                   ) : (
@@ -982,7 +1003,15 @@ function CalendarGrid({ cells, txByDay, subByDay, ccDetailByTransaction = {}, to
           >
             <div className="cal-cell__day">
               <span className={isToday ? 'cal-cell__day-today' : undefined}>{cell.label}</span>
-              {hasSub && <span className="cal-cell__sub-dot" title={`${subs.length} bill${subs.length > 1 ? 's' : ''} due`} />}
+              <span className="cal-cell__marks">
+                {hasSub && <span className="cal-cell__sub-dot" title={`${subs.length} bill${subs.length > 1 ? 's' : ''} due`} />}
+                {catState === 'needs-category' && (
+                  <span className="cal-cell__cat-flag" title="Some transactions need a category" />
+                )}
+                {catState === 'categorized' && (
+                  <IcCheck size={11} stroke={2.5} className="cal-cell__cat-ok" aria-label="All categorized" />
+                )}
+              </span>
             </div>
             {hasTx && !compact && (
               <div className="cal-cell__amounts">
@@ -1014,6 +1043,17 @@ function CalendarGrid({ cells, txByDay, subByDay, ccDetailByTransaction = {}, to
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/** What the marks on a day mean — the categorization marks are otherwise a guess. */
+function CalendarLegend() {
+  return (
+    <div className="cal-legend">
+      <span><span className="cal-cell__cat-flag" /> Needs a category</span>
+      <span><IcCheck size={11} stroke={2.5} className="cal-cell__cat-ok" /> All categorized</span>
+      <span><span className="cal-cell__sub-dot" /> Bill due</span>
     </div>
   );
 }

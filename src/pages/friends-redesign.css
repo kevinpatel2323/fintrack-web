@@ -1,28 +1,33 @@
 /* Friends / People — shared expenses redesign */
 
-.friends-layout,
 .friends-layout--mobile {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
   align-items: stretch;
 }
 
-.friends-layout--mobile {
-  gap: 14px;
-}
+/* —— Balance summary (aside) —— */
 
-.friends-layout > aside {
-  width: 100%;
-  max-width: none;
+/* Pinned beside the list on desktop, so the totals stay in view down a long
+   list of people. */
+@media (min-width: 980px) {
+  .friends-aside {
+    position: sticky;
+    top: 16px;
+  }
 }
-
-/* —— Balance summary —— */
+.friends-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
 
 .friends-summary {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .friends-summary__net {
@@ -30,33 +35,65 @@
   flex-direction: column;
   gap: 4px;
 }
+.friends-summary__caption {
+  color: var(--ft-text-dim);
+  font-size: 12.5px;
+}
+
+.friends-summary__bar {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.friends-summary__bar > span { height: 100%; min-width: 2px; }
 
 .friends-summary__split {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 8px;
 }
 
 .friends-summary__stat {
-  padding: 12px 14px;
-  border-radius: var(--ft-r-md);
-  border: 1px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
   min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--ft-r-md);
+  border: 1px solid var(--ft-border);
+  background: var(--ft-surface-2);
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
 }
-
-.friends-summary__stat--owed {
-  background: var(--ft-income-soft);
-  border-color: var(--ft-income-hairline);
+.friends-summary__stat:hover { border-color: var(--ft-border-s); }
+.friends-summary__stat[data-active='true'] {
+  border-color: var(--ft-accent-strong);
+  background: var(--ft-accent-soft);
 }
-
-.friends-summary__stat--owe {
-  background: var(--ft-spend-soft);
-  border-color: var(--ft-spend-hairline);
+.friends-summary__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ft-text-dim);
+  font-size: 11.5px;
+  font-weight: 500;
 }
-
-.friends-summary__stat-label {
-  display: block;
-  margin-bottom: 4px;
+.friends-summary__label > i,
+.friends-section__title > i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.friends-summary__count {
+  color: var(--ft-text-faint);
+  font-size: 11px;
 }
 
 /* —— List panel —— */
@@ -71,8 +108,33 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-bottom: 4px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--ft-border);
 }
+.friends-toolbar__row {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.friends-toolbar__row .txn-search { flex: 1 1 auto; min-width: 0; }
+
+/* legacy-adapter.css styles every <select> at width: 100% with a chevron
+   background-image; size this one to its label and keep the chevron by
+   setting only the background colour. */
+.friends-sort {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 0;
+  background-color: var(--ft-surface-2);
+  border: 1px solid var(--ft-border);
+  border-radius: var(--ft-r-md);
+  color: var(--ft-text);
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 0 32px 0 12px;
+  cursor: pointer;
+}
+.friends-sort:focus-visible { border-color: var(--ft-accent-strong); }
 
 .friends-toolbar .txn-search {
   display: flex;
@@ -110,7 +172,6 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  padding-bottom: 4px;
 }
 
 .friends-filter {
@@ -141,12 +202,40 @@
   opacity: 1;
 }
 
+/* —— Sections —— */
+
+.friends-section + .friends-section { border-top: 1px solid var(--ft-border); }
+
+.friends-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 18px 6px;
+}
+.friends-section__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ft-text-dim);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.friends-section__n {
+  color: var(--ft-text-faint);
+  font-family: var(--ft-font-mono);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
 /* —— Friend rows —— */
 
 .friends-list {
   display: flex;
   flex-direction: column;
-  margin-top: 4px;
+  padding: 0 8px 8px;
 }
 
 .friends-row {
@@ -154,13 +243,8 @@
   align-items: center;
   gap: 4px;
   width: 100%;
-  border-top: 1px solid var(--ft-border);
   border-radius: var(--ft-r-md);
   transition: background 0.12s ease;
-}
-
-.friends-row:first-child {
-  border-top: 0;
 }
 
 .friends-row:hover,
@@ -168,13 +252,17 @@
   background: var(--ft-surface-2);
 }
 
+/* Square accounts recede; they are kept for reference, not action. */
+.friends-row--settled .friends-row__name { color: var(--ft-text-dim); font-weight: 500; }
+.friends-row--settled:hover .friends-row__name { color: var(--ft-text); }
+
 .friends-row__main {
   display: flex;
   align-items: center;
   gap: 12px;
   flex: 1;
   min-width: 0;
-  padding: 12px 8px 12px 10px;
+  padding: 9px 8px 9px 10px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -208,24 +296,12 @@
 }
 
 .friends-row__meta {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ft-text-dim);
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--ft-text-faint);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.friends-row__meta--owed {
-  color: var(--ft-income);
-}
-
-.friends-row__meta--owe {
-  color: var(--ft-spend);
-}
-
-.friends-row__meta--settled {
-  color: var(--ft-text-faint);
 }
 
 .friends-row__aside {
@@ -238,19 +314,6 @@
 .friends-row__amount {
   text-align: right;
   min-width: 72px;
-}
-
-.friends-row__settled {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--ft-surface-3);
-  border: 1px solid var(--ft-border);
-  color: var(--ft-text-dim);
-  font-size: 11px;
-  font-weight: 550;
-  letter-spacing: 0.1px;
 }
 
 .friends-row__edit {
@@ -266,7 +329,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  opacity: 0.45;
+  opacity: 0;
   transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
 }
 
@@ -333,7 +396,8 @@
 }
 
 .friends-status {
-  margin: 8px 0 0;
+  margin: 0;
+  padding: 14px 18px;
   font-size: 13px;
   color: var(--ft-text-dim);
 }

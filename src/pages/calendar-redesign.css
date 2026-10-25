@@ -21,6 +21,29 @@
   min-width: 0;
 }
 
+/* Desktop: the side column is pinned beside the grid and scrolls by itself.
+   Its height used to follow the selected day's transaction count, so picking
+   a busier or quieter day changed the page height and jumped the scroll. */
+@media (min-width: 980px) {
+  .cal-right-col {
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ft-border-s) transparent;
+    /* Room for focus rings and card shadows inside the scroll box. */
+    padding: 2px;
+    margin: -2px;
+  }
+  .cal-right-col > * { flex-shrink: 0; }
+}
+
+.cal-grid-wrap { transition: opacity 0.15s; }
+.cal-grid-wrap--loading { opacity: 0.45; pointer-events: none; }
+
 .cal-toolbar {
   display: flex;
   align-items: center;
@@ -120,6 +143,9 @@
   /* minmax(0, 1fr) lets the 7 day columns shrink on narrow phones instead of
      forcing horizontal page overflow (which clipped the right edge). */
   grid-template-columns: repeat(7, minmax(0, 1fr));
+  /* Row 1 is the weekday labels; only the date rows that follow get the
+     full cell height (grid-auto-rows alone also stretched the labels). */
+  grid-template-rows: 22px;
   grid-auto-rows: 88px;
   gap: 5px;
 }
@@ -143,7 +169,7 @@
 /* ── Day Cell ── */
 
 .cal-cell {
-  background: var(--ft-surface-2);
+  background: transparent;
   border: 1px solid var(--ft-border);
   border-radius: 10px;
   padding: 5px 5px 3px;
@@ -162,23 +188,10 @@
 .cal-cell:not(.cal-cell--off):hover { border-color: var(--ft-border-s); background: var(--ft-surface-3); }
 .cal-cell--selected { border-color: var(--ft-accent-strong) !important; background: var(--ft-accent-soft) !important; }
 
-/* Transaction days — categorization status (only when cal-cell--has-tx) */
-.cal-cell--has-tx.cal-cell--categorized {
-  background: var(--ft-income-soft);
-  border-color: var(--ft-income-hairline);
-}
-.cal-cell--has-tx.cal-cell--needs-category {
-  background: var(--ft-spend-soft);
-  border-color: var(--ft-spend-hairline);
-}
-.cal-cell--has-tx.cal-cell--categorized:not(.cal-cell--off):not(.cal-cell--selected):hover {
-  background: var(--ft-income-soft);
-  border-color: var(--ft-income-hairline);
-}
-.cal-cell--has-tx.cal-cell--needs-category:not(.cal-cell--off):not(.cal-cell--selected):hover {
-  background: var(--ft-spend-soft);
-  border-color: var(--ft-spend-hairline);
-}
+/* Days with activity sit on a surface; empty days stay as outlines. The
+   categorization state is a mark by the date (see .cal-cell__marks) rather
+   than a red/green fill, which read as spent/earned. */
+.cal-cell--has-tx { background: var(--ft-surface-2); }
 
 /* Day number row */
 .cal-cell__day {
@@ -208,6 +221,27 @@
   font-size: 11px;
 }
 
+/* Marks beside the date: bill due, categorization state */
+.cal-cell__marks {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.cal-cell__cat-flag {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ft-warn);
+  box-shadow: 0 0 0 2px var(--ft-warn-soft);
+  flex-shrink: 0;
+}
+.cal-cell__cat-ok {
+  color: var(--ft-income);
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
 /* Subscription due dot (top-right of day number row) */
 .cal-cell__sub-dot {
   width: 6px;
@@ -233,7 +267,7 @@
   letter-spacing: -0.3px;
   white-space: nowrap;
 }
-.cal-cell__amt--spend { color: var(--ft-spend); }
+.cal-cell__amt--spend { color: var(--ft-text); }
 .cal-cell__amt--earn  { color: var(--ft-income); }
 
 /* Bottom bar (full grid — spend/income ratio) */
@@ -241,7 +275,7 @@
   height: 3px;
   border-radius: 2px;
   margin-top: auto;
-  opacity: 0.7;
+  opacity: 0.5;
 }
 
 /* Compact dots (mobile) */
@@ -614,3 +648,56 @@
   color: var(--ft-text);
   letter-spacing: -0.5px;
 }
+
+/* ── Legend under the grid ── */
+.cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ft-border);
+  color: var(--ft-text-faint);
+  font-size: 11.5px;
+}
+.cal-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Header controls ── */
+/* Prev / Today / Next as one joined control, so the header reads as three
+   groups (navigate · panel · create) rather than seven loose buttons. */
+.cal-nav {
+  display: inline-flex;
+  height: 38px;
+  border: 1px solid var(--ft-border-s);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.cal-nav > button {
+  border: 0;
+  background: transparent;
+  color: var(--ft-text);
+  font-family: var(--ft-font-ui);
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+.cal-nav > button + button { border-left: 1px solid var(--ft-border-s); }
+.cal-nav > button:hover { background: var(--ft-surface-2); }
+
+.cal-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 38px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--ft-surface-2);
+}
+.cal-seg > button { height: 100%; }

@@ -7,7 +7,7 @@ import {
   Card, Num, GhostBtn, PrimaryBtn, Overline,
 } from '../components/ui/primitives.jsx';
 import {
-  IcUpload, IcCheck, IcChevR, IcSparkle, IcReceipt, IcRefresh, IcTrash,
+  IcUpload, IcCheck, IcChevR, IcReceipt, IcRefresh, IcTrash,
 } from '../components/ui/Icon.jsx';
 import { useIsCompact } from '../styles/breakpoints.js';
 import { inr } from '../utils/inr.js';
@@ -459,139 +459,151 @@ export default function StatementImport() {
         </div>
       </header>
 
-      <div className="ft-split" style={{ '--ft-split-aside': '320px', gap: 14 }}>
-        {/* ── Left: main wizard card ── */}
-        <div style={{ background: 'var(--ft-surface)', borderRadius: 18, border: '1px solid var(--ft-border)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <div className="ft-split" style={{ '--ft-split-aside': '340px', gap: 16 }}>
+        {/* ── Left: wizard, then history — the two things this page is for ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+          <div style={{ background: 'var(--ft-surface)', borderRadius: 18, border: '1px solid var(--ft-border)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
 
-          {/* Step bar */}
-          <div className="imp-step-bar">
-            {STEPS.map((s, i) => (
-              <div key={i} className="imp-step-bar__item">
-                <div className={`imp-step-bar__node ${s.done ? 'imp-step-bar__node--done' : s.active ? 'imp-step-bar__node--active' : ''}`}>
-                  {s.done ? <IcCheck size={13} /> : i + 1}
+            {/* Step bar */}
+            <div className="imp-step-bar">
+              {STEPS.map((s, i) => (
+                <div key={i} className="imp-step-bar__item">
+                  <div className={`imp-step-bar__node ${s.done ? 'imp-step-bar__node--done' : s.active ? 'imp-step-bar__node--active' : ''}`}>
+                    {s.done ? <IcCheck size={13} /> : i + 1}
+                  </div>
+                  <span className={`imp-step-bar__label ${s.active ? 'imp-step-bar__label--active' : ''}`}>{s.label}</span>
+                  {i < 2 && <div className="imp-step-bar__line" />}
                 </div>
-                <span className={`imp-step-bar__label ${s.active ? 'imp-step-bar__label--active' : ''}`}>{s.label}</span>
-                {i < 2 && <div className="imp-step-bar__line" />}
-              </div>
-            ))}
+              ))}
+            </div>
+
+            {uploadResult && <ImportedBanner uploadResult={uploadResult} style={{ margin: '16px 16px 0' }} />}
+
+            {/* Step 1 — drop zone */}
+            {step === 1 && (
+              <label
+                className={`imp-drop-full${isDragging ? ' imp-drop-full--drag' : ''}`}
+                htmlFor="imp-file-desktop"
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFileInput(e.dataTransfer.files?.[0]); }}
+              >
+                <div className="imp-drop-full__icon"><IcUpload size={22} /></div>
+                <div style={{ color: 'var(--ft-text)', fontWeight: 600, fontSize: 15 }}>Drop your HDFC statement here</div>
+                <div style={{ color: 'var(--ft-text-dim)', fontSize: 13, marginTop: 4, maxWidth: 380, lineHeight: 1.5 }}>
+                  Bank account or credit card — we work out which, and skip rows you already have.
+                </div>
+                <div style={{ marginTop: 16 }}>
+                  <span className="imp-browse-btn">Browse file</span>
+                </div>
+                <div style={{ color: 'var(--ft-text-faint)', fontSize: 11.5, marginTop: 10 }}>XLSX or XLS · up to 10 MB</div>
+                <input
+                  id="imp-file-desktop"
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={(e) => handleFileInput(e.target.files?.[0])}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            )}
+
+            {/* Step 2 — file selected, no preview yet */}
+            {step === 2 && (
+              <>
+                <FileInfoRow
+                  uploadFile={uploadFile}
+                  uploadPreview={uploadPreview}
+                  destination={destination}
+                  onRemove={resetUpload}
+                />
+                <div style={{ padding: '14px 22px', borderTop: '1px solid var(--ft-border)', display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <PrimaryBtn onClick={handlePreview}>Generate preview</PrimaryBtn>
+                  <GhostBtn onClick={resetUpload}>Cancel</GhostBtn>
+                  {uploadStatus && <span style={{ color: 'var(--ft-spend)', fontSize: 13 }}>{uploadStatus}</span>}
+                </div>
+              </>
+            )}
+
+            {/* Step 3 — preview ready */}
+            {step === 3 && (
+              <>
+                <FileInfoRow
+                  uploadFile={uploadFile}
+                  uploadPreview={uploadPreview}
+                  destination={destination}
+                  onRemove={resetUpload}
+                />
+
+                {uploadPreview.skippedStatements?.length > 0 && (
+                  <div style={{ padding: '0 22px 14px' }}>
+                    <SkipWarning preview={uploadPreview} />
+                  </div>
+                )}
+
+                <div style={{ borderTop: '1px solid var(--ft-border)' }}>
+                  <DynamicTable
+                    columns={PREVIEW_COLUMNS}
+                    rows={previewRows}
+                    getRowKey={(row, index) => index}
+                    aria-label="Statement rows to import"
+                    tableClassName="imp-preview-table"
+                    storageKey="fintrack.import-preview"
+                    enableGlobalFilter
+                    searchPlaceholder="Search narration…"
+                    defaultPageSize={25}
+                    maxHeight="52vh"
+                    emptyMessage={`All ${uploadPreview.skippedRows} rows already imported — nothing new to add.`}
+                  />
+                </div>
+
+                <div style={{ padding: '14px 22px 0' }}>
+                  <MatchReview
+                    matches={uploadPreview.matches}
+                    confirmedKeys={confirmedMatchKeys}
+                    onToggle={toggleMatch}
+                  />
+                </div>
+
+                {/* Footer */}
+                <div className="imp-tbl-footer">
+                  <span style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>
+                    {[
+                      previewRows.length > 0 ? `${uploadPreview.willInsert} new` : null,
+                      uploadPreview.matchedRows > 0 ? `${uploadPreview.matchedRows} merged` : null,
+                      `${uploadPreview.skippedRows} duplicates skipped`,
+                    ].filter(Boolean).join(' · ')}
+                  </span>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    {uploadStatus && <span style={{ color: 'var(--ft-spend)', fontSize: 13 }}>{uploadStatus}</span>}
+                    <GhostBtn onClick={() => { setUploadPreview(null); setPreviewFileKey(''); }}>Back</GhostBtn>
+                    <PrimaryBtn
+                      onClick={handleUpload}
+                      disabled={isUploading || uploadPreview.willInsert === 0}
+                    >
+                      {isUploading ? 'Importing…' : `Import ${uploadPreview.willInsert} transactions`} <IcChevR size={14} />
+                    </PrimaryBtn>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Step 1 — drop zone */}
-          {step === 1 && (
-            <label
-              className={`imp-drop-full${isDragging ? ' imp-drop-full--drag' : ''}`}
-              htmlFor="imp-file-desktop"
-              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFileInput(e.dataTransfer.files?.[0]); }}
-            >
-              <IcUpload size={32} style={{ color: 'var(--ft-text-faint)', marginBottom: 10 }} />
-              <div style={{ color: 'var(--ft-text)', fontWeight: 600, fontSize: 15 }}>Drop your HDFC statement here</div>
-              <div style={{ color: 'var(--ft-text-dim)', fontSize: 13, marginTop: 4 }}>XLSX or XLS · up to 10 MB</div>
-              <div style={{ marginTop: 16 }}>
-                <span className="imp-browse-btn">Browse file</span>
-              </div>
-              <input
-                id="imp-file-desktop"
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={(e) => handleFileInput(e.target.files?.[0])}
-                style={{ display: 'none' }}
-              />
-            </label>
-          )}
-
-          {/* Step 2 — file selected, no preview yet */}
-          {step === 2 && (
-            <>
-              <FileInfoRow
-                uploadFile={uploadFile}
-                uploadPreview={uploadPreview}
-                destination={destination}
-                onRemove={resetUpload}
-              />
-              <div style={{ padding: '14px 22px', borderTop: '1px solid var(--ft-border)', display: 'flex', gap: 10, alignItems: 'center' }}>
-                <PrimaryBtn onClick={handlePreview}>Generate preview</PrimaryBtn>
-                <GhostBtn onClick={resetUpload}>Cancel</GhostBtn>
-                {uploadStatus && <span style={{ color: 'var(--ft-spend)', fontSize: 13 }}>{uploadStatus}</span>}
-              </div>
-            </>
-          )}
-
-          {/* Step 3 — preview ready */}
-          {step === 3 && (
-            <>
-              <FileInfoRow
-                uploadFile={uploadFile}
-                uploadPreview={uploadPreview}
-                destination={destination}
-                onRemove={resetUpload}
-              />
-
-              {uploadPreview.skippedStatements?.length > 0 && (
-                <div style={{ padding: '0 22px 14px' }}>
-                  <SkipWarning preview={uploadPreview} />
-                </div>
-              )}
-
-              <div style={{ borderTop: '1px solid var(--ft-border)' }}>
-                <DynamicTable
-                  columns={PREVIEW_COLUMNS}
-                  rows={previewRows}
-                  getRowKey={(row, index) => index}
-                  aria-label="Statement rows to import"
-                  tableClassName="imp-preview-table"
-                  storageKey="fintrack.import-preview"
-                  enableGlobalFilter
-                  searchPlaceholder="Search narration…"
-                  defaultPageSize={25}
-                  maxHeight="52vh"
-                  emptyMessage={`All ${uploadPreview.skippedRows} rows already imported — nothing new to add.`}
-                />
-              </div>
-
-              <div style={{ padding: '14px 22px 0' }}>
-                <MatchReview
-                  matches={uploadPreview.matches}
-                  confirmedKeys={confirmedMatchKeys}
-                  onToggle={toggleMatch}
-                />
-              </div>
-
-              {/* Footer */}
-              <div className="imp-tbl-footer">
-                <span style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>
-                  {[
-                    previewRows.length > 0 ? `${uploadPreview.willInsert} new` : null,
-                    uploadPreview.matchedRows > 0 ? `${uploadPreview.matchedRows} merged` : null,
-                    `${uploadPreview.skippedRows} duplicates skipped`,
-                  ].filter(Boolean).join(' · ')}
-                </span>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                  {uploadStatus && <span style={{ color: 'var(--ft-spend)', fontSize: 13 }}>{uploadStatus}</span>}
-                  <GhostBtn onClick={() => { setUploadPreview(null); setPreviewFileKey(''); }}>Back</GhostBtn>
-                  <PrimaryBtn
-                    onClick={handleUpload}
-                    disabled={isUploading || uploadPreview.willInsert === 0}
-                  >
-                    {isUploading ? 'Importing…' : `Import ${uploadPreview.willInsert} transactions`} <IcChevR size={14} />
-                  </PrimaryBtn>
-                </div>
-              </div>
-            </>
-          )}
+          <HistoryCard
+            imports={imports}
+            importsLoading={importsLoading}
+            importsError={importsError}
+            importsStatus={importsStatus}
+            revertingImportId={revertingImportId}
+            onRevert={askRevert}
+            onRefresh={loadHistory}
+          />
         </div>
 
-        {/* ── Right: summary panel ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <StatementQueue />
-          <LastImportCard
-            lastImport={lastImport}
-            accounts={accounts}
-            selectedAccount={selectedAccount}
-            onAccountChange={setSelectedAccount}
-          />
-          <SummaryCard uploadPreview={uploadPreview} net={net} period={period} debits={debits} credits={credits} />
+        {/* ── Right: what to import next, or what this file holds ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+          {uploadPreview && (
+            <SummaryCard uploadPreview={uploadPreview} net={net} period={period} debits={debits} credits={credits} />
+          )}
 
           {/* Rows breakdown (only when preview loaded) */}
           {uploadPreview && (
@@ -602,41 +614,14 @@ export default function StatementImport() {
             </Card>
           )}
 
-          {/* Smart match card */}
-          <div style={{
-            padding: 14, borderRadius: 14,
-            background: 'linear-gradient(135deg, var(--ft-accent-soft), transparent)',
-            border: '1px solid var(--ft-accent-hairline)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <IcSparkle size={14} style={{ color: 'var(--ft-accent-fg)' }} />
-              <Overline style={{ color: 'var(--ft-accent-fg)', letterSpacing: 0.6 }}>Smart match</Overline>
-            </div>
-            <p style={{ margin: 0, color: 'var(--ft-text)', fontSize: 12.5, lineHeight: 1.5 }}>
-              We match counterparty names against your friends list and suggest categories automatically.
-            </p>
-          </div>
-
-          {/* Success banner */}
-          {uploadResult && (
-            <div style={{ padding: '12px 14px', background: 'var(--ft-income-soft)', color: 'var(--ft-income)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500 }}>
-              <IcCheck size={16} /> Imported {uploadResult.insertedCount ?? uploadResult.added ?? uploadResult.insertedRows ?? '?'} transactions{uploadResult.card ? ` to ${uploadResult.card.nickname || uploadResult.card.name}` : ''}
-            </div>
-          )}
+          <StatementQueue />
+          <LastImportCard
+            lastImport={lastImport}
+            accounts={accounts}
+            selectedAccount={selectedAccount}
+            onAccountChange={setSelectedAccount}
+          />
         </div>
-      </div>
-
-      {/* Recent imports — below the grid */}
-      <div style={{ marginTop: 20 }}>
-        <HistoryCard
-          imports={imports}
-          importsLoading={importsLoading}
-          importsError={importsError}
-          importsStatus={importsStatus}
-          revertingImportId={revertingImportId}
-          onRevert={askRevert}
-          onRefresh={loadHistory}
-        />
       </div>
     </>
   );
@@ -697,7 +682,9 @@ function MobileView({
           selectedAccount={selectedAccount}
           onAccountChange={onAccountChange}
         />
-        <SummaryCard uploadPreview={uploadPreview} net={net} period={period} debits={debits} credits={credits} />
+        {uploadPreview && (
+          <SummaryCard uploadPreview={uploadPreview} net={net} period={period} debits={debits} credits={credits} />
+        )}
 
         {/* Step 1 — drop zone */}
         {step === 1 && (
@@ -804,11 +791,7 @@ function MobileView({
         )}
 
         {uploadStatus && <p className="status" style={{ textAlign: 'center' }}>{uploadStatus}</p>}
-        {uploadResult && (
-          <div style={{ padding: '12px 14px', background: 'var(--ft-income-soft)', color: 'var(--ft-income)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500 }}>
-            <IcCheck size={16} /> Imported {uploadResult.insertedCount ?? uploadResult.added ?? uploadResult.insertedRows ?? '?'} transactions{uploadResult.card ? ` to ${uploadResult.card.nickname || uploadResult.card.name}` : ''}
-          </div>
-        )}
+        {uploadResult && <ImportedBanner uploadResult={uploadResult} />}
 
         {/* CTAs */}
         {step === 2 && (
@@ -873,71 +856,85 @@ function FileInfoRow({ uploadFile, uploadPreview, destination, onRemove }) {
   );
 }
 
+/** "•• 6714" for a bank account number; anything else (e.g. "Wallet") as is. */
+function accountLabel(accountNumber) {
+  if (!accountNumber) return '—';
+  return /^\d{5,}$/.test(accountNumber) ? `Acct •• ${accountNumber.slice(-4)}` : accountNumber;
+}
+
+/** "10 Sep → 18 Oct 2026", the year once when both ends share it. */
+function fmtPeriod(start, end) {
+  if (!start || !end) return '—';
+  return start.slice(0, 4) === end.slice(0, 4)
+    ? `${fmtShortDate(start)} → ${fmtDate(end)}`
+    : `${fmtDate(start)} → ${fmtDate(end)}`;
+}
+
+function ImportedBanner({ uploadResult, style }) {
+  const count = uploadResult.insertedCount ?? uploadResult.added ?? uploadResult.insertedRows ?? '?';
+  return (
+    <div style={{ padding: '12px 14px', background: 'var(--ft-income-soft)', color: 'var(--ft-income)', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500, ...style }}>
+      <IcCheck size={16} /> Imported {count} transactions{uploadResult.card ? ` to ${uploadResult.card.nickname || uploadResult.card.name}` : ''}
+    </div>
+  );
+}
+
 function LastImportCard({ lastImport, accounts, selectedAccount, onAccountChange }) {
+  // Two days of overlap: the bank's export day is often still settling, and
+  // overlapping rows are skipped as duplicates anyway.
+  const cutoff = lastImport?.periodEnd ? isoDateMinusDays(lastImport.periodEnd, 2) : null;
   return (
     <Card pad={18}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-        <Overline>Last import</Overline>
-        <select
-          value={selectedAccount}
-          onChange={(e) => onAccountChange(e.target.value)}
-          style={{
-            background: 'var(--ft-surface-2)',
-            border: '1px solid var(--ft-border)',
-            color: 'var(--ft-text)',
-            borderRadius: 6,
-            padding: '3px 6px',
-            fontSize: 11,
-            cursor: 'pointer',
-            outline: 'none',
-          }}
-        >
-          <option value="">All accounts</option>
-          {accounts.map((a) => <option key={a} value={a}>{a}</option>)}
-        </select>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14 }}>
+        <Overline>Last bank import</Overline>
+        {accounts.length > 1 && (
+          <select
+            className="imp-select"
+            value={selectedAccount}
+            onChange={(e) => onAccountChange(e.target.value)}
+            aria-label="Account"
+          >
+            <option value="">All accounts</option>
+            {accounts.map((a) => <option key={a} value={a}>{accountLabel(a)}</option>)}
+          </select>
+        )}
       </div>
-      <p style={{ margin: '0 0 12px', color: 'var(--ft-text-faint)', fontSize: 11 }}>
-        Select an account to see the most recent import.
-      </p>
       {lastImport ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-          {[
-            { l: 'Account',          v: lastImport.account?.accountNumber || '—' },
-            { l: 'Inserted',         v: lastImport.insertedRows },
-            { l: 'Rows',             v: lastImport.totalRows },
-            { l: 'Period',           v: `${fmtDate(lastImport.periodStart)} → ${fmtDate(lastImport.periodEnd)}` },
-            { l: 'Last date before', v: fmtDate(lastImport.lastTxDateBefore) },
-            { l: 'Uploaded',         v: fmtDate(lastImport.uploadedAt) },
-          ].map(({ l, v }) => (
-            <div key={l} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-              <span style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, flexShrink: 0 }}>{l}</span>
-              <span style={{ color: 'var(--ft-text)', fontSize: 12, fontWeight: 500, textAlign: 'right' }}>{String(v)}</span>
+        <>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ color: 'var(--ft-text)', fontSize: 16, fontWeight: 600, letterSpacing: '-0.2px' }}>
+              {accountLabel(lastImport.accountNumber)}
+            </span>
+            <span style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>{fmtDate(lastImport.uploadedAt)}</span>
+          </div>
+          <div style={{ color: 'var(--ft-text-dim)', fontSize: 12.5, marginTop: 2 }}>
+            {fmtPeriod(lastImport.periodStart, lastImport.periodEnd)}
+          </div>
+
+          <div className="imp-stat-grid">
+            <div>
+              <Num size={16} weight={600}>{lastImport.insertedRows}</Num>
+              <span>added</span>
             </div>
-          ))}
-          {lastImport.periodEnd && (() => {
-            const cutoff = isoDateMinusDays(lastImport.periodEnd, 2);
-            return (
-              <div style={{
-                marginTop: 4,
-                padding: '8px 10px',
-                borderRadius: 8,
-                background: 'var(--ft-accent-soft)',
-                border: '1px solid var(--ft-accent-hairline)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'baseline',
-                gap: 8,
-              }}>
-                <span style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, flexShrink: 0 }}>Next start</span>
-                <strong style={{ color: 'var(--ft-accent-fg)', fontSize: 12, fontWeight: 700, textAlign: 'right' }}>
-                  On or before {fmtDate(cutoff)}
-                </strong>
-              </div>
-            );
-          })()}
-        </div>
+            <div>
+              <Num size={16} weight={600} color="var(--ft-text-dim)">{lastImport.totalRows - lastImport.insertedRows}</Num>
+              <span>already had</span>
+            </div>
+            <div>
+              <Num size={16} weight={600} color="var(--ft-text-dim)">{lastImport.totalRows}</Num>
+              <span>rows in file</span>
+            </div>
+          </div>
+
+          {cutoff && (
+            <div className="imp-next-hint">
+              Next download should start on or before{' '}
+              <strong>{fmtDate(cutoff)}</strong> so nothing falls in a gap.
+            </div>
+          )}
+        </>
       ) : (
-        <p style={{ margin: 0, color: 'var(--ft-text-faint)', fontSize: 12, textAlign: 'center', padding: '8px 0' }}>No imports found.</p>
+        <p style={{ margin: 0, color: 'var(--ft-text-faint)', fontSize: 12.5 }}>No bank statements imported yet.</p>
       )}
     </Card>
   );
@@ -993,41 +990,48 @@ function ProgressRow({ label, value, total, color }) {
 
 function HistoryCard({ imports, importsLoading, importsError, importsStatus, revertingImportId, onRevert, onRefresh }) {
   return (
-    <Card pad={18}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: 'var(--ft-text)', letterSpacing: '-0.2px' }}>Recent imports</h3>
-        <GhostBtn onClick={onRefresh}><IcRefresh size={12} /> Refresh</GhostBtn>
+    <Card pad={0}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px 12px' }}>
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: 'var(--ft-text)', letterSpacing: '-0.2px' }}>Recent imports</h3>
+        <GhostBtn onClick={onRefresh} disabled={importsLoading} style={{ height: 32, padding: '0 12px', fontSize: 12.5 }}>
+          <IcRefresh size={12} /> Refresh
+        </GhostBtn>
       </div>
-      {importsLoading ? (
-        <p className="status">Loading…</p>
+      {importsLoading && imports.length === 0 ? (
+        <p className="status" style={{ padding: '0 18px 16px' }}>Loading…</p>
       ) : imports.length === 0 ? (
-        <p className="empty">No imports yet.</p>
+        <p className="empty" style={{ padding: '0 18px 16px' }}>No imports yet.</p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="imp-hist">
           {imports.map((imp) => (
-            <div key={imp.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 12, background: 'var(--ft-surface-2)', borderRadius: 10 }}>
-              <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--ft-accent-soft)', color: 'var(--ft-accent-fg)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <IcReceipt size={14} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ color: 'var(--ft-text)', fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{imp.filename}</div>
-                <div style={{ color: 'var(--ft-text-dim)', fontSize: 11.5 }}>
-                  {fmtDate(imp.uploadedAt)} · {imp.insertedRows} transactions
+            <div key={imp.id} className="imp-hist__row">
+              <div className="imp-hist__icon"><IcReceipt size={14} /></div>
+              <div style={{ minWidth: 0 }}>
+                <div className="imp-hist__title">
+                  {accountLabel(imp.accountNumber)}
+                  <span>{imp.insertedRows} added{imp.totalRows > imp.insertedRows ? ` · ${imp.totalRows - imp.insertedRows} skipped` : ''}</span>
                 </div>
+                <div className="imp-hist__file" title={imp.filename}>{imp.filename}</div>
               </div>
-              <GhostBtn
+              <div className="imp-hist__period">{fmtPeriod(imp.periodStart, imp.periodEnd)}</div>
+              <div className="imp-hist__date">{fmtShortDate(imp.uploadedAt)}</div>
+              <button
+                type="button"
+                className="imp-hist__revert"
                 disabled={revertingImportId === imp.id}
                 onClick={() => onRevert(imp.id)}
-                style={{ color: 'var(--ft-spend)', flexShrink: 0 }}
               >
-                Revert
-              </GhostBtn>
+                {revertingImportId === imp.id ? 'Reverting…' : 'Revert'}
+              </button>
             </div>
           ))}
         </div>
       )}
-      {importsStatus && <p className="status">{importsStatus}</p>}
-      {importsError && <p className="status" style={{ color: 'var(--ft-spend)' }}>{importsError}</p>}
+      {(importsStatus || importsError) && (
+        <p className="status" style={{ padding: '0 18px 14px', margin: 0, color: importsError ? 'var(--ft-spend)' : undefined }}>
+          {importsError || importsStatus}
+        </p>
+      )}
     </Card>
   );
 }

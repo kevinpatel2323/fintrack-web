@@ -209,8 +209,11 @@ function TimelineStrip({ timeline, highlight }) {
               key={t.month}
               title={`${t.label} · ${s.text}`}
               style={{
-                flex: 1,
+                // Capped so a card with two months of history gets two chips,
+                // not two banners stretched across the panel.
+                flex: '1 1 0',
                 minWidth: 0,
+                maxWidth: 56,
                 padding: '6px 0 5px',
                 borderRadius: 8,
                 textAlign: 'center',

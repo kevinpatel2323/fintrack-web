@@ -154,7 +154,10 @@ export default function CardFace({ card, width = 360, height = 220, style = {}, 
         maxWidth: width,
         aspectRatio: `${width} / ${height}`,
         containerType: 'inline-size',
-        borderRadius: '5cqw',
+        /* cqw can't be used here: container units on the container itself
+           resolve against an ancestor (or the viewport), not this element.
+           Percentages are relative to this box — 18px at the nominal size. */
+        borderRadius: `${(18 / width) * 100}% / ${(18 / height) * 100}%`,
         position: 'relative',
         background: `
           radial-gradient(120% 80% at 0% 0%, ${palette.from}EE, transparent 60%),

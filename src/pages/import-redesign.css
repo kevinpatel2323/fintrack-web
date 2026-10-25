@@ -271,3 +271,156 @@
   padding: 14px 22px;
   border-top: 1px solid var(--ft-border);
 }
+
+.imp-drop-full__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  background: var(--ft-accent-soft);
+  border: 1px solid var(--ft-accent-hairline);
+  color: var(--ft-accent-fg);
+}
+
+/* ── Side panels ───────────────────────────────────────────────── */
+/* Overrides legacy-adapter.css's full-width <select>; background-color only,
+   so its chevron background-image survives. */
+.imp-select {
+  width: auto;
+  min-height: 0;
+  background-color: var(--ft-surface-2);
+  border: 1px solid var(--ft-border);
+  color: var(--ft-text);
+  border-radius: 8px;
+  padding: 4px 28px 4px 8px;
+  background-position: right 6px center;
+  font-size: 12px;
+  cursor: pointer;
+  max-width: 150px;
+}
+.imp-select:focus-visible { border-color: var(--ft-accent-strong); }
+
+.imp-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--ft-surface-2);
+}
+.imp-stat-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.imp-stat-grid span:last-child {
+  color: var(--ft-text-dim);
+  font-size: 11px;
+}
+
+.imp-next-hint {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--ft-accent-soft);
+  border: 1px solid var(--ft-accent-hairline);
+  color: var(--ft-text-dim);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.imp-next-hint strong { color: var(--ft-accent-fg); font-weight: 700; }
+
+/* ── Recent imports ────────────────────────────────────────────── */
+.imp-hist { border-top: 1px solid var(--ft-border); }
+.imp-hist__row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto 64px auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--ft-border);
+  transition: background 0.12s;
+}
+.imp-hist__row:last-child { border-bottom: 0; }
+.imp-hist__row:hover { background: var(--ft-surface-2); }
+
+.imp-hist__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ft-accent-soft);
+  color: var(--ft-accent-fg);
+}
+.imp-hist__title {
+  color: var(--ft-text);
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.imp-hist__title span {
+  margin-left: 8px;
+  color: var(--ft-text-dim);
+  font-weight: 500;
+  font-size: 12px;
+}
+.imp-hist__file {
+  margin-top: 2px;
+  color: var(--ft-text-faint);
+  font-family: var(--ft-font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.imp-hist__period {
+  color: var(--ft-text-dim);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.imp-hist__date {
+  color: var(--ft-text-faint);
+  font-size: 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+/* Quiet until wanted: six red buttons in a column read as six alarms. */
+.imp-hist__revert {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 1px solid var(--ft-border-s);
+  background: transparent;
+  color: var(--ft-text-dim);
+  font-family: var(--ft-font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.imp-hist__revert:hover:not(:disabled),
+.imp-hist__revert:focus-visible {
+  color: var(--ft-spend);
+  border-color: var(--ft-spend);
+  background: var(--ft-spend-soft);
+}
+.imp-hist__revert:disabled { opacity: 0.55; cursor: not-allowed; }
+
+@media (max-width: 720px) {
+  .imp-hist__row {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .imp-hist__period,
+  .imp-hist__date { display: none; }
+}

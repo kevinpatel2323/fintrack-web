@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import Portal from '../components/Portal.jsx';
 import {
-  Card, Num, Pill, Avatar, PrimaryBtn, GhostBtn, Overline, HeroAmount,
+  Card, Num, Pill, Avatar, PrimaryBtn, GhostBtn, Overline,
 } from '../components/ui/primitives.jsx';
 import { IcPlus, IcSearch, IcEdit, IcTrash, IcChevR } from '../components/ui/Icon.jsx';
 import { useIsCompact } from '../styles/breakpoints.js';
@@ -21,6 +21,41 @@ const FILTERS = [
   { id: 'settled', label: 'Settled' },
 ];
 
+const SORTS = [
+  { id: 'amount', label: 'Largest balance' },
+  { id: 'recent', label: 'Recent activity' },
+  { id: 'name', label: 'Name' },
+];
+
+// Under a rupee either way reads as settled (paise left over from splits).
+const SETTLED_BELOW = 1;
+
+function balanceSide(bal) {
+  if (Math.abs(bal) < SETTLED_BELOW) return 'settled';
+  return bal > 0 ? 'owed' : 'owe';
+}
+
+/** "Today", "3 days ago", "17 Oct", "17 Oct 2025" — for the row's last activity. */
+function fmtActivity(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return new Intl.DateTimeFormat('en-IN', {
+    day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }),
+  }).format(d);
+}
+
+const SECTIONS = [
+  { id: 'owed', title: 'Owes you', tone: 'var(--ft-income)' },
+  { id: 'owe', title: 'You owe', tone: 'var(--ft-spend)' },
+  { id: 'settled', title: 'Settled up', tone: 'var(--ft-text-dim)' },
+];
+
 export default function Friends() {
   const navigate = useNavigate();
   const isMobile = useIsCompact();
@@ -32,6 +67,7 @@ export default function Friends() {
   const [status, setStatus] = useState('');
   const [formStatus, setFormStatus] = useState('');
   const [filter, setFilter] = useState('all'); // all | owed | owe | settled
+  const [sort, setSort] = useState('amount'); // amount | recent | name
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -86,25 +122,31 @@ export default function Friends() {
   );
 
   const counts = useMemo(() => {
-    let owed = 0;
-    let owe = 0;
-    let settled = 0;
-    for (const f of merged) {
-      const bal = Number(f.summary?.netBalance || 0);
-      if (Math.abs(bal) < 1) settled += 1;
-      else if (bal > 0) owed += 1;
-      else owe += 1;
-    }
-    return { all: merged.length, owed, owe, settled };
+    const c = { all: merged.length, owed: 0, owe: 0, settled: 0 };
+    for (const f of merged) c[balanceSide(Number(f.summary?.netBalance || 0))] += 1;
+    return c;
   }, [merged]);
 
-  const filtered = useMemo(() => {
-    let list = merged;
-    if (filter === 'owed') list = list.filter((f) => (f.summary?.netBalance || 0) > 0);
-    if (filter === 'owe') list = list.filter((f) => (f.summary?.netBalance || 0) < 0);
-    if (filter === 'settled') list = list.filter((f) => Math.abs(f.summary?.netBalance || 0) < 1);
-    return list;
-  }, [merged, filter]);
+  // One section per side of the ledger — who owes you, whom you owe, who is
+  // square — each sorted on its own. A filter just narrows it to one section.
+  const sections = useMemo(() => {
+    const comparators = {
+      amount: (a, b) => Math.abs(b.summary.netBalance || 0) - Math.abs(a.summary.netBalance || 0),
+      recent: (a, b) => (b.summary.lastTransactionDate || '').localeCompare(a.summary.lastTransactionDate || ''),
+      name: (a, b) => (a.name || '').localeCompare(b.name || ''),
+    };
+    return SECTIONS
+      .filter((sec) => filter === 'all' || filter === sec.id)
+      .map((sec) => {
+        const people = merged.filter((f) => balanceSide(Number(f.summary?.netBalance || 0)) === sec.id);
+        // Settled people have no balance to rank by; keep them alphabetical.
+        people.sort(sec.id === 'settled' && sort === 'amount' ? comparators.name : comparators[sort]);
+        const total = people.reduce((sum, f) => sum + Math.abs(Number(f.summary.netBalance || 0)), 0);
+        return { ...sec, people, total };
+      })
+      .filter((sec) => sec.people.length > 0);
+  }, [merged, filter, sort]);
+  const shownCount = sections.reduce((n, sec) => n + sec.people.length, 0);
 
   const owedToMe = balances.reduce((s, b) => s + Math.max(0, Number(b.netBalance) || 0), 0);
   const iOwe = balances.reduce((s, b) => s - Math.min(0, Number(b.netBalance) || 0), 0);
@@ -232,7 +274,11 @@ export default function Friends() {
   ) : (
     <header className="ft-page-header">
       <div>
-        <p className="ft-page-header__sub">Track shared expenses</p>
+        <p className="ft-page-header__sub">
+          {counts.all > 0
+            ? `${counts.all} people · ${counts.owed + counts.owe} with an open balance`
+            : 'Track shared expenses'}
+        </p>
         <h1 className="ft-page-header__title">People</h1>
       </div>
       <div className="ft-page-header__actions">
@@ -241,23 +287,50 @@ export default function Friends() {
     </header>
   );
 
+  const owedShare = owedToMe + iOwe > 0 ? (owedToMe / (owedToMe + iOwe)) * 100 : 50;
   const balanceHero = (
     <Card pad={18} className="friends-summary">
       <div className="friends-summary__net">
         <Overline>Net balance</Overline>
-        <HeroAmount color={net >= 0 ? 'var(--ft-income)' : 'var(--ft-spend)'}>
-          {inr(net, { sign: true })}
-        </HeroAmount>
+        <Num size={30} weight={600} color={Math.abs(net) < SETTLED_BELOW ? 'var(--ft-text)' : net > 0 ? 'var(--ft-income)' : 'var(--ft-spend)'}>
+          {inr(Math.abs(net))}
+        </Num>
+        <span className="friends-summary__caption">
+          {Math.abs(net) < SETTLED_BELOW
+            ? 'You and your people are square overall.'
+            : net > 0 ? 'More is owed to you than you owe.' : 'You owe more than is owed to you.'}
+        </span>
       </div>
+
+      {owedToMe + iOwe > 0 && (
+        <div className="friends-summary__bar" aria-hidden>
+          <span style={{ width: `${owedShare}%`, background: 'var(--ft-income)' }} />
+          <span style={{ width: `${100 - owedShare}%`, background: 'var(--ft-spend)' }} />
+        </div>
+      )}
+
+      {/* Each side doubles as its filter, so the figure and the people behind it are one click apart. */}
       <div className="friends-summary__split">
-        <div className="friends-summary__stat friends-summary__stat--owed">
-          <Overline style={{ color: 'var(--ft-income)', marginBottom: 4 }}>Owed to you</Overline>
-          <Num size={18} weight={600} color="var(--ft-income)">{inr(owedToMe)}</Num>
-        </div>
-        <div className="friends-summary__stat friends-summary__stat--owe">
-          <Overline style={{ color: 'var(--ft-spend)', marginBottom: 4 }}>You owe</Overline>
-          <Num size={18} weight={600} color="var(--ft-spend)">{inr(iOwe)}</Num>
-        </div>
+        <button
+          type="button"
+          className="friends-summary__stat"
+          data-active={filter === 'owed'}
+          onClick={() => setFilter(filter === 'owed' ? 'all' : 'owed')}
+        >
+          <span className="friends-summary__label"><i style={{ background: 'var(--ft-income)' }} /> Owed to you</span>
+          <Num size={16} weight={600} color="var(--ft-income)">{inr(owedToMe)}</Num>
+          <span className="friends-summary__count">{counts.owed} {counts.owed === 1 ? 'person' : 'people'}</span>
+        </button>
+        <button
+          type="button"
+          className="friends-summary__stat"
+          data-active={filter === 'owe'}
+          onClick={() => setFilter(filter === 'owe' ? 'all' : 'owe')}
+        >
+          <span className="friends-summary__label"><i style={{ background: 'var(--ft-spend)' }} /> You owe</span>
+          <Num size={16} weight={600} color="var(--ft-spend)">{inr(iOwe)}</Num>
+          <span className="friends-summary__count">{counts.owe} {counts.owe === 1 ? 'person' : 'people'}</span>
+        </button>
       </div>
     </Card>
   );
@@ -283,17 +356,27 @@ export default function Friends() {
   })();
 
   const list = (
-    <Card pad={16} className="friends-panel">
+    <Card pad={0} className="friends-panel">
       <div className="friends-toolbar">
-        <div className="txn-search">
-          <IcSearch size={16} />
-          <input
-            type="search"
-            placeholder="Search people"
-            value={queryInput}
-            onChange={(e) => setQueryInput(e.target.value)}
-            aria-label="Search people"
-          />
+        <div className="friends-toolbar__row">
+          <div className="txn-search">
+            <IcSearch size={16} />
+            <input
+              type="search"
+              placeholder={counts.all > 0 && !query ? `Search ${counts.all} people` : 'Search people'}
+              value={queryInput}
+              onChange={(e) => setQueryInput(e.target.value)}
+              aria-label="Search people"
+            />
+          </div>
+          <select
+            className="friends-sort"
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            aria-label="Sort people"
+          >
+            {SORTS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+          </select>
         </div>
         <div className="friends-filters" role="tablist" aria-label="Balance filters">
           {FILTERS.map((f) => (
@@ -315,7 +398,7 @@ export default function Friends() {
 
       {status && <p className="friends-status">{status}</p>}
 
-      {!status && filtered.length === 0 && emptyCopy ? (
+      {!status && shownCount === 0 && emptyCopy ? (
         <div className="friends-empty">
           <p className="friends-empty__title">{emptyCopy.title}</p>
           <p className="friends-empty__sub">{emptyCopy.sub}</p>
@@ -325,59 +408,33 @@ export default function Friends() {
             </PrimaryBtn>
           )}
         </div>
-      ) : filtered.length > 0 ? (
-        <div className="friends-list">
-          {filtered.map((f) => {
-            const bal = Number(f.summary?.netBalance || 0);
-            const settled = Math.abs(bal) < 1;
-            const owed = bal > 0;
-            const metaClass = settled
-              ? 'friends-row__meta friends-row__meta--settled'
-              : owed
-                ? 'friends-row__meta friends-row__meta--owed'
-                : 'friends-row__meta friends-row__meta--owe';
-            const meta = settled
-              ? 'Settled up'
-              : owed
-                ? 'Owes you'
-                : 'You owe';
-
-            return (
-              <div key={f.id} className="friends-row">
-                <button
-                  type="button"
-                  className="friends-row__main"
-                  onClick={() => navigate(`/friends/${f.id}`)}
-                >
-                  <Avatar name={f.name} initials={initialsOf(f.name)} tint={friendTint(f.id)} size={42} />
-                  <div className="friends-row__body">
-                    <div className="friends-row__name">{f.name}</div>
-                    <div className={metaClass}>{meta}</div>
-                  </div>
-                  <div className="friends-row__aside">
-                    {settled ? (
-                      <span className="friends-row__settled">Settled</span>
-                    ) : (
-                      <span className="friends-row__amount">
-                        <Num size={14} weight={600} color={owed ? 'var(--ft-income)' : 'var(--ft-spend)'}>
-                          {inr(Math.abs(bal))}
-                        </Num>
-                      </span>
-                    )}
-                    <IcChevR size={14} className="friends-row__chev" aria-hidden="true" />
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  className="friends-row__edit"
-                  onClick={() => openEdit(f)}
-                  aria-label={`Edit ${f.name}`}
-                >
-                  <IcEdit size={14} />
-                </button>
+      ) : shownCount > 0 ? (
+        <div className="friends-sections">
+          {sections.map((sec) => (
+            <section key={sec.id} className={`friends-section friends-section--${sec.id}`}>
+              <div className="friends-section__head">
+                <span className="friends-section__title">
+                  <i style={{ background: sec.tone }} />
+                  {sec.title}
+                  <span className="friends-section__n">{sec.people.length}</span>
+                </span>
+                {sec.id !== 'settled' && (
+                  <Num size={12.5} weight={600} color={sec.tone}>{inr(sec.total)}</Num>
+                )}
               </div>
-            );
-          })}
+              <div className="friends-list">
+                {sec.people.map((f) => (
+                  <FriendRow
+                    key={f.id}
+                    friend={f}
+                    side={sec.id}
+                    onOpen={() => navigate(`/friends/${f.id}`)}
+                    onEdit={() => openEdit(f)}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
       ) : null}
     </Card>
@@ -402,14 +459,51 @@ export default function Friends() {
       <ConfirmDialog {...confirmState} />
       {formSheet}
       {header}
-      <div className="friends-layout">
-        <aside style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="ft-split" style={{ '--ft-split-aside': '320px' }}>
+        {list}
+        <aside className="friends-aside">
           {balanceHero}
           <ReviewCard onOpen={(friendId) => navigate(`/friends/${friendId}?review=1`)} />
         </aside>
-        {list}
       </div>
     </>
+  );
+}
+
+function FriendRow({ friend, side, onOpen, onEdit }) {
+  const bal = Number(friend.summary?.netBalance || 0);
+  const activity = fmtActivity(friend.summary?.lastTransactionDate);
+  return (
+    <div className={`friends-row friends-row--${side}`}>
+      <button type="button" className="friends-row__main" onClick={onOpen}>
+        <Avatar name={friend.name} initials={initialsOf(friend.name)} tint={friendTint(friend.id)} size={36} />
+        <div className="friends-row__body">
+          <div className="friends-row__name">{friend.name}</div>
+          <div className="friends-row__meta">
+            {activity ? `Last activity ${activity}` : 'No shared expenses yet'}
+          </div>
+        </div>
+        <div className="friends-row__aside">
+          {side !== 'settled' && (
+            <span className="friends-row__amount">
+              <Num size={14} weight={600} color={side === 'owed' ? 'var(--ft-income)' : 'var(--ft-spend)'}>
+                {inr(Math.abs(bal))}
+              </Num>
+            </span>
+          )}
+          <IcChevR size={14} className="friends-row__chev" aria-hidden="true" />
+        </div>
+      </button>
+      <button
+        type="button"
+        className="friends-row__edit"
+        onClick={onEdit}
+        aria-label={`Edit ${friend.name}`}
+        title="Edit"
+      >
+        <IcEdit size={14} />
+      </button>
+    </div>
   );
 }
 
