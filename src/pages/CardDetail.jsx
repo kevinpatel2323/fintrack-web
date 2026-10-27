@@ -12,7 +12,8 @@ import CardTransactionModal from '../components/CardTransactionModal.jsx';
 import UnbilledPasteModal from '../components/UnbilledPasteModal.jsx';
 import CardPaymentModal from '../components/CardPaymentModal.jsx';
 import CardStatementModal from '../components/CardStatementModal.jsx';
-import TransactionTable from '../components/TransactionTable.jsx';
+import TransactionTable, { transactionColumnChoices, useTransactionColumns } from '../components/TransactionTable.jsx';
+import TransactionColumnsMenu from '../components/transactions/TransactionColumnsMenu.jsx';
 import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
 import TransactionMobileList from '../components/TransactionMobileList.jsx';
 import CardDetailsPanel from './cards/CardDetailsPanel.jsx';
@@ -69,10 +70,14 @@ function cardDue(card) {
   return { status, daysAway, amount: card.currentDue, dueDate: card.currentDueDate };
 }
 
+const CARD_COLUMN_LABELS = { description: 'Merchant', method: 'Status' };
+const CARD_COLUMN_CHOICES = transactionColumnChoices(CARD_COLUMN_LABELS);
+
 export default function CardDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isMobile = useIsCompact();
+  const columnSettings = useTransactionColumns('fintrack.ledger.card');
   const isStacked = useMediaQuery(QUERY_STACKED);
 
   const [card, setCard] = useState(null);
@@ -623,6 +628,7 @@ export default function CardDetail() {
               </>
             )}
           </span>
+          {!isMobile && <TransactionColumnsMenu columns={CARD_COLUMN_CHOICES} settings={columnSettings} />}
         </div>
 
         {isMobile ? (
@@ -645,9 +651,8 @@ export default function CardDetail() {
           <div className="cardd-ledger">
             <TransactionTable
               rows={tableRows}
-              storageKey="fintrack.ledger.card"
-              showColumnsMenu={false}
-              columnLabels={{ description: 'Merchant', method: 'Status' }}
+              columnSettings={columnSettings}
+              columnLabels={CARD_COLUMN_LABELS}
               categories={categories}
               onAssignCategory={assignCategory}
               onOpenManage={openManage}

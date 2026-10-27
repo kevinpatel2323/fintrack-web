@@ -16,8 +16,10 @@ import './Dropdown.css';
  * theme: 'red', disabled, shortcut, description, selected, condition }`.
  */
 
+// A group is any entry holding a list of items; its `group` label is optional
+// (an unlabelled group is still separated from its neighbours by a hairline).
 function isGroup(opt) {
-  return !!opt && typeof opt === 'object' && 'group' in opt && (Array.isArray(opt.items) || Array.isArray(opt.options));
+  return !!opt && typeof opt === 'object' && (Array.isArray(opt.items) || Array.isArray(opt.options));
 }
 
 function isShown(item) {
@@ -140,7 +142,9 @@ export default function Dropdown({
       return;
     }
     item.onClick?.(e);
-    closeMenu({ focusTrigger: true });
+    // Keyboard activation (detail 0) hands focus back to the trigger; after a
+    // mouse pick, restoring it would only paint a stray focus ring.
+    closeMenu({ focusTrigger: e.detail === 0 });
   }
 
   function onMenuKeyDown(e) {

@@ -1,5 +1,6 @@
 import { Amount, Card } from '../ui';
-import TransactionTable from '../TransactionTable.jsx';
+import TransactionTable, { transactionColumnChoices, useTransactionColumns } from '../TransactionTable.jsx';
+import TransactionColumnsMenu from '../transactions/TransactionColumnsMenu.jsx';
 import TransactionListRow from '../TransactionListRow.jsx';
 
 /**
@@ -7,6 +8,9 @@ import TransactionListRow from '../TransactionListRow.jsx';
  * transactions it covers (managed like any other ledger rows) and whatever
  * part of the payment they don't account for.
  */
+const COLUMN_LABELS = { description: 'Merchant', method: 'Status' };
+const COLUMN_CHOICES = transactionColumnChoices(COLUMN_LABELS);
+
 export default function CardBillCard({
   ccLink,
   rows,
@@ -22,6 +26,7 @@ export default function CardBillCard({
   onPageChange,
   onPageSizeChange,
 }) {
+  const columnSettings = useTransactionColumns('fintrack.ledger.covered');
   const count = (ccLink.coveredTransactions || []).length;
   const cardLabel = ccLink.card ? `${ccLink.card.name} ····${ccLink.card.last4}` : 'Credit card';
   const remainder = Number(ccLink.remainder || 0);
@@ -32,6 +37,7 @@ export default function CardBillCard({
       title="Card bill"
       description={`${cardLabel} · ${count} covered card ${count === 1 ? 'transaction' : 'transactions'}`}
       padding="none"
+      actions={isMobile ? null : <TransactionColumnsMenu columns={COLUMN_CHOICES} settings={columnSettings} />}
       className="txd-bill"
       footer={remainder !== 0 ? (
         <div className="txd-bill__remainder">
@@ -63,9 +69,8 @@ export default function CardBillCard({
       ) : (
         <TransactionTable
           rows={rows}
-          storageKey="fintrack.ledger.covered"
-          showColumnsMenu={false}
-          columnLabels={{ description: 'Merchant', method: 'Status' }}
+          columnSettings={columnSettings}
+          columnLabels={COLUMN_LABELS}
           categories={categories}
           onAssignCategory={onAssignCategory}
           onOpenManage={onOpenManage}

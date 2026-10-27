@@ -42,6 +42,16 @@ export function applyTheme(mode) {
   return resolved;
 }
 
+// Follow OS light/dark changes app-wide while the mode is 'system', on every
+// screen — not only those that happen to render a theme control.
+if (typeof window !== 'undefined' && window.matchMedia) {
+  window
+    .matchMedia('(prefers-color-scheme: dark)')
+    .addEventListener?.('change', () => {
+      if (readStored() === 'system') applyTheme('system');
+    });
+}
+
 export function useTheme() {
   const [mode, setMode] = useState(readStored);
   const [resolved, setResolved] = useState(() =>

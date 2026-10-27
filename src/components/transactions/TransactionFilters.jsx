@@ -78,7 +78,11 @@ export function TransactionPeriodFilter({ rangeStart, rangeEnd, onChange, monthO
             return;
           }
           const m = monthOptions.find((o) => o.value === value);
-          if (m) onChange(m.startIso, m.endIso);
+          if (!m) return;
+          // Re-picking the month already in range changes nothing upstream,
+          // so leave custom mode here rather than waiting for a new range.
+          setCustom(false);
+          onChange(m.startIso, m.endIso);
         }}
       />
       {showRange && (

@@ -30,6 +30,11 @@ export default function TransactionDetail() {
   const isMobile = useIsCompact();
 
   const listPath = transactionsListPath(location.state?.transactionsSearch);
+  // The first breadcrumb leads back to where the user came from: the calendar
+  // month/day they opened this from, or the filtered list.
+  const parentCrumb = location.state?.calendarSearch
+    ? { label: 'Calendar', to: calendarPath(location.state.calendarSearch) }
+    : { label: 'Transactions', to: listPath };
   // Back to where the user came from, with their filters: the calendar or
   // the list carry their search in navigation state.
   const backFromDetail = () => {
@@ -264,7 +269,7 @@ export default function TransactionDetail() {
       <>
         <PageHeader
           title="Transaction"
-          breadcrumbs={[{ label: 'Transactions', to: listPath }, { label: 'Transaction' }]}
+          breadcrumbs={[parentCrumb, { label: 'Transaction' }]}
           back={backFromDetail}
         />
         <PageBody>
@@ -294,7 +299,7 @@ export default function TransactionDetail() {
             <EmptyState
               icon={AlertCircle}
               title={txError ? 'Could not load this transaction.' : 'Transaction not found.'}
-              action={<Button label="Go to Transactions" to={listPath} />}
+              action={<Button label={`Back to ${parentCrumb.label}`} onClick={backFromDetail} />}
             />
           )}
         </PageBody>
@@ -362,7 +367,7 @@ export default function TransactionDetail() {
       <PageHeader
         // Phones show this centred; the summary below already names the merchant.
         title="Transaction"
-        breadcrumbs={[{ label: 'Transactions', to: listPath }, { label: title }]}
+        breadcrumbs={[parentCrumb, { label: title }]}
         back={backFromDetail}
         actions={headerActions}
         mobileActions={mobileActions}

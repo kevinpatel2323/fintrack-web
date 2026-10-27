@@ -375,7 +375,7 @@ export function PeopleCard({ balances, loading, limit = 5 }) {
                   <Avatar label={f.friendName} size="lg" aria-hidden />
                   <span className="dash-row-text">
                     <span className="dash-row-title truncate">{f.friendName}</span>
-                    <span className="dash-row-meta">{n > 0 ? 'Owes you' : 'You owe'}</span>
+                    <span className="dash-row-meta">{Math.abs(n) < 1 ? 'Settled' : n > 0 ? 'Owes you' : 'You owe'}</span>
                   </span>
                   <Amount className="dash-row-amount" value={Math.abs(n)} sign="never" tone="out" />
                 </Link>
