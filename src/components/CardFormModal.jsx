@@ -3,6 +3,7 @@ import {
   Checkbox, Dialog, ErrorMessage, FormControl, FormLabel, TabButtons, toast,
 } from './ui';
 import CardMark from './cards/CardMark.jsx';
+import CardFace from './cards/CardFace.jsx';
 import { BANK_OPTIONS, NETWORK_OPTIONS } from './cards/cardFormat.js';
 import { CARD_PALETTES, createCard, updateCard } from '../services/cardsApi.js';
 import { refreshImportSchedule } from '../hooks/useImportSchedule.js';
@@ -181,6 +182,18 @@ export default function CardFormModal({ initial = null, onClose, onSaved, open =
       ]}
     >
       <form id={formId} className="cardform" onSubmit={submit} noValidate>
+        {/* Live preview: the card updates as the fields are filled in. */}
+        <div className="cardform__preview">
+          <CardFace
+            card={{
+              ...form,
+              last4: form.last4.trim(),
+              holder: form.holder.trim(),
+              name: form.name?.trim(),
+              expiryYear: String(form.expiryYear || '').length === 4 ? form.expiryYear : '',
+            }}
+          />
+        </div>
         <div className="cardform__section">
           <div className="cardform__field">
             <FormLabel as="div" label="Type" />

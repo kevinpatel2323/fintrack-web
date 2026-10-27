@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 import { Amount, Badge, Progress, Skeleton } from '../../components/ui';
-import CardMark from '../../components/cards/CardMark.jsx';
+import CardFace from '../../components/cards/CardFace.jsx';
 import {
-  bankName, cardTitle, dayLabel, dueBadge, formatPct, networkName,
+  bankName, cardTitle, dayLabel, dueBadge, formatPct,
 } from '../../components/cards/cardFormat.js';
 
 /** "Statements up to date · Nov 2026 in 20 days", or the statement to import. */
@@ -55,15 +55,19 @@ export default function CardTile({ card, schedule, due }) {
   const meta = [
     bankName(card.bank),
     card.nickname && card.nickname !== card.name ? card.name : null,
-    card.holder,
     card.last4 ? `••${card.last4}` : null,
   ].filter(Boolean);
   const pct = card.utilizationPct;
 
   return (
     <article className="cards-tile">
+      {/* The face repeats the title link for pointer users; keyboard and
+          screen-reader users get the one link below. */}
+      <Link to={`/cards/${card.id}`} className="cards-tile__face" tabIndex={-1} aria-hidden="true">
+        <CardFace card={card} />
+      </Link>
+
       <div className="cards-tile__head">
-        <CardMark palette={card.palette} size="lg" />
         <div className="cards-tile__id">
           <div className="cards-tile__title">
             <Link to={`/cards/${card.id}`} className="cards-tile__link truncate">
@@ -73,7 +77,6 @@ export default function CardTile({ card, schedule, due }) {
           </div>
           <p className="cards-tile__meta truncate">{meta.join(' · ')}</p>
         </div>
-        {card.network && <Badge variant="outline" label={networkName(card.network)} />}
       </div>
 
       {isCredit ? (
@@ -122,8 +125,8 @@ export default function CardTile({ card, schedule, due }) {
 export function CardTileSkeleton() {
   return (
     <div className="cards-tile cards-tile--skeleton" aria-hidden="true">
+      <Skeleton className="cards-tile__face-skeleton" />
       <div className="cards-tile__head">
-        <Skeleton width={34} height={22} />
         <div className="cards-tile__id">
           <Skeleton height={14} width="55%" />
           <Skeleton height={12} width="80%" />

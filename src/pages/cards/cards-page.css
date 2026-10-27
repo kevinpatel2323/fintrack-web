@@ -74,7 +74,7 @@
 
 .cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
   gap: 12px;
 }
 
@@ -92,6 +92,35 @@
   transition: background-color 120ms ease, border-color 120ms ease;
 }
 
+/* The card itself leads the tile, at a size that still reads as a card. */
+.cards-tile__face {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  border-radius: 12px;
+  transition: transform 160ms ease;
+}
+
+.cards-tile__face-skeleton {
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 85.6 / 54;
+  height: auto;
+  border-radius: 12px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cards-tile:hover .cards-tile__face {
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cards-tile__face {
+    transition: none;
+  }
+}
+
 .cards-tile:not(.cards-tile--skeleton):hover {
   border-color: var(--outline-gray-2);
   background: var(--surface-gray-1);
@@ -106,10 +135,6 @@
   align-items: flex-start;
   gap: 12px;
   min-width: 0;
-}
-
-.cards-tile__head > .card-mark {
-  margin-top: 2px;
 }
 
 .cards-tile__id {

@@ -1,0 +1,200 @@
+/* Card face: a physical card at ISO 7810 proportions (85.6 × 54 mm). The box
+ * is a size container, so everything inside is sized in cqw and scales with
+ * the card; the box itself uses percentages, since container units on the
+ * container resolve against its ancestor. Colours come from the card's
+ * palette (--cf-from / --cf-to / --cf-ink); network logos keep their brand
+ * colours. */
+
+.card-face {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 85.6 / 54;
+  container-type: inline-size;
+  overflow: hidden;
+  border-radius: 5% / 7.9%;
+  background: linear-gradient(135deg, var(--cf-from) 0%, var(--cf-to) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.08),
+    var(--elevation-md);
+  color: var(--cf-ink);
+  user-select: none;
+}
+
+/* A soft light falling across the top-left, as on a real card. */
+.card-face::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, rgb(255 255 255 / 0.1) 0%, rgb(255 255 255 / 0) 42%);
+  pointer-events: none;
+}
+
+.card-face[data-ink='dark'] {
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 0.08),
+    var(--elevation-md);
+}
+
+.card-face__inner {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  padding: 5.6cqw 6cqw 5cqw;
+}
+
+.card-face__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 3cqw;
+  min-width: 0;
+}
+
+.card-face__issuer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6cqw;
+  min-width: 0;
+}
+
+.card-face__bank {
+  font-size: 3.8cqw;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.card-face__kind,
+.card-face__label {
+  font-size: 2.4cqw;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  opacity: 0.68;
+}
+
+.card-face__product {
+  max-width: 40cqw;
+  overflow: hidden;
+  font-size: 3cqw;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.9;
+}
+
+.card-face__chip {
+  display: block;
+  align-self: center;
+  width: 11cqw;
+  height: auto;
+}
+
+.card-face__number {
+  display: flex;
+  gap: 3.4cqw;
+  margin-bottom: 4.4cqw;
+  font-size: 5cqw;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.card-face__bottom {
+  display: flex;
+  align-items: flex-end;
+  gap: 5cqw;
+  min-width: 0;
+}
+
+.card-face__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8cqw;
+  min-width: 0;
+}
+
+.card-face__field--holder {
+  flex: 1;
+}
+
+.card-face__value {
+  overflow: hidden;
+  font-size: 3.2cqw;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Network marks ---------- */
+
+.card-face__network {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 3.4cqw;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.card-face__network--visa {
+  font-size: 6.2cqw;
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.card-face__network--mc {
+  display: flex;
+}
+
+.card-face__mc {
+  width: 7.6cqw;
+  height: 7.6cqw;
+  border-radius: 50%;
+}
+
+.card-face__mc--red {
+  background: #eb001b;
+}
+
+.card-face__mc--amber {
+  margin-left: -3cqw;
+  background: #f79e1b;
+  mix-blend-mode: hard-light;
+  opacity: 0.95;
+}
+
+.card-face__network--rupay {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6cqw;
+  font-size: 4.2cqw;
+  font-style: italic;
+  font-weight: 800;
+}
+
+.card-face__rupay-mark {
+  width: 2.6cqw;
+  height: 3.4cqw;
+  background: linear-gradient(90deg, #f47920 50%, #00854a 50%);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+.card-face__network--amex {
+  padding: 1cqw 1.6cqw;
+  border-radius: 0.6cqw;
+  background: #006fcf;
+  color: #fff;
+  font-size: 2.8cqw;
+  letter-spacing: 0.06em;
+}

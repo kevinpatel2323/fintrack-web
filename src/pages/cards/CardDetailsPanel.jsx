@@ -1,6 +1,6 @@
 import { Pencil } from 'lucide-react';
 import { Amount, Badge, Button, Progress } from '../../components/ui';
-import CardMark from '../../components/cards/CardMark.jsx';
+import CardFace from '../../components/cards/CardFace.jsx';
 import {
   bankName, cardTitle, dayLabel, formatPct, networkName, ordinal,
 } from '../../components/cards/cardFormat.js';
@@ -47,8 +47,8 @@ export default function CardDetailsPanel({ card, schedule, onEdit }) {
 
   return (
     <div className="cardd-side">
+      <CardFace card={card} className="cardd-side__face" />
       <div className="cardd-side__identity">
-        <CardMark palette={card.palette} size="lg" />
         <div className="cardd-side__who">
           <div className="cardd-side__name">
             <span className="truncate">{cardTitle(card)}</span>

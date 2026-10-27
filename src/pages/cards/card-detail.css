@@ -135,6 +135,13 @@
   flex-direction: column;
 }
 
+.cardd-side .cardd-side__face {
+  flex-shrink: 0;
+  width: calc(100% - 32px);
+  max-width: 340px;
+  margin: 16px 16px 4px;
+}
+
 .cardd-side__identity {
   display: flex;
   align-items: center;

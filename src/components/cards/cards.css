@@ -30,6 +30,12 @@
   gap: 16px;
 }
 
+.cardform__preview {
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto 4px;
+}
+
 .cardform__section {
   display: flex;
   flex-direction: column;
