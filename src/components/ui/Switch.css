@@ -1,0 +1,271 @@
+/* Switch — frappe-ui 1.0.2 Switch.vue.
+ *
+ * Track: sm 26×16 (2px border), md 32×20 (3px), xs 24×14 (2px); the
+ * transparent border is the inset the thumb rides in.
+ * Colours: off surface-gray-4 → 5 (hover) → 6 (active); on surface-gray-10 →
+ * 9 → 8; disabled surface-gray-3. Thumb: surface-base with the base elevation.
+ */
+
+.ui-switch {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ---------- Group layouts ---------- */
+
+.ui-switch__group {
+  display: flex;
+}
+
+/* Label only: label and switch on one line, switch at the far end. */
+.ui-switch__group--inline {
+  align-items: center;
+  justify-content: space-between;
+  column-gap: 12px;
+}
+
+.ui-switch:not(.ui-switch--padded) .ui-switch__group--inline {
+  padding: 6px 0;
+  border-radius: var(--radius-4);
+  cursor: pointer;
+}
+
+.ui-switch.is-disabled .ui-switch__group--inline {
+  cursor: not-allowed;
+}
+
+/* Label + description: a settings row. */
+.ui-switch__group--settings {
+  align-items: center;
+  justify-content: space-between;
+  column-gap: 10px;
+}
+
+.ui-switch--md .ui-switch__group--settings {
+  column-gap: 14px;
+}
+
+/* controlPosition="start": the switch leads. */
+.ui-switch--start .ui-switch__group--inline,
+.ui-switch--start .ui-switch__group--settings {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+
+.ui-switch--start .ui-switch__group--inline {
+  column-gap: 10px;
+}
+
+.ui-switch__text {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.ui-switch__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-inline-end: 8px;
+  color: var(--ink-gray-6);
+}
+
+.ui-switch__label {
+  user-select: none;
+  cursor: pointer;
+}
+
+.ui-switch.is-disabled .ui-switch__label {
+  cursor: not-allowed;
+}
+
+/* ---------- Track + thumb ---------- */
+
+.ui-switch__track {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  width: 26px;
+  height: 16px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--radius-full);
+  background-color: var(--surface-gray-4);
+  box-shadow: none;
+  outline-offset: 0;
+  opacity: 1;
+  cursor: pointer;
+  transition: background-color 100ms ease-in-out;
+}
+
+.ui-switch--md .ui-switch__track {
+  width: 32px;
+  height: 20px;
+  border-width: 3px;
+}
+
+.ui-switch--xs .ui-switch__track {
+  width: 24px;
+  height: 14px;
+}
+
+.ui-switch__track[aria-checked='true'] {
+  background-color: var(--surface-gray-10);
+}
+
+.ui-switch__thumb {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  background-color: var(--surface-base);
+  box-shadow: var(--elevation-base);
+  pointer-events: none;
+  transform: translateX(0);
+  transition: transform 100ms ease-in-out;
+}
+
+.ui-switch--md .ui-switch__thumb { width: 14px; height: 14px; }
+.ui-switch--xs .ui-switch__thumb { width: 10px; height: 10px; }
+
+.ui-switch__track[aria-checked='true'] .ui-switch__thumb { transform: translateX(10px); }
+.ui-switch--md .ui-switch__track[aria-checked='true'] .ui-switch__thumb { transform: translateX(12px); }
+
+[dir='rtl'] .ui-switch__track[aria-checked='true'] .ui-switch__thumb { transform: translateX(-10px); }
+[dir='rtl'] .ui-switch--md .ui-switch__track[aria-checked='true'] .ui-switch__thumb { transform: translateX(-12px); }
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-switch__track:enabled:hover,
+  .ui-switch__group--inline:hover .ui-switch__track:enabled,
+  .ui-switch--padded:hover .ui-switch__track:enabled {
+    background-color: var(--surface-gray-5);
+  }
+
+  .ui-switch__track[aria-checked='true']:enabled:hover,
+  .ui-switch__group--inline:hover .ui-switch__track[aria-checked='true']:enabled,
+  .ui-switch--padded:hover .ui-switch__track[aria-checked='true']:enabled {
+    background-color: var(--surface-gray-9);
+  }
+}
+
+.ui-switch .ui-switch__track:enabled:active {
+  background-color: var(--surface-gray-6);
+}
+
+.ui-switch .ui-switch__track[aria-checked='true']:enabled:active {
+  background-color: var(--surface-gray-8);
+}
+
+.ui-switch__track:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: 0;
+}
+
+.ui-switch__track:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.ui-switch__track:disabled,
+.ui-switch__track[aria-checked='true']:disabled {
+  background-color: var(--surface-gray-3);
+  cursor: not-allowed;
+}
+
+/* ---------- Description / error ---------- */
+
+.ui-switch__detail {
+  margin-top: -2px;
+}
+
+.ui-switch--padded .ui-switch__detail {
+  margin-top: 4px;
+}
+
+/* A description sits tight under the label. */
+.ui-switch--settings .ui-switch__detail {
+  margin-top: 2px;
+}
+
+/* With the switch leading, the text lines up under the label. */
+.ui-switch--start.ui-switch--xs .ui-switch__detail { padding-inline-start: 32px; }
+.ui-switch--start.ui-switch--sm .ui-switch__detail { padding-inline-start: 36px; }
+.ui-switch--start.ui-switch--md .ui-switch__detail { padding-inline-start: 42px; }
+
+.ui-switch__description,
+.ui-switch__error {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.015em;
+}
+
+.ui-switch__description {
+  color: var(--ink-gray-6);
+}
+
+.ui-switch.is-disabled .ui-switch__description {
+  color: var(--ink-gray-4);
+}
+
+.ui-switch__error {
+  color: var(--ink-red-5);
+  white-space: pre-line;
+}
+
+/* ---------- Padded row ---------- */
+
+.ui-switch--padded {
+  justify-content: center;
+  width: 100%;
+  border-radius: var(--radius-4);
+  cursor: pointer;
+  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ui-switch--padded.ui-switch--start {
+  width: fit-content;
+}
+
+.ui-switch--padded.ui-switch--xs { height: 24px; padding: 0 6px; }
+.ui-switch--padded.ui-switch--sm { height: 28px; padding: 0 8px; }
+.ui-switch--padded.ui-switch--md { height: 32px; padding: 0 12px; }
+
+.ui-switch--padded.has-detail { height: auto; justify-content: flex-start; }
+.ui-switch--padded.ui-switch--xs.has-detail { padding: 6px; }
+.ui-switch--padded.ui-switch--sm.has-detail { padding: 6px 8px; }
+.ui-switch--padded.ui-switch--md.has-detail { padding: 8px 12px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-switch--padded:not(.is-disabled):hover {
+    background-color: var(--surface-gray-3);
+  }
+}
+
+.ui-switch--padded:not(.is-disabled):active {
+  background-color: var(--surface-gray-4);
+}
+
+.ui-switch--padded .ui-switch__track:focus-visible {
+  outline: none;
+}
+
+.ui-switch--padded:has(:focus-visible) {
+  box-shadow: 0 0 0 2px var(--outline-gray-3);
+}
+
+.ui-switch--padded.is-disabled {
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-switch__track,
+  .ui-switch__thumb,
+  .ui-switch--padded {
+    transition-duration: 0ms;
+  }
+}

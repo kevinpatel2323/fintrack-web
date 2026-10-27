@@ -1,0 +1,199 @@
+/* FileUploader — a dropzone in Frappe's vocabulary: dashed outline-gray-2
+ * border on an 8px radius, surface-gray-1 on hover and drag-over, a gray-2
+ * icon disc, `text-base-medium` title with a link-like "browse",
+ * `text-p-sm` description. Uploading shows the kit Spinner and a
+ * Progress-style bar (surface-gray-2 track, surface-gray-10 fill). */
+
+.ui-file-uploader {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border: 1px dashed var(--outline-gray-2);
+  border-radius: var(--radius-4);
+  background-color: var(--surface-base);
+  color: var(--ink-gray-8);
+  cursor: pointer;
+  outline-offset: 0;
+  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1), border-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ui-file-uploader--md {
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.ui-file-uploader--sm {
+  flex-direction: row;
+  gap: 10px;
+  padding: 10px 12px;
+  text-align: start;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-file-uploader:not(.is-disabled):not(.is-uploading):hover {
+    background-color: var(--surface-gray-1);
+  }
+
+  .ui-file-uploader:not(.is-disabled):not(.is-uploading):hover .ui-file-uploader__link {
+    text-decoration-color: var(--ink-gray-6);
+  }
+}
+
+.ui-file-uploader.is-dragging {
+  border-color: var(--outline-gray-4);
+  background-color: var(--surface-gray-1);
+}
+
+.ui-file-uploader:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: 0;
+}
+
+.ui-file-uploader.has-error {
+  border-color: var(--outline-red-3);
+}
+
+.ui-file-uploader.is-uploading {
+  cursor: progress;
+}
+
+.ui-file-uploader.is-disabled {
+  background-color: var(--surface-gray-1);
+  cursor: not-allowed;
+}
+
+/* The native input only opens the dialog; it is never seen. */
+.ui-file-uploader__input {
+  display: none;
+}
+
+/* ---------- Icon ---------- */
+
+.ui-file-uploader__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background-color: var(--surface-gray-2);
+  color: var(--ink-gray-6);
+}
+
+.ui-file-uploader--sm .ui-file-uploader__icon {
+  width: 28px;
+  height: 28px;
+}
+
+.ui-file-uploader.is-disabled .ui-file-uploader__icon {
+  color: var(--ink-gray-4);
+}
+
+/* ---------- Text ---------- */
+
+.ui-file-uploader__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ui-file-uploader--md .ui-file-uploader__text {
+  align-items: center;
+}
+
+.ui-file-uploader__title {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0.015em;
+  color: var(--ink-gray-8);
+}
+
+.ui-file-uploader--sm .ui-file-uploader__title {
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.ui-file-uploader__link {
+  color: var(--ink-gray-9);
+  text-decoration: underline;
+  text-decoration-color: var(--outline-gray-3);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: text-decoration-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ui-file-uploader__description,
+.ui-file-uploader__error {
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.015em;
+}
+
+.ui-file-uploader--sm .ui-file-uploader__description,
+.ui-file-uploader--sm .ui-file-uploader__error {
+  font-size: 12px;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+}
+
+.ui-file-uploader__description {
+  color: var(--ink-gray-5);
+}
+
+.ui-file-uploader__error {
+  color: var(--ink-red-5);
+}
+
+.ui-file-uploader.is-disabled .ui-file-uploader__title,
+.ui-file-uploader.is-disabled .ui-file-uploader__link {
+  color: var(--ink-gray-5);
+}
+
+.ui-file-uploader.is-disabled .ui-file-uploader__link {
+  text-decoration-color: var(--outline-gray-2);
+}
+
+.ui-file-uploader.is-disabled .ui-file-uploader__description {
+  color: var(--ink-gray-4);
+}
+
+/* ---------- Progress ---------- */
+
+.ui-file-uploader__progress {
+  display: block;
+  width: 160px;
+  max-width: 100%;
+  height: 4px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-7);
+  background-color: var(--surface-gray-2);
+}
+
+.ui-file-uploader--sm .ui-file-uploader__progress {
+  width: 200px;
+  margin-top: 4px;
+}
+
+.ui-file-uploader__progress-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-color: var(--surface-gray-10);
+  transition: transform 150ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-file-uploader,
+  .ui-file-uploader__link,
+  .ui-file-uploader__progress-fill {
+    transition-duration: 0ms;
+  }
+}

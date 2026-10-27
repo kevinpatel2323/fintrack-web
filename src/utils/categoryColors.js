@@ -1,37 +1,60 @@
-// Map category names (from API) to the design palette key.
-// API stores category objects with name + optional color, but the redesign uses
-// a fixed 10-hue palette. We do best-effort matching on the name.
+// Category colours. The API stores a category's colour as a hex string (what
+// the colour picker writes); rendering goes through Espresso tokens wherever
+// the stored value is one of our palette colours, so it follows light/dark.
 
-// Authoring palette. These hex values are what the category colour-picker
-// writes to the database, so they must stay literal — a var() reference would
-// be persisted verbatim. Rendering goes through CATEGORY_TOKENS below instead.
+// Authoring palette — written to the database by the category colour picker,
+// so it must stay literal hex. One Espresso colour family per key (the light
+// theme's ink-*-5 step).
 export const CATEGORY_PALETTE = {
-  food:      '#FF8B6B',
-  transport: '#7DB9FF',
-  shopping:  '#B79CFF',
-  bills:     '#FFB454',
-  grocery:   '#6EE7B7',
-  rent:      '#FF7AB6',
-  entmt:     '#FFD66E',
-  transfer:  '#8D9099',
-  salary:    '#D7FF3D',
-  health:    '#6EE7E7',
+  food:      '#E86C13', // orange
+  transport: '#0C8EF8', // blue
+  shopping:  '#7757EE', // violet
+  bills:     '#DF9310', // amber
+  grocery:   '#43AC79', // green
+  rent:      '#E34AA6', // pink
+  entmt:     '#9C45E3', // purple
+  transfer:  '#7C7C7C', // gray
+  salary:    '#35BAAD', // teal
+  health:    '#3BBDE5', // cyan
+  red:       '#E03434',
+  yellow:    '#EDBA14',
 };
 
-// Rendering palette — theme-aware. Same ten hues, resolved per theme by
-// tokens.css (see --ft-cat-*), so charts and chips follow light/dark.
+// Rendering palette — theme-aware, resolved per theme by styles/theme.css.
 export const CATEGORY_TOKENS = {
-  food:      'var(--ft-cat-food)',
-  transport: 'var(--ft-cat-transport)',
-  shopping:  'var(--ft-cat-shopping)',
-  bills:     'var(--ft-cat-bills)',
-  grocery:   'var(--ft-cat-grocery)',
-  rent:      'var(--ft-cat-rent)',
-  entmt:     'var(--ft-cat-entmt)',
-  transfer:  'var(--ft-cat-transfer)',
-  salary:    'var(--ft-cat-salary)',
-  health:    'var(--ft-cat-health)',
+  food:      'var(--cat-food)',
+  transport: 'var(--cat-transport)',
+  shopping:  'var(--cat-shopping)',
+  bills:     'var(--cat-bills)',
+  grocery:   'var(--cat-grocery)',
+  rent:      'var(--cat-rent)',
+  entmt:     'var(--cat-entmt)',
+  transfer:  'var(--cat-transfer)',
+  salary:    'var(--cat-salary)',
+  health:    'var(--cat-health)',
+  red:       'var(--ink-red-5)',
+  yellow:    'var(--ink-yellow-5)',
 };
+
+// Colours the pre-redesign picker wrote. Categories saved back then still carry
+// them; they render as the matching token instead of the old neon hex.
+const LEGACY_PALETTE = {
+  '#FF8B6B': 'food',
+  '#7DB9FF': 'transport',
+  '#B79CFF': 'shopping',
+  '#FFB454': 'bills',
+  '#6EE7B7': 'grocery',
+  '#FF7AB6': 'rent',
+  '#FFD66E': 'entmt',
+  '#8D9099': 'transfer',
+  '#D7FF3D': 'salary',
+  '#6EE7E7': 'health',
+};
+
+const TOKEN_FOR_HEX = Object.fromEntries([
+  ...Object.entries(CATEGORY_PALETTE).map(([key, hex]) => [hex, CATEGORY_TOKENS[key]]),
+  ...Object.entries(LEGACY_PALETTE).map(([hex, key]) => [hex, CATEGORY_TOKENS[key]]),
+]);
 
 const NAME_RULES = [
   [/^food|restaurant|dining|cafe|coffee|swiggy|zomato/i, 'food'],
@@ -54,13 +77,15 @@ export function categoryKeyForName(name) {
   return 'transfer';
 }
 
-// Returns a user-set hex when the category has one, otherwise a theme token.
-// User-set colours come from the database and cannot be themed — see the
-// unresolved-items note in the light-theme migration.
+// A category's display colour: the theme token for a palette colour (current
+// or legacy), the stored hex for a custom one, else a token picked from the
+// category's name.
 export function categoryColor(category) {
   if (!category) return CATEGORY_TOKENS.transfer;
-  if (category.color && /^#?[0-9a-fA-F]{3,8}$/.test(String(category.color).replace('#', ''))) {
-    return category.color.startsWith('#') ? category.color : `#${category.color}`;
+  const raw = category.color ? String(category.color).trim() : '';
+  if (/^#?[0-9a-fA-F]{3,8}$/.test(raw)) {
+    const hex = (raw.startsWith('#') ? raw : `#${raw}`).toUpperCase();
+    return TOKEN_FOR_HEX[hex] || hex;
   }
   return CATEGORY_TOKENS[categoryKeyForName(category.name)] || CATEGORY_TOKENS.transfer;
 }
@@ -70,13 +95,13 @@ export function categoryKey(category) {
   return categoryKeyForName(category.name);
 }
 
-// Friend tint — deterministic from id. Theme tokens, not literals, so avatars
-// re-tint with the theme.
+// Friend tint — deterministic from id. Theme tokens, not literals, so anything
+// tinted per person re-tints with the theme.
 const FRIEND_TINTS = [
-  'var(--ft-cat-food)', 'var(--ft-cat-transport)', 'var(--ft-cat-shopping)',
-  'var(--ft-cat-bills)', 'var(--ft-cat-grocery)', 'var(--ft-cat-rent)',
-  'var(--ft-cat-entmt)', 'var(--ft-cat-health)', 'var(--ft-cat-salary)',
-  'var(--ft-spend)',
+  'var(--cat-food)', 'var(--cat-transport)', 'var(--cat-shopping)',
+  'var(--cat-bills)', 'var(--cat-grocery)', 'var(--cat-rent)',
+  'var(--cat-entmt)', 'var(--cat-health)', 'var(--cat-salary)',
+  'var(--ink-red-5)',
 ];
 
 export function friendTint(idOrName) {

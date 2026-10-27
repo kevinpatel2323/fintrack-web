@@ -1,0 +1,154 @@
+/* Avatar — frappe-ui Avatar.vue.
+ *
+ * Root:     relative inline-block shrink-0
+ * Sizes:    xs 16 · sm 20 · md 24 · lg 28 · xl 32 · 2xl 40 · 3xl 46 (w-11.5)
+ * Square:   xs 4px · sm/md 5px · lg/xl 6px · 2xl 8px · 3xl 10px; circle rounded-full
+ * Fallback: flex centre uppercase select-none font-medium, text 2xs/sm/base/base/lg/2xl/3xl
+ *           gray: surface-gray-2 / ink-gray-5; colours: surface-{c}-2 / ink-{c}-7
+ * Icon:     10/12/16/16/16/20/20
+ * Indicator ring (bg-surface-base, bottom-right, nudged out by .1rem/.2rem)
+ *           8/9/10/12/12/14/16, dot 4/5/6/8/8/10/12
+ */
+
+.ui-avatar {
+  --ui-avatar-size: 24px;
+  --ui-avatar-radius: 9999px;
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  width: var(--ui-avatar-size);
+  height: var(--ui-avatar-size);
+  border-radius: var(--ui-avatar-radius);
+}
+
+.ui-avatar--xs { --ui-avatar-size: 16px; }
+.ui-avatar--sm { --ui-avatar-size: 20px; }
+.ui-avatar--md { --ui-avatar-size: 24px; }
+.ui-avatar--lg { --ui-avatar-size: 28px; }
+.ui-avatar--xl { --ui-avatar-size: 32px; }
+.ui-avatar--2xl { --ui-avatar-size: 40px; }
+.ui-avatar--3xl { --ui-avatar-size: 46px; }
+
+.ui-avatar--square.ui-avatar--xs { --ui-avatar-radius: 4px; }
+.ui-avatar--square.ui-avatar--sm,
+.ui-avatar--square.ui-avatar--md { --ui-avatar-radius: 5px; }
+.ui-avatar--square.ui-avatar--lg,
+.ui-avatar--square.ui-avatar--xl { --ui-avatar-radius: 6px; }
+.ui-avatar--square.ui-avatar--2xl { --ui-avatar-radius: 8px; }
+.ui-avatar--square.ui-avatar--3xl { --ui-avatar-radius: 10px; }
+
+.ui-avatar__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--ui-avatar-radius);
+}
+
+.ui-avatar__fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--ui-avatar-radius);
+  text-transform: uppercase;
+  user-select: none;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* One letter — Frappe's sizes. */
+.ui-avatar--xs .ui-avatar__fallback { font-size: 11px; letter-spacing: 0.01em; }
+.ui-avatar--sm .ui-avatar__fallback { font-size: 13px; }
+.ui-avatar--md .ui-avatar__fallback { font-size: 14px; }
+.ui-avatar--lg .ui-avatar__fallback { font-size: 14px; }
+.ui-avatar--xl .ui-avatar__fallback { font-size: 16px; }
+.ui-avatar--2xl .ui-avatar__fallback { font-size: 18px; letter-spacing: 0.01em; }
+.ui-avatar--3xl .ui-avatar__fallback { font-size: 20px; letter-spacing: 0.01em; }
+
+/* Two letters — a step down so "MW" still clears a 24px circle. */
+.ui-avatar__fallback--two { letter-spacing: 0; }
+.ui-avatar--md .ui-avatar__fallback--two { font-size: 11px; }
+.ui-avatar--lg .ui-avatar__fallback--two { font-size: 12px; }
+.ui-avatar--xl .ui-avatar__fallback--two { font-size: 13px; }
+.ui-avatar--2xl .ui-avatar__fallback--two { font-size: 16px; }
+.ui-avatar--3xl .ui-avatar__fallback--two { font-size: 18px; }
+
+.ui-avatar__fallback--gray { background: var(--surface-gray-2); color: var(--ink-gray-5); }
+.ui-avatar__fallback--blue { background: var(--surface-blue-2); color: var(--ink-blue-7); }
+.ui-avatar__fallback--green { background: var(--surface-green-2); color: var(--ink-green-7); }
+.ui-avatar__fallback--amber { background: var(--surface-amber-2); color: var(--ink-amber-7); }
+.ui-avatar__fallback--red { background: var(--surface-red-2); color: var(--ink-red-7); }
+.ui-avatar__fallback--violet { background: var(--surface-violet-2); color: var(--ink-violet-7); }
+
+.ui-avatar__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.ui-avatar--xs .ui-avatar__icon { width: 10px; height: 10px; }
+.ui-avatar--sm .ui-avatar__icon { width: 12px; height: 12px; }
+.ui-avatar--2xl .ui-avatar__icon,
+.ui-avatar--3xl .ui-avatar__icon { width: 20px; height: 20px; }
+
+.ui-avatar__icon > svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- Indicator ---------- */
+
+.ui-avatar__indicator {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  width: 10px;
+  height: 10px;
+  margin-right: -1.6px;
+  margin-bottom: -1.6px;
+  border-radius: 9999px;
+  background: var(--surface-base);
+}
+
+.ui-avatar--xs .ui-avatar__indicator { width: 8px; height: 8px; }
+.ui-avatar--sm .ui-avatar__indicator { width: 9px; height: 9px; }
+.ui-avatar--lg .ui-avatar__indicator,
+.ui-avatar--xl .ui-avatar__indicator { width: 12px; height: 12px; }
+.ui-avatar--2xl .ui-avatar__indicator { width: 14px; height: 14px; }
+.ui-avatar--3xl .ui-avatar__indicator {
+  width: 16px;
+  height: 16px;
+  margin-right: -3.2px;
+  margin-bottom: -3.2px;
+}
+
+.ui-avatar__dot {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.ui-avatar--xs .ui-avatar__dot { width: 4px; height: 4px; }
+.ui-avatar--sm .ui-avatar__dot { width: 5px; height: 5px; }
+.ui-avatar--lg .ui-avatar__dot,
+.ui-avatar--xl .ui-avatar__dot { width: 8px; height: 8px; }
+.ui-avatar--2xl .ui-avatar__dot { width: 10px; height: 10px; }
+.ui-avatar--3xl .ui-avatar__dot { width: 12px; height: 12px; }
+
+/* Colour shortcuts for a plain status dot (not in Frappe, which takes a slot). */
+.ui-avatar__dot--gray { background: var(--ink-gray-4); }
+.ui-avatar__dot--blue { background: var(--ink-blue-5); }
+.ui-avatar__dot--green { background: var(--ink-green-5); }
+.ui-avatar__dot--amber { background: var(--ink-amber-5); }
+.ui-avatar__dot--red { background: var(--ink-red-5); }

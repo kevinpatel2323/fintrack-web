@@ -1,0 +1,49 @@
+/* Popover — frappe-ui PopoverPanel shell:
+ * `rounded-6 bg-surface-elevation-2 shadow-2xl ring-1 ring-black/5`, an 80ms
+ * opacity fade on open and nothing on close (frappe-ui 1.0.2 dropped the
+ * scale-in: "a panel appears at a fixed spot, so an entrance only puts motion
+ * between the press and the content").
+ *
+ * The 1px ring uses --outline-alpha-gray-1 (black 7% light / white 5.5% dark);
+ * espresso.css has no theme-fixed black/5. Dropdown's menu reuses these rules. */
+
+.ui-popover,
+.ui-menu {
+  /* Same layer as the kit's Combobox/DatePicker panels (1200), above
+   * Dialog/Sheet (1100): nested floating panels stack by DOM order. */
+  z-index: 1200;
+  box-sizing: border-box;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-radius: var(--radius-6);
+  background: var(--surface-elevation-2);
+  box-shadow: 0 0 0 1px var(--outline-alpha-gray-1), var(--elevation-2xl);
+  color: var(--ink-gray-8);
+  animation: ui-popover-fade 80ms linear both;
+  will-change: opacity;
+}
+
+.ui-popover:focus,
+.ui-popover:focus-visible,
+.ui-menu:focus,
+.ui-menu:focus-visible {
+  outline: none;
+}
+
+@keyframes ui-popover-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-popover,
+  .ui-menu {
+    animation-duration: 0ms;
+  }
+}

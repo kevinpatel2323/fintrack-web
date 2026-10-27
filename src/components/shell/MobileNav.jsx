@@ -1,0 +1,46 @@
+import { NavLink, useLocation } from 'react-router-dom';
+import { MOBILE_TABS, useNavBadges } from './nav.js';
+
+// frappe-ui MobileNav: equal-width tabs, 24px icon over an xs label. Tapping
+// the tab you're on scrolls the page back to the top instead of re-navigating.
+export default function MobileNav({ onReselect }) {
+  const { pathname } = useLocation();
+  const badges = useNavBadges();
+  // Import lives under More on phones, so More carries its nudge.
+  const alerts = {
+    '/friends': badges['/friends']?.label,
+    '/you': badges['/import']?.label,
+  };
+
+  return (
+    <nav className="mobile-nav" aria-label="Primary">
+      {MOBILE_TABS.map((tab) => {
+        const Icon = tab.icon;
+        const active = tab.match(pathname);
+        const alert = alerts[tab.to];
+        const isCurrent = pathname === tab.to;
+        return (
+          <NavLink
+            key={tab.to}
+            to={tab.to}
+            className={`mobile-nav__item${active ? ' is-active' : ''}`}
+            aria-current={isCurrent ? 'page' : undefined}
+            aria-label={alert ? `${tab.label} · ${alert}` : tab.label}
+            onClick={(e) => {
+              if (isCurrent) {
+                e.preventDefault();
+                onReselect?.();
+              }
+            }}
+          >
+            <span className="mobile-nav__icon">
+              <Icon size={24} strokeWidth={1.5} aria-hidden />
+              {alert && <span className="mobile-nav__dot" aria-hidden />}
+            </span>
+            <span className="mobile-nav__label">{tab.label}</span>
+          </NavLink>
+        );
+      })}
+    </nav>
+  );
+}

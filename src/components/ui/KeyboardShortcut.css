@@ -1,0 +1,74 @@
+/* KeyboardShortcut — frappe-ui KeyboardShortcut.vue.
+ *   root:  inline-flex items-center gap-0.5; plain mode text-ink-gray-5 text-sm
+ *   chip:  inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-4
+ *          bg-surface-gray-2 px-1.5 text-xs-medium text-ink-gray-7
+ *   icons: size-3 · text keys: leading-none uppercase
+ *   '+':   font-mono text-[10px] leading-none opacity-60
+ *   alts:  ms-1 inline-flex gap-1.5, '/' text-xs ink-gray-4 */
+
+.ui-kbd {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.ui-kbd--plain {
+  color: var(--ink-gray-5);
+  font-size: 13px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  font-weight: 420;
+}
+
+.ui-kbd__key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  min-width: 24px;
+  padding: 0 6px;
+  border-radius: var(--radius-4);
+  background: var(--surface-gray-2);
+  color: var(--ink-gray-7);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  font-weight: 500;
+}
+
+.ui-kbd__part {
+  display: inline-flex;
+  align-items: center;
+}
+
+.ui-kbd__icon {
+  width: 12px;
+  height: 12px;
+}
+
+.ui-kbd__text {
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.ui-kbd__plus {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0.6;
+}
+
+.ui-kbd__alts {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: 4px;
+}
+
+.ui-kbd__alt-sep {
+  color: var(--ink-gray-4);
+  font-size: 12px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+}

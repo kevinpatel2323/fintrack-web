@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 
 export const THEME_STORAGE_KEY = 'fintrack.theme';
 
-/** 'system' follows the OS; 'light' / 'dark' pin it via [data-theme] on <html>. */
+/** 'system' follows the OS; 'light' / 'dark' pin it. Either way <html> carries
+ *  the resolved theme in [data-theme], which is all the stylesheets read. */
 export const THEME_MODES = ['system', 'light', 'dark'];
 
 // Keeps the mobile browser chrome in step with the page canvas.
-const CHROME_COLOR = { light: '#F4F5F7', dark: '#0A0B0E' };
+const CHROME_COLOR = { light: '#FFFFFF', dark: '#171717' };
 
 function readStored() {
   try {
@@ -18,7 +19,7 @@ function readStored() {
 }
 
 function systemPrefers() {
-  return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
 /**
@@ -28,10 +29,13 @@ function systemPrefers() {
  */
 export function applyTheme(mode) {
   const root = document.documentElement;
-  if (mode === 'system') delete root.dataset.theme;
-  else root.dataset.theme = mode;
-
   const resolved = mode === 'system' ? systemPrefers() : mode;
+  if (root.dataset.theme !== resolved) {
+    // Suppress transitions for the swap frame so surfaces don't cross-fade.
+    root.classList.add('no-transition');
+    root.dataset.theme = resolved;
+    requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('no-transition')));
+  }
   document
     .querySelectorAll('meta[name="theme-color"]')
     .forEach((m) => m.setAttribute('content', CHROME_COLOR[resolved]));

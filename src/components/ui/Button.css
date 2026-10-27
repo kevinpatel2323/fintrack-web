@@ -1,0 +1,415 @@
+/* Button — frappe-ui Button.vue.
+ *
+ * Base: inline-flex items-center justify-center gap-2 transition-colors shrink-0
+ * Sizes (text):  xs h-6 text-xs px-1.5 rounded-3 · sm h-7 text-base px-2 rounded-4
+ *                md h-8 text-base-medium px-2.5 rounded-4 · lg h-10 text-lg-medium px-3 rounded-5
+ * Sizes (icon):  xs 24² rounded-3 · sm 28² rounded-4 · md 32² rounded-4 · lg 40² rounded-5
+ *
+ * Each theme × variant sets a small set of private properties; the state rules
+ * at the bottom pick from them. The three maps replace each other, as in
+ * Frappe: normal (with hover and :active steps), held/pressed (`--active`),
+ * and disabled (`--disabled`, no hover).
+ *   --ui-btn-ink / -bg / -bd                 resting
+ *   --ui-btn-bg-hover / -bd-hover            hover:
+ *   --ui-btn-bg-press / -bd-press            active: (pointer held)
+ *   --ui-btn-ink-on / -bg-on / -bd-on        data-state open|active, `active` prop
+ *   --ui-btn-ink-off / -bg-off / -bd-off     disabled
+ */
+
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  border: 0 solid transparent;
+  font: inherit;
+  text-decoration: none;
+  vertical-align: middle;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+
+  color: var(--ui-btn-ink);
+  background-color: var(--ui-btn-bg);
+  border-color: var(--ui-btn-bd);
+
+  /* Tailwind `transition-colors` */
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.ui-button:disabled {
+  cursor: default;
+}
+
+.ui-button__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.15; /* leading-tighter */
+}
+
+.ui-button__icon {
+  flex-shrink: 0;
+}
+
+/* ---------- Sizes ---------- */
+
+.ui-button--xs {
+  height: 24px;
+  padding: 0 6px;
+  border-radius: var(--radius-3);
+  font-size: 12px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  font-weight: 420;
+}
+
+.ui-button--sm {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--radius-4);
+  font-size: 14px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  font-weight: 420;
+}
+
+.ui-button--md {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-4);
+  font-size: 14px;
+  line-height: 1.35;
+  letter-spacing: 0.015em;
+  font-weight: 500;
+}
+
+.ui-button--lg {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius-5);
+  font-size: 16px;
+  line-height: 1.35;
+  letter-spacing: 0.015em;
+  font-weight: 500;
+}
+
+.ui-button--icon {
+  padding: 0;
+}
+
+.ui-button--icon.ui-button--xs {
+  width: 24px;
+}
+
+.ui-button--icon.ui-button--sm {
+  width: 28px;
+}
+
+.ui-button--icon.ui-button--md {
+  width: 32px;
+}
+
+.ui-button--icon.ui-button--lg {
+  width: 40px;
+}
+
+/* Spinner diameters are tuned per button size (size-3.5 / 4 / 4.5 / 5) and
+   inherit the button's text colour. */
+.ui-button--xs .ui-button__spinner {
+  width: 14px;
+  height: 14px;
+}
+
+.ui-button--sm .ui-button__spinner {
+  width: 16px;
+  height: 16px;
+}
+
+.ui-button--md .ui-button__spinner {
+  width: 18px;
+  height: 18px;
+}
+
+.ui-button--lg .ui-button__spinner {
+  width: 20px;
+  height: 20px;
+}
+
+/* ---------- Solid ---------- */
+
+.ui-button--solid.ui-button--gray {
+  --ui-btn-ink: var(--ink-base);
+  --ui-btn-bg: var(--surface-gray-10);
+  --ui-btn-bg-hover: var(--surface-gray-9);
+  --ui-btn-bg-press: var(--surface-gray-8);
+  --ui-btn-ink-on: var(--ink-base);
+  --ui-btn-bg-on: var(--surface-gray-8);
+  --ui-btn-ink-off: var(--ink-gray-4);
+  --ui-btn-bg-off: var(--surface-gray-2);
+}
+
+.ui-button--solid.ui-button--blue {
+  --ui-btn-ink: var(--ink-base);
+  --ui-btn-bg: var(--surface-blue-6);
+  --ui-btn-bg-hover: var(--surface-blue-7);
+  --ui-btn-bg-press: var(--surface-blue-8);
+  --ui-btn-ink-on: var(--ink-base);
+  --ui-btn-bg-on: var(--surface-blue-8);
+  --ui-btn-ink-off: var(--ink-base);
+  --ui-btn-bg-off: var(--surface-blue-4);
+}
+
+.ui-button--solid.ui-button--green {
+  --ui-btn-ink: var(--ink-base);
+  --ui-btn-bg: var(--surface-green-7);
+  --ui-btn-bg-hover: var(--surface-green-8);
+  --ui-btn-bg-press: var(--surface-green-9);
+  --ui-btn-ink-on: var(--ink-base);
+  --ui-btn-bg-on: var(--surface-green-9);
+  --ui-btn-ink-off: var(--ink-green-4);
+  --ui-btn-bg-off: var(--surface-green-2);
+}
+
+.ui-button--solid.ui-button--red {
+  --ui-btn-ink: var(--ink-base);
+  --ui-btn-bg: var(--surface-red-7);
+  --ui-btn-bg-hover: var(--surface-red-8);
+  --ui-btn-bg-press: var(--surface-red-9);
+  --ui-btn-ink-on: var(--ink-base);
+  --ui-btn-bg-on: var(--surface-red-9);
+  --ui-btn-ink-off: var(--ink-red-4);
+  --ui-btn-bg-off: var(--surface-red-2);
+}
+
+/* dark:text-ink-red-9 — resting/hover only; the held map keeps ink-base. */
+[data-theme='dark'] .ui-button--solid.ui-button--red {
+  --ui-btn-ink: var(--ink-red-9);
+}
+
+/* ---------- Subtle ---------- */
+
+.ui-button--subtle.ui-button--gray {
+  --ui-btn-ink: var(--ink-gray-8);
+  --ui-btn-bg: var(--surface-gray-2);
+  --ui-btn-bg-hover: var(--surface-gray-3);
+  --ui-btn-bg-press: var(--surface-gray-4);
+  --ui-btn-ink-on: var(--ink-gray-8);
+  --ui-btn-bg-on: var(--surface-gray-4);
+  --ui-btn-ink-off: var(--ink-gray-4);
+  --ui-btn-bg-off: var(--surface-gray-2);
+}
+
+.ui-button--subtle.ui-button--blue {
+  --ui-btn-ink: var(--ink-blue-5);
+  --ui-btn-bg: var(--surface-blue-2);
+  --ui-btn-bg-hover: var(--surface-blue-3);
+  --ui-btn-bg-press: var(--surface-blue-4);
+  --ui-btn-ink-on: var(--ink-blue-5);
+  --ui-btn-bg-on: var(--surface-blue-4);
+  --ui-btn-ink-off: var(--ink-blue-link);
+  --ui-btn-bg-off: var(--surface-blue-2);
+}
+
+.ui-button--subtle.ui-button--green {
+  --ui-btn-ink: var(--ink-green-8);
+  --ui-btn-bg: var(--surface-green-2);
+  --ui-btn-bg-hover: var(--surface-green-3);
+  --ui-btn-bg-press: var(--surface-green-4);
+  --ui-btn-ink-on: var(--ink-green-8);
+  --ui-btn-bg-on: var(--surface-green-4);
+  --ui-btn-ink-off: var(--ink-green-4);
+  --ui-btn-bg-off: var(--surface-green-2);
+}
+
+.ui-button--subtle.ui-button--red {
+  --ui-btn-ink: var(--ink-red-7);
+  --ui-btn-bg: var(--surface-red-2);
+  --ui-btn-bg-hover: var(--surface-red-3);
+  --ui-btn-bg-press: var(--surface-red-4);
+  --ui-btn-ink-on: var(--ink-red-7);
+  --ui-btn-bg-on: var(--surface-red-4);
+  --ui-btn-ink-off: var(--ink-red-4);
+  --ui-btn-bg-off: var(--surface-red-2);
+}
+
+/* ---------- Outline ---------- */
+
+.ui-button--outline {
+  border-width: 1px;
+}
+
+.ui-button--outline.ui-button--gray {
+  --ui-btn-ink: var(--ink-gray-8);
+  --ui-btn-bg: var(--surface-base);
+  --ui-btn-bd: var(--outline-gray-2);
+  --ui-btn-bd-hover: var(--outline-gray-3);
+  --ui-btn-bg-press: var(--surface-gray-4);
+  --ui-btn-bd-press: var(--outline-gray-3);
+  --ui-btn-ink-on: var(--ink-gray-8);
+  --ui-btn-bg-on: var(--surface-gray-4);
+  --ui-btn-bd-on: var(--outline-gray-3);
+  --ui-btn-ink-off: var(--ink-gray-4);
+  --ui-btn-bg-off: var(--surface-gray-2);
+  --ui-btn-bd-off: var(--outline-gray-2);
+}
+
+.ui-button--outline.ui-button--blue {
+  --ui-btn-ink: var(--ink-blue-5);
+  --ui-btn-bg: var(--surface-base);
+  --ui-btn-bd: var(--outline-blue-1);
+  --ui-btn-bd-hover: var(--outline-blue-4);
+  --ui-btn-bg-press: var(--surface-blue-4);
+  --ui-btn-bd-press: var(--outline-blue-4);
+  --ui-btn-ink-on: var(--ink-blue-5);
+  --ui-btn-bg-on: var(--surface-blue-4);
+  --ui-btn-bd-on: var(--outline-blue-4);
+  --ui-btn-ink-off: var(--ink-blue-link);
+  --ui-btn-bg-off: var(--surface-blue-2);
+  --ui-btn-bd-off: var(--outline-blue-1);
+}
+
+.ui-button--outline.ui-button--green {
+  --ui-btn-ink: var(--ink-green-8);
+  --ui-btn-bg: var(--surface-base);
+  --ui-btn-bd: var(--outline-green-3);
+  --ui-btn-bd-hover: var(--outline-green-5);
+  --ui-btn-bg-press: var(--surface-green-4);
+  --ui-btn-bd-press: var(--outline-green-5);
+  --ui-btn-ink-on: var(--ink-green-8);
+  --ui-btn-bg-on: var(--surface-green-4);
+  --ui-btn-bd-on: var(--outline-green-5);
+  --ui-btn-ink-off: var(--ink-green-4);
+  --ui-btn-bg-off: var(--surface-green-2);
+  --ui-btn-bd-off: var(--outline-green-3);
+}
+
+.ui-button--outline.ui-button--red {
+  --ui-btn-ink: var(--ink-red-7);
+  --ui-btn-bg: var(--surface-base);
+  --ui-btn-bd: var(--outline-red-1);
+  --ui-btn-bd-hover: var(--outline-red-3);
+  --ui-btn-bg-press: var(--surface-red-3);
+  --ui-btn-bd-press: var(--outline-red-3);
+  --ui-btn-ink-on: var(--ink-red-7);
+  --ui-btn-bg-on: var(--surface-red-3);
+  --ui-btn-bd-on: var(--outline-red-3);
+  --ui-btn-ink-off: var(--ink-red-4);
+  --ui-btn-bg-off: var(--surface-red-2);
+  --ui-btn-bd-off: var(--outline-red-1);
+}
+
+/* ---------- Ghost ---------- */
+
+.ui-button--ghost.ui-button--gray {
+  --ui-btn-ink: var(--ink-gray-8);
+  --ui-btn-bg-hover: var(--surface-gray-3);
+  --ui-btn-bg-press: var(--surface-gray-4);
+  --ui-btn-ink-on: var(--ink-gray-8);
+  --ui-btn-bg-on: var(--surface-gray-4);
+  --ui-btn-ink-off: var(--ink-gray-4);
+}
+
+.ui-button--ghost.ui-button--blue {
+  --ui-btn-ink: var(--ink-blue-5);
+  --ui-btn-bg-hover: var(--surface-blue-3);
+  --ui-btn-bg-press: var(--surface-blue-4);
+  --ui-btn-ink-on: var(--ink-blue-5);
+  --ui-btn-bg-on: var(--surface-blue-4);
+  --ui-btn-ink-off: var(--ink-blue-link);
+}
+
+.ui-button--ghost.ui-button--green {
+  --ui-btn-ink: var(--ink-green-8);
+  --ui-btn-bg-hover: var(--surface-green-3);
+  --ui-btn-bg-press: var(--surface-green-4);
+  --ui-btn-ink-on: var(--ink-green-8);
+  --ui-btn-bg-on: var(--surface-green-4);
+  --ui-btn-ink-off: var(--ink-green-4);
+}
+
+.ui-button--ghost.ui-button--red {
+  --ui-btn-ink: var(--ink-red-7);
+  --ui-btn-bg-hover: var(--surface-red-3);
+  --ui-btn-bg-press: var(--surface-red-4);
+  --ui-btn-ink-on: var(--ink-red-7);
+  --ui-btn-bg-on: var(--surface-red-4);
+  --ui-btn-ink-off: var(--ink-red-4);
+}
+
+/* Each button sets its own properties; never pick one up from an ancestor. */
+.ui-button--solid,
+.ui-button--subtle,
+.ui-button--ghost {
+  --ui-btn-bd: transparent;
+  --ui-btn-bd-hover: transparent;
+  --ui-btn-bd-press: transparent;
+  --ui-btn-bd-on: transparent;
+  --ui-btn-bd-off: transparent;
+}
+
+.ui-button--ghost {
+  --ui-btn-bg: transparent;
+  --ui-btn-bg-off: transparent;
+}
+
+.ui-button--outline {
+  --ui-btn-bg-hover: var(--ui-btn-bg);
+}
+
+/* ---------- States ---------- */
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-button:not(.ui-button--disabled):not(.ui-button--active):hover {
+    background-color: var(--ui-btn-bg-hover);
+    border-color: var(--ui-btn-bd-hover, var(--ui-btn-bd));
+  }
+}
+
+.ui-button:not(.ui-button--disabled):not(.ui-button--active):active {
+  background-color: var(--ui-btn-bg-press);
+  border-color: var(--ui-btn-bd-press);
+}
+
+.ui-button--active {
+  color: var(--ui-btn-ink-on);
+  background-color: var(--ui-btn-bg-on);
+  border-color: var(--ui-btn-bd-on);
+}
+
+.ui-button--disabled {
+  color: var(--ui-btn-ink-off);
+  background-color: var(--ui-btn-bg-off);
+  border-color: var(--ui-btn-bd-off);
+}
+
+/* Loading keeps the resting look but takes no hover or press. */
+.ui-button--loading {
+  pointer-events: none;
+}
+
+/* focus-visible:focus-ring-{theme}; gray uses the global ring. */
+.ui-button--blue:focus-visible {
+  outline: var(--focus-outline-blue);
+  outline-offset: 0;
+}
+
+.ui-button--green:focus-visible {
+  outline: var(--focus-outline-green);
+  outline-offset: 0;
+}
+
+.ui-button--red:focus-visible {
+  outline: var(--focus-outline-red);
+  outline-offset: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-button {
+    transition: none;
+  }
+}

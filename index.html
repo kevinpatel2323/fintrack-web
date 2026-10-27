@@ -5,26 +5,26 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0A0B0E" media="(prefers-color-scheme: dark)" />
-    <meta name="theme-color" content="#F4F5F7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#171717" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
     <title>Fintrack</title>
-    <!-- Applies the stored theme before first paint so a pinned light theme on a
-         dark-OS machine (or the reverse) never flashes the wrong palette.
-         Mirrors applyTheme() in src/hooks/useTheme.js. -->
+    <!-- Resolves the theme before first paint so the page never flashes the
+         wrong palette. [data-theme] always holds the resolved theme (a stored
+         pin, else the OS preference). Mirrors applyTheme() in
+         src/hooks/useTheme.js. -->
     <script>
       (function () {
+        var m = null;
         try {
-          var m = localStorage.getItem('fintrack.theme');
-          if (m === 'light' || m === 'dark') document.documentElement.dataset.theme = m;
+          m = localStorage.getItem('fintrack.theme');
         } catch (e) {}
+        if (m !== 'light' && m !== 'dark') {
+          m = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.dataset.theme = m;
       })();
     </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
-    />
+    <link rel="preload" href="/fonts/InterVar.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
     <div id="root"></div>

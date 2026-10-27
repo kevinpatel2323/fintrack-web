@@ -1,0 +1,169 @@
+/* Badge — frappe-ui Badge.vue.
+ *
+ * Root:  inline-flex select-none items-center gap-1 overflow-clip rounded-full
+ *        leading-tighter whitespace-nowrap
+ * Sizes: sm h-4 px-1.5 text-xs · md h-5 px-1.5 text-xs · lg h-6 px-2 text-[13px] tracking-[0.02em]
+ * Theme steps: surface-{c}-2 pale bg, surface-{c}-7 solid bg, ink-{c}-7 text,
+ * outline-{c}-3 border. Gray differs: solid is gray-10 / ink-base, text is
+ * ink-gray-6, border outline-gray-2. Coloured solids use plain white text, as
+ * Frappe does (`text-white`).
+ */
+
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  overflow: clip;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  user-select: none;
+  line-height: 1.15;
+}
+
+.ui-badge--sm {
+  height: 16px;
+  padding: 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  font-weight: 420;
+}
+
+.ui-badge--md {
+  height: 20px;
+  padding: 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  font-weight: 420;
+}
+
+.ui-badge--lg {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.ui-badge__affix {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 10px;
+  height: 10px;
+}
+
+.ui-badge--lg .ui-badge__affix {
+  width: 12px;
+  height: 12px;
+}
+
+.ui-badge__affix > svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ui-badge--outline {
+  border: 1px solid transparent;
+}
+
+/* ---------- gray ---------- */
+.ui-badge--solid.ui-badge--gray {
+  color: var(--ink-base);
+  background: var(--surface-gray-10);
+}
+.ui-badge--subtle.ui-badge--gray {
+  color: var(--ink-gray-6);
+  background: var(--surface-gray-2);
+}
+.ui-badge--outline.ui-badge--gray {
+  color: var(--ink-gray-6);
+  border-color: var(--outline-gray-2);
+}
+.ui-badge--ghost.ui-badge--gray {
+  color: var(--ink-gray-6);
+}
+
+/* ---------- blue ---------- */
+.ui-badge--solid.ui-badge--blue {
+  color: #fff;
+  background: var(--surface-blue-7);
+}
+.ui-badge--subtle.ui-badge--blue {
+  color: var(--ink-blue-7);
+  background: var(--surface-blue-2);
+}
+.ui-badge--outline.ui-badge--blue {
+  color: var(--ink-blue-7);
+  border-color: var(--outline-blue-3);
+}
+.ui-badge--ghost.ui-badge--blue {
+  color: var(--ink-blue-7);
+}
+
+/* ---------- green ---------- */
+.ui-badge--solid.ui-badge--green {
+  color: #fff;
+  background: var(--surface-green-7);
+}
+.ui-badge--subtle.ui-badge--green {
+  color: var(--ink-green-7);
+  background: var(--surface-green-2);
+}
+.ui-badge--outline.ui-badge--green {
+  color: var(--ink-green-7);
+  border-color: var(--outline-green-3);
+}
+.ui-badge--ghost.ui-badge--green {
+  color: var(--ink-green-7);
+}
+
+/* ---------- amber ---------- */
+.ui-badge--solid.ui-badge--amber {
+  color: #fff;
+  background: var(--surface-amber-7);
+}
+.ui-badge--subtle.ui-badge--amber {
+  color: var(--ink-amber-7);
+  background: var(--surface-amber-2);
+}
+.ui-badge--outline.ui-badge--amber {
+  color: var(--ink-amber-7);
+  border-color: var(--outline-amber-3);
+}
+.ui-badge--ghost.ui-badge--amber {
+  color: var(--ink-amber-7);
+}
+
+/* ---------- red ---------- */
+.ui-badge--solid.ui-badge--red {
+  color: #fff;
+  background: var(--surface-red-7);
+}
+.ui-badge--subtle.ui-badge--red {
+  color: var(--ink-red-7);
+  background: var(--surface-red-2);
+}
+.ui-badge--outline.ui-badge--red {
+  color: var(--ink-red-7);
+  border-color: var(--outline-red-3);
+}
+.ui-badge--ghost.ui-badge--red {
+  color: var(--ink-red-7);
+}
+
+/* ---------- violet ---------- */
+.ui-badge--solid.ui-badge--violet {
+  color: #fff;
+  background: var(--surface-violet-7);
+}
+.ui-badge--subtle.ui-badge--violet {
+  color: var(--ink-violet-7);
+  background: var(--surface-violet-2);
+}
+.ui-badge--outline.ui-badge--violet {
+  color: var(--ink-violet-7);
+  border-color: var(--outline-violet-3);
+}
+.ui-badge--ghost.ui-badge--violet {
+  color: var(--ink-violet-7);
+}

@@ -1,0 +1,169 @@
+/* Base — the page-wide defaults every Fintrack screen sits on: Inter (as
+ * Frappe UI ships it), body type, focus ring, scrollbars, and a small set of
+ * text utilities. Component looks live next to the components in
+ * src/components/ui/; app roles (money colours, layout sizes) in theme.css.
+ */
+
+@font-face {
+  font-family: 'InterVar';
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/InterVar.woff2') format('woff2');
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: var(--font-sans);
+  font-optical-sizing: auto;
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body,
+button,
+p,
+span,
+div {
+  font-variation-settings: 'opsz' 24, 'cv11' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--surface-base);
+  color: var(--ink-gray-8);
+  font-size: 14px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  font-weight: 420;
+}
+
+h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd {
+  margin: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+img,
+svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+/* Keyboard focus: Espresso's focus/default ring, drawn as an outline. */
+:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: 0;
+}
+
+::selection {
+  background: var(--surface-blue-3);
+  color: var(--ink-gray-9);
+}
+
+/* Thin, quiet scrollbars like Frappe desk. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-gray-4) transparent;
+}
+
+/* ---------- Text utilities ----------
+ * Same names and values as frappe-ui's Tailwind type scale, so markup reads
+ * the way it does in a Frappe app. Size classes carry Espresso's line-height
+ * and tracking; `p-*` is the paragraph variant (looser line-height). */
+.text-2xs { font-size: 11px; line-height: 1.35; letter-spacing: 0.01em; }
+.text-xs { font-size: 12px; line-height: 1.35; letter-spacing: 0.02em; }
+.text-sm { font-size: 13px; line-height: 1.35; letter-spacing: 0.02em; }
+.text-base { font-size: 14px; line-height: 1.35; letter-spacing: 0.02em; }
+.text-md { font-size: 15px; line-height: 1.35; letter-spacing: 0.02em; }
+.text-lg { font-size: 16px; line-height: 1.35; letter-spacing: 0.02em; }
+.text-xl { font-size: 17px; line-height: 1.35; letter-spacing: 0.02em; }
+.text-2xl { font-size: 18px; line-height: 1.35; letter-spacing: 0.01em; }
+.text-3xl { font-size: 20px; line-height: 1.35; letter-spacing: 0.005em; }
+.text-4xl { font-size: 24px; line-height: 1.35; letter-spacing: 0.005em; }
+.text-5xl { font-size: 26px; line-height: 1.6; letter-spacing: 0.01em; }
+.text-6xl { font-size: 28px; line-height: 1.6; letter-spacing: 0.01em; }
+
+.text-p-xs { font-size: 12px; line-height: 1.6; letter-spacing: 0.02em; }
+.text-p-sm { font-size: 13px; line-height: 1.5; letter-spacing: 0.015em; }
+.text-p-base { font-size: 14px; line-height: 1.5; letter-spacing: 0.02em; }
+
+.font-regular { font-weight: 420; }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+
+.text-ink-gray-4 { color: var(--ink-gray-4); }
+.text-ink-gray-5 { color: var(--ink-gray-5); }
+.text-ink-gray-6 { color: var(--ink-gray-6); }
+.text-ink-gray-7 { color: var(--ink-gray-7); }
+.text-ink-gray-8 { color: var(--ink-gray-8); }
+.text-ink-gray-9 { color: var(--ink-gray-9); }
+.text-ink-red-6 { color: var(--ink-red-6); }
+.text-ink-green-7 { color: var(--ink-green-7); }
+.text-ink-amber-7 { color: var(--ink-amber-7); }
+.text-ink-blue-link { color: var(--ink-blue-link); }
+
+/* Money and other figures line up in columns. */
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Theme swaps should not cross-fade every surface at once. useTheme stamps
+   this on <html> for the frames around a swap. */
+.no-transition *,
+.no-transition *::before,
+.no-transition *::after {
+  transition: none !important;
+}

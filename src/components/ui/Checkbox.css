@@ -1,0 +1,209 @@
+/* Checkbox — frappe-ui 1.0.2 Checkbox.vue (+ the @tailwindcss/forms checkbox
+ * it styles). The box is the native input with `appearance: none`; the
+ * check/dash is an SVG laid over it so its colour can be a token
+ * (`ink-base`: white on the dark fill in light mode, near-black in dark).
+ *
+ * Box tokens:  empty     surface-base fill, outline-gray-4 → 5 (hover) → 6 (active)
+ *              checked   surface-gray-10 fill → 9 (hover) → 8 (active)
+ *              disabled  outline-gray-3 ring, surface-gray-5 fill
+ */
+
+.ui-checkbox {
+  display: inline-flex;
+  flex-direction: column;
+  min-width: 0;
+  vertical-align: middle;
+}
+
+.ui-checkbox__row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--radius-4);
+}
+
+.ui-checkbox__box {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.ui-checkbox__input {
+  display: block;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--outline-gray-4);
+  border-radius: var(--radius-1);
+  background-color: var(--surface-base);
+  background-image: none;
+  box-shadow: none;
+  appearance: none;
+  print-color-adjust: exact;
+  opacity: 1;
+  outline: none;
+  cursor: pointer;
+  transition-property: color, background-color, border-color, outline-color, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.ui-checkbox--xs .ui-checkbox__input { width: 13px; height: 13px; }
+.ui-checkbox--md .ui-checkbox__input { width: 16px; height: 16px; }
+
+.ui-checkbox__input:checked,
+.ui-checkbox__input:indeterminate {
+  border-color: transparent;
+  background-color: var(--surface-gray-10);
+}
+
+.ui-checkbox__glyph {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--ink-base);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ui-checkbox__input:checked + .ui-checkbox__glyph,
+.ui-checkbox__input:indeterminate + .ui-checkbox__glyph {
+  opacity: 1;
+}
+
+/* Bare/labelled checkbox: the box itself takes hover and active. */
+@media (hover: hover) and (pointer: fine) {
+  .ui-checkbox:not(.ui-checkbox--padded) .ui-checkbox__input:enabled:hover {
+    border-color: var(--outline-gray-5);
+  }
+
+  .ui-checkbox:not(.ui-checkbox--padded) .ui-checkbox__input:enabled:is(:checked, :indeterminate):hover {
+    border-color: transparent;
+    background-color: var(--surface-gray-9);
+  }
+
+  /* Padded: hovering anywhere on the row drives the box. */
+  .ui-checkbox--padded:not(.is-disabled):hover .ui-checkbox__input {
+    border-color: var(--outline-gray-5);
+  }
+
+  .ui-checkbox--padded:not(.is-disabled):hover .ui-checkbox__input:is(:checked, :indeterminate) {
+    border-color: transparent;
+    background-color: var(--surface-gray-9);
+  }
+}
+
+.ui-checkbox:not(.ui-checkbox--padded) .ui-checkbox__input:enabled:active {
+  border-color: var(--outline-gray-6);
+}
+
+.ui-checkbox:not(.ui-checkbox--padded) .ui-checkbox__input:enabled:is(:checked, :indeterminate):active {
+  border-color: transparent;
+  background-color: var(--surface-gray-8);
+}
+
+/* Keyboard focus: the Espresso ring on the box (on the row when padded). */
+.ui-checkbox__input:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: 0;
+}
+
+.ui-checkbox--padded .ui-checkbox__input:focus-visible {
+  outline: none;
+}
+
+.ui-checkbox__input:disabled {
+  cursor: not-allowed;
+  border-color: var(--outline-gray-3);
+  background-color: var(--surface-base);
+}
+
+.ui-checkbox__input:disabled:is(:checked, :indeterminate) {
+  border-color: transparent;
+  background-color: var(--surface-gray-5);
+}
+
+/* Label: InputLabel with color="gray-7". */
+.ui-checkbox__label {
+  user-select: none;
+  cursor: pointer;
+}
+
+.ui-checkbox.is-disabled .ui-checkbox__label {
+  cursor: not-allowed;
+}
+
+/* Description / error sit under the label, past the box. */
+.ui-checkbox__detail {
+  margin-top: 4px;
+  padding-inline-start: 1.35rem;
+}
+
+.ui-checkbox__description,
+.ui-checkbox__error {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.015em;
+}
+
+.ui-checkbox__description {
+  color: var(--ink-gray-6);
+}
+
+.ui-checkbox.is-disabled .ui-checkbox__description {
+  color: var(--ink-gray-4);
+}
+
+.ui-checkbox__error {
+  color: var(--ink-red-5);
+  white-space: pre-line;
+}
+
+/* ---------- Padded row ---------- */
+
+.ui-checkbox--padded {
+  display: flex;
+  justify-content: center;
+  border-radius: var(--radius-4);
+  cursor: pointer;
+  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ui-checkbox--padded.ui-checkbox--xs { height: 24px; padding: 0 6px; }
+.ui-checkbox--padded.ui-checkbox--sm { height: 28px; padding: 0 6px; }
+.ui-checkbox--padded.ui-checkbox--md { height: 32px; padding: 0 12px; }
+
+/* A description or error makes the row multi-line. */
+.ui-checkbox--padded.has-detail { height: auto; justify-content: flex-start; padding: 6px; }
+.ui-checkbox--padded.ui-checkbox--md.has-detail { padding: 8px 12px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-checkbox--padded:not(.is-disabled):hover {
+    background-color: var(--surface-gray-3);
+  }
+}
+
+.ui-checkbox--padded:not(.is-disabled):active {
+  background-color: var(--surface-gray-4);
+}
+
+.ui-checkbox--padded:has(:focus-visible) {
+  box-shadow: 0 0 0 2px var(--outline-gray-3);
+}
+
+.ui-checkbox--padded.is-disabled {
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-checkbox__input,
+  .ui-checkbox--padded {
+    transition-duration: 0ms;
+  }
+}

@@ -1,0 +1,140 @@
+/* Alert — frappe-ui Alert.vue.
+ *
+ * Container: rounded-6 bg-surface-gray-1 (same for every theme)
+ * Row:    flex h-10 items-center py-1.5 pl-3.5 pr-1.5
+ *         prefix mr-2 size-4 · title flex-1 truncate text-base-medium ink-gray-8
+ *         actions ml-1.5 gap-1 · × ghost sm, ml-1 after actions else ml-1.5
+ * Banner: relative p-3; head flex items-center gap-1.5 (pr-8 with ×)
+ *         body mt-1 flex-col items-start gap-3; description text-p-base ink-gray-6
+ *         actions gap-1 · × ghost xs at right-1.5 top-1.5
+ * Icon ink: gray-7 · blue-5 · green-5 · amber-5 · red-5
+ * Row action label ink (!important in Frappe): gray-7 · blue-6 · green-6 · amber-6 · red-6
+ */
+
+.ui-alert {
+  border-radius: var(--radius-6);
+  background: var(--surface-gray-1);
+}
+
+.ui-alert--row {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 6px 6px 6px 14px;
+}
+
+.ui-alert--banner {
+  position: relative;
+  padding: 12px;
+}
+
+.ui-alert__prefix {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.ui-alert--row .ui-alert__prefix {
+  margin-right: 8px;
+}
+
+.ui-alert__glyph {
+  width: 16px;
+  height: 16px;
+}
+
+.ui-alert__prefix--gray { color: var(--ink-gray-7); }
+.ui-alert__prefix--blue { color: var(--ink-blue-5); }
+.ui-alert__prefix--green { color: var(--ink-green-5); }
+.ui-alert__prefix--amber { color: var(--ink-amber-5); }
+.ui-alert__prefix--red { color: var(--ink-red-5); }
+
+.ui-alert__title {
+  min-width: 0;
+  color: var(--ink-gray-8);
+  font-size: 14px;
+  line-height: 1.35;
+  letter-spacing: 0.015em;
+  font-weight: 500;
+}
+
+.ui-alert--row .ui-alert__title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-alert__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ui-alert__actions--row {
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+.ui-alert__dismiss {
+  flex-shrink: 0;
+}
+
+.ui-alert--row .ui-alert__dismiss {
+  margin-left: 6px;
+}
+
+.ui-alert--row .ui-alert__dismiss--after-actions {
+  margin-left: 4px;
+}
+
+.ui-alert__dismiss--corner {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+.ui-alert__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ui-alert__head--dismissible {
+  padding-right: 32px;
+}
+
+.ui-alert__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.ui-alert__description {
+  color: var(--ink-gray-6);
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+}
+
+/* Overrides on the kit Button (Frappe uses `!` utilities). Three classes deep
+   so they beat every Button state rule. */
+.ui-alert .ui-button.ui-alert__row-action--gray { color: var(--ink-gray-7); }
+.ui-alert .ui-button.ui-alert__row-action--blue { color: var(--ink-blue-6); }
+.ui-alert .ui-button.ui-alert__row-action--green { color: var(--ink-green-6); }
+.ui-alert .ui-button.ui-alert__row-action--amber { color: var(--ink-amber-6); }
+.ui-alert .ui-button.ui-alert__row-action--red { color: var(--ink-red-6); }
+
+.ui-alert .ui-button.ui-alert__banner-primary {
+  box-shadow: var(--elevation-sm);
+  border-color: transparent;
+}
+
+.ui-alert .ui-button.ui-alert__banner-secondary {
+  color: var(--ink-gray-7);
+}

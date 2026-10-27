@@ -1,0 +1,13 @@
+/* Amount — money colours are Fintrack roles (theme.css): spending reads in
+ * plain ink, money in is green, owed/overdue is red. */
+
+.ui-amount {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ui-amount--in { color: var(--ink-money-in); }
+.ui-amount--out { color: var(--ink-money-out); }
+.ui-amount--due { color: var(--ink-money-due); }
+.ui-amount--muted { color: var(--ink-gray-5); }
+.ui-amount--inherit { color: inherit; }

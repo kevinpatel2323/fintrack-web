@@ -1,0 +1,83 @@
+/* Divider — frappe-ui Divider.vue.
+ *   <hr class="border-0 border-outline-gray-2">
+ *   horizontal: border-t w-full · vertical: border-l
+ *   flexItem: self-stretch h-auto, else h-full
+ *   with action: flex w-full min-h-7 items-center, line absolute through the
+ *   middle, button relative z-10; start/end inset 16px */
+
+.ui-divider {
+  flex-shrink: 0;
+  margin: 0;
+  border: 0 solid var(--outline-gray-2);
+}
+
+.ui-divider--horizontal {
+  width: 100%;
+  height: 0;
+  border-top-width: 1px;
+}
+
+.ui-divider--vertical {
+  width: 0;
+  height: 100%;
+  border-left-width: 1px;
+}
+
+.ui-divider--flex-item {
+  align-self: stretch;
+  height: auto;
+}
+
+/* ---------- With an action ---------- */
+
+.ui-divider-action {
+  position: relative;
+  display: flex;
+  white-space: nowrap;
+}
+
+.ui-divider-action--horizontal {
+  width: 100%;
+  min-height: 28px;
+  align-items: center;
+}
+
+.ui-divider-action--horizontal.ui-divider-action--center { justify-content: center; }
+.ui-divider-action--horizontal.ui-divider-action--start { justify-content: flex-start; padding-left: 16px; }
+.ui-divider-action--horizontal.ui-divider-action--end { justify-content: flex-end; padding-right: 16px; }
+
+.ui-divider-action--vertical {
+  height: 100%;
+  justify-content: center;
+}
+
+.ui-divider-action--vertical.ui-divider--flex-item { height: auto; }
+.ui-divider-action--vertical.ui-divider-action--center { align-items: center; }
+.ui-divider-action--vertical.ui-divider-action--start { align-items: flex-start; padding-top: 16px; }
+.ui-divider-action--vertical.ui-divider-action--end { align-items: flex-end; padding-bottom: 16px; }
+
+.ui-divider-action__line {
+  position: absolute;
+  border: 0 solid var(--outline-gray-2);
+}
+
+.ui-divider-action__line--horizontal {
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  border-top-width: 1px;
+}
+
+.ui-divider-action__line--vertical {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left-width: 1px;
+}
+
+.ui-divider-action__button {
+  position: relative;
+  z-index: 10;
+}

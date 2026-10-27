@@ -1,0 +1,72 @@
+/* Tooltip — frappe-ui TooltipBubble.vue:
+ *   content: z-[100]
+ *   bubble:  rounded-4 bg-surface-gray-10 px-2 py-1 text-xs text-ink-base shadow-xl
+ *   arrow:   8×4, fill-surface-gray-10
+ * Positioned by useFloating (position: fixed, set inline). */
+
+.ui-tooltip {
+  z-index: 2300; /* above dialogs, sheets, menus and toasts */
+  /* Not in Frappe (reka sizes to content). A guard so a long sentence wraps
+     instead of running across the screen. */
+  max-width: min(320px, calc(100vw - 16px));
+  animation: ui-tooltip-in 100ms ease-out;
+}
+
+.ui-tooltip__bubble {
+  border-radius: var(--radius-4);
+  background: var(--surface-gray-10);
+  color: var(--ink-base);
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  font-weight: 420;
+  box-shadow: var(--elevation-xl);
+  overflow-wrap: break-word;
+}
+
+.ui-tooltip__arrow {
+  position: absolute;
+  display: block;
+  fill: var(--surface-gray-10);
+}
+
+/* The arrow fills the 4px gap between bubble and trigger and points at it.
+   `left`/`top` along the edge is set from JS to the trigger's centre. */
+.ui-tooltip[data-side='top'] .ui-tooltip__arrow {
+  top: 100%;
+  transform: translateX(-50%);
+}
+
+.ui-tooltip[data-side='bottom'] .ui-tooltip__arrow {
+  bottom: 100%;
+  transform: translateX(-50%) rotate(180deg);
+}
+
+/* Rotated 8×4 boxes keep their centre, so pull them 2px in to sit flush. */
+.ui-tooltip[data-side='left'] .ui-tooltip__arrow {
+  left: calc(100% - 2px);
+  transform: translateY(-50%) rotate(-90deg);
+}
+
+.ui-tooltip[data-side='right'] .ui-tooltip__arrow {
+  right: calc(100% - 2px);
+  transform: translateY(-50%) rotate(90deg);
+}
+
+/* Fallback trigger for text children. */
+.ui-tooltip-trigger {
+  display: inline;
+}
+
+@keyframes ui-tooltip-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-tooltip {
+    animation: none;
+  }
+}

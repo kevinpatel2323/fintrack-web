@@ -1,0 +1,239 @@
+/* Select — the selection-family trigger from frappe-ui 1.0.2
+ * (shared/selection/utils.ts: triggerSizeClasses, triggerVariantClasses,
+ * triggerBaseClasses). `.ui-select__trigger` is element-agnostic: Select puts
+ * it on a native <select>, Combobox on its <button>, so both read the same.
+ *
+ * Legacy global `select` rules (background chevron, padding, min-height,
+ * opacity …) are restated away here.
+ */
+
+.ui-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+/* ---------- Shared trigger ---------- */
+
+.ui-select__trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-4);
+  background-image: none;
+  box-shadow: none;
+  opacity: 1;
+  outline-offset: 0;
+  appearance: none;
+  font-family: inherit;
+  font-weight: 420;
+  line-height: 1.15;
+  text-align: start;
+  color: var(--ink-gray-7);
+  cursor: pointer;
+  transition-property: background-color, border-color, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Sizes: the input heights (24/28/32/40px) and paddings. */
+.ui-select__trigger[data-size='xs'] {
+  min-height: 24px;
+  padding: 0 6px;
+  border-radius: var(--radius-3);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.ui-select__trigger[data-size='sm'] {
+  min-height: 28px;
+  padding: 0 8px;
+  border-radius: var(--radius-4);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+
+.ui-select__trigger[data-size='md'] {
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-4);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+
+.ui-select__trigger[data-size='lg'] {
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius-5);
+  font-size: 16px;
+  letter-spacing: 0.02em;
+}
+
+.ui-select__trigger[data-size='xl'] {
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius-5);
+  font-size: 18px;
+  letter-spacing: 0.01em;
+}
+
+/* Variants */
+.ui-select__trigger[data-variant='subtle'] {
+  border-color: var(--surface-gray-2);
+  background-color: var(--surface-gray-2);
+}
+
+.ui-select__trigger[data-variant='outline'] {
+  border-color: var(--outline-gray-2);
+  background-color: var(--surface-base);
+}
+
+.ui-select__trigger[data-variant='ghost'] {
+  border-color: transparent;
+  background-color: transparent;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-select__trigger[data-variant='subtle']:not(:disabled):hover {
+    border-color: var(--outline-elevation-2);
+    background-color: var(--surface-gray-3);
+  }
+
+  .ui-select__trigger[data-variant='outline']:not(:disabled):hover {
+    border-color: var(--outline-gray-3);
+  }
+
+  .ui-select__trigger[data-variant='ghost']:not(:disabled):hover {
+    background-color: var(--surface-gray-3);
+  }
+}
+
+.ui-select__trigger[data-variant='ghost']:not(:disabled):focus {
+  background-color: var(--surface-gray-3);
+}
+
+/* Keyboard focus uses the global ring; an open menu keeps it lit. */
+.ui-select__trigger:focus-visible,
+.ui-select__trigger[data-state='open'] {
+  outline: var(--focus-outline-default);
+  outline-offset: 0;
+}
+
+.ui-select__trigger:focus:not(:focus-visible):not([data-state='open']) {
+  outline: none;
+}
+
+/* Invalid (Fintrack addition — Frappe colours only the message below). */
+.ui-select__trigger[aria-invalid='true']:not(:disabled)[data-variant='subtle'],
+.ui-select__trigger[aria-invalid='true']:not(:disabled)[data-variant='outline'] {
+  border-color: var(--outline-red-3);
+}
+
+.ui-select__trigger:disabled {
+  cursor: not-allowed;
+  border-color: transparent;
+  background-color: var(--surface-gray-1);
+  color: var(--ink-gray-4);
+}
+
+.ui-select__trigger[data-variant='outline']:disabled {
+  border-color: var(--outline-gray-2);
+}
+
+.ui-select__trigger[data-variant='ghost']:disabled {
+  background-color: transparent;
+}
+
+.ui-select__trigger.is-placeholder {
+  color: var(--ink-gray-4);
+}
+
+/* ---------- Native <select> ---------- */
+
+/* The chevron and any prefix sit over the control, so the text keeps clear
+   of them: inset + 16px icon + the trigger's 8px gap. */
+.ui-select__control {
+  display: block;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-select--xs .ui-select__control { padding-inline-end: 30px; }
+.ui-select--sm .ui-select__control { padding-inline-end: 32px; }
+.ui-select--md .ui-select__control { padding-inline-end: 34px; }
+.ui-select--lg .ui-select__control,
+.ui-select--xl .ui-select__control { padding-inline-end: 36px; }
+
+.ui-select--xs.has-prefix .ui-select__control { padding-inline-start: 30px; }
+.ui-select--sm.has-prefix .ui-select__control { padding-inline-start: 32px; }
+.ui-select--md.has-prefix .ui-select__control { padding-inline-start: 34px; }
+.ui-select--lg.has-prefix .ui-select__control,
+.ui-select--xl.has-prefix .ui-select__control { padding-inline-start: 36px; }
+
+/* Options open in the browser's own menu; keep their text legible even when
+   the closed control shows the gray placeholder. */
+.ui-select__control option,
+.ui-select__control optgroup {
+  color: var(--ink-gray-8);
+  background-color: var(--surface-base);
+}
+
+.ui-select__control option:disabled {
+  color: var(--ink-gray-4);
+}
+
+.ui-select__chevron,
+.ui-select__prefix {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.ui-select__chevron {
+  inset-inline-end: 8px;
+  width: 16px;
+  height: 16px;
+  color: var(--ink-gray-4);
+}
+
+.ui-select__prefix {
+  inset-inline-start: 8px;
+  display: flex;
+  align-items: center;
+  color: var(--ink-gray-7);
+}
+
+.ui-select__icon {
+  width: 16px;
+  height: 16px;
+  color: var(--ink-gray-6);
+}
+
+.ui-select--xs .ui-select__chevron { inset-inline-end: 6px; }
+.ui-select--xs .ui-select__prefix { inset-inline-start: 6px; }
+.ui-select--md .ui-select__chevron { inset-inline-end: 10px; }
+.ui-select--md .ui-select__prefix { inset-inline-start: 10px; }
+.ui-select--lg .ui-select__chevron,
+.ui-select--xl .ui-select__chevron { inset-inline-end: 12px; }
+.ui-select--lg .ui-select__prefix,
+.ui-select--xl .ui-select__prefix { inset-inline-start: 12px; }
+
+.ui-select.is-disabled .ui-select__prefix,
+.ui-select.is-disabled .ui-select__icon {
+  color: var(--ink-gray-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-select__trigger {
+    transition-duration: 0ms;
+  }
+}

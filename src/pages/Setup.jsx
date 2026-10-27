@@ -1,13 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { IcLogo } from '../components/ui/Icon.jsx';
+import { Alert, Button, ErrorMessage, FormControl } from '../components/ui';
+import AuthLayout from './auth/AuthLayout.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import {
-  browserSupportsWebAuthn,
-  registerPasskey,
-} from '../services/authApi.js';
-import './Login.css';
-import './Setup.css';
+import { browserSupportsWebAuthn, registerPasskey } from '../services/authApi.js';
 
 // First-time enrollment requires the SETUP_TOKEN break-glass. The same page is
 // reused (without a token) by an authenticated user adding another device.
@@ -45,71 +41,63 @@ export default function Setup() {
   }
 
   return (
-    <div className="auth-screen">
-      <div className="auth-card">
-        <div className="auth-brand">
-          <IcLogo size={34} />
-          <span>Fintrack</span>
-        </div>
-        <h1 className="auth-title">
-          {authed ? 'Add a passkey' : 'Set up your passkey'}
-        </h1>
-        <p className="auth-sub">
-          {authed
-            ? 'Enroll another device so you always have a backup way in.'
-            : 'Enter your setup token, then create a passkey on this device.'}
-        </p>
-
-        {supported ? (
-          <form className="auth-form" onSubmit={enroll}>
-            {!authed && (
-              <label className="auth-field">
-                <span>Setup token</span>
-                <input
-                  type="password"
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  autoComplete="off"
-                  placeholder="Paste your setup token"
-                  required
-                />
-              </label>
-            )}
-            <label className="auth-field">
-              <span>
-                Device name <em>(optional)</em>
-              </span>
-              <input
-                type="text"
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                maxLength={60}
-                placeholder="e.g. MacBook, iPhone"
-              />
-            </label>
-            <button
-              className="auth-btn"
-              type="submit"
-              disabled={busy || (!authed && !token.trim())}
-            >
-              {busy ? 'Creating passkey…' : 'Create passkey'}
-            </button>
-          </form>
+    <AuthLayout
+      title={authed ? 'Add a passkey' : 'Set up your passkey'}
+      description={
+        authed
+          ? 'Add another device so you always have a backup way in.'
+          : 'Enter your setup token, then create a passkey on this device.'
+      }
+      footer={
+        authed ? (
+          <Link to="/security">Back to security</Link>
         ) : (
-          <p className="auth-error">
-            This browser doesn’t support passkeys. Try a recent version of
-            Safari, Chrome, or Edge.
-          </p>
-        )}
-
-        {error && <p className="auth-error">{error}</p>}
-
-        {!authed && (
-          <p className="auth-foot">
+          <>
             Already set up? <Link to="/login">Sign in</Link>
-          </p>
-        )}
-      </div>
-    </div>
+          </>
+        )
+      }
+    >
+      {supported ? (
+        <form className="auth-page__form" onSubmit={enroll}>
+          {!authed && (
+            <FormControl
+              label="Setup token"
+              type="password"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              autoComplete="off"
+              placeholder="Paste your setup token"
+              required
+            />
+          )}
+          <FormControl
+            label="Device name"
+            description="Optional. Helps you tell your passkeys apart."
+            type="text"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            maxLength={60}
+            placeholder="MacBook, iPhone…"
+          />
+          <Button
+            type="submit"
+            variant="solid"
+            size="md"
+            className="auth-page__full"
+            label={busy ? 'Creating passkey…' : 'Create passkey'}
+            loading={busy}
+            disabled={!authed && !token.trim()}
+          />
+        </form>
+      ) : (
+        <Alert
+          theme="yellow"
+          title="Passkeys aren’t supported in this browser"
+          description="Try a recent version of Safari, Chrome or Edge."
+        />
+      )}
+      {error && <ErrorMessage message={error} />}
+    </AuthLayout>
   );
 }

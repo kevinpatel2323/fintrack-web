@@ -1,0 +1,25 @@
+/* FormLabel — frappe-ui 1.0.2 InputLabel.vue: `block text-sm leading-tighter
+ * text-ink-gray-6`. Label type does not follow the control's size. */
+
+.ui-form-label {
+  display: block;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  font-weight: 420;
+  color: var(--ink-gray-6);
+}
+
+.ui-form-label--strong {
+  color: var(--ink-gray-7);
+}
+
+.ui-form-label.is-disabled {
+  color: var(--ink-gray-4);
+}
+
+.ui-form-label__required {
+  color: var(--ink-red-5);
+  user-select: none;
+}

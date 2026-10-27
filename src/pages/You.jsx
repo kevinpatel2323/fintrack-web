@@ -1,110 +1,71 @@
 import { Link } from 'react-router-dom';
-import {
-  Card, Avatar, Overline, SectionTitle, GhostBtn,
-} from '../components/ui/primitives.jsx';
-import { IcUpload, IcTag, IcSettings, IcChevR, IcCal, IcCommand } from '../components/ui/Icon.jsx';
+import { ChevronRight } from 'lucide-react';
+import { Badge, PageBody, PageHeader, TabButtons } from '../components/ui';
+import { MANAGE_NAV, useNavBadges } from '../components/shell/nav.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useImportSchedule } from '../hooks/useImportSchedule.js';
+import { useTheme } from '../hooks/useTheme.js';
+import './You.css';
 
-const ROWS = [
-  { to: '/import', label: 'Import statement', icon: IcUpload, sub: 'Upload HDFC XLSX' },
-  { to: '/calendar', label: 'Calendar', icon: IcCal, sub: 'Month view, bills & activity' },
-  { to: '/categories', label: 'Categories', icon: IcTag, sub: 'Manage buckets' },
-  { to: '/security', label: 'Security', icon: IcCommand, sub: 'Passkeys & sign-out', authOnly: true },
+const DESCRIPTIONS = {
+  '/categories': 'Rename, recolour and merge categories',
+  '/import': 'Upload an HDFC bank or card statement',
+  '/security': 'Passkeys and sign-out',
+};
+
+const THEMES = [
+  { label: 'Light', value: 'light' },
+  { label: 'Dark', value: 'dark' },
+  { label: 'System', value: 'system' },
 ];
 
+// "More" on phones: everything that isn't a tab, plus appearance.
 export default function You() {
   const { authDisabled } = useAuth();
-  const rows = authDisabled ? ROWS.filter((row) => !row.authOnly) : ROWS;
+  const { mode, setMode } = useTheme();
+  const badges = useNavBadges();
   const { data: schedule } = useImportSchedule();
-  const toImport = schedule?.pendingCount ?? 0;
   // Name the oldest waiting statement, so the row says what to go and get.
   const nextUp = schedule?.cards?.find((c) => c.status === 'ready');
+  const rows = MANAGE_NAV.filter((r) => !(r.authOnly && authDisabled));
+
   return (
     <>
-      <header className="ft-mobile__header">
-        <h1 className="ft-mobile__title">You</h1>
-        <span style={{ width: 40 }} />
-      </header>
-      <main className="ft-mobile__content">
-        <Card pad={20} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <Avatar name="You" size={56} />
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 600 }}>You</div>
-            <div style={{ color: 'var(--ft-text-dim)', fontSize: 13 }}>HDFC · Primary</div>
-          </div>
-        </Card>
-        <Card pad={6}>
-          {rows.map((row, i) => {
-            const Ic = row.icon;
-            const alert = row.to === '/import' && toImport > 0 && nextUp;
+      <PageHeader title="More" />
+      <PageBody width="narrow" className="more-page">
+        <section className="more-group" aria-label="Manage">
+          {rows.map((row) => {
+            const Icon = row.icon;
+            const badge = badges[row.to];
+            const nudge =
+              row.to === '/import' && badge && nextUp
+                ? `Next: ${nextUp.next.label} · ${nextUp.card.nickname || nextUp.card.name} •• ${nextUp.card.last4}`
+                : null;
             return (
-              <Link
-                key={row.to}
-                to={row.to}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: 12, color: 'inherit',
-                  borderTop: i ? '1px solid var(--ft-border)' : 'none',
-                }}
-              >
-                <div
-                  style={{
-                    width: 36, height: 36, borderRadius: 10,
-                    background: 'var(--ft-surface-2)', color: 'var(--ft-text-dim)',
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  }}
-                >
-                  <Ic size={16} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 500 }}>{row.label}</div>
-                  <div style={{ color: alert ? 'var(--ft-warn)' : 'var(--ft-text-dim)', fontSize: 12 }}>
-                    {alert
-                      ? `Next: ${nextUp.next.label} · ${nextUp.card.nickname || nextUp.card.name} •• ${nextUp.card.last4}`
-                      : row.sub}
-                  </div>
-                </div>
-                {alert && (
-                  <span
-                    aria-label={`${toImport} card statement${toImport === 1 ? '' : 's'} to import`}
-                    style={{
-                      fontFamily: 'var(--ft-font-mono)', fontSize: 11.5, fontWeight: 600,
-                      color: 'var(--ft-warn)', background: 'var(--ft-warn-soft)',
-                      padding: '2px 7px', borderRadius: 999,
-                    }}
-                  >
-                    {toImport}
+              <Link key={row.to} to={row.to} className="more-row" aria-label={badge ? `${row.label} · ${badge.label}` : undefined}>
+                <span className="more-row__icon">
+                  <Icon size={16} strokeWidth={1.5} aria-hidden />
+                </span>
+                <span className="more-row__text">
+                  <span className="more-row__label">{row.label}</span>
+                  <span className={`more-row__description${nudge ? ' is-nudge' : ''}`}>
+                    {nudge || DESCRIPTIONS[row.to]}
                   </span>
-                )}
-                <IcChevR size={14} style={{ color: 'var(--ft-text-faint)' }} />
+                </span>
+                {badge && <Badge theme="red" label={String(badge.count)} />}
+                <ChevronRight className="more-row__chevron" size={16} strokeWidth={1.5} aria-hidden />
               </Link>
             );
           })}
-        </Card>
-        <Card pad={6}>
-          <Link
-            to="/"
-            style={{
-              display: 'flex', alignItems: 'center', gap: 12, padding: 12, color: 'inherit',
-            }}
-          >
-            <div
-              style={{
-                width: 36, height: 36, borderRadius: 10,
-                background: 'var(--ft-surface-2)', color: 'var(--ft-text-dim)',
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              <IcSettings size={16} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 500 }}>Settings</div>
-              <div style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>App preferences (coming soon)</div>
-            </div>
-          </Link>
-        </Card>
-      </main>
+        </section>
+
+        <section className="more-group more-group--padded" aria-labelledby="more-appearance">
+          <div className="more-setting">
+            <span id="more-appearance" className="more-row__label">Appearance</span>
+            <TabButtons options={THEMES} value={mode} onChange={setMode} />
+          </div>
+        </section>
+      </PageBody>
     </>
   );
 }

@@ -1,0 +1,94 @@
+/* Card — after frappe-ui ChartCard.vue:
+ *   rounded-4 border border-outline-gray-1 bg-surface-elevation-2 px-4 py-3
+ * Two changes for Fintrack's design guide (docs/DESIGN.md): 10px corners
+ * (radius-5; cards and dialogs are 10–12px there) and the base surface (flat
+ * on the page, defined by the hairline). In light mode elevation-2 is the base
+ * surface anyway; only dark mode differs (no lift). */
+
+.ui-card {
+  --ui-card-px: 16px;
+  --ui-card-py: 12px;
+  --ui-card-gap: 12px;
+  --ui-card-footer-px: var(--ui-card-px);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-card-gap);
+  min-width: 0;
+  padding: var(--ui-card-py) var(--ui-card-px);
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-5);
+  background: var(--surface-base);
+}
+
+.ui-card--pad-sm {
+  --ui-card-px: 12px;
+  --ui-card-py: 8px;
+  --ui-card-gap: 8px;
+}
+
+/* Edge-to-edge content: the body is flush and clipped to the corners; the
+   header and footer keep the md inset. */
+.ui-card--pad-none {
+  --ui-card-px: 0px;
+  --ui-card-py: 0px;
+  --ui-card-gap: 0px;
+  --ui-card-footer-px: 16px;
+  overflow: hidden;
+}
+
+.ui-card--pad-none > .ui-card__header {
+  padding: 12px 16px 8px;
+}
+
+.ui-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ui-card__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ui-card__title {
+  margin: 0;
+  color: var(--ink-gray-9);
+  font-size: 14px;
+  line-height: 1.35;
+  letter-spacing: 0.015em;
+  font-weight: 500;
+}
+
+.ui-card__description {
+  color: var(--ink-gray-5);
+  font-size: 13px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+}
+
+/* One title line tall (14px × 1.35) and centred on it, as NumberCard and
+   ChartContainer do: a button here does not push the content down. */
+.ui-card__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  height: calc(14px * 1.35);
+}
+
+.ui-card__body {
+  min-width: 0;
+}
+
+.ui-card__footer {
+  margin: 0 calc(-1 * var(--ui-card-px)) calc(-1 * var(--ui-card-py));
+  padding: 8px var(--ui-card-footer-px);
+  border-top: 1px solid var(--outline-gray-1);
+}

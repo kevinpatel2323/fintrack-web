@@ -1,0 +1,34 @@
+/* Textarea — frappe-ui 1.0.2 Textarea.vue. The field look (`.ui-input`) lives
+ * in TextInput.css; this file is the geometry: `text-p-sm` type and, per
+ * size, radius, padding and a minimum height that fits one full line. */
+
+.ui-input.ui-textarea {
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.015em;
+  resize: vertical;
+}
+
+.ui-textarea.ui-textarea--xs {
+  min-height: 32px;
+  border-radius: var(--radius-3);
+  padding: 4px 6px;
+}
+
+.ui-textarea.ui-textarea--sm {
+  min-height: 36px;
+  border-radius: var(--radius-4);
+  padding: 6px 8px;
+}
+
+.ui-textarea.ui-textarea--md {
+  min-height: 40px;
+  border-radius: var(--radius-4);
+  padding: 6px 10px;
+}
+
+.ui-textarea.ui-textarea--lg {
+  min-height: 44px;
+  border-radius: var(--radius-5);
+  padding: 6px 12px;
+}

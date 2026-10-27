@@ -1,0 +1,143 @@
+/* StatCard — frappe-ui NumberCard.vue on the Card surface (Card.css).
+ *   column gap-1.5
+ *   label:  text-sm text-ink-gray-5 truncate
+ *   value:  text-3xl-semibold tabular-nums ink-gray-9 (ink-gray-4 when empty)
+ *   delta:  flex items-center gap-1 text-sm; arrow size-4; value text-sm-medium
+ *           tabular-nums; tones green-7 / red-7 / gray-6; caption truncate gray-5
+ *   loading: skeleton inset-y-1 w-28 rounded-4 over an invisible value line;
+ *            delta skeleton my-0.5 h-4 w-32 rounded-4 */
+
+/* Two classes so it beats .ui-card whatever order the sheets load in. */
+.ui-card.ui-stat-card {
+  --ui-card-gap: 6px;
+}
+
+.ui-stat-card > * {
+  display: block;
+  min-width: 0;
+}
+
+.ui-stat-card__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-gray-5);
+  font-size: 13px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  font-weight: 420;
+}
+
+.ui-stat-card__value {
+  position: relative;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-gray-9);
+  font-size: 20px;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-stat-card__value--empty {
+  color: var(--ink-gray-4);
+}
+
+.ui-stat-card__value-skeleton {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  width: 112px;
+}
+
+.ui-stat-card__ghost {
+  visibility: hidden;
+}
+
+.ui-stat-card__delta-skeleton {
+  height: 16px;
+  width: 128px;
+  margin: 2px 0;
+}
+
+.ui-stat-card > .ui-stat-card__delta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  font-weight: 420;
+}
+
+.ui-stat-card__arrow {
+  flex-shrink: 0;
+}
+
+.ui-stat-card__delta-value {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-stat-card__caption {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-gray-5);
+  font-size: 13px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+}
+
+.ui-stat-card__tone--positive { color: var(--ink-green-7); }
+.ui-stat-card__tone--negative { color: var(--ink-red-7); }
+.ui-stat-card__tone--neutral { color: var(--ink-gray-6); }
+
+.ui-stat-card__hint {
+  color: var(--ink-gray-5);
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.015em;
+}
+
+/* ---------- As a link or button ---------- */
+
+.ui-stat-card--interactive {
+  width: 100%;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+  transition-property: background-color, border-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* One step off rest on both the fill and the border, like Frappe's clickable
+   panels (the editor's image upload tile: hover:border-outline-gray-3
+   hover:bg-surface-gray-2 over outline-gray-2 / gray-1). From the base
+   surface, gray-1 is one step up in both themes. */
+@media (hover: hover) and (pointer: fine) {
+  .ui-stat-card--interactive:hover {
+    background: var(--surface-gray-1);
+    border-color: var(--outline-gray-2);
+  }
+}
+
+.ui-stat-card--interactive:active {
+  background: var(--surface-gray-2);
+  border-color: var(--outline-gray-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-stat-card--interactive {
+    transition: none;
+  }
+}

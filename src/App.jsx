@@ -1,7 +1,7 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
-import { useIsCompact } from './styles/breakpoints.js';
-import DesktopShell from './components/ui/DesktopShell.jsx';
-import MobileShell from './components/ui/MobileShell.jsx';
+import AppShell from './components/shell/AppShell.jsx';
+import { Toaster } from './components/ui/Toast.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import RequireAuth from './components/RequireAuth.jsx';
 
@@ -20,14 +20,15 @@ import Security from './pages/Security.jsx';
 import Login from './pages/Login.jsx';
 import Setup from './pages/Setup.jsx';
 
+// Dev-only gallery of the UI kit; never part of the production bundle.
+const UiKit = import.meta.env.DEV ? lazy(() => import('./pages/dev/UiKit.jsx')) : null;
+
 // Responsive shell layout. Nested routes render through <Outlet/>.
 function ShellLayout() {
-  const isMobile = useIsCompact();
-  const Shell = isMobile ? MobileShell : DesktopShell;
   return (
-    <Shell>
+    <AppShell>
       <Outlet />
-    </Shell>
+    </AppShell>
   );
 }
 
@@ -59,9 +60,20 @@ export default function App() {
               <Route path="/cards/:id" element={<CardDetail />} />
               <Route path="/you" element={<You />} />
               <Route path="/security" element={<Security />} />
+              {UiKit && (
+                <Route
+                  path="/ui-kit"
+                  element={
+                    <Suspense fallback={null}>
+                      <UiKit />
+                    </Suspense>
+                  }
+                />
+              )}
             </Route>
           </Route>
         </Routes>
+        <Toaster />
       </AuthProvider>
     </BrowserRouter>
   );

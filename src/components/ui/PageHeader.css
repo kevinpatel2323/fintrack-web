@@ -1,0 +1,111 @@
+/* frappe-ui PageHeader: min-h-12, border-b, base surface, px-3 → sm:px-5. */
+
+.ui-page-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--header-height);
+  padding: 0 20px;
+  border-bottom: 1px solid var(--outline-gray-1);
+  background: var(--surface-base);
+}
+
+.ui-page-header__lead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ui-page-header__title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.015em;
+  color: var(--ink-gray-9);
+}
+
+.ui-page-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Phone: 52px, centred title between an absolute prefix and suffix. */
+.ui-page-header--mobile {
+  justify-content: center;
+  height: 52px;
+  min-height: 52px;
+  padding: 0 12px;
+}
+
+@media (display-mode: standalone) {
+  .ui-page-header--mobile {
+    height: calc(52px + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+.ui-page-header__mobile-title {
+  min-width: 0;
+  max-width: calc(100% - 2 * 96px);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.015em;
+  text-align: center;
+  color: var(--ink-gray-9);
+}
+
+.ui-page-header__prefix,
+.ui-page-header__suffix {
+  position: absolute;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 35%;
+  transform: translateY(-50%);
+}
+
+@media (display-mode: standalone) {
+  .ui-page-header__prefix,
+  .ui-page-header__suffix {
+    top: calc(50% + env(safe-area-inset-top) / 2);
+  }
+}
+
+.ui-page-header__prefix {
+  left: 8px;
+}
+
+.ui-page-header__suffix {
+  right: 8px;
+}
+
+/* ---------- Page body ---------- */
+
+.ui-page-body {
+  padding: 20px var(--page-gutter) 40px;
+  min-width: 0;
+}
+
+.ui-page-body--narrow {
+  max-width: calc(720px + 2 * var(--page-gutter));
+}
+
+.ui-page-body--medium {
+  max-width: calc(1040px + 2 * var(--page-gutter));
+}
+
+@media (max-width: 767.98px) {
+  .ui-page-body {
+    padding: 12px 12px 24px;
+  }
+}

@@ -1,0 +1,89 @@
+.more-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.more-group {
+  overflow: hidden;
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-6);
+  background: var(--surface-base);
+}
+
+.more-group--padded {
+  padding: 12px 14px;
+}
+
+.more-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 14px;
+  color: inherit;
+  transition: background-color 150ms;
+}
+
+.more-row + .more-row {
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .more-row:hover {
+    background: var(--surface-gray-1);
+  }
+}
+
+.more-row:active {
+  background: var(--surface-gray-2);
+}
+
+.more-row__icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-4);
+  background: var(--surface-gray-2);
+  color: var(--ink-gray-6);
+}
+
+.more-row__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.more-row__label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-8);
+}
+
+.more-row__description {
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.more-row__description.is-nudge {
+  color: var(--ink-amber-7);
+}
+
+.more-row__chevron {
+  flex-shrink: 0;
+  color: var(--ink-gray-4);
+}
+
+.more-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}

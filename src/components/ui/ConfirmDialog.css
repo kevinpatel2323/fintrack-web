@@ -1,0 +1,33 @@
+/* ConfirmDialog — frappe-ui `dialog.confirm()` body and action row.
+ * Buttons reuse the Dialog action-button styles (Dialog.css). */
+
+.ui-confirm-dialog__actions {
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 8px;
+}
+
+.ui-confirm-dialog__content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ui-confirm-dialog__message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-7);
+  white-space: pre-line;
+}
+
+/* frappe ErrorMessage: whitespace-pre-line text-sm text-ink-red-7 */
+.ui-confirm-dialog__error {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: var(--ink-red-7);
+  white-space: pre-line;
+}

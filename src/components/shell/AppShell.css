@@ -1,0 +1,119 @@
+/* ---------- Desktop ---------- */
+
+.app-shell {
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--surface-base);
+}
+
+.app-shell__content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.app-shell__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.app-sidebar__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding-top: 4px;
+}
+
+.app-sidebar__footer {
+  display: flex;
+  flex-direction: column;
+  padding-top: 8px;
+}
+
+/* ---------- Phone ---------- */
+
+.mobile-shell {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface-base);
+}
+
+.mobile-shell__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-nav {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  flex-shrink: 0;
+  border-top: 1px solid var(--outline-gray-2);
+  background: var(--surface-elevation-2);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.mobile-nav__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: var(--mobile-nav-height);
+  padding: 8px 0;
+  color: var(--ink-gray-5);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 150ms, color 150ms;
+}
+
+.mobile-nav__item:active {
+  transform: scale(0.95);
+}
+
+.mobile-nav__item.is-active {
+  color: var(--ink-gray-8);
+}
+
+.mobile-nav__icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.mobile-nav__dot {
+  position: absolute;
+  top: -1px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-red-5);
+  box-shadow: 0 0 0 2px var(--surface-elevation-2);
+}
+
+.mobile-nav__label {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-nav__item {
+    transition: none;
+  }
+}

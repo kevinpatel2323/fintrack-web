@@ -1,0 +1,235 @@
+/* TextInput — frappe-ui 1.0.2 TextInput.vue on Espresso tokens.
+ *
+ * `.ui-input` is Frappe's text-field look (the `form-input` component style
+ * plus TextInput's variant classes). TextInput's <input> and Textarea's
+ * <textarea> both wear it; each adds its own geometry.
+ *
+ * Every property the legacy global `input`/`textarea` rules set is restated
+ * here (min-height, padding, width, outline, opacity …) so an unlayered
+ * `.ui-input` never inherits the old look.
+ */
+
+/* ---------- Shared field look ---------- */
+
+.ui-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-4);
+  background-image: none;
+  box-shadow: none;
+  outline: none;
+  opacity: 1;
+  appearance: none;
+  font-family: inherit;
+  font-weight: 420;
+  color: var(--ink-gray-8);
+  accent-color: auto;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.ui-input::placeholder {
+  color: var(--ink-gray-4);
+  opacity: 1;
+}
+
+/* subtle — filled gray, the default */
+.ui-input[data-variant='subtle'] {
+  border-color: var(--surface-gray-2);
+  background-color: var(--surface-gray-2);
+}
+
+/* outline — white field with a hairline border */
+.ui-input[data-variant='outline'] {
+  border-color: var(--outline-gray-2);
+  background-color: var(--surface-base);
+}
+
+/* ghost — no box at all */
+.ui-input[data-variant='ghost'] {
+  border-width: 0;
+  background-color: transparent;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-input[data-variant='subtle']:not(:disabled):hover {
+    border-color: var(--outline-elevation-2);
+    background-color: var(--surface-gray-3);
+  }
+
+  .ui-input[data-variant='outline']:not(:disabled):hover {
+    border-color: var(--outline-gray-3);
+    box-shadow: var(--elevation-sm);
+  }
+}
+
+/* Focus: the field turns white with a darker border and a small shadow. Frappe
+   draws no outline ring on text fields (the forms plugin clears it), so the
+   global :focus-visible ring is switched off here. */
+.ui-input:focus,
+.ui-input:focus-visible {
+  outline: none;
+}
+
+.ui-input[data-variant='subtle']:not(:disabled):focus,
+.ui-input[data-variant='outline']:not(:disabled):focus {
+  border-color: var(--outline-gray-4);
+  background-color: var(--surface-base);
+  box-shadow: var(--elevation-sm);
+}
+
+/* Invalid (Fintrack addition — Frappe colours only the message below). */
+.ui-input[aria-invalid='true']:not(:disabled)[data-variant='subtle'],
+.ui-input[aria-invalid='true']:not(:disabled)[data-variant='outline'] {
+  border-color: var(--outline-red-3);
+}
+
+.ui-input[aria-invalid='true']:not(:disabled)[data-variant='subtle']:focus,
+.ui-input[aria-invalid='true']:not(:disabled)[data-variant='outline']:focus {
+  border-color: var(--outline-red-4);
+}
+
+/* Disabled replaces the variant (ghost included), as in TextInput.vue. */
+.ui-input:disabled {
+  border-width: 1px;
+  border-color: transparent;
+  background-color: var(--surface-gray-1);
+  color: var(--ink-gray-5);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.ui-input[data-variant='outline']:disabled {
+  border-color: var(--outline-gray-2);
+}
+
+.ui-input:disabled::placeholder {
+  color: var(--ink-gray-3);
+}
+
+/* ---------- TextInput geometry ---------- */
+
+.ui-text-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* Heights are fixed, not derived from line-height: 24/28/32/40px. */
+.ui-text-input__control {
+  line-height: 1.15;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.ui-text-input--xs .ui-text-input__control {
+  height: 24px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  border-radius: var(--radius-3);
+  padding-inline: 6px;
+}
+
+.ui-text-input--sm .ui-text-input__control {
+  height: 28px;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  border-radius: var(--radius-4);
+  padding-inline: 8px;
+}
+
+.ui-text-input--md .ui-text-input__control {
+  height: 32px;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  border-radius: var(--radius-4);
+  padding-inline: 10px;
+}
+
+.ui-text-input--lg .ui-text-input__control {
+  height: 40px;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  border-radius: var(--radius-5);
+  padding-inline: 12px;
+}
+
+/* `xl` was dropped in frappe-ui 1.0 (it was `lg`'s box with an 18px font).
+   Kept for the Fintrack API. */
+.ui-text-input--xl .ui-text-input__control {
+  height: 40px;
+  font-size: 18px;
+  letter-spacing: 0.01em;
+  border-radius: var(--radius-5);
+  padding-inline: 12px;
+}
+
+/* Room for a 16px prefix/suffix: inset + icon + the same inset again. */
+.ui-text-input--xs.has-prefix .ui-text-input__control { padding-inline-start: 28px; }
+.ui-text-input--sm.has-prefix .ui-text-input__control { padding-inline-start: 32px; }
+.ui-text-input--md.has-prefix .ui-text-input__control { padding-inline-start: 36px; }
+.ui-text-input--lg.has-prefix .ui-text-input__control,
+.ui-text-input--xl.has-prefix .ui-text-input__control { padding-inline-start: 40px; }
+
+.ui-text-input--xs.has-suffix .ui-text-input__control { padding-inline-end: 28px; }
+.ui-text-input--sm.has-suffix .ui-text-input__control { padding-inline-end: 32px; }
+.ui-text-input--md.has-suffix .ui-text-input__control { padding-inline-end: 36px; }
+.ui-text-input--lg.has-suffix .ui-text-input__control,
+.ui-text-input--xl.has-suffix .ui-text-input__control { padding-inline-end: 40px; }
+
+/* ---------- Prefix / suffix ---------- */
+
+.ui-text-input__prefix,
+.ui-text-input__suffix {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  color: var(--ink-gray-8);
+}
+
+.ui-text-input__prefix { inset-inline-start: 0; padding-inline-start: 8px; }
+.ui-text-input__suffix { inset-inline-end: 0; padding-inline-end: 8px; }
+
+.ui-text-input--xs .ui-text-input__prefix { padding-inline-start: 6px; }
+.ui-text-input--xs .ui-text-input__suffix { padding-inline-end: 6px; }
+.ui-text-input--md .ui-text-input__prefix { padding-inline-start: 10px; }
+.ui-text-input--md .ui-text-input__suffix { padding-inline-end: 10px; }
+.ui-text-input--lg .ui-text-input__prefix,
+.ui-text-input--xl .ui-text-input__prefix { padding-inline-start: 12px; }
+.ui-text-input--lg .ui-text-input__suffix,
+.ui-text-input--xl .ui-text-input__suffix { padding-inline-end: 12px; }
+
+.ui-text-input.is-disabled .ui-text-input__prefix,
+.ui-text-input.is-disabled .ui-text-input__suffix {
+  color: var(--ink-gray-5);
+}
+
+/* An icon is decoration: clicks fall through to the input. */
+.ui-text-input__prefix.is-icon,
+.ui-text-input__suffix.is-icon {
+  pointer-events: none;
+}
+
+.ui-text-input__icon {
+  width: 16px;
+  height: 16px;
+  color: var(--ink-gray-5);
+}
+
+.ui-text-input.is-disabled .ui-text-input__icon {
+  color: var(--ink-gray-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-input {
+    transition-duration: 0ms;
+  }
+}

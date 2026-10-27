@@ -1,104 +1,142 @@
+import { createContext, useContext } from 'react';
 import { NavLink } from 'react-router-dom';
-import {
-  IcLogo, IcHome, IcList, IcCal, IcCard, IcFriends, IcTag, IcUpload,
-  IcSparkle, IcSettings, IcCommand,
-} from './Icon.jsx';
-import { Avatar } from './primitives.jsx';
-import ThemeToggle from './ThemeToggle.jsx';
-import { useAuth } from '../../context/AuthContext.jsx';
-import { useImportSchedule } from '../../hooks/useImportSchedule.js';
-import { useReviewSummary } from '../../hooks/useReviewSummary.js';
+import { ChevronDown, PanelRightOpen } from 'lucide-react';
+import Dropdown from './Dropdown.jsx';
+import Tooltip from './Tooltip.jsx';
+import './Sidebar.css';
 
-const NAV = [
-  { to: '/',             label: 'Overview',     icon: IcHome,   end: true },
-  { to: '/transactions', label: 'Transactions', icon: IcList },
-  { to: '/cards',        label: 'Cards',        icon: IcCard },
-  { to: '/calendar',     label: 'Calendar',     icon: IcCal },
-  { to: '/friends',      label: 'People',       icon: IcFriends },
-  { to: '/categories',   label: 'Categories',   icon: IcTag },
-  { to: '/import',       label: 'Import',       icon: IcUpload },
-  { to: '/security',     label: 'Security',     icon: IcCommand, authOnly: true },
-];
+// Port of frappe-ui's Sidebar family (Sidebar, SidebarHeader, SidebarItem,
+// SidebarLabel, SidebarCollapseToggle). The app composes its own body from
+// these; see components/shell/AppSidebar.jsx.
 
-export default function Sidebar() {
-  const { authDisabled } = useAuth();
-  const nav = authDisabled ? NAV.filter((item) => !item.authOnly) : NAV;
-  // Card statements that are out but not imported yet, badged on Import.
-  const { data: schedule } = useImportSchedule();
-  const toImport = schedule?.pendingCount ?? 0;
-  // Older settlements that don't match their entries, badged on People.
-  const { data: review } = useReviewSummary();
-  const toReview = review?.needingReview ?? 0;
-  const badges = {
-    '/import': [toImport, (n) => `${n} card statement${n === 1 ? '' : 's'} to import`],
-    '/friends': [toReview, (n) => `${n} older settlement${n === 1 ? '' : 's'} to review`],
-  };
+const SidebarContext = createContext({ collapsed: false });
+
+export function useSidebar() {
+  return useContext(SidebarContext);
+}
+
+export function Sidebar({ collapsed = false, label = 'Primary', className = '', children }) {
   return (
-    <aside className="ft-sidebar">
-      <div className="ft-sidebar__brand">
-        <IcLogo size={28} />
-        <span>Fintrack</span>
-      </div>
-
-      <nav className="ft-sidebar__nav" aria-label="Primary">
-        {nav.map((item) => {
-          const Ic = item.icon;
-          const [badge = 0, describe] = badges[item.to] ?? [];
-          const name = badge ? `${item.label} · ${describe(badge)}` : item.label;
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              /* The label is hidden in the collapsed rail tier, so the link
-                 carries its name here instead. */
-              title={name}
-              aria-label={name}
-              className={({ isActive }) =>
-                `ft-sidebar__nav-item${isActive ? ' ft-sidebar__nav-item--active' : ''}${badge ? ' ft-sidebar__nav-item--alert' : ''}`
-              }
-            >
-              <Ic size={18} />
-              <span>{item.label}</span>
-              {badge > 0 && (
-                <span className="ft-sidebar__nav-badge ft-sidebar__nav-badge--alert" aria-hidden>
-                  {badge}
-                </span>
-              )}
-            </NavLink>
-          );
-        })}
+    <SidebarContext.Provider value={{ collapsed }}>
+      <nav
+        className={`ui-sidebar${collapsed ? ' ui-sidebar--collapsed' : ''} ${className}`.trim()}
+        data-state={collapsed ? 'collapsed' : 'expanded'}
+        aria-label={label}
+      >
+        {children}
       </nav>
+    </SidebarContext.Provider>
+  );
+}
 
-      <div className="ft-sidebar__insight">
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            color: 'var(--ft-accent-fg)',
-            marginBottom: 6,
-          }}
-        >
-          <IcSparkle size={14} />
-          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase' }}>
-            Insight
-          </span>
-        </div>
-        <div className="ft-sidebar__insight-title">Your dining spend is up 18%</div>
-        <div>Most of it is on weekends — consider setting a category budget.</div>
-      </div>
+/** Logo + title block, optionally a dropdown trigger (`menuItems`). 48px tall
+ *  so it lines up with the page header. */
+export function SidebarHeader({ logo, title, subtitle, menuItems }) {
+  const { collapsed } = useSidebar();
+  const identity = (
+    <>
+      <span className="ui-sidebar-header__logo">{logo}</span>
+      <span className="ui-sidebar-header__text ui-sidebar__fade">
+        <span className="ui-sidebar-header__title truncate">{title}</span>
+        {subtitle && <span className="ui-sidebar-header__subtitle truncate">{subtitle}</span>}
+      </span>
+    </>
+  );
 
-      <ThemeToggle />
+  return (
+    <div className="ui-sidebar-header">
+      {menuItems ? (
+        <Dropdown options={menuItems} placement="bottom-start">
+          <button
+            type="button"
+            className={`ui-sidebar-header__trigger${collapsed ? ' is-collapsed' : ''}`}
+            aria-label={`${title} menu`}
+          >
+            {identity}
+            <ChevronDown className="ui-sidebar-header__chevron ui-sidebar__fade" size={16} strokeWidth={1.5} aria-hidden />
+          </button>
+        </Dropdown>
+      ) : (
+        <div className="ui-sidebar-header__trigger is-static">{identity}</div>
+      )}
+    </div>
+  );
+}
 
-      <div className="ft-sidebar__user">
-        <Avatar name="You" size={32} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="ft-sidebar__user-name">You</div>
-          <div className="ft-sidebar__user-meta">HDFC · Primary</div>
-        </div>
-        <IcSettings size={16} style={{ color: 'var(--ft-text-dim)' }} />
-      </div>
-    </aside>
+/** A nav row. `to` renders a router NavLink (active from the route unless
+ *  `active` is given); otherwise a button calling `onClick`. `suffix` is the
+ *  muted count on the right (hidden when collapsed). */
+export function SidebarItem({ icon: Icon, label, to, end, active, onClick, suffix, suffixLabel, alert = false }) {
+  const { collapsed } = useSidebar();
+  const name = suffix && suffixLabel ? `${label} · ${suffixLabel}` : label;
+
+  const inner = (
+    <>
+      <Tooltip text={label} placement="right" disabled={!collapsed}>
+        <span className="ui-sidebar-item__icon">
+          {Icon && <Icon size={16} strokeWidth={1.5} aria-hidden />}
+          {alert && collapsed && <span className="ui-sidebar-item__dot" aria-hidden />}
+        </span>
+      </Tooltip>
+      <span className="ui-sidebar-item__label ui-sidebar__fade">
+        <span className="truncate">{label}</span>
+      </span>
+    </>
+  );
+
+  const suffixEl = suffix != null && suffix !== '' && suffix !== 0 && (
+    <span className={`ui-sidebar-item__suffix ui-sidebar__fade${alert ? ' is-alert' : ''}`} aria-hidden>
+      {suffix}
+    </span>
+  );
+
+  if (to) {
+    return (
+      <NavLink
+        to={to}
+        end={end}
+        aria-label={name}
+        className={({ isActive }) =>
+          `ui-sidebar-item${(active ?? isActive) ? ' is-active' : ''}`
+        }
+      >
+        {inner}
+        {suffixEl}
+      </NavLink>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className={`ui-sidebar-item${active ? ' is-active' : ''}`}
+      onClick={onClick}
+      aria-label={name}
+    >
+      {inner}
+      {suffixEl}
+    </button>
+  );
+}
+
+/** Section caption; turns into a hairline when the sidebar is collapsed. */
+export function SidebarLabel({ children }) {
+  return (
+    <div className="ui-sidebar-label">
+      <h3 className="ui-sidebar-label__text ui-sidebar__fade">{children}</h3>
+      <hr className="ui-sidebar-label__rule" aria-hidden />
+    </div>
+  );
+}
+
+export function SidebarCollapseToggle({ onToggle }) {
+  const { collapsed } = useSidebar();
+  return (
+    <SidebarItem
+      icon={(props) => (
+        <PanelRightOpen {...props} className={`ui-sidebar-toggle__icon${collapsed ? ' is-flipped' : ''}`} />
+      )}
+      label={collapsed ? 'Expand' : 'Collapse'}
+      onClick={onToggle}
+    />
   );
 }

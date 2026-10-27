@@ -1,14 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ConfirmDialog from '../components/ConfirmDialog.jsx';
+import { KeyRound, LogOut, Plus, Trash2 } from 'lucide-react';
 import {
-  Card,
-  GhostBtn,
-  PrimaryBtn,
-  SectionTitle,
-} from '../components/ui/primitives.jsx';
-import { IcPlus, IcTrash, IcLogout, IcCommand } from '../components/ui/Icon.jsx';
-import { useIsCompact } from '../styles/breakpoints.js';
+  Badge, Button, ConfirmDialog, EmptyState, ErrorMessage, PageBody, PageHeader, Skeleton, Tooltip, toast,
+} from '../components/ui';
 import { useAuth } from '../context/AuthContext.jsx';
 import { deleteCredential, listCredentials } from '../services/authApi.js';
 import './Security.css';
@@ -16,33 +11,28 @@ import './Security.css';
 function fmtDate(value) {
   if (!value) return null;
   try {
-    return new Date(value).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    return new Date(value).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' });
   } catch {
     return null;
   }
 }
 
 export default function Security() {
-  const isMobile = useIsCompact();
   const navigate = useNavigate();
   const { logout, authDisabled } = useAuth();
 
   const [credentials, setCredentials] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('');
-  const [confirmState, setConfirmState] = useState({ open: false });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [removing, setRemoving] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setStatus('');
+    setError('');
     try {
       setCredentials(await listCredentials());
     } catch (err) {
-      setStatus(err?.message || 'Could not load passkeys');
+      setError(err?.message || 'Could not load passkeys');
     } finally {
       setLoading(false);
     }
@@ -56,25 +46,17 @@ export default function Security() {
     load();
   }, [authDisabled, load, navigate]);
 
-  function askDelete(cred) {
-    setConfirmState({
-      open: true,
-      title: 'Remove this passkey?',
-      message:
-        'This device will no longer be able to sign in, and its active session ends immediately.',
-      confirmLabel: 'Remove',
-      onConfirm: async () => {
-        setConfirmState({ open: false });
-        setStatus('');
-        try {
-          await deleteCredential(cred.id);
-          await load();
-        } catch (err) {
-          setStatus(err?.message || 'Could not remove passkey');
-        }
-      },
-      onCancel: () => setConfirmState({ open: false }),
-    });
+  async function confirmRemove() {
+    const cred = removing;
+    try {
+      await deleteCredential(cred.id);
+      setRemoving(null);
+      toast.success('Passkey removed');
+      await load();
+    } catch (err) {
+      setRemoving(null);
+      toast.error(err?.message || 'Could not remove passkey');
+    }
   }
 
   async function signOut() {
@@ -84,107 +66,95 @@ export default function Security() {
 
   const onlyOne = credentials.length <= 1;
 
-  const passkeyList = (
-    <Card pad={14}>
-      <SectionTitle
-        action={
-          <GhostBtn onClick={() => navigate('/setup')}>
-            <IcPlus size={14} /> Add passkey
-          </GhostBtn>
-        }
-      >
-        Your passkeys
-      </SectionTitle>
-      {loading ? (
-        <p className="sec-empty">Loading…</p>
-      ) : credentials.length === 0 ? (
-        <p className="sec-empty">No passkeys yet.</p>
-      ) : (
-        <div className="sec-list">
-          {credentials.map((c) => {
-            const created = fmtDate(c.createdAt);
-            const used = fmtDate(c.lastUsedAt);
-            return (
-              <div className="sec-row" key={c.id}>
-                <span className="sec-icon">
-                  <IcCommand size={18} />
-                </span>
-                <div className="sec-meta">
-                  <div className="sec-name">
-                    {c.label || 'Unnamed passkey'}
-                    {c.backedUp && <span className="sec-badge">Synced</span>}
-                  </div>
-                  <div className="sec-sub">
-                    {created ? `Added ${created}` : 'Added recently'}
-                    {used ? ` · Last used ${used}` : ' · Not used yet'}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="ft-mobile__icon-btn"
-                  style={{
-                    width: 32,
-                    height: 32,
-                    color: onlyOne ? 'var(--ft-text-faint)' : 'var(--ft-spend)',
-                  }}
-                  onClick={() => askDelete(c)}
-                  disabled={onlyOne}
-                  aria-label="Remove passkey"
-                  title={
-                    onlyOne ? 'Add another passkey before removing this one' : 'Remove'
-                  }
-                >
-                  <IcTrash size={14} />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {status && <p className="auth-error">{status}</p>}
-    </Card>
-  );
-
-  const sessionCard = (
-    <Card pad={18}>
-      <SectionTitle>Session</SectionTitle>
-      <p style={{ color: 'var(--ft-text-dim)', fontSize: 13, margin: '0 0 14px' }}>
-        Sessions last one hour, then you’ll sign in again with a tap.
-      </p>
-      <PrimaryBtn onClick={signOut} tint="var(--ft-spend)">
-        <IcLogout size={16} /> Sign out
-      </PrimaryBtn>
-    </Card>
-  );
-
   return (
     <>
-      <ConfirmDialog {...confirmState} />
-      {isMobile ? (
-        <>
-          <header className="ft-mobile__header">
-            <h1 className="ft-mobile__title">Security</h1>
-            <span style={{ width: 40 }} />
-          </header>
-          <main className="ft-mobile__content">
-            {passkeyList}
-            {sessionCard}
-          </main>
-        </>
-      ) : (
-        <>
-          <header className="ft-page-header">
+      <PageHeader title="Security" />
+      <PageBody width="narrow" className="security-page">
+        <section className="security-section">
+          <div className="security-section__head">
             <div>
-              <p className="ft-page-header__sub">Passkeys & sign-out</p>
-              <h1 className="ft-page-header__title">Security</h1>
+              <h2 className="security-section__title">Passkeys</h2>
+              <p className="security-section__description">
+                Devices that can sign in to Fintrack. Keep at least two so you always have a way back in.
+              </p>
             </div>
-          </header>
-          <div className="ft-split">
-            {passkeyList}
-            <div>{sessionCard}</div>
+            <Button iconLeft={Plus} label="Add passkey" onClick={() => navigate('/setup')} />
           </div>
-        </>
-      )}
+
+          <div className="security-list">
+            {loading ? (
+              [0, 1].map((i) => (
+                <div className="security-row" key={i}>
+                  <Skeleton className="security-row__skeleton" />
+                </div>
+              ))
+            ) : credentials.length === 0 ? (
+              <EmptyState
+                size="sm"
+                icon={KeyRound}
+                title="No passkeys yet"
+                description="Add one to sign in with Touch ID, Face ID or a security key."
+              />
+            ) : (
+              credentials.map((c) => {
+                const created = fmtDate(c.createdAt);
+                const used = fmtDate(c.lastUsedAt);
+                return (
+                  <div className="security-row" key={c.id}>
+                    <span className="security-row__icon">
+                      <KeyRound size={16} strokeWidth={1.5} aria-hidden />
+                    </span>
+                    <div className="security-row__text">
+                      <div className="security-row__name">
+                        <span className="truncate">{c.label || 'Unnamed passkey'}</span>
+                        {c.backedUp && <Badge label="Synced" />}
+                      </div>
+                      <div className="security-row__meta">
+                        {created ? `Added ${created}` : 'Added recently'}
+                        {used ? ` · Last used ${used}` : ' · Not used yet'}
+                      </div>
+                    </div>
+                    <Tooltip text={onlyOne ? 'Add another passkey before removing this one' : 'Remove passkey'}>
+                      <span>
+                        <Button
+                          variant="ghost"
+                          theme="red"
+                          icon={Trash2}
+                          label="Remove passkey"
+                          disabled={onlyOne}
+                          onClick={() => setRemoving(c)}
+                        />
+                      </span>
+                    </Tooltip>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          {error && <ErrorMessage message={error} />}
+        </section>
+
+        <section className="security-section">
+          <div className="security-section__head">
+            <div>
+              <h2 className="security-section__title">Session</h2>
+              <p className="security-section__description">
+                Sessions last one hour, then you sign in again with your passkey.
+              </p>
+            </div>
+            <Button variant="outline" theme="red" iconLeft={LogOut} label="Log out" onClick={signOut} />
+          </div>
+        </section>
+      </PageBody>
+
+      <ConfirmDialog
+        open={Boolean(removing)}
+        title="Remove this passkey?"
+        message="This device will no longer be able to sign in, and its active session ends immediately."
+        confirmLabel="Remove"
+        onConfirm={confirmRemove}
+        onCancel={() => setRemoving(null)}
+      />
     </>
   );
 }

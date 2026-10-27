@@ -1,0 +1,327 @@
+/* DatePicker / DateRangePicker — frappe-ui 1.0.2 DatePicker.vue,
+ * CalendarPanel.vue and the shared PopoverPanel shell.
+ *
+ * Trigger: a TextInput with a chevron (and an optional clear button).
+ * Panel:   rounded-6, surface-elevation-2, elevation-2xl + a 1px hairline,
+ *          80ms opacity fade in, nothing on close.
+ * Grid:    28px day cells, 2px gaps; selected surface-gray-9 / ink-base,
+ *          range fill surface-gray-3, hover surface-gray-2, today semibold.
+ */
+
+/* ---------- Trigger ---------- */
+
+.ui-datepicker {
+  display: block;
+  min-width: 0;
+}
+
+.ui-datepicker__suffix {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ui-datepicker__chevron {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.ui-datepicker.is-disabled .ui-datepicker__chevron {
+  cursor: not-allowed;
+}
+
+/* Suffix action button (Frappe's Password eye-button style). */
+.ui-datepicker__clear {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-3);
+  background: transparent;
+  color: var(--ink-gray-5);
+  cursor: pointer;
+  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1), color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-datepicker__clear:hover {
+    background-color: var(--surface-gray-3);
+    color: var(--ink-gray-7);
+  }
+}
+
+.ui-datepicker__clear:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: 0;
+}
+
+/* Make room for the clear button next to the chevron (20px + 4px gap). */
+.ui-datepicker.has-clear .ui-text-input--xs .ui-text-input__control { padding-inline-end: 52px; }
+.ui-datepicker.has-clear .ui-text-input--sm .ui-text-input__control { padding-inline-end: 56px; }
+.ui-datepicker.has-clear .ui-text-input--md .ui-text-input__control { padding-inline-end: 60px; }
+.ui-datepicker.has-clear .ui-text-input--lg .ui-text-input__control,
+.ui-datepicker.has-clear .ui-text-input--xl .ui-text-input__control { padding-inline-end: 64px; }
+
+/* ---------- Panel ---------- */
+
+.ui-datepicker__panel {
+  z-index: 1200; /* with Popover: above Dialog/Sheet (1100) */
+  overflow: hidden;
+  border-radius: var(--radius-6);
+  background-color: var(--surface-elevation-2);
+  box-shadow: 0 0 0 1px var(--outline-alpha-gray-1), var(--elevation-2xl);
+  color: var(--ink-gray-9);
+  animation: ui-datepicker-fade 80ms linear both;
+}
+
+@keyframes ui-datepicker-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ui-datepicker__calendar {
+  width: 224px;
+}
+
+/* ---------- Calendar ---------- */
+
+.ui-calendar {
+  font-size: 14px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-9);
+  user-select: none;
+}
+
+.ui-calendar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 8px 8px 0;
+}
+
+.ui-calendar__nav {
+  display: flex;
+  align-items: center;
+}
+
+/* Ghost Button, size sm. */
+.ui-calendar__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 8px;
+  height: 28px;
+  min-height: 0;
+  margin: 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-4);
+  background-color: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 420;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-8);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1), color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-calendar__button:enabled:hover {
+    background-color: var(--surface-gray-3);
+  }
+}
+
+.ui-calendar__button:enabled:active {
+  background-color: var(--surface-gray-4);
+}
+
+.ui-calendar__button:disabled {
+  color: var(--ink-gray-4);
+  cursor: not-allowed;
+}
+
+.ui-calendar__title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-gray-7);
+}
+
+.ui-calendar__icon-button {
+  width: 28px;
+  padding: 0;
+}
+
+.ui-calendar__today {
+  font-size: 12px;
+}
+
+.ui-calendar__body {
+  padding: 8px;
+}
+
+.ui-calendar__weekdays {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-gray-4);
+}
+
+.ui-calendar__weekday {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+
+.ui-calendar__weeks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ui-calendar__week {
+  display: flex;
+  gap: 2px;
+}
+
+.ui-calendar__day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-4);
+  background-color: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 420;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-8);
+  cursor: pointer;
+  transition: background-color 100ms, color 100ms;
+}
+
+.ui-calendar__day.is-outside {
+  color: var(--ink-gray-3);
+}
+
+.ui-calendar__day.is-today {
+  font-weight: 600;
+  color: var(--ink-gray-9);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-calendar__day:not(.is-selected):not(.is-in-range):not(.is-unavailable):hover {
+    background-color: var(--surface-gray-2);
+  }
+}
+
+.ui-calendar__day.is-in-range {
+  background-color: var(--surface-gray-3);
+}
+
+.ui-calendar__day.is-selected {
+  background-color: var(--surface-gray-9);
+  color: var(--ink-base);
+}
+
+.ui-calendar__day.is-unavailable {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.ui-calendar__day:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: 0;
+}
+
+/* Month / year split view: two scrolling columns. */
+.ui-calendar__month-year {
+  display: flex;
+  width: 208px;
+  height: 208px;
+}
+
+.ui-calendar__list {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 50%;
+  overflow-y: auto;
+}
+
+.ui-calendar__list + .ui-calendar__list {
+  padding-inline-start: 6px;
+}
+
+.ui-calendar__option {
+  flex-shrink: 0;
+  width: 100%;
+  height: 28px;
+  min-height: 0;
+  margin: 0;
+  padding: 4px 0;
+  border: 0;
+  border-radius: var(--radius-4);
+  background-color: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 420;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  text-align: center;
+  color: var(--ink-gray-8);
+  cursor: pointer;
+  transition: background-color 100ms;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-calendar__option:hover {
+    background-color: var(--surface-gray-1);
+  }
+
+  .ui-calendar__option.is-selected:hover {
+    background-color: var(--surface-gray-3);
+  }
+}
+
+.ui-calendar__option.is-selected {
+  background-color: var(--surface-gray-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-datepicker__panel {
+    animation: none;
+  }
+
+  .ui-datepicker__clear,
+  .ui-calendar__button,
+  .ui-calendar__day,
+  .ui-calendar__option {
+    transition-duration: 0ms;
+  }
+}

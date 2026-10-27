@@ -1,6 +1,14 @@
-/* Fintrack — root stylesheet (rewritten for redesign) */
-@import './styles/tokens.css';
-@import './styles/app.css';
-@import './styles/legacy-adapter.css';
-@import './pages/import-redesign.css';
-@import './pages/Login.css';
+/* Fintrack — root stylesheet.
+ *
+ * Order matters: Espresso tokens, then Fintrack roles, then page-wide base.
+ * The pre-redesign stylesheets sit in the `legacy` cascade layer, so any
+ * unlayered rule (every new component) beats them regardless of specificity
+ * while screens are moved over. */
+@import './styles/legacy-tokens.css' layer(legacy);
+@import './styles/app.css' layer(legacy);
+@import './styles/legacy-adapter.css' layer(legacy);
+@import './pages/import-redesign.css' layer(legacy);
+
+@import './styles/espresso.css';
+@import './styles/theme.css';
+@import './styles/base.css';

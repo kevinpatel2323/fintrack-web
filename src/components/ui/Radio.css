@@ -1,0 +1,220 @@
+/* Radio / RadioGroup — frappe-ui 1.0.2 Radio.vue + RadioGroup.vue.
+ *
+ * The circle is a plain span drawn with border width and colour: a thick
+ * ring whose surface-base centre is the hole. Empty ring walks the outline
+ * scale (4 → 5 hover → 6 active); the selected ring walks the surface scale
+ * like Checkbox (10 → 9 → 8). Disabled: outline-gray-3 / surface-gray-5.
+ */
+
+.ui-radio-group__options {
+  display: flex;
+}
+
+.ui-radio-group__options.is-vertical {
+  flex-direction: column;
+  row-gap: 6px;
+}
+
+.ui-radio-group__options.is-horizontal {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 16px;
+}
+
+.ui-radio-group__options.is-padded {
+  row-gap: 0;
+  column-gap: 0;
+}
+
+.ui-radio-group__options.has-label {
+  margin-top: 6px;
+}
+
+.ui-radio-group .ui-form-label {
+  user-select: none;
+}
+
+.ui-radio-group__detail {
+  margin-top: 4px;
+}
+
+.ui-radio-group__description,
+.ui-radio-group__error {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.015em;
+}
+
+.ui-radio-group__description {
+  color: var(--ink-gray-6);
+}
+
+.ui-radio-group__error {
+  color: var(--ink-red-5);
+  white-space: pre-line;
+}
+
+/* ---------- Option row ---------- */
+
+.ui-radio {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-radius: var(--radius-4);
+  text-align: start;
+  cursor: pointer;
+  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ui-radio.is-disabled {
+  cursor: not-allowed;
+}
+
+/* The native input stays focusable for the keyboard, out of sight. */
+.ui-radio__input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+  appearance: none;
+}
+
+.ui-radio:has(.ui-radio__input:focus-visible) {
+  outline: var(--focus-outline-default);
+  outline-offset: 0;
+}
+
+.ui-radio__circle {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin-top: 3.5px;
+  border: 1px solid var(--outline-gray-4);
+  border-radius: var(--radius-full);
+  background-color: var(--surface-base);
+  transition-property: border-color, border-width, background-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.ui-radio--xs .ui-radio__circle { width: 13px; height: 13px; margin-top: 4px; }
+.ui-radio--md .ui-radio__circle { width: 16px; height: 16px; margin-top: 2.5px; }
+
+.ui-radio[data-state='checked'] .ui-radio__circle {
+  border-width: 4px;
+  border-color: var(--surface-gray-10);
+}
+
+.ui-radio--xs[data-state='checked'] .ui-radio__circle { border-width: 3.7px; }
+.ui-radio--md[data-state='checked'] .ui-radio__circle { border-width: 4.5px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-radio:not(.is-disabled):hover .ui-radio__circle {
+    border-color: var(--outline-gray-5);
+  }
+
+  .ui-radio:not(.is-disabled)[data-state='checked']:hover .ui-radio__circle {
+    border-color: var(--surface-gray-9);
+  }
+}
+
+.ui-radio:not(.is-disabled):active .ui-radio__circle {
+  border-color: var(--outline-gray-6);
+}
+
+.ui-radio:not(.is-disabled)[data-state='checked']:active .ui-radio__circle {
+  border-color: var(--surface-gray-8);
+}
+
+.ui-radio.is-disabled .ui-radio__circle {
+  border-color: var(--outline-gray-3);
+  background-color: var(--surface-base);
+}
+
+.ui-radio.is-disabled[data-state='checked'] .ui-radio__circle {
+  border-color: var(--surface-gray-5);
+}
+
+.ui-radio__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  text-align: start;
+}
+
+.ui-radio__label {
+  display: block;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-7);
+  user-select: none;
+}
+
+.ui-radio__description {
+  display: block;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-5);
+  user-select: none;
+}
+
+.ui-radio.is-disabled .ui-radio__label { color: var(--ink-gray-4); }
+.ui-radio.is-disabled .ui-radio__description { color: var(--ink-gray-3); }
+
+/* ---------- Padded rows ---------- */
+
+/* Label-only rows keep a fixed compact height and centre the circle. */
+.ui-radio--padded {
+  align-items: center;
+}
+
+.ui-radio--padded.ui-radio--xs { height: 24px; padding: 0 6px; }
+.ui-radio--padded.ui-radio--sm { height: 28px; padding: 0 6px; }
+.ui-radio--padded.ui-radio--md { height: 32px; padding: 0 12px; }
+
+.ui-radio--padded:not(.has-description) .ui-radio__circle {
+  margin-top: 0;
+}
+
+/* Rows with a description grow with vertical padding. */
+.ui-radio--padded.has-description {
+  height: auto;
+  align-items: flex-start;
+  padding: 6px;
+}
+
+.ui-radio--padded.ui-radio--md.has-description {
+  padding: 8px 12px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-radio--padded:not(.is-disabled):hover {
+    background-color: var(--surface-gray-3);
+  }
+}
+
+.ui-radio--padded:not(.is-disabled):active {
+  background-color: var(--surface-gray-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-radio,
+  .ui-radio__circle {
+    transition-duration: 0ms;
+  }
+}

@@ -1,65 +1,96 @@
-.sec-list {
+.security-page {
   display: flex;
   flex-direction: column;
+  gap: 32px;
 }
 
-.sec-row {
+.security-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.security-section__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.security-section__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink-gray-9);
+}
+
+.security-section__description {
+  margin-top: 4px;
+  max-width: 460px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-gray-5);
+}
+
+.security-list {
+  overflow: hidden;
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-5);
+}
+
+.security-row {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 6px;
-  border-top: 1px solid var(--ft-border);
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 12px;
 }
 
-.sec-row:first-child {
-  border-top: 0;
+.security-row + .security-row {
+  border-top: 1px solid var(--outline-gray-1);
 }
 
-.sec-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  background: var(--ft-surface-2);
-  color: var(--ft-text-dim);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.security-row__skeleton {
+  width: 60%;
+  height: 16px;
+}
+
+.security-row__icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
+  border-radius: var(--radius-4);
+  background: var(--surface-gray-2);
+  color: var(--ink-gray-6);
 }
 
-.sec-meta {
+.security-row__text {
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
 }
 
-.sec-name {
+.security-row__name {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14.5px;
-  font-weight: 550;
-  color: var(--ft-text);
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-8);
 }
 
-.sec-sub {
-  font-size: 12px;
-  color: var(--ft-text-dim);
-  margin-top: 2px;
-}
-
-.sec-badge {
-  font-size: 10.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--ft-income);
-  background: var(--ft-income-soft);
-  padding: 2px 7px;
-  border-radius: 999px;
-}
-
-.sec-empty {
-  color: var(--ft-text-dim);
+.security-row__meta {
   font-size: 13px;
-  padding: 8px 0;
+  color: var(--ink-gray-5);
+}
+
+@media (max-width: 767.98px) {
+  .security-section__head {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }

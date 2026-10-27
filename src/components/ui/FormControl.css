@@ -1,0 +1,38 @@
+/* FormControl — frappe-ui 1.0.2 FormControl.vue + LabelingWrapper
+ * (`space-y-1.5`), InputDescription (`text-p-sm text-ink-gray-6`) and
+ * InputError (`text-p-sm text-ink-red-5`, one line per message). */
+
+.ui-form-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ui-form-control--toggle {
+  gap: 0;
+}
+
+/* A form field fills its column: selects and comboboxes stretch (Frappe's
+   FormControl `w-full` contract for select-like types). */
+.ui-form-control .ui-form-control__fill {
+  display: flex;
+  width: 100%;
+}
+
+.ui-form-control__description,
+.ui-form-control__error {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.015em;
+}
+
+.ui-form-control__description {
+  color: var(--ink-gray-6);
+}
+
+.ui-form-control__error {
+  color: var(--ink-red-5);
+  white-space: pre-line;
+}

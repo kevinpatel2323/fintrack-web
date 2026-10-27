@@ -1,0 +1,52 @@
+/* Fintrack roles on top of Espresso (espresso.css).
+ *
+ * Components reach for Espresso tokens directly (--surface-gray-2,
+ * --ink-gray-5, --outline-gray-2 …). This file only names the few things
+ * that are Fintrack's own: layout sizes, how money is coloured, category and
+ * chart hues. Each is a pointer into Espresso, so dark mode follows for free.
+ */
+
+:root {
+  --font-sans: InterVar, Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Layout */
+  --sidebar-width: 240px;
+  --sidebar-rail-width: 48px;
+  --header-height: 48px;
+  --page-gutter: 20px;
+  --mobile-nav-height: 56px;
+
+  /* Money. Spending is the default state of a transaction, so it reads in
+     plain ink; only money coming in is coloured, and only overdue/owed
+     amounts that need action turn red. */
+  --ink-money-in: var(--ink-green-7);
+  --ink-money-out: var(--ink-gray-8);
+  --ink-money-due: var(--ink-red-6);
+
+  /* Charts */
+  --chart-in: var(--ink-green-5);
+  --chart-out: var(--ink-blue-5);
+  --chart-grid: var(--outline-gray-1);
+  --chart-axis: var(--ink-gray-5);
+
+  /* Category hues — one Espresso colour family per category key
+     (see utils/categoryColors.js). Step 5 reads on both themes as a dot,
+     bar or chart slice. */
+  --cat-food: var(--ink-orange-5);
+  --cat-transport: var(--ink-blue-5);
+  --cat-shopping: var(--ink-violet-5);
+  --cat-bills: var(--ink-amber-5);
+  --cat-grocery: var(--ink-green-5);
+  --cat-rent: var(--ink-pink-5);
+  --cat-entmt: var(--ink-purple-5);
+  --cat-transfer: var(--ink-gray-4);
+  --cat-salary: var(--ink-teal-5);
+  --cat-health: var(--ink-cyan-5);
+}
+
+[data-theme='dark'] {
+  /* outline-gray-1 matches the card surface in dark mode; gridlines need a step up. */
+  --chart-grid: var(--outline-gray-2);
+}

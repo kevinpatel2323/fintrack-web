@@ -1,0 +1,126 @@
+/* Spinner — frappe-ui Spinner.vue, verbatim technique.
+ *
+ * The animation spins the gradient angle, not the element: rotating the
+ * element rasterises the circle once and any sub-pixel offset orbits visibly.
+ * Painted into a centred square slightly smaller than the box (the ring is
+ * inset from the edge, 1.2px at 16px). */
+
+@property --ui-spinner-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.ui-spinner {
+  /* Anchored to the 16px spec: 16 − 2×1.2 = 13.6px paint box; a 2px ring is
+     14.7% of it and 29.4% of its radius. The size modifiers below swap these
+     for px values. */
+  --ui-spinner-thickness: 14.7%;
+  --ui-spinner-mask-thickness: 29.4%;
+  --ui-spinner-inset: 7.5%;
+  --ui-spinner-paint-size: calc(100% - 2 * var(--ui-spinner-inset));
+  --ui-spinner-track-color: transparent;
+
+  display: inline-block;
+  flex-shrink: 0;
+
+  /* layer 1: round cap on the arc head, orbiting at the animated angle
+     layer 2: the comet arc, fading from transparent to solid
+     layer 3: optional faint full-circle track */
+  background-image:
+    radial-gradient(
+      calc(var(--ui-spinner-thickness) / 2) calc(var(--ui-spinner-thickness) / 2) at
+        calc(50% + (50% - var(--ui-spinner-thickness) / 2) * sin(var(--ui-spinner-angle)))
+        calc(50% - (50% - var(--ui-spinner-thickness) / 2) * cos(var(--ui-spinner-angle))),
+      currentColor 92%,
+      transparent
+    ),
+    conic-gradient(
+      from var(--ui-spinner-angle),
+      transparent 32%,
+      currentColor 92%,
+      currentColor 100%
+    ),
+    linear-gradient(var(--ui-spinner-track-color), var(--ui-spinner-track-color));
+  background-size: var(--ui-spinner-paint-size) var(--ui-spinner-paint-size);
+  background-position: center;
+  background-repeat: no-repeat;
+
+  /* Clip everything above into a ring of the configured thickness. */
+  -webkit-mask: radial-gradient(
+      farthest-side,
+      transparent calc(100% - var(--ui-spinner-mask-thickness)),
+      #000 calc(100% - var(--ui-spinner-mask-thickness)),
+      #000 calc(100% - 0.5px),
+      transparent 100%
+    )
+    center / var(--ui-spinner-paint-size) var(--ui-spinner-paint-size) no-repeat;
+  mask: radial-gradient(
+      farthest-side,
+      transparent calc(100% - var(--ui-spinner-mask-thickness)),
+      #000 calc(100% - var(--ui-spinner-mask-thickness)),
+      #000 calc(100% - 0.5px),
+      transparent 100%
+    )
+    center / var(--ui-spinner-paint-size) var(--ui-spinner-paint-size) no-repeat;
+
+  animation: ui-spinner-rotate 0.7s linear infinite;
+}
+
+/* Fixed sizes: px diameter, ring thickness and inset from the Figma spec. */
+.ui-spinner--xs {
+  width: 12px;
+  height: 12px;
+  --ui-spinner-thickness: 1.5px;
+  --ui-spinner-mask-thickness: 1.5px;
+  --ui-spinner-inset: 0.9px;
+}
+
+.ui-spinner--sm {
+  width: 14px;
+  height: 14px;
+  --ui-spinner-thickness: 2px;
+  --ui-spinner-mask-thickness: 2px;
+  --ui-spinner-inset: 1.05px;
+}
+
+.ui-spinner--md {
+  width: 16px;
+  height: 16px;
+  --ui-spinner-thickness: 2px;
+  --ui-spinner-mask-thickness: 2px;
+  --ui-spinner-inset: 1.2px;
+}
+
+.ui-spinner--lg {
+  width: 20px;
+  height: 20px;
+  --ui-spinner-thickness: 2px;
+  --ui-spinner-mask-thickness: 2px;
+  --ui-spinner-inset: 1.5px;
+}
+
+.ui-spinner--gray {
+  color: var(--ink-gray-8);
+}
+
+.ui-spinner--red {
+  color: var(--ink-red-7);
+}
+
+.ui-spinner--track {
+  --ui-spinner-track-color: color-mix(in srgb, currentColor 15%, transparent);
+}
+
+@keyframes ui-spinner-rotate {
+  to {
+    --ui-spinner-angle: 360deg;
+  }
+}
+
+/* Frappe slows rather than stops it: a frozen spinner reads as a hang. */
+@media (prefers-reduced-motion: reduce) {
+  .ui-spinner {
+    animation-duration: 1.6s;
+  }
+}

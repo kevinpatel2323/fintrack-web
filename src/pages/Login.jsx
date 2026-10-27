@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { IcLogo } from '../components/ui/Icon.jsx';
+import { KeyRound } from 'lucide-react';
+import { Alert, Button, ErrorMessage } from '../components/ui';
+import AuthLayout from './auth/AuthLayout.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { browserSupportsWebAuthn, loginWithPasskey } from '../services/authApi.js';
-import './Login.css';
 
 export default function Login() {
   const { status, authDisabled, refresh } = useAuth();
@@ -32,39 +33,33 @@ export default function Login() {
   }
 
   return (
-    <div className="auth-screen">
-      <div className="auth-card">
-        <div className="auth-brand">
-          <IcLogo size={34} />
-          <span>Fintrack</span>
-        </div>
-        <h1 className="auth-title">Welcome back</h1>
-        <p className="auth-sub">
-          Sign in with your passkey — Touch ID, Face ID, or a security key.
-        </p>
-
-        {supported ? (
-          <button
-            className="auth-btn"
-            type="button"
-            onClick={signIn}
-            disabled={busy}
-          >
-            {busy ? 'Waiting for passkey…' : 'Sign in with passkey'}
-          </button>
-        ) : (
-          <p className="auth-error">
-            This browser doesn’t support passkeys. Try a recent version of
-            Safari, Chrome, or Edge.
-          </p>
-        )}
-
-        {error && <p className="auth-error">{error}</p>}
-
-        <p className="auth-foot">
+    <AuthLayout
+      title="Sign in to Fintrack"
+      description="Use the passkey on this device: Touch ID, Face ID or a security key."
+      footer={
+        <>
           First time here? <Link to="/setup">Set up a passkey</Link>
-        </p>
-      </div>
-    </div>
+        </>
+      }
+    >
+      {supported ? (
+        <Button
+          variant="solid"
+          size="md"
+          className="auth-page__full"
+          iconLeft={KeyRound}
+          label={busy ? 'Waiting for passkey…' : 'Sign in with passkey'}
+          loading={busy}
+          onClick={signIn}
+        />
+      ) : (
+        <Alert
+          theme="yellow"
+          title="Passkeys aren’t supported in this browser"
+          description="Try a recent version of Safari, Chrome or Edge."
+        />
+      )}
+      {error && <ErrorMessage message={error} />}
+    </AuthLayout>
   );
 }

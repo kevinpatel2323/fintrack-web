@@ -1,0 +1,184 @@
+/* Dropdown menu — frappe-ui Menu (`menuClasses` + ItemListRow size sm).
+ * Panel shell (radius, surface, shadow, ring, 80ms fade) lives in Popover.css.
+ *
+ *   content   min-w-40 divide-y divide-outline-elevation-2 rounded-6 …
+ *   group     p-1.5
+ *   label     flex h-7 items-center px-2 text-sm font-medium leading-tighter text-ink-gray-4
+ *   item      flex items-center gap-2 rounded-4 min-h-7 px-2 py-1.5 text-base text-ink-gray-7
+ *             highlighted bg-surface-alpha-gray-2 · checked bg-surface-gray-3 (+hover gray-4)
+ *             red: text/icon ink-red-7, highlighted bg-surface-red-3
+ *   icon      size-4 text-ink-gray-6 (disabled ink-gray-4)
+ *   desc      truncate text-p-sm text-ink-gray-5
+ *   shortcut  KeyboardShortcut without bg: text-sm text-ink-gray-5
+ */
+
+.ui-menu {
+  min-width: 160px;
+}
+
+.ui-menu__group {
+  padding: 6px;
+}
+
+.ui-menu__group + .ui-menu__group {
+  border-top: 1px solid var(--outline-elevation-2);
+}
+
+.ui-menu__label {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-4);
+  user-select: none;
+}
+
+.ui-menu__item {
+  display: flex;
+  width: 100%;
+  min-height: 28px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-4);
+  font-size: 14px;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-7);
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ui-menu__item:focus-visible {
+  outline: none;
+}
+
+.ui-menu__item[data-highlighted] {
+  background: var(--surface-alpha-gray-2);
+}
+
+.ui-menu__item[data-state='checked'] {
+  background: var(--surface-gray-3);
+}
+
+.ui-menu__item[data-state='checked'][data-highlighted] {
+  background: var(--surface-gray-4);
+}
+
+.ui-menu__item[data-tone='red'] {
+  color: var(--ink-red-7);
+}
+
+.ui-menu__item[data-tone='red'][data-highlighted] {
+  background: var(--surface-red-3);
+}
+
+.ui-menu__item[data-disabled] {
+  color: var(--ink-gray-4);
+  cursor: not-allowed;
+}
+
+.ui-menu__prefix {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+.ui-menu__icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--ink-gray-6);
+}
+
+.ui-menu__item[data-tone='red'] .ui-menu__icon {
+  color: var(--ink-red-7);
+}
+
+.ui-menu__item[data-disabled] .ui-menu__icon {
+  color: var(--ink-gray-4);
+}
+
+.ui-menu__text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.ui-menu__item-label,
+.ui-menu__description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-menu__description {
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.015em;
+  color: var(--ink-gray-5);
+}
+
+.ui-menu__item[data-disabled] .ui-menu__description {
+  color: var(--ink-gray-4);
+}
+
+.ui-menu__shortcut {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  margin-left: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-5);
+}
+
+.ui-menu__empty {
+  padding: 6px;
+  font-size: 14px;
+  color: var(--ink-gray-5);
+}
+
+/* Only used when Dropdown gets no trigger child — frappe's default
+ * `<Button>Options</Button>` (subtle gray, size sm). */
+.ui-menu-default-trigger {
+  display: inline-flex;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-4);
+  background: var(--surface-gray-2);
+  color: var(--ink-gray-8);
+  font-size: 14px;
+  line-height: 1.15;
+  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ui-menu-default-trigger[data-state='open'] {
+  background: var(--surface-gray-4);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-menu-default-trigger:hover {
+    background: var(--surface-gray-3);
+  }
+  .ui-menu-default-trigger[data-state='open']:hover {
+    background: var(--surface-gray-4);
+  }
+}

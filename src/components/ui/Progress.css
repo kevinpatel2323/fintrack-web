@@ -1,0 +1,84 @@
+/* Progress — frappe-ui Progress.vue.
+ *   root:   w-full space-y-[10px]
+ *   header: flex items-baseline justify-between; label text-base-medium
+ *           ink-gray-8; hint text-base-medium ink-gray-4 (self-end)
+ *   track:  transform-gpu overflow-hidden rounded-7, h 2/4/8/12px,
+ *           bg-surface-gray-2 (continuous) or flex space-x-1 (intervals)
+ *   fill:   bg-surface-gray-10, translateX over 660ms cubic-bezier(0.65,0,0.35,1)
+ */
+
+.ui-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.ui-progress__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.ui-progress__label,
+.ui-progress__hint-text {
+  font-size: 14px;
+  line-height: 1.35;
+  letter-spacing: 0.015em;
+  font-weight: 500;
+}
+
+.ui-progress__label {
+  color: var(--ink-gray-8);
+}
+
+.ui-progress__hint {
+  align-self: flex-end;
+}
+
+.ui-progress__hint-text {
+  color: var(--ink-gray-4);
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-progress__track {
+  overflow: hidden;
+  border-radius: var(--radius-7);
+  background: var(--surface-gray-2);
+  /* transform-gpu: Safari otherwise fails to clip the moving fill to the corners. */
+  transform: translateZ(0);
+}
+
+.ui-progress__track--sm { height: 2px; }
+.ui-progress__track--md { height: 4px; }
+.ui-progress__track--lg { height: 8px; }
+.ui-progress__track--xl { height: 12px; }
+
+.ui-progress__track--intervals {
+  display: flex;
+  gap: 4px;
+  background: transparent;
+}
+
+.ui-progress__fill {
+  width: 100%;
+  height: 100%;
+  background: var(--surface-gray-10);
+  transition: transform 660ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.ui-progress__segment {
+  width: 100%;
+  height: 100%;
+  background: var(--surface-gray-2);
+}
+
+.ui-progress__segment--filled {
+  background: var(--surface-gray-10);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-progress__fill {
+    transition: none;
+  }
+}

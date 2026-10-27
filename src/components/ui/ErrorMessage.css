@@ -1,0 +1,10 @@
+/* ErrorMessage — frappe-ui ErrorMessage.vue: whitespace-pre-line text-sm text-ink-red-7 */
+
+.ui-error-message {
+  white-space: pre-line;
+  font-size: 13px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  font-weight: 420;
+  color: var(--ink-red-7);
+}

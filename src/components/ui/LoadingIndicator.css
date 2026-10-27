@@ -1,0 +1,19 @@
+/* LoadingText — frappe-ui LoadingText.vue:
+ *   flex items-center text-base text-ink-gray-4; Spinner -ml-1 mr-2 h-3 w-3 */
+
+.ui-loading-text {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  font-weight: 420;
+  color: var(--ink-gray-4);
+}
+
+.ui-loading-text__spinner {
+  width: 12px;
+  height: 12px;
+  margin-left: -4px;
+  margin-right: 8px;
+}

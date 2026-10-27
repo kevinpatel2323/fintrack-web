@@ -1,0 +1,466 @@
+/* Dialog — frappe-ui Dialog.vue.
+ *
+ *   overlay   fixed inset-0 bg-black-overlay-200 dark:bg-black-overlay-700
+ *   wrapper   flex min-h-screen items-center px-4 py-4 + content my-8
+ *   content   w-full rounded-7 bg-surface-elevation-1 shadow-xl, max-w-{size}
+ *   header    mb-6 flex items-center justify-between; icon h-7 w-7 rounded-full
+ *             (bg-surface-{tone}-2, icon size-4 ink-{tone}); title
+ *             text-2xl-semibold leading-6 text-ink-gray-8
+ *   padding   px-4 pb-6 pt-5 sm:px-6 · actions px-4 pb-7 pt-4 sm:px-6
+ *   actions   flex justify-end gap-2 (one action on xs/sm/md: full width)
+ *   motion    overlay 100ms in / 150ms out; content opacity .5→1 + scale .98→1
+ *
+ * Deviation: the body scrolls between a fixed header and action row (frappe
+ * scrolls the whole overlay). A hairline appears on the edge content hides
+ * behind.
+ *
+ * Also home to the pieces Sheet shares: the scrim token, the close button
+ * and the action buttons (a frappe-ui Button port, so neither depends on the
+ * kit's Button). */
+
+/* frappe-ui's black-overlay ramp (200 light, 700 dark). espresso.css does not
+ * carry the overlay ramps, so the two steps are declared here. */
+:root {
+  --ui-overlay-scrim: oklch(0 0 0 / 0.271);
+}
+
+[data-theme='dark'] {
+  --ui-overlay-scrim: oklch(0 0 0 / 0.722);
+}
+
+.ui-dialog-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+}
+
+.ui-overlay-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--ui-overlay-scrim);
+}
+
+.ui-dialog-overlay {
+  animation: ui-fade-in 100ms ease-out both;
+}
+
+.ui-dialog-overlay[data-state='closed'] {
+  animation: ui-fade-out 150ms ease-in both;
+}
+
+.ui-dialog-container {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+}
+
+.ui-dialog-container[data-state='closed'],
+.ui-dialog-overlay[data-state='closed'] {
+  pointer-events: none;
+}
+
+.ui-dialog {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 512px;
+  max-height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-7);
+  background: var(--surface-elevation-1);
+  box-shadow: var(--elevation-xl);
+  color: var(--ink-gray-8);
+  text-align: start;
+  outline: none;
+  animation: ui-dialog-in 100ms ease-out both;
+}
+
+.ui-dialog[data-state='closed'] {
+  animation: ui-dialog-out 150ms ease-in both;
+}
+
+.ui-dialog:focus,
+.ui-dialog:focus-visible {
+  outline: none;
+}
+
+.ui-dialog[data-size='xs'] { max-width: 320px; }
+.ui-dialog[data-size='sm'] { max-width: 384px; }
+.ui-dialog[data-size='md'] { max-width: 448px; }
+.ui-dialog[data-size='lg'] { max-width: 512px; }
+.ui-dialog[data-size='xl'] { max-width: 576px; }
+.ui-dialog[data-size='2xl'] { max-width: 672px; }
+.ui-dialog[data-size='3xl'] { max-width: 768px; }
+.ui-dialog[data-size='4xl'] { max-width: 896px; }
+.ui-dialog[data-size='5xl'] { max-width: 1024px; }
+.ui-dialog[data-size='6xl'] { max-width: 1152px; }
+.ui-dialog[data-size='7xl'] { max-width: 1280px; }
+
+/* ---------- Header ---------- */
+
+.ui-dialog__header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  /* frappe: pt-5 … mb-6. 16px here + 8px body top padding = the same 24px,
+   * with the scroll hairline closer to the title. */
+  padding: 20px 24px 16px;
+}
+
+.ui-dialog__header[data-overline] {
+  align-items: flex-start;
+}
+
+.ui-dialog__heading {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+}
+
+.ui-dialog__icon {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: var(--surface-gray-2);
+  color: var(--ink-gray-5);
+}
+
+.ui-dialog__icon > svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ui-dialog__icon[data-tone='amber'] { background: var(--surface-amber-2); color: var(--ink-amber-5); }
+.ui-dialog__icon[data-tone='blue'] { background: var(--surface-blue-2); color: var(--ink-blue-5); }
+.ui-dialog__icon[data-tone='red'] { background: var(--surface-red-2); color: var(--ink-red-7); }
+.ui-dialog__icon[data-tone='green'] { background: var(--surface-green-2); color: var(--ink-green-5); }
+
+.ui-dialog__titles {
+  min-width: 0;
+  flex: 1;
+}
+
+.ui-dialog__overline {
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-5);
+}
+
+.ui-dialog__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  letter-spacing: 0.01em;
+  color: var(--ink-gray-8);
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Body ---------- */
+
+.ui-dialog__body {
+  display: grid;
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px 24px 24px;
+  border-top: 1px solid transparent;
+  transition: border-color 150ms ease;
+}
+
+.ui-dialog[data-header] .ui-dialog__body {
+  padding-top: 8px;
+}
+
+.ui-dialog__body[data-scrolled] {
+  border-top-color: var(--outline-gray-1);
+}
+
+.ui-dialog__description {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-7);
+}
+
+/* ---------- Actions ---------- */
+
+.ui-dialog__actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 24px 28px;
+  border-top: 1px solid transparent;
+  transition: border-color 150ms ease;
+}
+
+.ui-dialog__actions[data-more] {
+  border-top-color: var(--outline-gray-1);
+}
+
+.ui-dialog-btn--full {
+  width: 100%;
+}
+
+@media (max-width: 639.98px) {
+  .ui-dialog-container {
+    padding: 16px;
+  }
+  .ui-dialog__header,
+  .ui-dialog__body,
+  .ui-dialog__actions {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+/* ---------- Close button (ghost, icon, size sm) ---------- */
+
+.ui-dialog-close {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-4);
+  background: transparent;
+  color: var(--ink-gray-9);
+  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ui-dialog-close--floating {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1;
+}
+
+.ui-dialog-close:active {
+  background: var(--surface-gray-4);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-dialog-close:hover {
+    background: var(--surface-gray-3);
+  }
+  .ui-dialog-close:active {
+    background: var(--surface-gray-4);
+  }
+}
+
+/* ---------- Action buttons (frappe-ui Button) ---------- */
+
+.ui-dialog-btn {
+  --btn-fg: var(--ink-gray-8);
+  --btn-bg: var(--surface-gray-2);
+  --btn-bg-hover: var(--surface-gray-3);
+  --btn-bg-active: var(--surface-gray-4);
+  --btn-border: transparent;
+  --btn-border-hover: transparent;
+  display: inline-flex;
+  height: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-4);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  font-size: 14px;
+  font-weight: 420;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 150ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 150ms cubic-bezier(0.4, 0, 0.2, 1),
+    color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ui-dialog-btn > svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.ui-dialog-btn__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.15;
+}
+
+.ui-dialog-btn[data-size='xs'] {
+  height: 24px;
+  padding: 0 6px;
+  border-radius: var(--radius-3);
+  font-size: 12px;
+}
+
+.ui-dialog-btn[data-size='xs'] > svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ui-dialog-btn[data-size='md'] {
+  height: 32px;
+  padding: 0 10px;
+  font-weight: 500;
+  letter-spacing: 0.015em;
+}
+
+.ui-dialog-btn[data-size='md'] > svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ui-dialog-btn[data-size='lg'] {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: var(--radius-5);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.015em;
+}
+
+.ui-dialog-btn[data-size='lg'] > svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* solid */
+.ui-dialog-btn[data-variant='solid'] { --btn-fg: var(--ink-base); --btn-bg: var(--surface-gray-10); --btn-bg-hover: var(--surface-gray-9); --btn-bg-active: var(--surface-gray-8); }
+.ui-dialog-btn[data-variant='solid'][data-tone='blue'] { --btn-bg: var(--surface-blue-6); --btn-bg-hover: var(--surface-blue-7); --btn-bg-active: var(--surface-blue-8); }
+.ui-dialog-btn[data-variant='solid'][data-tone='green'] { --btn-bg: var(--surface-green-7); --btn-bg-hover: var(--surface-green-8); --btn-bg-active: var(--surface-green-9); }
+.ui-dialog-btn[data-variant='solid'][data-tone='red'] { --btn-bg: var(--surface-red-7); --btn-bg-hover: var(--surface-red-8); --btn-bg-active: var(--surface-red-9); }
+[data-theme='dark'] .ui-dialog-btn[data-variant='solid'][data-tone='red'] { --btn-fg: var(--ink-red-9); }
+
+/* subtle */
+.ui-dialog-btn[data-variant='subtle'][data-tone='blue'] { --btn-fg: var(--ink-blue-5); --btn-bg: var(--surface-blue-2); --btn-bg-hover: var(--surface-blue-3); --btn-bg-active: var(--surface-blue-4); }
+.ui-dialog-btn[data-variant='subtle'][data-tone='green'] { --btn-fg: var(--ink-green-8); --btn-bg: var(--surface-green-2); --btn-bg-hover: var(--surface-green-3); --btn-bg-active: var(--surface-green-4); }
+.ui-dialog-btn[data-variant='subtle'][data-tone='red'] { --btn-fg: var(--ink-red-7); --btn-bg: var(--surface-red-2); --btn-bg-hover: var(--surface-red-3); --btn-bg-active: var(--surface-red-4); }
+
+/* outline */
+.ui-dialog-btn[data-variant='outline'] { border: 1px solid var(--btn-border); --btn-bg: var(--surface-base); --btn-bg-hover: var(--surface-base); --btn-bg-active: var(--surface-gray-4); --btn-border: var(--outline-gray-2); --btn-border-hover: var(--outline-gray-3); }
+.ui-dialog-btn[data-variant='outline'][data-tone='blue'] { --btn-fg: var(--ink-blue-5); --btn-bg-active: var(--surface-blue-4); --btn-border: var(--outline-blue-1); --btn-border-hover: var(--outline-blue-4); }
+.ui-dialog-btn[data-variant='outline'][data-tone='green'] { --btn-fg: var(--ink-green-8); --btn-bg-active: var(--surface-green-4); --btn-border: var(--outline-green-3); --btn-border-hover: var(--outline-green-5); }
+.ui-dialog-btn[data-variant='outline'][data-tone='red'] { --btn-fg: var(--ink-red-7); --btn-bg-active: var(--surface-red-3); --btn-border: var(--outline-red-1); --btn-border-hover: var(--outline-red-3); }
+
+/* ghost */
+.ui-dialog-btn[data-variant='ghost'] { --btn-bg: transparent; }
+.ui-dialog-btn[data-variant='ghost'][data-tone='blue'] { --btn-fg: var(--ink-blue-5); --btn-bg-hover: var(--surface-blue-3); --btn-bg-active: var(--surface-blue-4); }
+.ui-dialog-btn[data-variant='ghost'][data-tone='green'] { --btn-fg: var(--ink-green-8); --btn-bg-hover: var(--surface-green-3); --btn-bg-active: var(--surface-green-4); }
+.ui-dialog-btn[data-variant='ghost'][data-tone='red'] { --btn-fg: var(--ink-red-7); --btn-bg-hover: var(--surface-red-3); --btn-bg-active: var(--surface-red-4); }
+
+.ui-dialog-btn:not([data-disabled]):active {
+  background: var(--btn-bg-active);
+  border-color: var(--btn-border-hover);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-dialog-btn:not([data-disabled]):hover {
+    background: var(--btn-bg-hover);
+    border-color: var(--btn-border-hover);
+  }
+  .ui-dialog-btn:not([data-disabled]):active {
+    background: var(--btn-bg-active);
+  }
+}
+
+.ui-dialog-btn[data-tone='blue']:focus-visible { outline: var(--focus-outline-blue); }
+.ui-dialog-btn[data-tone='green']:focus-visible { outline: var(--focus-outline-green); }
+.ui-dialog-btn[data-tone='red']:focus-visible { outline: var(--focus-outline-red); }
+
+/* Loading keeps the normal look; only an explicit `disabled` dims. */
+.ui-dialog-btn[data-loading] {
+  pointer-events: none;
+}
+
+.ui-dialog-btn[data-disabled] {
+  cursor: not-allowed;
+  --btn-bg: var(--surface-gray-2);
+  --btn-fg: var(--ink-gray-4);
+}
+.ui-dialog-btn[data-disabled][data-variant='ghost'] { --btn-bg: transparent; }
+.ui-dialog-btn[data-disabled][data-variant='outline'] { --btn-border: var(--outline-gray-2); }
+.ui-dialog-btn[data-disabled][data-tone='blue'][data-variant='solid'] { --btn-bg: var(--surface-blue-4); --btn-fg: var(--ink-base); }
+.ui-dialog-btn[data-disabled][data-tone='blue']:not([data-variant='solid']) { --btn-bg: var(--surface-blue-2); --btn-fg: var(--ink-blue-link); --btn-border: var(--outline-blue-1); }
+.ui-dialog-btn[data-disabled][data-tone='green'] { --btn-bg: var(--surface-green-2); --btn-fg: var(--ink-green-4); --btn-border: var(--outline-green-3); }
+.ui-dialog-btn[data-disabled][data-tone='red'] { --btn-bg: var(--surface-red-2); --btn-fg: var(--ink-red-4); --btn-border: var(--outline-red-1); }
+.ui-dialog-btn[data-disabled][data-variant='ghost'][data-tone] { --btn-bg: transparent; }
+
+.ui-dialog-btn__spinner {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  animation: ui-spin 800ms linear infinite;
+}
+
+.ui-dialog-btn[data-size='xs'] .ui-dialog-btn__spinner { width: 14px; height: 14px; }
+.ui-dialog-btn[data-size='md'] .ui-dialog-btn__spinner { width: 18px; height: 18px; }
+.ui-dialog-btn[data-size='lg'] .ui-dialog-btn__spinner { width: 20px; height: 20px; }
+
+/* ---------- Motion ---------- */
+
+@keyframes ui-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ui-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes ui-dialog-in {
+  from { opacity: 0.5; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ui-dialog-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.98); }
+}
+
+@keyframes ui-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-dialog,
+  .ui-dialog-overlay {
+    animation-duration: 0ms;
+  }
+  .ui-dialog-btn__spinner {
+    animation-duration: 1600ms;
+  }
+}

@@ -1,0 +1,85 @@
+/* DateRangePicker — frappe-ui 1.0.2 DateRangePicker.vue. Trigger, panel shell
+ * and calendar come from DatePicker.css; this adds the `#actions` column of
+ * presets, divided from the calendar by an outline-gray-2 rule. */
+
+.ui-daterange__layout {
+  display: flex;
+  width: fit-content;
+}
+
+.ui-daterange__presets {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 128px;
+  padding: 8px;
+  border-inline-end: 1px solid var(--outline-gray-2);
+}
+
+/* Ghost Button rows, start-aligned. */
+.ui-daterange__preset {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  height: 28px;
+  min-height: 0;
+  margin: 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-4);
+  background-color: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 420;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  text-align: start;
+  white-space: nowrap;
+  color: var(--ink-gray-8);
+  cursor: pointer;
+  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-daterange__preset:hover {
+    background-color: var(--surface-gray-3);
+  }
+}
+
+.ui-daterange__preset:active {
+  background-color: var(--surface-gray-4);
+}
+
+/* The preset matching the current value reads as selected (ItemListRow). */
+.ui-daterange__preset.is-active {
+  background-color: var(--surface-gray-3);
+  color: var(--ink-gray-9);
+}
+
+.ui-daterange__preset:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: 0;
+}
+
+/* Narrow screens: presets stack above the calendar. */
+@media (max-width: 480px) {
+  .ui-daterange__layout.has-presets {
+    flex-direction: column;
+  }
+
+  .ui-daterange__presets {
+    flex-direction: row;
+    flex-wrap: wrap;
+    min-width: 0;
+    max-width: 224px;
+    border-inline-end: 0;
+    border-bottom: 1px solid var(--outline-gray-2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-daterange__preset {
+    transition-duration: 0ms;
+  }
+}

@@ -1,0 +1,777 @@
+/* Charts — SVG ports of frappe-ui 1.0.2's chart look (frappe-ui/src/charts)
+ * on Espresso tokens. Every colour is a CSS variable, so charts follow the
+ * theme without re-rendering.
+ *
+ * Palettes: frappe's "Jewel" categorical ramp and its blue sequential ramp,
+ * each stop mapped to the nearest Espresso token in OKLab (within the hue
+ * family frappe names). Light stops are for a white card, dark stops for the
+ * dark elevated surface, slot for slot, so a series keeps its hue across a
+ * theme flip.
+ */
+
+:root {
+  /* Categorical: five families (blue, emerald, violet, amber, red), each a
+     dark member then its light partner. Donuts and multi-line charts. */
+  --chart-series-1: var(--ink-blue-6);
+  --chart-series-2: var(--ink-blue-4);
+  --chart-series-3: var(--ink-green-6);
+  --chart-series-4: var(--ink-green-4);
+  --chart-series-5: var(--ink-violet-6);
+  --chart-series-6: var(--ink-violet-4);
+  --chart-series-7: var(--ink-amber-6);
+  --chart-series-8: var(--ink-amber-4);
+  --chart-series-9: var(--ink-red-6);
+  --chart-series-10: var(--ink-red-4);
+
+  /* Sequential: deep blue to pale. Bars and single lines default to it. */
+  --chart-seq-1: var(--ink-blue-8);
+  --chart-seq-2: var(--ink-blue-6);
+  --chart-seq-3: var(--ink-blue-4);
+  --chart-seq-4: var(--ink-cyan-5);
+  --chart-seq-5: var(--ink-cyan-4);
+  --chart-seq-6: var(--ink-cyan-3);
+  --chart-seq-7: var(--ink-blue-3);
+
+  /* Plot furniture. Gridlines are a hairline of dots; the pointer guide is
+     one step firmer. */
+  --ui-chart-gridline: var(--chart-grid, var(--outline-gray-1));
+  --ui-chart-axis-line: var(--outline-gray-2);
+  --ui-chart-axis-ink: var(--ink-gray-5);
+  /* frappe draws axis labels at 11px (AXIS_LABEL_FONT_SIZE); keep in sync
+     with AXIS_FONT_SIZE in scale.js. */
+  --ui-chart-axis-font-size: 11px;
+  --ui-chart-track: var(--surface-gray-2);
+  --ui-chart-others: var(--ink-gray-4);
+
+  --ui-chart-duration: 150ms;
+  --ui-chart-enter-duration: 300ms;
+  --ui-chart-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+  /* What the rest of the plot drops to while one column or slice is hovered. */
+  --ui-chart-dim-opacity: 0.75;
+}
+
+[data-theme='dark'] {
+  --chart-series-1: var(--ink-blue-5);
+  --chart-series-2: var(--ink-blue-7);
+  --chart-series-3: var(--ink-green-6);
+  --chart-series-4: var(--ink-green-7);
+  --chart-series-5: var(--ink-violet-4);
+  --chart-series-6: var(--ink-violet-7);
+  --chart-series-7: var(--ink-amber-6);
+  --chart-series-8: var(--ink-amber-8);
+  --chart-series-9: var(--ink-red-5);
+  --chart-series-10: var(--ink-red-7);
+
+  --chart-seq-1: var(--ink-blue-2);
+  --chart-seq-2: var(--ink-blue-3);
+  --chart-seq-3: var(--ink-blue-5);
+  --chart-seq-4: var(--ink-cyan-5);
+  --chart-seq-5: var(--ink-cyan-6);
+  --chart-seq-6: var(--ink-blue-7);
+  --chart-seq-7: var(--ink-cyan-7);
+
+  /* One stop firmer than light: in dark `--outline-gray-1` is the same value
+     as an elevated card, so a gridline drawn in it would vanish. */
+  --ui-chart-gridline: var(--outline-gray-2);
+  --ui-chart-axis-line: var(--outline-gray-3);
+}
+
+/* ── Shared frame ───────────────────────────────────────────────────────── */
+
+.ui-chart {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  /* HTML chrome only (tooltip, legend, readouts); SVG labels stay proportional
+     like frappe's. */
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-chart-plot {
+  position: relative;
+  width: 100%;
+}
+
+.ui-chart-svg {
+  display: block;
+  overflow: visible;
+  font-variant-numeric: normal;
+  border-radius: var(--radius-2);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ui-chart-svg:focus {
+  outline: none;
+}
+
+.ui-chart-svg:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: 2px;
+}
+
+.ui-chart-svg.is-clickable {
+  cursor: pointer;
+}
+
+.ui-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0 16px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.015em;
+  color: var(--ink-gray-5);
+}
+
+/* ── Axes ───────────────────────────────────────────────────────────────── */
+
+.ui-chart-grid {
+  stroke: var(--ui-chart-gridline);
+  stroke-width: 1;
+  stroke-dasharray: 1 3;
+  stroke-linecap: round;
+  fill: none;
+  shape-rendering: geometricPrecision;
+}
+
+.ui-chart-tick {
+  fill: var(--ui-chart-axis-ink);
+  font-size: var(--ui-chart-axis-font-size);
+  letter-spacing: 0.01em;
+  font-weight: 420;
+  user-select: none;
+}
+
+/* ── Pointer aids ───────────────────────────────────────────────────────── */
+
+/* Bars sit in a slot, so the pointer shades the slot: gridline ink, a little
+   translucent, below the bars. */
+.ui-chart-pointer-band {
+  fill: var(--ui-chart-gridline);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Lines have no width to shade, so the pointer draws a rule. */
+.ui-chart-guide {
+  stroke: var(--ui-chart-axis-line);
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+/* ── Bars ───────────────────────────────────────────────────────────────── */
+
+.ui-chart-bar {
+  transition: opacity var(--ui-chart-duration) ease;
+}
+
+.ui-chart-plot.is-hovering .ui-chart-col:not(.is-active) .ui-chart-bar {
+  opacity: var(--ui-chart-dim-opacity);
+}
+
+@keyframes ui-chart-grow-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes ui-chart-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* The whole bar group grows out of the zero line once, on first draw. The
+   origin (the baseline) is set inline from the scale. */
+.ui-chart-grow-y {
+  animation: ui-chart-grow-y var(--ui-chart-enter-duration) var(--ui-chart-ease) both;
+}
+
+.ui-chart-grow-x {
+  animation: ui-chart-grow-x var(--ui-chart-enter-duration) var(--ui-chart-ease) both;
+}
+
+/* ── Lines ──────────────────────────────────────────────────────────────── */
+
+.ui-chart-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.ui-chart-area {
+  stroke: none;
+  pointer-events: none;
+}
+
+.ui-chart-dot {
+  pointer-events: none;
+}
+
+/* Lines draw in left to right on first paint (pathLength="1" makes the dash
+   one path long). The dash is dropped on the last frame, so an engine that
+   ignores pathLength still ends on a solid line. Fills and dots fade in. */
+@keyframes ui-chart-draw {
+  from {
+    stroke-dasharray: 1 1;
+    stroke-dashoffset: 1;
+  }
+  99.9% {
+    stroke-dasharray: 1 1;
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes ui-chart-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.ui-chart-line {
+  animation: ui-chart-draw calc(var(--ui-chart-enter-duration) * 1.6) var(--ui-chart-ease) both;
+}
+
+.ui-chart-fade {
+  animation: ui-chart-fade calc(var(--ui-chart-enter-duration) * 1.6) ease both;
+}
+
+/* ── Tooltip ────────────────────────────────────────────────────────────── */
+
+.ui-chart-tooltip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 30;
+  max-width: 320px;
+  padding: 8px 12px;
+  border-radius: var(--radius-6);
+  background: var(--surface-elevation-2);
+  box-shadow: var(--elevation-lg);
+  pointer-events: none;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.015em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ui-chart-tooltip-label {
+  margin-bottom: 8px;
+  color: var(--ink-gray-5);
+}
+
+.ui-chart-tooltip-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ui-chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.ui-chart-tooltip-key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ui-chart-tooltip-dot,
+.ui-chart-legend-dot {
+  display: block;
+  flex-shrink: 0;
+}
+
+.ui-chart-tooltip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink-gray-6);
+}
+
+.ui-chart-tooltip-value {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--ink-gray-8);
+}
+
+.ui-chart-tooltip-pct {
+  margin-left: 4px;
+  font-weight: 420;
+  color: var(--ink-gray-5);
+}
+
+/* ── Legend ─────────────────────────────────────────────────────────────── */
+
+.ui-chart-legend {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+}
+
+.ui-chart-legend--horizontal {
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px 4px;
+}
+
+.ui-chart-legend--vertical {
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ui-chart > .ui-chart-legend {
+  margin-top: 8px;
+}
+
+.ui-chart-legend-item {
+  min-width: 0;
+}
+
+.ui-chart-legend-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  height: 24px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-3);
+  background: transparent;
+  color: var(--ink-gray-6);
+  text-align: left;
+  transition: background-color var(--ui-chart-duration) ease, color var(--ui-chart-duration) ease;
+}
+
+button.ui-chart-legend-button {
+  cursor: pointer;
+}
+
+button.ui-chart-legend-button:hover,
+.ui-chart-legend-item.is-active .ui-chart-legend-button {
+  background: var(--surface-gray-3);
+}
+
+button.ui-chart-legend-button:active {
+  background: var(--surface-gray-4);
+}
+
+.ui-chart-legend--vertical .ui-chart-legend-button {
+  display: flex;
+  width: 100%;
+}
+
+.ui-chart-legend-label {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ui-chart-legend-meta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-chart-legend--vertical .ui-chart-legend-meta {
+  margin-left: auto;
+  padding-left: 12px;
+}
+
+.ui-chart-legend-value {
+  color: var(--ink-gray-7);
+}
+
+.ui-chart-legend--horizontal .ui-chart-legend-value,
+.ui-chart-legend-hint {
+  color: var(--ink-gray-4);
+}
+
+.ui-chart-legend-item.is-hidden .ui-chart-legend-label,
+.ui-chart-legend-item.is-hidden .ui-chart-legend-value {
+  color: var(--ink-gray-4);
+}
+
+.ui-chart-legend-dot {
+  transition: opacity var(--ui-chart-duration) ease;
+}
+
+.ui-chart-legend-item.is-hidden .ui-chart-legend-dot {
+  opacity: 0.3;
+}
+
+/* ── Donut ──────────────────────────────────────────────────────────────── */
+
+.ui-chart-donut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.ui-chart-donut--right {
+  flex-direction: row;
+  align-items: center;
+  gap: 24px;
+}
+
+.ui-chart-donut--right > .ui-chart-legend {
+  flex: 1 1 auto;
+  margin-top: 0;
+}
+
+.ui-chart-donut > .ui-chart-legend {
+  margin-top: 0;
+}
+
+.ui-chart-donut-box {
+  position: relative;
+  flex: none;
+}
+
+.ui-chart-donut-slice {
+  transform-origin: 50% 50%;
+  transition:
+    transform var(--ui-chart-duration) ease,
+    opacity var(--ui-chart-duration) ease;
+}
+
+.ui-chart-donut-slices.is-hovering .ui-chart-donut-slice:not(.is-active) {
+  opacity: var(--ui-chart-dim-opacity);
+}
+
+.ui-chart-donut-track {
+  fill: var(--ui-chart-gridline);
+}
+
+@keyframes ui-chart-donut-in {
+  from {
+    opacity: 0;
+    transform: rotate(-30deg) scale(0.96);
+  }
+}
+
+.ui-chart-donut-ring {
+  transform-origin: 50% 50%;
+  animation: ui-chart-donut-in var(--ui-chart-enter-duration) var(--ui-chart-ease) both;
+}
+
+.ui-chart-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Centred by its box but read by its ink, which sits high in the box. */
+.ui-chart-donut-readout {
+  min-width: 0;
+  text-align: center;
+  transform: translateY(3px);
+}
+
+.ui-chart-donut-value {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 17px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+  color: var(--ink-gray-8);
+}
+
+.ui-chart-donut-caption {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-5);
+}
+
+.ui-chart-donut-caption > :first-child {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ui-chart-donut-caption > :last-child:not(:first-child) {
+  flex-shrink: 0;
+}
+
+.ui-chart-donut.is-compact .ui-chart-donut-value {
+  font-size: 14px;
+}
+
+.ui-chart-donut.is-compact .ui-chart-donut-caption {
+  font-size: 11px;
+}
+
+/* ── Sparkline ──────────────────────────────────────────────────────────── */
+
+.ui-chart-spark {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.ui-chart-spark--fixed {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.ui-chart-spark svg {
+  display: block;
+  overflow: hidden;
+}
+
+.ui-chart-spark-line {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ── Category bars ──────────────────────────────────────────────────────── */
+
+.ui-chart-catbars {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ui-chart-catbars-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-chart-catbar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: calc(100% + 16px);
+  margin: 0 -8px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-3);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+button.ui-chart-catbar {
+  cursor: pointer;
+  transition: background-color var(--ui-chart-duration) ease;
+}
+
+button.ui-chart-catbar:hover {
+  background: var(--surface-gray-2);
+}
+
+button.ui-chart-catbar:active {
+  background: var(--surface-gray-3);
+}
+
+.ui-chart-catbar-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+}
+
+.ui-chart-catbar-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  color: var(--ink-gray-7);
+}
+
+.ui-chart-catbar-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ui-chart-catbar-hint,
+.ui-chart-catbar-pct {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--ink-gray-5);
+  white-space: nowrap;
+}
+
+.ui-chart-catbar-figures {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-chart-catbar-value {
+  font-weight: 500;
+  color: var(--ink-gray-8);
+  white-space: nowrap;
+}
+
+.ui-chart-catbar-pct {
+  min-width: 3ch;
+  text-align: right;
+}
+
+.ui-chart-catbar-track {
+  display: block;
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+}
+
+.ui-chart-catbar-bg {
+  fill: var(--ui-chart-track);
+}
+
+.ui-chart-catbar-fill {
+  transform-box: fill-box;
+  transform-origin: 0 50%;
+  animation: ui-chart-grow-x var(--ui-chart-enter-duration) var(--ui-chart-ease) both;
+}
+
+.ui-chart-catbars-more {
+  align-self: flex-start;
+  height: 24px;
+  margin: 4px 0 0 -6px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-3);
+  background: transparent;
+  color: var(--ink-gray-6);
+  font-size: 12px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background-color var(--ui-chart-duration) ease;
+}
+
+.ui-chart-catbars-more:hover {
+  background: var(--surface-gray-3);
+}
+
+.ui-chart-catbars .ui-chart-empty {
+  height: 64px;
+}
+
+/* ── Card ───────────────────────────────────────────────────────────────── */
+
+/* frappe's ChartCard surface. Not overflow-hidden: the tooltip lives inside
+   the chart and may cross the card edge. */
+.ui-chart-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-4);
+  background: var(--surface-elevation-2);
+}
+
+.ui-chart-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ui-chart-card-heading {
+  min-width: 0;
+}
+
+.ui-chart-card-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-8);
+}
+
+.ui-chart-card-subtitle {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0.015em;
+  color: var(--ink-gray-5);
+}
+
+.ui-chart-card-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 21px;
+}
+
+/* A page of chart cards: as many 320px+ columns as fit. The page sets the
+   grid, the charts fill their cells (frappe's dashboard model). */
+.ui-chart-deck {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.ui-chart-deck > .ui-chart-deck-wide {
+  grid-column: 1 / -1;
+}
+
+/* ── Motion ─────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-chart *,
+  .ui-chart-catbars * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
