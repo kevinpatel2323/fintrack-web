@@ -1,3 +1,5 @@
+import { Badge } from '../components/ui';
+
 /**
  * Shared mapping from a card transaction to the row shape TransactionTable and
  * TransactionMobileList render, so every place a card ledger appears — the
@@ -12,22 +14,9 @@ export function cardTxnStatus(txn) {
   return txn.statementId ? 'Billed' : 'Unbilled';
 }
 
+/** "Refund" marker beside a card transaction's title. */
 export function CardRefundBadge() {
-  return (
-    <span
-      style={{
-        marginLeft: 8,
-        padding: '1px 6px',
-        borderRadius: 6,
-        background: 'var(--ft-income-soft)',
-        color: 'var(--ft-income)',
-        fontSize: 10,
-        fontWeight: 600,
-      }}
-    >
-      Refund
-    </span>
-  );
+  return <Badge theme="green" size="sm" label="Refund" />;
 }
 
 /**

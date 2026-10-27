@@ -1,0 +1,233 @@
+/* "Card statements · up next" panel (StatementQueue.jsx). */
+
+.stq__loading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* minmax(0, 1fr): grid items otherwise size to their content, and the
+   unbroken file name would push the panel wider than its column. */
+.stq__list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.stq-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.stq-card:first-child {
+  padding-top: 0;
+}
+
+.stq-card:last-child {
+  padding-bottom: 0;
+}
+
+.stq-card + .stq-card {
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.stq-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.stq-card__name {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-8);
+}
+
+.stq-card__name:hover {
+  color: var(--ink-gray-9);
+  text-decoration: underline;
+  text-decoration-color: var(--outline-gray-3);
+  text-underline-offset: 2px;
+}
+
+.stq-card__last4 {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 420;
+  color: var(--ink-gray-5);
+}
+
+.stq-card__headline {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--ink-gray-9);
+}
+
+.stq-card__when {
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-gray-5);
+}
+
+.stq-due.is-past {
+  color: var(--ink-red-6);
+}
+
+/* ---------- Month strip ---------- */
+
+.stq-months {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stq-months__strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stq-month {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.stq-month[data-state='imported'] {
+  background: var(--surface-gray-2);
+  color: var(--ink-gray-7);
+}
+
+.stq-month[data-state='ready'] {
+  background: var(--surface-amber-2);
+  color: var(--ink-amber-7);
+}
+
+.stq-month[data-state='missing'] {
+  background: var(--surface-red-2);
+  color: var(--ink-red-7);
+}
+
+.stq-month[data-state='upcoming'] {
+  border-color: var(--outline-gray-2);
+  border-style: dashed;
+  color: var(--ink-gray-4);
+}
+
+.stq-month.is-next {
+  border-color: currentColor;
+  border-style: solid;
+}
+
+.stq-months__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  font-size: 11px;
+  color: var(--ink-gray-5);
+}
+
+.stq-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.stq-legend[data-state='imported'] svg { color: var(--ink-gray-7); }
+.stq-legend[data-state='ready'] svg { color: var(--ink-amber-7); }
+.stq-legend[data-state='missing'] svg { color: var(--ink-red-7); }
+
+.stq-legend__blank {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1px dashed var(--outline-gray-3);
+  border-radius: var(--radius-full);
+}
+
+/* ---------- File name hint ---------- */
+
+.stq-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 6px 6px 10px;
+  border-radius: var(--radius-4);
+  background: var(--surface-gray-1);
+}
+
+.stq-file__label {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--ink-gray-5);
+}
+
+.stq-file__name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-gray-8);
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Notes ---------- */
+
+.stq-note {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-gray-5);
+}
+
+.stq-note--alert {
+  color: var(--ink-red-6);
+}
+
+.stq-link {
+  color: var(--ink-gray-8);
+  text-decoration: underline;
+  text-decoration-color: var(--outline-gray-3);
+  text-underline-offset: 2px;
+}
+
+.stq-link:hover {
+  color: var(--ink-gray-9);
+  text-decoration-color: var(--ink-gray-6);
+}
+
+.stq-strong {
+  font-weight: 500;
+  color: var(--ink-gray-8);
+}
+
+.stq-mismatch {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-4);
+}

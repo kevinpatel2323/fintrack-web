@@ -6,7 +6,7 @@ export default function Logo({ size = 28, className = '' }) {
       width={size}
       height={size}
       viewBox="0 0 28 28"
-      className={`ft-logo ${className}`.trim()}
+      className={`app-logo ${className}`.trim()}
       aria-hidden
       focusable="false"
     >

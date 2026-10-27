@@ -4,6 +4,16 @@ export function isIsoDate(value) {
   return typeof value === 'string' && ISO_DATE_RE.test(value);
 }
 
+/** The list's "Uncategorised" filter value; `category=none` in the URL. */
+export const UNCATEGORISED_FILTER = '__none__';
+
+/** `category` URL param → category filter value ('' for all, '__none__', or a category id). */
+function parseCategoryParam(raw) {
+  const value = raw?.trim() ?? '';
+  if (!value) return '';
+  return value === 'none' ? UNCATEGORISED_FILTER : value;
+}
+
 /** @param {URLSearchParams} searchParams */
 export function parseTransactionsListParams(searchParams, defaults) {
   const start = searchParams.get('start');
@@ -14,6 +24,7 @@ export function parseTransactionsListParams(searchParams, defaults) {
     rangeEnd: isIsoDate(end) ? end : defaults.endIso,
     filterTab: tab === 'spent' || tab === 'earned' ? tab : 'all',
     search: searchParams.get('q') ?? '',
+    categoryFilter: parseCategoryParam(searchParams.get('category')),
   };
 }
 
@@ -40,6 +51,12 @@ export function patchTransactionsListParams(prev, patch) {
     const value = patch.search?.trim() ?? '';
     if (value) next.set('q', value);
     else next.delete('q');
+  }
+  if ('categoryFilter' in patch) {
+    const value = patch.categoryFilter == null ? '' : String(patch.categoryFilter).trim();
+    if (value === UNCATEGORISED_FILTER || value === 'none') next.set('category', 'none');
+    else if (value) next.set('category', value);
+    else next.delete('category');
   }
 
   return next;

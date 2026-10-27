@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import Portal from './Portal.jsx';
-import { GhostBtn, Overline, PrimaryBtn } from './ui/primitives.jsx';
-import { IcClose } from './ui/Icon.jsx';
+import { CreditCard } from 'lucide-react';
+import {
+  Amount, Button, Checkbox, Dialog, EmptyState, ErrorMessage, FormControl, LoadingIndicator, TabButtons, toast,
+} from './ui';
 import { inr } from '../utils/inr.js';
 import { signedPaise, toPaise } from '../utils/ccMatch.js';
 import {
@@ -11,6 +12,7 @@ import {
   listCards,
   listUnpaidCardTransactions,
 } from '../services/cardsApi.js';
+import './transaction-detail/CcLinkModal.css';
 
 // The bank debit rarely equals the sum of the rows it covers — a statement
 // carries the previous cycle's balance forward and includes "payment received"
@@ -20,7 +22,49 @@ function remainderLabel(remainderPaise) {
   return 'Not covered by this payment';
 }
 
-export default function CcLinkModal({ transaction, onClose, onLinked }) {
+function formatDate(value, withYear = true) {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return new Intl.DateTimeFormat('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    ...(withYear ? { year: 'numeric' } : {}),
+  }).format(d);
+}
+
+const MODES = [
+  { label: 'Whole statement', value: 'statement' },
+  { label: 'Pick transactions', value: 'manual' },
+];
+
+/** A card transaction as a refund-aware signed amount: refunds read as money in. */
+function RowAmount({ txn }) {
+  const amount = Number(txn.amount || 0);
+  return (
+    <Amount
+      className="ccl-row__amount"
+      value={txn.isRefund ? -amount : amount}
+      tone={txn.isRefund ? 'in' : 'out'}
+    />
+  );
+}
+
+function RowText({ txn }) {
+  return (
+    <span className="ccl-row__text">
+      <span className="ccl-row__merchant truncate">{txn.merchant}</span>
+      <span className="ccl-row__date">{formatDate(txn.txnDate)}</span>
+    </span>
+  );
+}
+
+/**
+ * Link a bank debit to the credit-card bill it paid: either a whole statement
+ * or hand-picked unpaid card transactions. Calls `onLinked(result)` with the
+ * API's link payload. Callers mount it while open (`open` defaults to true).
+ */
+export default function CcLinkModal({ transaction, onClose, onLinked, open = true }) {
   const targetAmount = Number(transaction.withdrawal || 0);
 
   const [cards, setCards] = useState([]);
@@ -47,7 +91,6 @@ export default function CcLinkModal({ transaction, onClose, onLinked }) {
         const credit = (res.data || res || []).filter((c) => c.kind === 'credit');
         setCards(credit);
         if (credit.length > 0) setCardId(String(credit[0].id));
-        if (credit.length === 0) setError('No credit cards yet. Add one from Cards first.');
       })
       .catch((e) => !cancelled && setError(e.message || 'Failed to load cards'))
       .finally(() => !cancelled && setLoading(false));
@@ -115,8 +158,8 @@ export default function CcLinkModal({ transaction, onClose, onLinked }) {
     });
   };
 
-  const submit = async (e) => {
-    e.preventDefault();
+  const submit = async () => {
+    if (!canSubmit) return;
     setSubmitting(true);
     setError('');
     try {
@@ -126,6 +169,7 @@ export default function CcLinkModal({ transaction, onClose, onLinked }) {
           ? { cardId: Number(cardId), statementId: Number(statementId) }
           : { cardId: Number(cardId), cardTransactionIds: [...selectedIds].map(Number) },
       );
+      toast.success('Card bill linked');
       onLinked?.(result);
     } catch (err) {
       setError(err.message || 'Failed to link');
@@ -134,282 +178,141 @@ export default function CcLinkModal({ transaction, onClose, onLinked }) {
     }
   };
 
-  return (
-    <Portal>
-      <div
-        role="dialog"
-        aria-modal="true"
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'var(--ft-scrim)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 16,
-          zIndex: 1000,
-        }}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onClose?.();
-        }}
-      >
-        <div
-          style={{
-            width: '100%',
-            maxWidth: 560,
-            maxHeight: 'calc(100dvh - 32px)',
-            background: 'var(--ft-surface)',
-            border: '1px solid var(--ft-border)',
-            borderRadius: 20,
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '16px 20px',
-              borderBottom: '1px solid var(--ft-border)',
-            }}
-          >
-            <div>
-              <Overline>Credit card bill</Overline>
-              <h2 style={{ margin: '2px 0 0', fontSize: 18, fontWeight: 600 }}>
-                Link {inr(targetAmount)}
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              style={{ background: 'transparent', border: 0, color: 'var(--ft-text-dim)', cursor: 'pointer', padding: 6 }}
-            >
-              <IcClose size={18} />
-            </button>
-          </div>
+  const picked = selectedIds.size;
+  const submitLabel = mode === 'statement'
+    ? 'Link statement'
+    : picked > 0
+      ? `Link ${picked} ${picked === 1 ? 'transaction' : 'transactions'}`
+      : 'Link transactions';
 
-          <form
-            onSubmit={submit}
-            style={{ padding: 20, display: 'grid', gap: 14, overflowY: 'auto' }}
-          >
-            {loading ? (
-              <p className="status">Loading cards…</p>
-            ) : (
-              <>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <span style={fieldLabelStyle}>Card</span>
-                  <select
-                    value={cardId}
-                    onChange={(e) => setCardId(e.target.value)}
-                    style={controlStyle}
-                  >
-                    {cards.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} · ····{c.last4}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+  const noCards = !loading && cards.length === 0;
 
-                <div role="group" aria-label="Link mode" style={{ display: 'flex', gap: 8 }}>
-                  <ModeBtn active={mode === 'statement'} onClick={() => setMode('statement')}>
-                    Whole statement
-                  </ModeBtn>
-                  <ModeBtn active={mode === 'manual'} onClick={() => setMode('manual')}>
-                    Pick transactions
-                  </ModeBtn>
-                </div>
+  const statementOptions = statements.map((s) => {
+    const exact = toPaise(s.totalAmount) === toPaise(targetAmount);
+    return {
+      value: String(s.id),
+      label: `${formatDate(s.cycleStart, false)} → ${formatDate(s.cycleEnd)} · ${inr(s.totalAmount)}${exact ? ' · exact match' : ''}`,
+    };
+  });
 
-                {mode === 'statement' ? (
-                  statements.length === 0 ? (
-                    <p className="empty">No statements on this card yet. Import one first.</p>
-                  ) : (
-                    <>
-                      <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <span style={fieldLabelStyle}>Statement</span>
-                        <select
-                          value={statementId}
-                          onChange={(e) => setStatementId(e.target.value)}
-                          style={controlStyle}
-                        >
-                          {statements.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.cycleStart} → {s.cycleEnd} · {inr(s.totalAmount)}
-                              {toPaise(s.totalAmount) === toPaise(targetAmount) ? ' · exact match' : ''}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <RowList
-                        rows={covered}
-                        empty="Every transaction on this statement is already covered."
-                      />
-                    </>
-                  )
-                ) : unpaid.length === 0 ? (
-                  <p className="empty">No unpaid transactions on this card.</p>
-                ) : (
-                  <div style={listStyle}>
-                    {unpaid.map((t) => (
-                      <label key={t.id} style={{ ...rowStyle, cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(String(t.id))}
-                          onChange={() => toggle(t.id)}
-                        />
-                        <span style={{ flex: 1, minWidth: 0 }}>
-                          <span style={merchantStyle}>{t.merchant}</span>
-                          <span style={metaStyle}>{t.txnDate}</span>
-                        </span>
-                        <span style={{ color: t.isRefund ? 'var(--ft-income)' : 'var(--ft-text)', fontSize: 13, fontWeight: 600 }}>
-                          {t.isRefund ? '−' : ''}{inr(t.amount)}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                )}
+  let body;
+  if (loading) {
+    body = <LoadingIndicator text="Loading cards…" />;
+  } else if (noCards) {
+    body = error ? null : (
+      <EmptyState
+        size="sm"
+        icon={CreditCard}
+        title="No credit cards yet"
+        description="Add one from Cards first."
+        action={<Button label="Go to Cards" to="/cards" />}
+      />
+    );
+  } else {
+    body = (
+      <>
+        <FormControl
+          type="select"
+          label="Card"
+          options={cards.map((c) => ({ value: String(c.id), label: `${c.name} · ····${c.last4}` }))}
+          value={cardId}
+          onChange={(e) => setCardId(e.target.value)}
+        />
 
-                {/* Reconciliation summary — 2dp here even though rows round to
-                    whole rupees, so a small remainder is never hidden. */}
-                <div style={{ borderTop: '1px solid var(--ft-border)', paddingTop: 12, display: 'grid', gap: 6 }}>
-                  <Totals
-                    label={`Matched · ${covered.length} item${covered.length === 1 ? '' : 's'}`}
-                    value={inr(matchedPaise / 100, { decimals: 2 })}
-                  />
-                  {remainderPaise !== 0 && (
-                    <Totals
-                      label={remainderLabel(remainderPaise)}
-                      value={inr(remainderPaise / 100, { decimals: 2 })}
-                      dim
+        <TabButtons fluid aria-label="Link mode" options={MODES} value={mode} onChange={setMode} />
+
+        {mode === 'statement' ? (
+          statements.length === 0 ? (
+            <p className="ccl-empty">No statements on this card yet. Import one first.</p>
+          ) : (
+            <>
+              <FormControl
+                type="select"
+                label="Statement"
+                options={statementOptions}
+                value={statementId}
+                onChange={(e) => setStatementId(e.target.value)}
+              />
+              {covered.length === 0 ? (
+                <p className="ccl-empty">Every transaction on this statement is already covered.</p>
+              ) : (
+                <ul className="ccl-list" aria-label="Transactions this statement covers">
+                  {covered.map((t) => (
+                    <li key={t.id} className="ccl-row">
+                      <RowText txn={t} />
+                      <RowAmount txn={t} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )
+        ) : unpaid.length === 0 ? (
+          <p className="ccl-empty">No unpaid transactions on this card.</p>
+        ) : (
+          <ul className="ccl-list" aria-label="Unpaid card transactions">
+            {unpaid.map((t) => {
+              const checked = selectedIds.has(String(t.id));
+              return (
+                <li key={t.id}>
+                  <label className={`ccl-row ccl-row--pick${checked ? ' is-checked' : ''}`}>
+                    <Checkbox
+                      checked={checked}
+                      onChange={() => toggle(t.id)}
+                      aria-label={`${t.merchant} · ${formatDate(t.txnDate)}`}
                     />
-                  )}
-                  <Totals label="Bill payment" value={inr(targetAmount, { decimals: 2 })} strong />
-                </div>
+                    <RowText txn={t} />
+                    <RowAmount txn={t} />
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        )}
 
-                {error && <div style={{ color: 'var(--ft-spend)', fontSize: 13 }}>{error}</div>}
+        {/* Reconciliation summary — 2dp here even though rows round to
+            whole rupees, so a small remainder is never hidden. */}
+        <dl className="ccl-totals">
+          <div className="ccl-totals__row">
+            <dt>Matched · {covered.length} {covered.length === 1 ? 'item' : 'items'}</dt>
+            <dd><Amount value={matchedPaise / 100} decimals={2} tone="inherit" /></dd>
+          </div>
+          {remainderPaise !== 0 && (
+            <div className="ccl-totals__row is-muted">
+              <dt>{remainderLabel(remainderPaise)}</dt>
+              <dd><Amount value={remainderPaise / 100} decimals={2} tone="inherit" /></dd>
+            </div>
+          )}
+          <div className="ccl-totals__row is-total">
+            <dt>Bill payment</dt>
+            <dd><Amount value={targetAmount} decimals={2} tone="inherit" /></dd>
+          </div>
+        </dl>
+      </>
+    );
+  }
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                  <GhostBtn onClick={onClose} type="button">Cancel</GhostBtn>
-                  <PrimaryBtn type="submit" disabled={!canSubmit}>
-                    {submitting ? 'Linking…' : 'Link'}
-                  </PrimaryBtn>
-                </div>
-              </>
-            )}
-          </form>
-        </div>
-      </div>
-    </Portal>
-  );
-}
-
-const fieldLabelStyle = {
-  color: 'var(--ft-text-dim)',
-  fontSize: 11.5,
-  fontWeight: 500,
-  textTransform: 'uppercase',
-  letterSpacing: 0.4,
-};
-
-const controlStyle = {
-  background: 'var(--ft-surface-2)',
-  border: '1px solid var(--ft-border)',
-  color: 'var(--ft-text)',
-  borderRadius: 10,
-  padding: '10px 12px',
-  fontFamily: 'var(--ft-font-ui)',
-  fontSize: 13.5,
-  outline: 'none',
-};
-
-const listStyle = {
-  maxHeight: 260,
-  overflowY: 'auto',
-  border: '1px solid var(--ft-border)',
-  borderRadius: 12,
-};
-
-const rowStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 10,
-  padding: '9px 12px',
-  borderBottom: '1px solid var(--ft-border)',
-};
-
-const merchantStyle = {
-  display: 'block',
-  color: 'var(--ft-text)',
-  fontSize: 13,
-  fontWeight: 500,
-  whiteSpace: 'nowrap',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-};
-
-const metaStyle = { display: 'block', color: 'var(--ft-text-dim)', fontSize: 11.5 };
-
-function RowList({ rows, empty }) {
-  if (rows.length === 0) return <p className="empty">{empty}</p>;
   return (
-    <div style={listStyle}>
-      {rows.map((t) => (
-        <div key={t.id} style={rowStyle}>
-          <span style={{ flex: 1, minWidth: 0 }}>
-            <span style={merchantStyle}>{t.merchant}</span>
-            <span style={metaStyle}>{t.txnDate}</span>
-          </span>
-          <span style={{ color: t.isRefund ? 'var(--ft-income)' : 'var(--ft-text)', fontSize: 13, fontWeight: 600 }}>
-            {t.isRefund ? '−' : ''}{inr(t.amount)}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Totals({ label, value, dim, strong }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <span style={{ color: dim ? 'var(--ft-text-faint)' : 'var(--ft-text-dim)', fontSize: 12.5 }}>
-        {label}
-      </span>
-      <span
-        style={{
-          color: strong ? 'var(--ft-text)' : 'var(--ft-text-dim)',
-          fontFamily: 'var(--ft-font-mono)',
-          fontSize: 13,
-          fontWeight: strong ? 700 : 600,
-        }}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function ModeBtn({ active, onClick, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      style={{
-        flex: 1,
-        background: active ? 'var(--ft-surface-2)' : 'transparent',
-        border: `1px solid ${active ? 'var(--ft-accent)' : 'var(--ft-border)'}`,
-        color: active ? 'var(--ft-text)' : 'var(--ft-text-dim)',
-        borderRadius: 10,
-        padding: '8px 12px',
-        fontSize: 13,
-        fontWeight: 500,
-        cursor: 'pointer',
-      }}
+    <Dialog
+      open={open}
+      onClose={onClose}
+      size="xl"
+      title="Link to card bill"
+      description={`Pick the credit card statement or transactions this ${inr(targetAmount)} payment paid off.`}
+      actions={[
+        { label: 'Cancel' },
+        {
+          label: submitLabel,
+          variant: 'solid',
+          disabled: !canSubmit || noCards,
+          loading: submitting,
+          loadingText: 'Linking…',
+          onClick: () => submit(),
+        },
+      ]}
     >
-      {children}
-    </button>
+      {body}
+      <ErrorMessage message={error} />
+    </Dialog>
   );
 }

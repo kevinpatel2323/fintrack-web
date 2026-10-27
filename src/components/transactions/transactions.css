@@ -1,0 +1,597 @@
+/* Shared ledger pieces: TransactionTable (desktop, on the kit ListView),
+ * TransactionListRow / TransactionMobileList (phones and narrow panels) and
+ * the Columns menu. Prefix: txl- (transaction list). */
+
+/* ---------- Table ---------- */
+
+.txl-table {
+  min-width: 0;
+}
+
+.txl-table[data-resizing] {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.txl-table__bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0 4px;
+}
+
+.txl-list {
+  --ui-list-row-height: 44px;
+  --ui-list-sticky-top: var(--header-height);
+}
+
+/* The table always hands ListView an EmptyState, which brings its own padding. */
+.txl-list .ui-list__empty {
+  padding: 8px 0;
+}
+
+.txl-hcell {
+  position: relative;
+}
+
+/* Drag handle straddling the gap after a header cell. Sits inside the sort
+   button's label, positioned against the header cell. */
+.txl-resizer {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  right: calc(var(--ui-list-gap, 8px) / -2 - 4px);
+  z-index: 1;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.txl-resizer::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 3.5px;
+  width: 1px;
+  background: var(--outline-gray-2);
+  opacity: 0;
+  transition: opacity 150ms, background-color 150ms;
+}
+
+.ui-list__header:hover .txl-resizer::after {
+  opacity: 1;
+}
+
+.txl-resizer:hover::after,
+.txl-table[data-resizing] .txl-resizer:active::after {
+  opacity: 1;
+  background: var(--outline-gray-5);
+}
+
+.txl-date {
+  font-size: 13px;
+  color: var(--ink-gray-6);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.txl-muted {
+  font-size: 13px;
+  color: var(--ink-gray-6);
+}
+
+.txl-desc {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+}
+
+.txl-desc__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.txl-desc__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--ink-gray-8);
+}
+
+.txl-desc__title .ui-badge {
+  flex-shrink: 0;
+}
+
+.txl-desc__subtitle {
+  font-size: 13px;
+  line-height: 17px;
+  color: var(--ink-gray-5);
+}
+
+.txl-disclosure {
+  flex-shrink: 0;
+  margin-left: -4px;
+}
+
+.txl-disclosure svg {
+  transition: transform 150ms ease-out;
+}
+
+.txl-disclosure.is-open svg {
+  transform: rotate(90deg);
+}
+
+.txl-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.txl-cell-control {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* The ghost picker's own padding would push its text off the column edge. */
+.txl-category-picker {
+  min-width: 0;
+  max-width: 100%;
+  margin-left: -8px;
+}
+
+.txl-category-picker .ui-combobox__value.is-placeholder {
+  color: var(--ink-gray-5);
+}
+
+/* Manage button: shown on row hover or focus, always on touch screens. */
+.txl-manage {
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+.txl-row:hover .txl-manage,
+.txl-row:focus-within .txl-manage,
+.txl-row:focus-visible .txl-manage {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .txl-manage {
+    opacity: 1;
+  }
+}
+
+/* Card transactions under an open bill payment: indented on a tree rule. */
+.txl-row.is-nested .txl-cell--description {
+  position: relative;
+  align-self: stretch;
+  padding-left: 22px;
+}
+
+.txl-row.is-nested .txl-cell--description::before,
+.txl-row.is-nested .txl-cell--description::after {
+  content: '';
+  position: absolute;
+  left: 7px;
+  background: var(--outline-gray-2);
+}
+
+.txl-row.is-nested .txl-cell--description::before {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.txl-row.is-nested.is-last .txl-cell--description::before {
+  bottom: 50%;
+}
+
+.txl-row.is-nested .txl-cell--description::after {
+  top: 50%;
+  width: 8px;
+  height: 1px;
+}
+
+.txl-row.is-nested .txl-desc__title {
+  font-size: 13px;
+  font-weight: 420;
+}
+
+/* Notes and the remainder line are not transactions: not clickable. */
+.txl-row.is-note .txl-cell--description,
+.txl-row.is-remainder .txl-cell--description {
+  padding-left: 22px;
+}
+
+.txl-note {
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.ui-list .txl-row.is-note,
+.ui-list .txl-row.is-remainder {
+  cursor: default;
+}
+
+.ui-list .txl-row.is-note:hover,
+.ui-list .txl-row.is-remainder:hover,
+.ui-list .txl-row.is-note:active,
+.ui-list .txl-row.is-remainder:active {
+  background: transparent;
+}
+
+/* ---------- Pager ---------- */
+
+.txl-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 4px var(--ui-list-pad, 12px) 0;
+}
+
+.txl-pager__size {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.txl-pager__nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.txl-pager__range {
+  font-size: 13px;
+  color: var(--ink-gray-6);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.txl-pager__pages {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.txl-pager__page {
+  min-width: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+.txl-pager__ellipsis {
+  padding: 0 4px;
+  color: var(--ink-gray-4);
+}
+
+/* ---------- Columns menu ---------- */
+
+.txl-colmenu {
+  display: flex;
+  flex-direction: column;
+  min-width: 208px;
+  padding: 4px;
+}
+
+.txl-colmenu__footer {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.txl-colmenu__footer .ui-button {
+  justify-content: flex-start;
+}
+
+/* ---------- Phone list: day groups ---------- */
+
+.txl-days {
+  --txl-sticky-top: 52px;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (display-mode: standalone) {
+  .txl-days {
+    --txl-sticky-top: calc(52px + env(safe-area-inset-top));
+  }
+}
+
+.txl-day__head {
+  position: sticky;
+  top: var(--txl-sticky-top);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 32px;
+  margin: 0;
+  border-bottom: 1px solid var(--outline-gray-1);
+  background: var(--surface-base);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.15;
+  color: var(--ink-gray-6);
+}
+
+.txl-day__head .ui-amount {
+  font-weight: 420;
+}
+
+.txl-day + .txl-day {
+  margin-top: 12px;
+}
+
+/* ---------- List row ---------- */
+
+.txl-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 56px;
+  padding: 8px 0;
+}
+
+.txl-item + .txl-item {
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.txl-item__category {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  border-radius: var(--radius-4);
+}
+
+label.txl-item__category {
+  cursor: pointer;
+}
+
+.txl-item__category-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  font-size: 16px; /* iOS zooms into anything smaller */
+  cursor: pointer;
+}
+
+label.txl-item__category:focus-within {
+  outline: var(--focus-outline-default);
+  outline-offset: 1px;
+}
+
+@media (pointer: coarse) {
+  .txl-item__category-select {
+    inset: -6px;
+    width: auto;
+    height: auto;
+  }
+}
+
+.txl-item__body {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-4);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.txl-item__body:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: 2px;
+}
+
+.txl-item__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.txl-item__title {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--ink-gray-8);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .txl-item__body:hover .txl-item__title {
+    color: var(--ink-gray-9);
+    text-decoration: underline;
+    text-decoration-color: var(--outline-gray-3);
+    text-underline-offset: 3px;
+  }
+}
+
+.txl-item__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-gray-5);
+}
+
+.txl-item__meta > .ui-badge,
+.txl-item__meta-date,
+.txl-item__meta-trailing {
+  flex-shrink: 0;
+}
+
+.txl-item__meta-date,
+.txl-item__meta-trailing {
+  font-variant-numeric: tabular-nums;
+}
+
+.txl-item__meta-trailing {
+  color: var(--ink-gray-4);
+}
+
+.txl-item__meta-copy {
+  flex: 1 1 auto;
+}
+
+.txl-item__amount {
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Nested (card transactions under a bill payment): tree rule down the left. */
+.txl-item--nested {
+  position: relative;
+  min-height: 48px;
+  padding: 6px 0 6px 16px;
+}
+
+.txl-item--nested + .txl-item--nested {
+  border-top: 0;
+}
+
+.txl-item--nested::before,
+.txl-item--nested::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  background: var(--outline-gray-2);
+}
+
+.txl-item--nested::before {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.txl-item--nested.is-last::before {
+  bottom: 50%;
+}
+
+.txl-item--nested::after {
+  top: 50%;
+  width: 8px;
+  height: 1px;
+}
+
+.txl-item--nested .txl-item__title {
+  font-size: 13px;
+  font-weight: 420;
+}
+
+.txl-item--nested .txl-item__amount {
+  font-size: 13px;
+}
+
+.txl-dot--empty {
+  border: 1.5px dashed var(--outline-gray-4);
+  background: transparent;
+}
+
+/* ---------- Period control ---------- */
+
+.txl-period {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.txl-period--stacked {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.txl-period--stacked .txl-period__month,
+.txl-period--stacked .txl-period__range {
+  width: 100%;
+}
+
+/* ---------- Phone filter sheet ---------- */
+
+.txl-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 4px;
+}
+
+.txl-filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ---------- Manual transaction form ---------- */
+
+.txl-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+.txl-form__wide {
+  grid-column: 1 / -1;
+}
+
+.txl-form__currency {
+  font-size: 14px;
+  color: var(--ink-gray-5);
+}
+
+.txl-form__more {
+  margin-left: -8px;
+}
+
+.txl-form__chevron {
+  transition: transform 150ms ease-out;
+}
+
+.txl-form__chevron.is-open {
+  transform: rotate(180deg);
+}
+
+@media (max-width: 767.98px) {
+  .txl-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

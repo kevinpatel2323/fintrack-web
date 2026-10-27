@@ -1,0 +1,91 @@
+/* Category dialogs: create/edit (CategoryFormDialog) and CSV export
+ * (CategoryExportModal). Both render in a portal, so nothing here depends on
+ * the page around them. */
+
+/* ---------- Create / edit ---------- */
+
+.catg-form {
+  display: grid;
+  gap: 16px;
+}
+
+.catg-form__field {
+  display: grid;
+  gap: 8px;
+}
+
+.catg-form__icon-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.catg-form__icon-field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Lines the preview tile up with the input under the label. */
+.catg-form__preview {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-top: 22px;
+}
+
+.catg-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.catg-swatch {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--catg-swatch);
+  color: var(--ink-base);
+  cursor: pointer;
+  transition: box-shadow 150ms ease;
+}
+
+.catg-swatch[aria-checked='true'] {
+  box-shadow:
+    0 0 0 2px var(--surface-elevation-1),
+    0 0 0 4px var(--outline-gray-5);
+}
+
+.catg-swatch:focus-visible {
+  outline-offset: 4px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .catg-swatch:not([aria-checked='true']):hover {
+    box-shadow:
+      0 0 0 2px var(--surface-elevation-1),
+      0 0 0 4px var(--outline-gray-2);
+  }
+}
+
+/* ---------- Export ---------- */
+
+.catx-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+}
+
+.catx-fixed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-8);
+}

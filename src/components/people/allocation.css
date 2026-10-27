@@ -1,0 +1,363 @@
+/* Bill-wise tables: SettlementAllocator, NetOffModal and LegacyReviewModal.
+ * One table per side: tick an entry, type how much of it to clear. The
+ * columns collapse to two lines when the container (a dialog, or the split
+ * sheet) is narrow, so nothing ever scrolls sideways. */
+
+.alloc {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* ---------- Reconciled balance on top ---------- */
+
+.alloc-balance {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: var(--radius-4);
+  background: var(--surface-gray-1);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-gray-6);
+}
+
+.alloc-balance__net {
+  color: var(--ink-gray-8);
+}
+
+.alloc-balance__net strong {
+  font-weight: 500;
+  color: var(--ink-gray-9);
+}
+
+.alloc-balance__parts {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-gray-5);
+}
+
+/* ---------- Section: a heading, its actions, a table ---------- */
+
+.alloc-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.alloc-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-height: 28px;
+}
+
+.alloc-section__title {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-9);
+}
+
+.alloc-section__total {
+  margin-left: 6px;
+  font-weight: 420;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-gray-5);
+}
+
+.alloc-section__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.alloc-section__note {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-gray-5);
+}
+
+.alloc-section__note--warn {
+  color: var(--ink-amber-7);
+}
+
+.alloc-section__note--error {
+  color: var(--ink-red-6);
+}
+
+/* ---------- Table ---------- */
+
+.alloc-table {
+  --alloc-cols: 20px minmax(0, 1fr) 96px 168px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-4);
+}
+
+.alloc-table__head,
+.alloc-row {
+  display: grid;
+  grid-template-columns: var(--alloc-cols);
+  column-gap: 12px;
+  align-items: center;
+  padding: 0 12px;
+}
+
+.alloc-table__head {
+  min-height: 32px;
+  border-bottom: 1px solid var(--outline-gray-1);
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.alloc-table__head > :nth-child(3),
+.alloc-table__head > :nth-child(4) {
+  text-align: right;
+}
+
+.alloc-row {
+  min-height: 48px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  row-gap: 4px;
+}
+
+.alloc-row + .alloc-row,
+.alloc-group + .alloc-row,
+.alloc-row + .alloc-group,
+.alloc-group + .alloc-group {
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.alloc-row[data-selected] {
+  background: var(--surface-gray-1);
+}
+
+.alloc-table > :first-child:not(.alloc-table__head),
+.alloc-table__head + .alloc-row {
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+}
+
+.alloc-table > :last-child {
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+}
+
+.alloc-row__check {
+  display: flex;
+  align-items: center;
+}
+
+.alloc-row__entry {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.alloc-row__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  color: var(--ink-gray-8);
+}
+
+.alloc-row__meta {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+}
+
+.alloc-row__open {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--ink-gray-8);
+}
+
+.alloc-row__apply {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 0;
+}
+
+.alloc-row__input {
+  width: 100%;
+}
+
+.alloc-row__input input {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.alloc-row__after {
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: right;
+  color: var(--ink-gray-5);
+}
+
+.alloc-row__after[data-tone='done'] {
+  color: var(--ink-green-7);
+}
+
+.alloc-row__after[data-tone='error'] {
+  color: var(--ink-red-6);
+}
+
+.alloc-row__empty {
+  font-size: 14px;
+  color: var(--ink-gray-4);
+  text-align: right;
+}
+
+/* A full-width line under a row's cells (the group's "Show entries"). */
+.alloc-row__extra {
+  grid-column: 2 / -1;
+  display: flex;
+}
+
+/* A group is one row, with its entries tucked under it. */
+.alloc-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.alloc-group__toggle {
+  justify-self: start;
+  margin-left: -8px;
+}
+
+.alloc-group__members {
+  margin: 0 12px 8px 44px;
+  border-left: 2px solid var(--outline-gray-2);
+}
+
+.alloc-group__members .alloc-row {
+  padding-left: 12px;
+}
+
+/* ---------- Footer: what is applied and what stays on account ---------- */
+
+.alloc-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 13px;
+  color: var(--ink-gray-6);
+}
+
+.alloc-foot strong {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-gray-9);
+}
+
+.alloc-foot__on-account strong {
+  color: var(--ink-amber-7);
+}
+
+.alloc-foot__clear {
+  margin-left: auto;
+}
+
+.alloc-explain {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-gray-5);
+}
+
+/* ---------- Dialog bits (net off, review) ---------- */
+
+.alloc-dialog__status {
+  margin-right: auto;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-gray-5);
+}
+
+.alloc-dialog__status[data-tone='warn'] {
+  color: var(--ink-amber-7);
+}
+
+.alloc-review {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-5);
+}
+
+.alloc-review__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--ink-gray-9);
+}
+
+.alloc-review__head > :first-child {
+  min-width: 0;
+  font-weight: 500;
+}
+
+.alloc-review__amount {
+  flex-shrink: 0;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Narrow containers (the split sheet on a phone): entry and open amount on
+   the first line, the amount box under them. */
+@container (max-width: 459.98px) {
+  .alloc-table {
+    --alloc-cols: 20px minmax(0, 1fr) auto;
+  }
+  .alloc-table__head {
+    display: none;
+  }
+  .alloc-row__apply {
+    grid-column: 2 / -1;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .alloc-row:not([data-editing]) > .alloc-row__apply {
+    display: none;
+  }
+  .alloc-row__input {
+    width: 132px;
+    flex-shrink: 0;
+    order: 2;
+  }
+  .alloc-row__after {
+    text-align: left;
+  }
+  .alloc-group__members {
+    margin-left: 20px;
+  }
+}
+
+@media (max-width: 639.98px) {
+  .alloc-dialog__status {
+    flex-basis: 100%;
+  }
+}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import Dialog from './ui/Dialog.jsx';
-import { GhostBtn, PrimaryBtn } from './ui/primitives.jsx';
-import { createOffset, fetchOpenDues } from '../services/friendsApi.js';
+import { Button, Dialog, ErrorMessage, FormControl, LoadingIndicator, toast } from './ui';
+import { AllocRowView, AllocTable } from './people/AllocTable.jsx';
+import { createOffset, deleteOffset, fetchOpenDues } from '../services/friendsApi.js';
 import { friendFirstName } from '../utils/ledgerParties.js';
 import { roundCurrencyToMinor } from '../utils/splitEngine.ts';
 import {
@@ -11,7 +11,7 @@ import {
   rupees,
   toMinor,
 } from '../utils/settlementAllocation.js';
-import '../styles/settlement-allocator.css';
+import './people/allocation.css';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -32,6 +32,7 @@ export default function NetOffModal({ friendId, friendName, onClose, onSaved }) 
   const [draft, setDraft] = useState({});
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -46,7 +47,7 @@ export default function NetOffModal({ friendId, friendName, onClose, onSaved }) 
           ...fillOldestFirst(most, list, 'I_OWE'),
         });
       })
-      .catch((e) => setError(e.message || 'Could not load the entries.'));
+      .catch((e) => setLoadError(e.message || 'Could not load the entries.'));
   }, [friendId]);
 
   const check = useMemo(() => {
@@ -68,8 +69,26 @@ export default function NetOffModal({ friendId, friendName, onClose, onSaved }) 
     setSaving(true);
     setError('');
     try {
-      await createOffset(friendId, draftToAllocations(draft), note.trim());
+      const amount = check.sums.OWES_ME;
+      const created = await createOffset(friendId, draftToAllocations(draft), note.trim());
       await onSaved?.();
+      toast.success({
+        title: `Netted off ${rupees(amount)} with ${first}`,
+        action: created?.id
+          ? {
+              label: 'Undo',
+              onClick: async () => {
+                try {
+                  await deleteOffset(friendId, created.id);
+                  await onSaved?.();
+                  toast('Net off undone');
+                } catch (err) {
+                  toast.error(err.message || 'Could not undo.');
+                }
+              },
+            }
+          : undefined,
+      });
       onClose();
     } catch (e) {
       setError(e.message || 'Could not net off.');
@@ -77,94 +96,96 @@ export default function NetOffModal({ friendId, friendName, onClose, onSaved }) 
     }
   }
 
+  function toggle(due) {
+    const id = String(due.id);
+    const next = { ...draft };
+    if (id in next) delete next[id];
+    else next[id] = String(availableMinor(due) / 100);
+    setDraft(next);
+  }
+
   const groups = [
     { side: 'OWES_ME', label: `${first} owes you` },
     { side: 'I_OWE', label: `You owe ${first}` },
   ];
+  const mismatch = check.sums.OWES_ME !== check.sums.I_OWE;
 
   return (
     <Dialog
-      overline="Net off"
+      size="2xl"
       title={`Net off with ${friendName}`}
+      description={`Clears what you owe ${first} against what ${first} owes you. No money moves and the balance stays the same — the netted entries just stop showing as open.`}
       onClose={onClose}
       footer={
         <>
-          <span style={{ marginRight: 'auto', color: check.valid ? 'var(--ft-text-dim)' : 'var(--ft-warn)', fontSize: 12.5 }}>
+          <span className="alloc-dialog__status" data-tone={check.valid ? undefined : 'warn'}>
             {rupees(check.sums.OWES_ME)} ↔ {rupees(check.sums.I_OWE)}
-            {check.sums.OWES_ME !== check.sums.I_OWE && ' — both sides must match'}
+            {mismatch && ' · both sides must match'}
           </span>
-          <GhostBtn onClick={onClose}>Cancel</GhostBtn>
-          <PrimaryBtn onClick={save} disabled={saving || !check.valid}>
-            {saving ? 'Saving…' : `Net off ${check.valid ? rupees(check.sums.OWES_ME) : ''}`}
-          </PrimaryBtn>
+          <Button label="Cancel" onClick={onClose} />
+          <Button
+            variant="solid"
+            label={check.valid ? `Net off ${rupees(check.sums.OWES_ME)}` : 'Net off'}
+            loading={saving}
+            disabled={!check.valid}
+            onClick={save}
+          />
         </>
       }
     >
-      <p style={{ margin: 0, color: 'var(--ft-text-dim)', fontSize: 12.5, lineHeight: 1.5 }}>
-        Clears what you owe {first} against what {first} owes you. No money moves and the
-        balance stays the same — the netted entries just stop showing as open.
-      </p>
-      {!dues && !error && <p className="status">Loading…</p>}
-      {dues &&
-        groups.map(({ side, label }) => {
-          const rows = dues.filter((d) => d.direction === side);
-          if (rows.length === 0) return null;
-          return (
-            <section key={side} className="settle-alloc__group">
-              <div className="settle-alloc__group-head">
-                <span>
-                  {label} · {rupees(rows.reduce((s, d) => s + availableMinor(d), 0))} open
-                </span>
-              </div>
-              {rows.map((due) => {
-                const id = String(due.id);
-                const selected = id in draft;
-                const tx = due.transaction || {};
-                const rowError = check.rowErrors[id];
-                return (
-                  <div key={id} className={`settle-alloc__row${selected ? ' settle-alloc__row--selected' : ''}${rowError ? ' settle-alloc__row--error' : ''}`}>
-                    <label className="settle-alloc__pick">
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={() => {
-                          const next = { ...draft };
-                          if (selected) delete next[id];
-                          else next[id] = String(availableMinor(due) / 100);
-                          setDraft(next);
-                        }}
+      {!dues && !loadError && <LoadingIndicator text="Loading open entries…" />}
+      <ErrorMessage message={loadError} />
+      {dues && (
+        <div className="alloc">
+          {groups.map(({ side, label }) => {
+            const rows = dues.filter((d) => d.direction === side);
+            if (rows.length === 0) return null;
+            return (
+              <section key={side} className="alloc-section">
+                <div className="alloc-section__head">
+                  <h4 className="alloc-section__title">
+                    {label}
+                    <span className="alloc-section__total">
+                      {rupees(rows.reduce((s, d) => s + availableMinor(d), 0))} open
+                    </span>
+                  </h4>
+                </div>
+                <AllocTable label={label} applyLabel="Net off">
+                  {rows.map((due) => {
+                    const id = String(due.id);
+                    const tx = due.transaction || {};
+                    const rowError = check.rowErrors[id];
+                    return (
+                      <AllocRowView
+                        key={id}
+                        name={tx.upiName || tx.narration || due.note || 'Entry'}
+                        meta={`${formatDate(tx.transactionDate)}${due.entryGroup?.title ? ` · ${due.entryGroup.title}` : ''}`}
+                        open={rupees(availableMinor(due))}
+                        selected={id in draft}
+                        onToggle={() => toggle(due)}
+                        value={draft[id]}
+                        onChange={(value) => setDraft({ ...draft, [id]: value })}
+                        after={rowError}
+                        tone={rowError ? 'error' : undefined}
+                        invalid={Boolean(rowError)}
                       />
-                      <span className="settle-alloc__what">
-                        <span className="settle-alloc__name">{tx.upiName || tx.narration || due.note || 'Entry'}</span>
-                        <span className="settle-alloc__meta">
-                          {formatDate(tx.transactionDate)} · {rupees(availableMinor(due))} open
-                          {due.entryGroup?.title ? ` · ${due.entryGroup.title}` : ''}
-                        </span>
-                      </span>
-                    </label>
-                    {selected && (
-                      <div className="settle-alloc__apply">
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          className="settle-alloc__amount"
-                          value={draft[id]}
-                          onChange={(e) => setDraft({ ...draft, [id]: e.target.value })}
-                        />
-                        {rowError && <span className="settle-alloc__after settle-alloc__after--error">{rowError}</span>}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </section>
-          );
-        })}
-      <label style={{ display: 'grid', gap: 6, fontSize: 12, color: 'var(--ft-text-dim)' }}>
-        Note (optional)
-        <input type="text" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Squared up over dinner" />
-      </label>
-      {error && <p style={{ margin: 0, color: 'var(--ft-spend)', fontSize: 12.5 }}>{error}</p>}
+                    );
+                  })}
+                </AllocTable>
+              </section>
+            );
+          })}
+          <FormControl
+            label="Note"
+            description="Optional"
+            value={note}
+            maxLength={500}
+            placeholder="e.g. Squared up over dinner"
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </div>
+      )}
+      <ErrorMessage message={error} />
     </Dialog>
   );
 }

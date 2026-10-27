@@ -1,0 +1,178 @@
+import { useEffect, useRef } from 'react';
+import { CreditCard } from 'lucide-react';
+import { Amount } from '../../components/ui';
+import { inr } from '../../utils/inr.js';
+import { WEEKDAYS, addDaysIso, dayModel, formatDayLong } from './calendarModel.js';
+
+const cx = (...parts) => parts.filter(Boolean).join(' ');
+
+/** Screen-reader text for one day: the same facts the cell shows. */
+function dayLabel(iso, day, isToday) {
+  const parts = [formatDayLong(iso)];
+  if (isToday) parts.push('today');
+  if (day.spent > 0) parts.push(`${inr(day.spent)} spent`);
+  if (day.earned > 0) parts.push(`${inr(day.earned)} earned`);
+  if (day.catState === 'needs-category') parts.push('needs a category');
+  if (day.catState === 'categorized') parts.push('all categorised');
+  if (day.billCount > 0) parts.push(`${day.billCount} bill${day.billCount > 1 ? 's' : ''} due`);
+  if (day.cardBills) parts.push(`card bill paid for ${day.cardBills.owner}`);
+  return parts.join(', ');
+}
+
+function Marks({ day, compact }) {
+  return (
+    <span className="cal-day__marks" aria-hidden="true">
+      {day.catState === 'needs-category' && <span className="cal-dot cal-dot--needs" />}
+      {day.catState === 'categorized' && <span className="cal-dot cal-dot--done" />}
+      {day.billCount > 0 && <span className="cal-dot cal-dot--bill" />}
+      {compact && day.cardBills && <span className="cal-dot cal-dot--card" />}
+    </span>
+  );
+}
+
+/**
+ * The month as a Frappe-style grid: hairline cells, the day number top-left
+ * (today in a filled circle), status dots top-right, and on desktop the day's
+ * spent / earned and any card bill paid that day. Phones get the compact
+ * variant: day number and dots only.
+ *
+ * Days are buttons with a roving tab stop; the arrow keys move the selection.
+ */
+export default function MonthGrid({
+  cells,
+  txByDay,
+  subByDay,
+  cardsById,
+  ccDetailByTransaction,
+  todayIso,
+  selectedIso,
+  onSelect,
+  compact = false,
+  loading = false,
+  label,
+}) {
+  const buttons = useRef(new Map());
+  const pendingFocus = useRef(null);
+
+  const inMonth = cells.filter((c) => c.inMonth);
+  const firstIso = inMonth[0]?.iso;
+  const lastIso = inMonth[inMonth.length - 1]?.iso;
+  const tabStop = inMonth.some((c) => c.iso === selectedIso)
+    ? selectedIso
+    : inMonth.some((c) => c.iso === todayIso) ? todayIso : firstIso;
+
+  useEffect(() => {
+    if (!pendingFocus.current) return;
+    buttons.current.get(pendingFocus.current)?.focus();
+    pendingFocus.current = null;
+  }, [selectedIso]);
+
+  function onKeyDown(event, iso) {
+    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[event.key];
+    if (!step) return;
+    event.preventDefault();
+    const next = addDaysIso(iso, step);
+    if (next < firstIso || next > lastIso) return;
+    pendingFocus.current = next;
+    onSelect(next);
+  }
+
+  return (
+    <div
+      className={cx('cal-grid', compact && 'cal-grid--compact', loading && 'is-loading')}
+      role="group"
+      aria-label={label}
+      aria-busy={loading || undefined}
+    >
+      <div className="cal-grid__weekdays" aria-hidden="true">
+        {WEEKDAYS.map((wd) => (
+          <span key={wd} className="cal-grid__weekday">{compact ? wd[0] : wd}</span>
+        ))}
+      </div>
+      <div className="cal-grid__days">
+        {cells.map((cell) => {
+          const isToday = cell.iso === todayIso;
+          if (!cell.inMonth) {
+            return (
+              <div key={cell.iso} className="cal-day is-outside" aria-hidden="true">
+                <span className="cal-day__head">
+                  <span className="cal-day__num">{cell.label}</span>
+                </span>
+              </div>
+            );
+          }
+          const day = dayModel(
+            txByDay.get(cell.iso) || [],
+            subByDay.get(cell.iso) || [],
+            ccDetailByTransaction,
+            cardsById,
+          );
+          const isSelected = cell.iso === selectedIso;
+          return (
+            <button
+              key={cell.iso}
+              ref={(el) => {
+                if (el) buttons.current.set(cell.iso, el);
+                else buttons.current.delete(cell.iso);
+              }}
+              type="button"
+              className={cx('cal-day', isToday && 'is-today', isSelected && 'is-selected')}
+              aria-pressed={isSelected}
+              aria-label={dayLabel(cell.iso, day, isToday)}
+              tabIndex={cell.iso === tabStop ? 0 : -1}
+              onClick={() => onSelect(cell.iso)}
+              onKeyDown={(e) => onKeyDown(e, cell.iso)}
+            >
+              <span className="cal-day__head">
+                <span className="cal-day__num">{cell.label}</span>
+                <Marks day={day} compact={compact} />
+              </span>
+              {!compact && (day.spent > 0 || day.earned > 0) && (
+                <span className="cal-day__amounts">
+                  {day.spent > 0 && (
+                    <Amount value={day.spent} sign="never" tone="inherit" compact className="cal-day__spent" />
+                  )}
+                  {day.earned > 0 && <Amount value={day.earned} sign="always" tone="in" compact />}
+                </span>
+              )}
+              {/* A card bill paid this day — named because it is usually most
+                  of the day's "spent" and is not new spending. Owner on top,
+                  card and amount under it. */}
+              {!compact && day.cardBills && (
+                <span className="cal-day__bill" title={day.cardBills.title}>
+                  <span className="cal-day__bill-line">
+                    <CreditCard size={12} strokeWidth={1.5} aria-hidden="true" />
+                    <span className="truncate">{day.cardBills.owner}</span>
+                  </span>
+                  <span className="cal-day__bill-line cal-day__bill-line--sub">
+                    <span className="truncate">{day.cardBills.card}</span>
+                    <Amount value={day.cardBills.total} sign="never" tone="inherit" compact />
+                  </span>
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** What the marks on a day mean. */
+export function CalendarLegend({ compact = false }) {
+  return (
+    <ul className="cal-legend" aria-label="Legend">
+      <li><span className="cal-dot cal-dot--needs" aria-hidden="true" />Needs a category</li>
+      <li><span className="cal-dot cal-dot--done" aria-hidden="true" />All categorised</li>
+      <li><span className="cal-dot cal-dot--bill" aria-hidden="true" />Bill due</li>
+      <li>
+        {compact ? (
+          <span className="cal-dot cal-dot--card" aria-hidden="true" />
+        ) : (
+          <CreditCard className="cal-legend__icon" size={12} strokeWidth={1.5} aria-hidden="true" />
+        )}
+        Card bill paid
+      </li>
+    </ul>
+  );
+}

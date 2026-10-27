@@ -1,0 +1,384 @@
+/* Card record page (/cards/:id). Prefix: .cardd- */
+
+/* The record layout owns its padding: main column + full-height side panel. */
+.ui-page-body.cardd-body {
+  padding: 0;
+}
+
+.cardd {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  min-height: calc(100dvh - var(--header-height));
+}
+
+.cardd__main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+  padding: 20px var(--page-gutter) 40px;
+}
+
+.cardd__aside {
+  min-width: 0;
+  border-left: 1px solid var(--outline-gray-1);
+}
+
+.cardd__aside-inner {
+  position: sticky;
+  top: var(--header-height);
+  max-height: calc(100dvh - var(--header-height));
+  overflow-y: auto;
+}
+
+.cardd-skeleton-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+
+.cardd__main > .cardd-skeleton-rows {
+  padding: 8px 0;
+}
+
+.cardd-empty-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---------- Summary ---------- */
+.cardd-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.cardd-summary__due {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---------- Tabs ---------- */
+.cardd-tabs {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cardd-tabpanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding-top: 12px;
+}
+
+.cardd-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cardd-toolbar__search {
+  flex: 1 1 220px;
+  max-width: 320px;
+}
+
+.cardd-toolbar__filter {
+  width: 172px;
+}
+
+.cardd-toolbar__summary {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cardd-toolbar__summary--start {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.cardd-ledger {
+  min-width: 0;
+}
+
+/* Two-line cells: the second line only shows when its own column is hidden. */
+.cardd-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cardd-cell__sub {
+  display: none;
+  font-size: 12px;
+  color: var(--ink-gray-5);
+}
+
+@media (max-width: 639.98px) {
+  .cardd-cell__sub {
+    display: block;
+  }
+}
+
+/* ---------- Side panel (and the Details tab) ---------- */
+.cardd-side {
+  display: flex;
+  flex-direction: column;
+}
+
+.cardd-side__identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 12px 12px 12px 16px;
+  border-bottom: 1px solid var(--outline-gray-1);
+}
+
+.cardd-side__who {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cardd-side__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-9);
+}
+
+.cardd-side__sub {
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.cardd-side__section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+}
+
+.cardd-side__section + .cardd-side__section {
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.cardd-side__heading {
+  padding: 4px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-9);
+}
+
+.cardd-side__fields {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.cardd-field {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.cardd-field__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.cardd-field__value {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  color: var(--ink-gray-8);
+}
+
+.cardd-field__empty {
+  color: var(--ink-gray-4);
+}
+
+.cardd-field__progress {
+  display: block;
+  padding: 4px 0;
+}
+
+.cardd-side__notes {
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-gray-7);
+}
+
+/* In the Details tab the panel sits on the page: frame it. */
+.cardd-tabpanel > .cardd-side {
+  overflow: hidden;
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-5);
+}
+
+/* ---------- Statement breakdown dialog ---------- */
+.cardd-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--outline-gray-1);
+}
+
+.cardd-facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cardd-facts dt {
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.cardd-facts dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-9);
+}
+
+.cardd-breakdown__loading {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.cardd-breakdown__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.cardd-breakdown__heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-9);
+}
+
+.cardd-breakdown__count {
+  font-size: 13px;
+  font-weight: 420;
+  color: var(--ink-gray-5);
+}
+
+.cardd-breakdown__empty {
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.cardd-breakdown__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-5);
+}
+
+.cardd-breakdown__row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--ink-gray-8);
+}
+
+.cardd-breakdown__row + .cardd-breakdown__row {
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.cardd-breakdown__date {
+  color: var(--ink-gray-5);
+  font-variant-numeric: tabular-nums;
+}
+
+.cardd-breakdown__amount {
+  text-align: right;
+}
+
+/* ---------- Narrow: one column, details move into a tab ---------- */
+@media (max-width: 1023.98px) {
+  .cardd {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .cardd__main {
+    gap: 16px;
+    padding: 12px 12px 24px;
+  }
+
+  .cardd-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cardd-summary > :first-child:nth-last-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .cardd-toolbar__search {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .cardd-toolbar__filter {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
+
+  .cardd-toolbar__summary {
+    flex-basis: 100%;
+    margin-left: 0;
+    white-space: normal;
+  }
+
+  .cardd-toolbar__summary--start {
+    flex-basis: auto;
+    flex: 1;
+  }
+
+  .cardd-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

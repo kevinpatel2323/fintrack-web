@@ -1,48 +1,49 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import CcLinkModal from '../components/CcLinkModal.jsx';
-import ConfirmDialog from '../components/ConfirmDialog.jsx';
-import { FriendTagCard } from '../components/FriendTagLedgerDisplay.jsx';
-import Portal from '../components/Portal.jsx';
-import SplitTransactionForm from '../components/SplitTransactionForm.jsx';
-import TransactionTable, { sortTableRows } from '../components/TransactionTable.jsx';
-import TransactionListRow from '../components/TransactionListRow.jsx';
-import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
-import { useIsCompact } from '../styles/breakpoints.js';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
-  Card, Num, CatGlyph, Overline, HeroAmount, GhostBtn,
-} from '../components/ui/primitives.jsx';
-import { IcChevL, IcClose } from '../components/ui/Icon.jsx';
+  AlertCircle, Link2, MoreHorizontal, Unlink, Users,
+} from 'lucide-react';
+import CcLinkModal from '../components/CcLinkModal.jsx';
+import { FriendTagCard } from '../components/FriendTagLedgerDisplay.jsx';
+import { sortTableRows } from '../components/TransactionTable.jsx';
+import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
+import CardBillCard from '../components/transaction-detail/CardBillCard.jsx';
+import DetailsPanel from '../components/transaction-detail/DetailsPanel.jsx';
+import { formatTxnDate } from '../components/transaction-detail/formatTxnDate.js';
+import { CategoryIcon } from '../components/common/Category.jsx';
+import {
+  Amount, Badge, Button, Card, ConfirmDialog, Dropdown, EmptyState, PageBody, PageHeader, Skeleton, toast,
+} from '../components/ui';
+import { useIsCompact } from '../styles/breakpoints.js';
 import { getCcLink, unlinkCcBillPayment } from '../services/cardsApi.js';
 import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
 import { cardTxnStatus, toCardTableRow } from '../utils/cardTransactionRow.jsx';
-import { inr } from '../utils/inr.js';
-import { ledgerDirectionPhrase } from '../utils/ledgerParties.js';
 import { calendarPath } from '../utils/calendarParams.js';
 import { transactionsListPath } from '../utils/transactionsListParams.js';
-
 import { API_BASE, apiFetch } from '../services/http.js';
-
-function formatDate(value) {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(d);
-}
+import './TransactionDetail.css';
 
 export default function TransactionDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsCompact();
+
+  const listPath = transactionsListPath(location.state?.transactionsSearch);
+  // Back to where the user came from, with their filters: the calendar or
+  // the list carry their search in navigation state.
   const backFromDetail = () => {
     if (location.state?.calendarSearch) {
       navigate(calendarPath(location.state.calendarSearch));
       return;
     }
-    const listPath = transactionsListPath(location.state?.transactionsSearch);
     if (location.state?.transactionsSearch) {
       navigate(listPath);
+      return;
+    }
+    // Opened straight from a link: there is no in-app page to go back to.
+    if (location.key === 'default') {
+      navigate('/transactions');
       return;
     }
     navigate(-1);
@@ -52,17 +53,17 @@ export default function TransactionDetail() {
   const [txLoading, setTxLoading] = useState(!location.state?.tx);
   const [txError, setTxError] = useState(false);
   const [tags, setTags] = useState([]);
+  const [tagsLoading, setTagsLoading] = useState(true);
   const [friends, setFriends] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [tagsStatus, setTagsStatus] = useState('');
   const [splitApplying, setSplitApplying] = useState(false);
   const [splitSheetOpen, setSplitSheetOpen] = useState(false);
-  const [categoryStatus, setCategoryStatus] = useState('');
-  const [confirmState, setConfirmState] = useState({ open: false });
+  const [categorySaving, setCategorySaving] = useState(false);
+  // { kind: 'removeTag', tagId } | { kind: 'unlink' }
+  const [confirm, setConfirm] = useState(null);
   // GET /transactions/:id carries no card-bill info, so the link is a
   // separate fetch.
   const [ccLink, setCcLink] = useState(null);
-  const [ccStatus, setCcStatus] = useState('');
   const [ccModalOpen, setCcModalOpen] = useState(false);
 
   // Fetch friends and categories once
@@ -105,8 +106,22 @@ export default function TransactionDetail() {
     return () => { cancelled = true; };
   }, [id, location.state?.tx]);
 
+  const fetchTags = useCallback(async () => {
+    setTagsLoading(true);
+    try {
+      const res = await apiFetch(`${API_BASE}/transactions/${id}/friends`);
+      if (!res.ok) throw new Error('Failed to fetch tags');
+      const data = await res.json();
+      setTags(data.data || []);
+    } catch (e) {
+      toast.error(e.message || 'Failed to load tags');
+    } finally {
+      setTagsLoading(false);
+    }
+  }, [id]);
+
   // Fetch tags whenever id changes
-  useEffect(() => { fetchTags(); }, [id]);
+  useEffect(() => { fetchTags(); }, [fetchTags]);
 
   // Fetch the credit-card bill link whenever id changes
   useEffect(() => {
@@ -164,45 +179,9 @@ export default function TransactionDetail() {
       )
     : null;
 
-  function unlinkCc() {
-    setConfirmState({
-      open: true,
-      title: 'Unlink card bill?',
-      message:
-        'The covered card transactions go back to unpaid, and this debit counts as ordinary spend again.',
-      confirmLabel: 'Unlink',
-      onConfirm: async () => {
-        setConfirmState({ open: false });
-        setCcStatus('Unlinking…');
-        try {
-          await unlinkCcBillPayment(id);
-          setCcLink({ linked: false });
-          setCcStatus('');
-        } catch (e) {
-          setCcStatus(e.message || 'Failed to unlink');
-        }
-      },
-      onCancel: () => setConfirmState({ open: false }),
-    });
-  }
-
-  async function fetchTags() {
-    setTagsStatus('Loading…');
-    try {
-      const res = await apiFetch(`${API_BASE}/transactions/${id}/friends`);
-      if (!res.ok) throw new Error('Failed to fetch tags');
-      const data = await res.json();
-      setTags(data.data || []);
-      setTagsStatus('');
-    } catch (e) {
-      setTagsStatus(e.message || 'Failed to load tags');
-    }
-  }
-
   function minorToApiAmount(minor) { return Number((minor / 100).toFixed(2)); }
 
   async function applySplit({ results, direction, note, allocationsByParticipant, groupByParticipant }) {
-    setTagsStatus('');
     setSplitApplying(true);
     const noteTrimmed = typeof note === 'string' ? note.trim() : '';
     try {
@@ -229,177 +208,288 @@ export default function TransactionDetail() {
           throw new Error(data.message || data.error || 'Failed to add tag');
         }
       }
-      setTagsStatus('Split applied.');
       await fetchTags();
+      // The result shows in place: the "Split with people" card.
+      setSplitSheetOpen(false);
+      toast.success('Split applied');
     } catch (e) {
-      setTagsStatus(e.message || 'Failed to apply split.');
+      toast.error(e.message || 'Failed to apply split.');
     } finally {
       setSplitApplying(false);
     }
   }
 
-  function deleteTag(tagId) {
-    setConfirmState({
-      open: true,
-      title: 'Remove tag?',
-      message: 'This will remove the friend tag from this transaction.',
-      confirmLabel: 'Remove',
-      onConfirm: async () => {
-        setConfirmState({ open: false });
-        setTagsStatus('Removing…');
-        try {
-          const res = await apiFetch(`${API_BASE}/transactions/${id}/friends/${tagId}`, { method: 'DELETE' });
-          if (!res.ok) throw new Error('Failed to delete');
-          await fetchTags();
-        } catch (e) {
-          setTagsStatus(e.message || 'Failed to remove tag');
-        }
-      },
-      onCancel: () => setConfirmState({ open: false }),
+  async function removeTag(tagId) {
+    const res = await apiFetch(`${API_BASE}/transactions/${id}/friends/${tagId}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to delete');
+    await fetchTags();
+    setConfirm(null);
+    toast.success('Friend tag removed');
+  }
+
+  async function unlinkCc() {
+    await unlinkCcBillPayment(id).catch((e) => {
+      throw new Error(e.message || 'Failed to unlink');
     });
+    setCcLink({ linked: false });
+    setConfirm(null);
+    toast.success('Card bill unlinked');
   }
 
   const assignCategory = useCallback(async (categoryId) => {
-    setCategoryStatus('Saving…');
+    setCategorySaving(true);
     try {
-      if (categoryId) {
-        await apiFetch(`${API_BASE}/transactions/${id}/category`, {
+      const res = categoryId
+        ? await apiFetch(`${API_BASE}/transactions/${id}/category`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ categoryId: Number(categoryId) }),
-        });
-      } else {
-        await apiFetch(`${API_BASE}/transactions/${id}/category`, { method: 'DELETE' });
-      }
+        })
+        : await apiFetch(`${API_BASE}/transactions/${id}/category`, { method: 'DELETE' });
+      // A rejected save must not look saved.
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const cat = categories.find((c) => String(c.id) === String(categoryId)) || null;
       setTx((prev) => prev ? { ...prev, categoryId: cat?.id || null, category: cat } : prev);
-      setCategoryStatus('');
     } catch {
-      setCategoryStatus('Failed to save');
+      toast.error('Failed to save category');
+    } finally {
+      setCategorySaving(false);
     }
   }, [id, categories]);
+
+  // ---------- Loading / not found ----------
 
   if (txLoading || !tx) {
     return (
       <>
-        <header className="ft-mobile__header">
-          <button className="ft-mobile__icon-btn" onClick={backFromDetail} aria-label="Back">
-            <IcChevL size={18} />
-          </button>
-          <h1 className="ft-mobile__title">Transaction</h1>
-          <span style={{ width: 40 }} />
-        </header>
-        <main className="ft-mobile__content">
-          <Card pad={24} style={{ textAlign: 'center' }}>
-            {txLoading ? (
-              <div style={{ color: 'var(--ft-text-dim)', fontSize: 14 }}>Loading…</div>
-            ) : (
-              <>
-                <div style={{ color: 'var(--ft-text-dim)', fontSize: 14, marginBottom: 16 }}>
-                  {txError ? 'Could not load this transaction.' : 'Transaction not found.'}
+        <PageHeader
+          title="Transaction"
+          breadcrumbs={[{ label: 'Transactions', to: listPath }, { label: 'Transaction' }]}
+          back={backFromDetail}
+        />
+        <PageBody>
+          {txLoading ? (
+            <div className="txd-layout" aria-busy="true">
+              <div className="txd-layout__summary txd-summary">
+                <Skeleton width={40} height={40} />
+                <div className="txd-summary__text">
+                  <Skeleton height={16} width="50%" />
+                  <Skeleton height={13} width="30%" />
                 </div>
-                <GhostBtn onClick={backFromDetail}>Go to Transactions</GhostBtn>
-              </>
-            )}
-          </Card>
-        </main>
+              </div>
+              <div className="txd-layout__side">
+                <Card title="Details">
+                  <div className="txd-skeleton-rows">
+                    {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} height={14} />)}
+                  </div>
+                </Card>
+              </div>
+              <div className="txd-layout__main">
+                <Card title="Split with people">
+                  <Skeleton height={40} />
+                </Card>
+              </div>
+            </div>
+          ) : (
+            <EmptyState
+              icon={AlertCircle}
+              title={txError ? 'Could not load this transaction.' : 'Transaction not found.'}
+              action={<Button label="Go to Transactions" to={listPath} />}
+            />
+          )}
+        </PageBody>
       </>
     );
   }
+
+  // ---------- Record ----------
 
   const withdrawal = Number(tx.withdrawal || 0);
   const deposit = Number(tx.deposit || 0);
   const isIncome = deposit > 0;
   const amount = isIncome ? deposit : withdrawal;
+  const signed = isIncome ? amount : -amount;
   const verb = isIncome ? 'You received' : 'You paid';
   const splitTotal = withdrawal > 0 ? withdrawal : deposit > 0 ? deposit : 0;
+  const title = tx.upiName || tx.narration || 'Transaction';
 
-  const splitSheet = splitSheetOpen && (
-    <Portal>
-      <div
-        className="calendar-sheet-backdrop"
-        onClick={(e) => e.target === e.currentTarget && setSplitSheetOpen(false)}
-      >
-        <div className="calendar-sheet" role="dialog" aria-modal="true">
-          <div className="calendar-sheet__header">
-            <div>
-              <h3>{tx.upiName || tx.narration || 'Transaction'}</h3>
-              <p className="calendar-sheet__header-meta">{formatDate(tx.transactionDate)}</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {withdrawal > 0 && (
-                <span>Paid <strong>{inr(withdrawal)}</strong></span>
-              )}
-              {deposit > 0 && (
-                <span>Received <strong>{inr(deposit)}</strong></span>
-              )}
-              <button className="ghost calendar-sheet__close" type="button" onClick={() => setSplitSheetOpen(false)} aria-label="Close">
-                <IcClose size={16} />
-              </button>
-            </div>
-          </div>
-          <div className="calendar-manage-shell">
-            <div className="friend-tags-panel">
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-                <select
-                  value={tx.categoryId || ''}
-                  onChange={(e) => assignCategory(e.target.value)}
-                  aria-label="Category"
-                >
-                  <option value="">No category</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.icon ? `${cat.icon} ` : ''}{cat.name}
-                    </option>
-                  ))}
-                </select>
-                {categoryStatus && <span className="status">{categoryStatus}</span>}
-              </div>
+  const hasTags = tags.length > 0;
+  const canSplit = splitTotal > 0 || hasTags;
+  const splitLabel = hasTags ? 'Edit split' : 'Split with people';
+  // Only a debit can be a card bill payment — the API enforces this too.
+  const canLinkCc = Boolean(ccLink && !ccLink.linked && withdrawal > 0 && deposit === 0);
+  const linked = Boolean(ccLink?.linked);
 
-              {splitTotal > 0 && (
-                <SplitTransactionForm
-                  key={`split-${id}`}
-                  totalAmount={splitTotal}
-                  participants={friends.map((f) => ({ id: String(f.id), name: f.name }))}
-                  taggedFriendIds={tags.map((t) => String(t.friendId))}
-                  defaultDirection="OWES_ME"
-                  applying={splitApplying}
-                  onApplySplit={applySplit}
-                />
-              )}
+  const openSplit = () => setSplitSheetOpen(true);
+  const openCcLink = () => setCcModalOpen(true);
+  const askUnlink = () => setConfirm({ kind: 'unlink' });
+  const askRemoveTag = (tagId) => setConfirm({ kind: 'removeTag', tagId });
 
-              {tagsStatus && <p className="status">{tagsStatus}</p>}
+  const moreOptions = linked
+    ? [{ label: 'Unlink card bill', icon: Unlink, theme: 'red', onClick: askUnlink }]
+    : [];
 
-              <div className="friend-tags-list">
-                {tags.length === 0 ? (
-                  <p className="empty">No friend tags yet.</p>
-                ) : (
-                  tags.map((tag) => {
-                    const friendName = tag.friend?.name || `Friend #${tag.friendId}`;
-                    return (
-                      <FriendTagCard
-                        key={tag.id}
-                        tag={tag}
-                        transaction={tx}
-                        friendName={friendName}
-                        onRemove={() => deleteTag(tag.id)}
-                        onAllocationChanged={fetchTags}
-                      />
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Portal>
+  const mobileOptions = [
+    {
+      items: [
+        canSplit && { label: splitLabel, icon: Users, onClick: openSplit },
+        canLinkCc && { label: 'Link to card bill', icon: Link2, onClick: openCcLink },
+      ].filter(Boolean),
+    },
+    { items: moreOptions },
+  ].filter((g) => g.items.length > 0);
+
+  const headerActions = (
+    <>
+      {moreOptions.length > 0 && (
+        <Dropdown options={moreOptions} placement="bottom-end">
+          <Button icon={MoreHorizontal} label="More actions" />
+        </Dropdown>
+      )}
+      {canLinkCc && <Button iconLeft={Link2} label="Link to card bill" onClick={openCcLink} />}
+      {canSplit && <Button variant="solid" iconLeft={Users} label={splitLabel} onClick={openSplit} />}
+    </>
   );
+
+  const mobileActions = mobileOptions.length > 0 ? (
+    <Dropdown options={mobileOptions} placement="bottom-end">
+      <Button variant="ghost" size="md" icon={MoreHorizontal} label="Actions" />
+    </Dropdown>
+  ) : null;
 
   return (
     <>
-      <ConfirmDialog {...confirmState} />
-      {splitSheet}
+      <PageHeader
+        // Phones show this centred; the summary below already names the merchant.
+        title="Transaction"
+        breadcrumbs={[{ label: 'Transactions', to: listPath }, { label: title }]}
+        back={backFromDetail}
+        actions={headerActions}
+        mobileActions={mobileActions}
+      />
+
+      <PageBody className="txd-page">
+        <div className="txd-layout">
+          <section className="txd-layout__summary txd-summary" aria-label="Summary">
+            <CategoryIcon category={tx.category} size={40} />
+            <div className="txd-summary__text">
+              <h2 className="txd-summary__title">{title}</h2>
+              <p className="txd-summary__meta">
+                {verb} · {formatTxnDate(tx.transactionDate)}
+              </p>
+              {(hasTags || linked || tx.isManual) && (
+                <div className="txd-summary__badges">
+                  {hasTags && (
+                    <Badge
+                      prefix={Users}
+                      label={`Split with ${tags.length} ${tags.length === 1 ? 'person' : 'people'}`}
+                    />
+                  )}
+                  {linked && <Badge theme="blue" prefix={Link2} label="Card bill payment" />}
+                  {tx.isManual && <Badge label="Manual" />}
+                </div>
+              )}
+            </div>
+            <Amount className="txd-summary__amount" value={signed} sign="always" />
+            {isMobile && canSplit && (
+              <Button
+                className="txd-summary__primary"
+                variant="solid"
+                size="md"
+                iconLeft={Users}
+                label={splitLabel}
+                onClick={openSplit}
+              />
+            )}
+          </section>
+
+          <div className="txd-layout__side">
+            <DetailsPanel
+              tx={tx}
+              title={title}
+              categories={categories}
+              onAssignCategory={assignCategory}
+              categorySaving={categorySaving}
+            />
+          </div>
+
+          <div className="txd-layout__main">
+            <Card
+              as="section"
+              title="Split with people"
+              description={hasTags ? `${tags.length} ${tags.length === 1 ? 'friend tag' : 'friend tags'}` : undefined}
+            >
+              {tagsLoading && !hasTags ? (
+                <div aria-busy="true" className="txd-skeleton-rows">
+                  <Skeleton height={40} />
+                </div>
+              ) : hasTags ? (
+                <div className="txd-tags">
+                  {tags.map((tag) => (
+                    <FriendTagCard
+                      key={tag.id}
+                      tag={tag}
+                      transaction={tx}
+                      friendName={tag.friend?.name || `Friend #${tag.friendId}`}
+                      onRemove={() => askRemoveTag(tag.id)}
+                      onAllocationChanged={fetchTags}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  size="sm"
+                  icon={Users}
+                  title="No friend tags yet"
+                  description="Split it to track who owes whom."
+                  action={splitTotal > 0
+                    ? <Button iconLeft={Users} label="Split with people" onClick={openSplit} />
+                    : null}
+                />
+              )}
+            </Card>
+
+            {linked && (
+              <CardBillCard
+                ccLink={ccLink}
+                rows={coveredRows}
+                isMobile={isMobile}
+                categories={categories}
+                onAssignCategory={cardManager.assignCategory}
+                onOpenManage={cardManager.openManage}
+                sortCol={coveredSortCol}
+                sortDir={coveredSortDir}
+                onSort={handleCoveredSort}
+                page={coveredPage}
+                pageSize={coveredPageSize}
+                onPageChange={setCoveredPage}
+                onPageSizeChange={setCoveredPageSize}
+              />
+            )}
+          </div>
+        </div>
+      </PageBody>
+
+      <TransactionManageSheet
+        open={splitSheetOpen}
+        title={title}
+        transaction={tx}
+        date={tx.transactionDate}
+        metaLine={[tx.accountNumber, tx.isManual ? 'Manual' : null].filter(Boolean).join(' · ')}
+        amountIn={deposit}
+        amountOut={withdrawal}
+        showCategory={false}
+        notifyResults={false}
+        friends={friends}
+        tags={tags}
+        tagsStatus={tagsLoading ? 'Loading…' : ''}
+        splitApplying={splitApplying}
+        onApplySplit={applySplit}
+        onDeleteTag={askRemoveTag}
+        onTagsChanged={fetchTags}
+        onClose={() => setSplitSheetOpen(false)}
+      />
+
       {cardManageRow && (
         <TransactionManageSheet
           {...cardManager.manageSheetPropsFor(cardManageRow)}
@@ -411,155 +501,6 @@ export default function TransactionDetail() {
         />
       )}
 
-      <header className="ft-mobile__header">
-        <button className="ft-mobile__icon-btn" onClick={backFromDetail} aria-label="Back">
-          <IcChevL size={18} />
-        </button>
-        <h1 className="ft-mobile__title" style={{ margin: 0 }}>Transaction</h1>
-        <span style={{ width: 40 }} />
-      </header>
-
-      <main className="ft-mobile__content">
-        <Card pad={22} style={{ textAlign: 'center' }}>
-          <div style={{ display: 'inline-flex', marginBottom: 14 }}>
-            <CatGlyph category={tx.category} size={56} />
-          </div>
-          <Overline>{verb}</Overline>
-          <div style={{ fontSize: 17, color: 'var(--ft-text)', fontWeight: 500, marginTop: 4 }}>
-            {tx.upiName || tx.narration || '—'}
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <HeroAmount color={isIncome ? 'var(--ft-income)' : 'var(--ft-spend)'}>
-              {inr(isIncome ? amount : -amount, { sign: isIncome })}
-            </HeroAmount>
-          </div>
-          <div style={{ marginTop: 8, color: 'var(--ft-text-dim)', fontSize: 13 }}>
-            {formatDate(tx.transactionDate)}
-          </div>
-        </Card>
-
-        <Card pad={16}>
-          <DetailRow label="Note" value={tx.upiDescription || tx.narration || '—'} />
-          <DetailRow label="Category" value={tx.category?.name || 'Uncategorised'} />
-          <DetailRow label="Method" value={tx.upiBank ? `UPI · ${tx.upiBank}` : tx.isManual ? 'Manual' : 'Bank'} />
-          <DetailRow label="Account" value={tx.accountNumber || '—'} mono />
-          <DetailRow label="Reference" value={tx.id} mono />
-        </Card>
-
-        {tags.length > 0 && (
-          <Card pad={16}>
-            <Overline style={{ marginBottom: 10 }}>Split with</Overline>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {tags.map((t) => (
-                <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ color: 'var(--ft-text)', fontSize: 14, fontWeight: 500 }}>
-                      {t.friend?.name || `Friend #${t.friendId}`}
-                    </div>
-                    <div style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>
-                      {ledgerDirectionPhrase(t.direction, t.friend?.name || `Friend #${t.friendId}`)}
-                    </div>
-                  </div>
-                  <Num size={14} weight={600}>{inr(Number(t.amount || 0))}</Num>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
-
-        {ccLink?.linked && (
-          <Card pad={16}>
-            <Overline style={{ marginBottom: 10 }}>
-              Covered card transactions
-            </Overline>
-            <div style={{ color: 'var(--ft-text-dim)', fontSize: 12, marginBottom: 10 }}>
-              {ccLink.card ? `${ccLink.card.name} · ····${ccLink.card.last4}` : 'Credit card'}
-              {' · '}
-              {(ccLink.coveredTransactions || []).length} item
-              {(ccLink.coveredTransactions || []).length === 1 ? '' : 's'}
-            </div>
-            {isMobile ? (
-              /* Not the day-grouped list: these all belong to one bill, and a
-                 statement cycle would emit a date header per row. Each row
-                 carries its own date instead. */
-              coveredRows.length === 0 ? (
-                <p className="empty" style={{ margin: '4px 0 0' }}>No card transactions covered.</p>
-              ) : (
-                coveredRows.map((row) => (
-                  <TransactionListRow
-                    key={row.id}
-                    showDate
-                    row={row}
-                    categories={categories}
-                    onAssignCategory={cardManager.assignCategory}
-                    onOpenDetail={() => cardManager.openManage(row.id)}
-                  />
-                ))
-              )
-            ) : (
-              <div
-                /* Full-bleed inside the padded card; clipped so the table's
-                   rounded header corners stay within the card's. */
-                style={{ margin: '0 -16px', overflow: 'hidden' }}
-              >
-                <TransactionTable
-                  rows={coveredRows}
-                  storageKey="fintrack.ledger.covered"
-                  columnLabels={{ description: 'Merchant', method: 'Status' }}
-                  categories={categories}
-                  onAssignCategory={cardManager.assignCategory}
-                  onOpenManage={cardManager.openManage}
-                  onOpenDetail={(row) => cardManager.openManage(row.id)}
-                  sortCol={coveredSortCol}
-                  sortDir={coveredSortDir}
-                  onSort={handleCoveredSort}
-                  page={coveredPage}
-                  pageSize={coveredPageSize}
-                  onPageChange={setCoveredPage}
-                  onPageSizeChange={setCoveredPageSize}
-                  emptyMessage="No card transactions covered."
-                />
-              </div>
-            )}
-            {Number(ccLink.remainder || 0) !== 0 && (
-              <div
-                style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  gap: 12, marginTop: 10, paddingTop: 10,
-                  borderTop: '1px dashed var(--ft-border)',
-                }}
-              >
-                <span style={{ color: 'var(--ft-text-dim)', fontSize: 12.5, fontStyle: 'italic' }}>
-                  {Number(ccLink.remainder) > 0
-                    ? 'Carried forward / other charges'
-                    : 'Not covered by this payment'}
-                </span>
-                <Num size={13} weight={600} color="var(--ft-text-dim)">
-                  {inr(Number(ccLink.remainder), { decimals: 2 })}
-                </Num>
-              </div>
-            )}
-            <GhostBtn style={{ width: '100%', marginTop: 12 }} onClick={unlinkCc}>
-              Unlink card bill
-            </GhostBtn>
-          </Card>
-        )}
-
-        <GhostBtn style={{ width: '100%' }} onClick={() => setSplitSheetOpen(true)}>
-          Edit split
-        </GhostBtn>
-
-        {/* Only a debit can be a card bill payment — the API enforces this too. */}
-        {ccLink && !ccLink.linked && withdrawal > 0 && deposit === 0 && (
-          <GhostBtn style={{ width: '100%' }} onClick={() => setCcModalOpen(true)}>
-            Link to credit card bill
-          </GhostBtn>
-        )}
-
-        {ccStatus && <p className="status" style={{ textAlign: 'center', marginTop: 4 }}>{ccStatus}</p>}
-        {tagsStatus && <p className="status" style={{ textAlign: 'center', marginTop: 4 }}>{tagsStatus}</p>}
-      </main>
-
       {ccModalOpen && (
         <CcLinkModal
           transaction={tx}
@@ -567,38 +508,23 @@ export default function TransactionDetail() {
           onLinked={(result) => { setCcModalOpen(false); setCcLink(result); }}
         />
       )}
-    </>
-  );
-}
 
-function DetailRow({ label, value, mono }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '10px 0',
-        borderTop: '1px solid var(--ft-border)',
-        gap: 12,
-      }}
-    >
-      <span style={{ color: 'var(--ft-text-dim)', fontSize: 13 }}>{label}</span>
-      <span
-        style={{
-          color: 'var(--ft-text)',
-          fontSize: 13,
-          fontWeight: 500,
-          fontFamily: mono ? 'var(--ft-font-mono)' : 'var(--ft-font-ui)',
-          textAlign: 'right',
-          maxWidth: '60%',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {value}
-      </span>
-    </div>
+      <ConfirmDialog
+        open={confirm?.kind === 'removeTag'}
+        title="Remove tag?"
+        message="This will remove the friend tag from this transaction."
+        confirmLabel="Remove"
+        onConfirm={() => removeTag(confirm.tagId)}
+        onCancel={() => setConfirm(null)}
+      />
+      <ConfirmDialog
+        open={confirm?.kind === 'unlink'}
+        title="Unlink card bill?"
+        message="The covered card transactions go back to unpaid, and this debit counts as ordinary spend again."
+        confirmLabel="Unlink"
+        onConfirm={unlinkCc}
+        onCancel={() => setConfirm(null)}
+      />
+    </>
   );
 }

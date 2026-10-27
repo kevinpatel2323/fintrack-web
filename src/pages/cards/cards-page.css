@@ -1,0 +1,307 @@
+/* Cards list (/cards). Prefix: .cards- */
+
+.cards-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ---------- Stat row ---------- */
+.cards-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.cards-stat__alert {
+  color: var(--ink-red-6);
+}
+
+.cards-stat__progress {
+  margin-top: 2px;
+}
+
+/* ---------- Layout: cards + upcoming dues ---------- */
+.cards-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .cards-layout--with-dues {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-areas: 'main dues';
+  }
+
+  .cards-layout--with-dues .cards-layout__main {
+    grid-area: main;
+  }
+
+  .cards-layout--with-dues .cards-layout__dues {
+    grid-area: dues;
+  }
+}
+
+.cards-layout__main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+.cards-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cards-section__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-9);
+}
+
+.cards-section__count {
+  font-size: 13px;
+  font-weight: 420;
+  color: var(--ink-gray-5);
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 12px;
+}
+
+/* ---------- Card tile ---------- */
+.cards-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-5);
+  background: var(--surface-base);
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.cards-tile:not(.cards-tile--skeleton):hover {
+  border-color: var(--outline-gray-2);
+  background: var(--surface-gray-1);
+}
+
+.cards-tile:has(.cards-tile__link:focus-visible) {
+  outline: var(--focus-outline-default);
+}
+
+.cards-tile__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cards-tile__head > .card-mark {
+  margin-top: 2px;
+}
+
+.cards-tile__id {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cards-tile__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cards-tile__link {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-9);
+}
+
+/* The ring goes round the whole tile instead (see :has above). */
+.cards-tile__link:focus-visible {
+  outline: none;
+}
+
+/* The whole tile is the link's hit area; inner links sit above it. */
+.cards-tile__link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.cards-tile__meta {
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.cards-tile__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cards-tile__figure {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cards-tile__label {
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.cards-tile__amount {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink-gray-9);
+}
+
+.cards-tile__muted,
+.cards-tile__muted-inline {
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.cards-tile__foot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.cards-tile__due {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink-gray-8);
+}
+
+.cards-statement {
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.cards-statement__import {
+  position: relative;
+  z-index: 1;
+  color: var(--ink-blue-link);
+  font-weight: 500;
+}
+
+.cards-statement__import:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Upcoming dues ---------- */
+.cards-dues__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cards-dues__list > li + li {
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.cards-dues__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 12px 8px 16px;
+  color: var(--ink-gray-8);
+}
+
+.cards-dues__row:hover {
+  background: var(--surface-gray-1);
+}
+
+.cards-dues__row:focus-visible {
+  outline-offset: -2px;
+}
+
+.cards-dues__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cards-dues__name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-9);
+}
+
+.cards-dues__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.cards-dues__figure {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-9);
+}
+
+.cards-dues__min {
+  font-size: 12px;
+  font-weight: 420;
+  color: var(--ink-gray-5);
+}
+
+.cards-dues__chevron {
+  color: var(--ink-gray-4);
+}
+
+@media (max-width: 767.98px) {
+  .cards-page {
+    gap: 16px;
+  }
+
+  .cards-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* An odd count: the first figure takes the full row. */
+  .cards-stats > :first-child:nth-last-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .cards-dues__chevron {
+    display: none;
+  }
+}

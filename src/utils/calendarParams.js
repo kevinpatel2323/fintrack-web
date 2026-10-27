@@ -35,6 +35,16 @@ export function parseCalendarParams(searchParams, defaults) {
   return { viewYear, viewMonth, selectedIso };
 }
 
+export const CALENDAR_VIEWS = ['transactions', 'subscriptions'];
+
+/**
+ * Which tab the calendar shows: `?view=subscriptions`, else transactions.
+ * @param {URLSearchParams} searchParams
+ */
+export function parseCalendarView(searchParams) {
+  return searchParams.get('view') === 'subscriptions' ? 'subscriptions' : 'transactions';
+}
+
 /** @param {URLSearchParams} prev */
 export function patchCalendarParams(prev, patch) {
   const next = new URLSearchParams(prev);
@@ -52,6 +62,12 @@ export function patchCalendarParams(prev, patch) {
     const value = patch.selectedIso;
     if (isIsoDate(value)) next.set('day', value);
     else next.delete('day');
+  }
+
+  // Transactions is the default view, so it leaves no param behind.
+  if ('view' in patch) {
+    if (patch.view === 'subscriptions') next.set('view', 'subscriptions');
+    else next.delete('view');
   }
 
   return next;

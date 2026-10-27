@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Card, GhostBtn, Overline } from './ui/primitives.jsx';
-import { IcCheck } from './ui/Icon.jsx';
+import { Check, Copy, Download, TriangleAlert } from 'lucide-react';
+import { Badge, Button, Card, ErrorMessage, Skeleton, toast } from './ui';
 import { updateCard } from '../services/cardsApi.js';
 import { useImportSchedule } from '../hooks/useImportSchedule.js';
+import './StatementQueue.css';
 
 /**
  * "Which card statement do I import next?" — one block per credit card.
@@ -14,18 +15,18 @@ import { useImportSchedule } from '../hooks/useImportSchedule.js';
  * recent months, and the bank's file name to go looking for.
  */
 
-const STATE_STYLE = {
-  imported: { bg: 'var(--ft-income-soft)', fg: 'var(--ft-income)', border: 'transparent', text: 'imported' },
-  missing:  { bg: 'var(--ft-spend-soft)',  fg: 'var(--ft-spend)',  border: 'transparent', text: 'missing from history' },
-  ready:    { bg: 'var(--ft-warn-soft)',   fg: 'var(--ft-warn)',   border: 'transparent', text: 'out, not imported yet' },
-  upcoming: { bg: 'transparent',           fg: 'var(--ft-text-faint)', border: 'var(--ft-border)', text: 'not out yet' },
+const MONTH_STATES = {
+  imported: { text: 'imported', icon: Check },
+  ready: { text: 'out, not imported yet', icon: Download },
+  missing: { text: 'missing from history', icon: TriangleAlert },
+  upcoming: { text: 'not out yet', icon: null },
 };
 
 const LEGEND = [
-  ['imported', '✓', 'imported'],
-  ['ready', '●', 'waiting'],
-  ['missing', '!', 'missing'],
-  ['upcoming', '○', 'not out yet'],
+  ['imported', 'Imported'],
+  ['ready', 'Waiting'],
+  ['missing', 'Missing'],
+  ['upcoming', 'Not out yet'],
 ];
 
 function ordinal(n) {
@@ -51,7 +52,25 @@ function plural(n, one, many) {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-export default function StatementQueue({ style }) {
+/** A waiting statement whose bill date has already gone by. */
+function isOverdue(row, today) {
+  const due = row.next?.estimatedDueDate;
+  return row.status === 'ready' && Boolean(due) && due < today;
+}
+
+function StatusBadge({ row, today }) {
+  if (row.status === 'ready') {
+    return isOverdue(row, today) ? (
+      <Badge theme="red" label="Overdue" />
+    ) : (
+      <Badge theme="amber" label="Ready to import" />
+    );
+  }
+  if (row.status === 'waiting') return <Badge theme="green" label="Up to date" />;
+  return <Badge label="Not tracked" />;
+}
+
+export default function StatementQueue({ className = '', style }) {
   const { data, error, loading, refresh } = useImportSchedule();
   const rows = data?.cards ?? [];
 
@@ -59,116 +78,95 @@ export default function StatementQueue({ style }) {
   if (data && rows.length === 0) return null;
 
   return (
-    <Card pad={18} style={style}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
-        <Overline>Card statements · up next</Overline>
-        {/* With a single card its own pill already says this. */}
-        {rows.length > 1 && data.pendingCount > 0 && (
-          <span style={pillStyle('var(--ft-warn-soft)', 'var(--ft-warn)')}>
-            {data.pendingCount} to import
-          </span>
-        )}
-      </div>
-
+    <Card
+      as="section"
+      title="Card statements · up next"
+      className={`stq ${className}`.trim()}
+      style={style}
+      actions={
+        // With a single card its own badge already says this.
+        rows.length > 1 && data.pendingCount > 0 ? (
+          <Badge theme="amber" label={`${data.pendingCount} to import`} />
+        ) : null
+      }
+    >
       {!data && loading && (
-        <p style={{ margin: 0, color: 'var(--ft-text-dim)', fontSize: 12.5 }}>Checking your cards…</p>
+        <div className="stq__loading" aria-busy="true">
+          <Skeleton height={14} width="60%" />
+          <Skeleton height={12} width="85%" />
+          <Skeleton height={22} width="100%" />
+        </div>
       )}
-      {error && (
-        <p style={{ margin: 0, color: 'var(--ft-spend)', fontSize: 12.5 }}>{error}</p>
-      )}
+      {error && <ErrorMessage message={error} />}
 
-      {/* minmax(0, 1fr): grid items otherwise size to their content, and the
-          unbroken file name would push the panel wider than its column. */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16 }}>
-        {rows.map((row, i) => (
-          <ScheduleRow
-            key={row.card.id}
-            row={row}
-            today={data.today}
-            divided={i > 0}
-            onChanged={refresh}
-          />
-        ))}
-      </div>
+      {rows.length > 0 && (
+        <div className="stq__list">
+          {rows.map((row) => (
+            <ScheduleRow key={row.card.id} row={row} today={data.today} onChanged={refresh} />
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
 
-function ScheduleRow({ row, today, divided, onChanged }) {
+function ScheduleRow({ row, today, onChanged }) {
   const { card, status, next, pending, gaps, timeline } = row;
-  const cardLabel = `${card.nickname || card.name} · •• ${card.last4}`;
-
-  let pill;
-  if (status === 'ready') {
-    pill = (
-      <span style={pillStyle('var(--ft-warn-soft)', 'var(--ft-warn)')}>
-        {pending.length > 1 ? `${pending.length} waiting` : 'Ready to import'}
-      </span>
-    );
-  } else if (status === 'waiting') {
-    pill = <span style={pillStyle('var(--ft-income-soft)', 'var(--ft-income)')}>Up to date</span>;
-  } else {
-    pill = <span style={pillStyle('var(--ft-surface-2)', 'var(--ft-text-dim)')}>Not tracked</span>;
-  }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8, ...(divided ?{ borderTop: '1px solid var(--ft-border)', paddingTop: 14 } : {}) }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <Link
-          to={`/cards/${card.id}`}
-          style={{ color: 'var(--ft-text-dim)', fontSize: 12, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-        >
-          {cardLabel}
+    <div className="stq-card">
+      <div className="stq-card__head">
+        <Link to={`/cards/${card.id}`} className="stq-card__name">
+          <span className="truncate">{card.nickname || card.name}</span>
+          <span className="stq-card__last4 tabular-nums">•• {card.last4}</span>
         </Link>
-        {pill}
+        <StatusBadge row={row} today={today} />
       </div>
 
       {status === 'unknown' ? (
-        <p style={{ margin: 0, color: 'var(--ft-text-dim)', fontSize: 12.5, lineHeight: 1.5 }}>
+        <p className="stq-note">
           Import any one statement for this card, or{' '}
-          <Link to={`/cards/${card.id}`} style={{ color: 'var(--ft-accent-fg)' }}>set its statement day</Link>,
-          and the next one will show up here.
+          <Link to={`/cards/${card.id}`} className="stq-link">
+            set its statement day
+          </Link>
+          , and the next one will show up here.
         </p>
       ) : (
         <>
           <div>
-            <div style={{ color: 'var(--ft-text)', fontSize: 16, fontWeight: 600, letterSpacing: '-0.2px' }}>
-              {status === 'ready' ? `${next.label} statement` : 'All caught up'}
-            </div>
-            <div style={{ color: 'var(--ft-text-dim)', fontSize: 12.5, marginTop: 2, lineHeight: 1.5 }}>
-              {status === 'ready' ? <ReadyLine next={next} today={today} /> : (
+            <div className="stq-card__headline">{status === 'ready' ? `${next.label} statement` : 'All caught up'}</div>
+            <div className="stq-card__when">
+              {status === 'ready' ? (
+                <ReadyLine next={next} today={today} />
+              ) : (
                 <>
-                  {next.label} statement arrives {fmtDay(next.expectedDate, today)} ·{' '}
-                  in {plural(next.daysAway, 'day', 'days')}
+                  {next.label} statement arrives {fmtDay(next.expectedDate, today)} · in{' '}
+                  {plural(next.daysAway, 'day', 'days')}
                 </>
               )}
             </div>
           </div>
 
-          <TimelineStrip timeline={timeline} highlight={status === 'ready' ? next.month : null} />
+          <MonthStrip timeline={timeline} highlight={status === 'ready' ? next.month : null} />
 
           {status === 'ready' && next.filenameHint && <FileHint stem={next.filenameHint} />}
 
           {pending.length > 1 && (
-            <Note>
-              Then {pending.slice(1).map((p) => p.label).join(', ')}. Import them oldest
-              first so each one can pick up where the last left off.
-            </Note>
+            <p className="stq-note">
+              Then {pending.slice(1).map((p) => p.label).join(', ')}. Import them oldest first so each one can pick up
+              where the last left off.
+            </p>
           )}
           {row.unbilledInNext > 0 && (
-            <Note>
-              {plural(row.unbilledInNext, 'entry', 'entries')} you added by hand will be
-              matched against the {next.label} statement instead of being added twice.
-            </Note>
+            <p className="stq-note">
+              {plural(row.unbilledInNext, 'entry', 'entries')} you added by hand will be matched against the{' '}
+              {next.label} statement instead of being added twice.
+            </p>
           )}
           {gaps.length > 0 && (
-            <Note color="var(--ft-spend)">
-              Missing from your history: {gaps.map((g) => g.label).join(', ')}.
-            </Note>
+            <p className="stq-note stq-note--alert">Missing from your history: {gaps.map((g) => g.label).join(', ')}.</p>
           )}
-          {row.statementDayMismatch && (
-            <DayMismatch card={card} statementDay={row.statementDay} onFixed={onChanged} />
-          )}
+          {row.statementDayMismatch && <DayMismatch card={card} statementDay={row.statementDay} onFixed={onChanged} />}
         </>
       )}
     </div>
@@ -185,7 +183,7 @@ function ReadyLine({ next, today }) {
       {due && (
         <>
           {' · '}
-          <span style={{ color: due < today ? 'var(--ft-warn)' : undefined }}>
+          <span className={due < today ? 'stq-due is-past' : 'stq-due'}>
             bill {due < today ? 'was due' : 'due'} around {fmtDay(due, today)}
           </span>
         </>
@@ -194,53 +192,47 @@ function ReadyLine({ next, today }) {
   );
 }
 
-/** The last few months at a glance; the one to import next is ringed. */
-function TimelineStrip({ timeline, highlight }) {
+/** The last few months at a glance; the one to import next is outlined. */
+function MonthStrip({ timeline, highlight }) {
   if (!timeline?.length) return null;
   const present = new Set(timeline.map((t) => t.state));
   return (
-    <div>
-      <div style={{ display: 'flex', gap: 5 }}>
+    <div className="stq-months">
+      <ul className="stq-months__strip" aria-label="Recent statements">
         {timeline.map((t) => {
-          const s = STATE_STYLE[t.state];
+          const s = MONTH_STATES[t.state] || MONTH_STATES.upcoming;
+          const Icon = s.icon;
           const isNext = t.month === highlight;
           return (
-            <div
+            <li
               key={t.month}
+              className={`stq-month${isNext ? ' is-next' : ''}`}
+              data-state={t.state}
               title={`${t.label} · ${s.text}`}
-              style={{
-                // Capped so a card with two months of history gets two chips,
-                // not two banners stretched across the panel.
-                flex: '1 1 0',
-                minWidth: 0,
-                maxWidth: 56,
-                padding: '6px 0 5px',
-                borderRadius: 8,
-                textAlign: 'center',
-                background: s.bg,
-                color: s.fg,
-                border: `1px ${t.state === 'upcoming' ? 'dashed' : 'solid'} ${s.border}`,
-                boxShadow: isNext ? `0 0 0 2px ${s.fg}` : 'none',
-              }}
             >
-              <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.2 }}>{t.label.slice(0, 3)}</div>
-              <div style={{ height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>
-                {t.state === 'imported' && <IcCheck size={11} />}
-                {t.state === 'missing' && '!'}
-                {t.state === 'ready' && '●'}
-                {t.state === 'upcoming' && '○'}
-              </div>
-            </div>
+              <span aria-hidden>{t.label.slice(0, 3)}</span>
+              {Icon && <Icon size={12} strokeWidth={2} aria-hidden />}
+              <span className="sr-only">
+                {t.label}, {s.text}
+                {isNext ? ', import next' : ''}
+              </span>
+            </li>
           );
         })}
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 10px', marginTop: 6, color: 'var(--ft-text-faint)', fontSize: 10.5 }}>
-        {LEGEND.filter(([state]) => present.has(state)).map(([state, glyph, label]) => (
-          <span key={state}>
-            <span style={{ color: STATE_STYLE[state].fg }}>{glyph}</span> {label}
-          </span>
-        ))}
-      </div>
+      </ul>
+      {(present.has('ready') || present.has('missing')) && (
+        <div className="stq-months__legend" aria-hidden>
+          {LEGEND.filter(([state]) => present.has(state)).map(([state, label]) => {
+            const Icon = MONTH_STATES[state].icon;
+            return (
+              <span key={state} className="stq-legend" data-state={state}>
+                {Icon ? <Icon size={10} strokeWidth={2} /> : <span className="stq-legend__blank" />}
+                {label}
+              </span>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -261,22 +253,20 @@ function FileHint({ stem }) {
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 10, background: 'var(--ft-surface-2)' }}>
-      <span style={{ color: 'var(--ft-text-faint)', fontSize: 11, flexShrink: 0 }}>Look for</span>
+    <div className="stq-file">
+      <span className="stq-file__label">Look for</span>
       {/* Wraps rather than truncates: the month and the card number are the
           parts that identify the file, and they sit at opposite ends. */}
-      <code
-        style={{
-          flex: 1, minWidth: 0, color: 'var(--ft-text)', fontFamily: 'var(--ft-font-mono)', fontSize: 11.5,
-          overflowWrap: 'anywhere', lineHeight: 1.4,
-        }}
-      >
-        {stem}_….xlsx
-      </code>
+      <code className="stq-file__name">{stem}_….xlsx</code>
       {canCopy && (
-        <GhostBtn onClick={copy} style={{ padding: '3px 8px', fontSize: 11, flexShrink: 0 }}>
-          {copied ? 'Copied' : 'Copy'}
-        </GhostBtn>
+        <Button
+          variant="ghost"
+          size="xs"
+          icon={copied ? Check : Copy}
+          label={copied ? 'Copied' : 'Copy file name'}
+          tooltip={copied ? 'Copied' : 'Copy file name'}
+          onClick={copy}
+        />
       )}
     </div>
   );
@@ -289,54 +279,27 @@ function FileHint({ stem }) {
  */
 function DayMismatch({ card, statementDay, onFixed }) {
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
 
   async function fix() {
     setBusy(true);
-    setError('');
     try {
       await updateCard(card.id, { statementDay });
       await onFixed();
+      toast.success(`Statement day set to the ${ordinal(statementDay)}`);
     } catch (e) {
-      setError(e.message || 'Could not update the card.');
+      toast.error(e.message || 'Could not update the card.');
       setBusy(false);
     }
   }
 
   return (
-    <div style={{ padding: '9px 11px', borderRadius: 10, border: '1px solid var(--ft-border)', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 6 }}>
-      <span style={{ color: 'var(--ft-text-dim)', fontSize: 12, lineHeight: 1.5 }}>
-        This card is set to a statement day of the <strong style={{ color: 'var(--ft-text)' }}>{ordinal(card.statementDay)}</strong>,
-        but its statements arrive on the <strong style={{ color: 'var(--ft-text)' }}>{ordinal(statementDay)}</strong>.
-        The card page's cycle figures use that setting too.
-      </span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <GhostBtn onClick={fix} disabled={busy} style={{ padding: '4px 10px', fontSize: 12 }}>
-          {busy ? 'Saving…' : `Use the ${ordinal(statementDay)}`}
-        </GhostBtn>
-        {error && <span style={{ color: 'var(--ft-spend)', fontSize: 12 }}>{error}</span>}
-      </div>
+    <div className="stq-mismatch">
+      <p className="stq-note">
+        This card is set to a statement day of the <span className="stq-strong">{ordinal(card.statementDay)}</span>,
+        but its statements arrive on the <span className="stq-strong">{ordinal(statementDay)}</span>. The card page's
+        cycle figures use that setting too.
+      </p>
+      <Button label={`Use the ${ordinal(statementDay)}`} loading={busy} onClick={fix} />
     </div>
   );
-}
-
-function Note({ children, color }) {
-  return (
-    <p style={{ margin: 0, color: color || 'var(--ft-text-dim)', fontSize: 12, lineHeight: 1.5 }}>
-      {children}
-    </p>
-  );
-}
-
-function pillStyle(bg, fg) {
-  return {
-    padding: '3px 9px',
-    borderRadius: 999,
-    background: bg,
-    color: fg,
-    fontSize: 11,
-    fontWeight: 600,
-    whiteSpace: 'nowrap',
-    flexShrink: 0,
-  };
 }

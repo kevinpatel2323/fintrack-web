@@ -8,7 +8,7 @@ import { useTheme } from '../hooks/useTheme.js';
 import './You.css';
 
 const DESCRIPTIONS = {
-  '/categories': 'Rename, recolour and merge categories',
+  '/categories': 'Rename and recolour categories',
   '/import': 'Upload an HDFC bank or card statement',
   '/security': 'Passkeys and sign-out',
 };

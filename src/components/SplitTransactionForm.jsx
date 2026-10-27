@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState,
+} from 'react';
+import { Plus, X } from 'lucide-react';
 import SettlementAllocator from './SettlementAllocator.jsx';
+import {
+  Amount, Avatar, Button, Combobox, ErrorMessage, FormControl, TabButtons, TextInput,
+} from './ui';
 import { fetchGroups } from '../services/friendsApi.js';
+import { ledgerDirectionPhrase } from '../utils/ledgerParties.js';
 import { draftToAllocations } from '../utils/settlementAllocation.js';
 import {
   calculateAdjustmentSplit,
@@ -20,71 +27,46 @@ import {
   validateShares,
   validateSplitTotal,
 } from '../utils/splitValidation.ts';
+import './transaction-detail/SplitTransactionForm.css';
 
 const METHODS = [
-  { id: 'EQUAL', label: 'Equal' },
-  { id: 'EXACT', label: 'Exact' },
-  { id: 'PERCENT', label: 'Percent' },
-  { id: 'SHARES', label: 'Shares' },
-  { id: 'ADJUSTMENT', label: 'Adjust' },
+  { value: 'EQUAL', label: 'Equal' },
+  { value: 'EXACT', label: 'Exact' },
+  { value: 'PERCENT', label: 'Percent' },
+  { value: 'SHARES', label: 'Shares' },
+  { value: 'ADJUSTMENT', label: 'Adjust' },
 ];
 
-function SplitMethodIcon({ methodId }) {
-  switch (methodId) {
-    case 'EQUAL':
-      return (
-        <span className="split-txn-method__icon" aria-hidden>
-          =
-        </span>
-      );
-    case 'EXACT':
-      return (
-        <span className="split-txn-method__icon split-txn-method__icon--exact" aria-hidden>
-          1.23
-        </span>
-      );
-    case 'PERCENT':
-      return (
-        <span className="split-txn-method__icon" aria-hidden>
-          %
-        </span>
-      );
-    case 'SHARES':
-      return (
-        <span className="split-txn-method__icon split-txn-method__icon--shares" aria-hidden>
-          <svg className="split-txn-method__bars" viewBox="0 0 20 16" width="20" height="16">
-            <rect x="1.5" y="9" width="4.5" height="7" rx="0.75" fill="currentColor" />
-            <rect x="7.75" y="5" width="4.5" height="11" rx="0.75" fill="currentColor" />
-            <rect x="14" y="2" width="4.5" height="14" rx="0.75" fill="currentColor" />
-          </svg>
-        </span>
-      );
-    case 'ADJUSTMENT':
-      return (
-        <span className="split-txn-method__icon split-txn-method__icon--adjust" aria-hidden>
-          +/−
-        </span>
-      );
-    default:
-      return null;
-  }
-}
+// Same four directions (and payload values) as before; the common case first.
+const DIRECTIONS = [
+  { value: 'OWES_ME', label: 'They owe me' },
+  { value: 'I_OWE', label: 'I owe them' },
+  { value: 'SETTLEMENT', label: 'Settlement' },
+  { value: 'NOTHING_OUTSTANDING', label: 'Nothing outstanding' },
+];
 
-function formatInr(minor, minorPerMajor) {
-  const neg = minor < 0;
-  const abs = Math.abs(minor);
-  const whole = Math.floor(abs / minorPerMajor);
-  const frac = abs % minorPerMajor;
-  const fracStr = String(minorPerMajor + frac).slice(1);
-  const num = Number(`${whole}.${fracStr}`);
-  const formatted = new Intl.NumberFormat('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(num);
-  return `${neg ? '−' : ''}₹${formatted}`;
+const SPLIT_NOTE_MAX_LEN = 500;
+
+/** Money in minor units, with paise shown only when there are any. */
+function Money({ minor, minorPerMajor, tone = 'inherit' }) {
+  return (
+    <Amount
+      value={minor / minorPerMajor}
+      decimals={minor % minorPerMajor !== 0 ? 2 : 0}
+      tone={tone}
+    />
+  );
 }
 
 /**
+ * Split one transaction between friends. The maths (splitEngine), the checks
+ * (splitValidation) and the payload handed to `onApplySplit` are unchanged;
+ * this is only the form around them.
+ *
+ * Optional, for hosts that put the apply button in their own footer (the
+ * manage sheet does): `hideApplyButton`, `onStateChange({ canApply })` and a
+ * ref with `apply()`.
+ *
  * @param {object} props
  * @param {number} props.totalAmount Transaction total in major units (e.g. rupees).
  * @param {{ id: string, name: string }[]} props.participants All friends to pick from.
@@ -93,10 +75,10 @@ function formatInr(minor, minorPerMajor) {
  * @param {boolean} [props.applying]
  * @param {number} [props.minorPerMajor]
  * @param {(args: { results: import('../utils/splitTypes.ts').SplitResult[], direction: string, note?: string, allocationsByParticipant: Record<string, object[]>, groupByParticipant: Record<string, string> }) => void | Promise<void>} [props.onApplySplit]
+ * @param {boolean} [props.hideApplyButton]
+ * @param {(state: { canApply: boolean }) => void} [props.onStateChange]
  */
-const SPLIT_NOTE_MAX_LEN = 500;
-
-export default function SplitTransactionForm({
+const SplitTransactionForm = forwardRef(function SplitTransactionForm({
   totalAmount,
   participants,
   taggedFriendIds = [],
@@ -104,7 +86,9 @@ export default function SplitTransactionForm({
   applying = false,
   minorPerMajor = 100,
   onApplySplit,
-}) {
+  hideApplyButton = false,
+  onStateChange,
+}, ref) {
   const [method, setMethod] = useState('EQUAL');
   const [selectedIds, setSelectedIds] = useState([]);
   const [splitDirection, setSplitDirection] = useState(defaultDirection);
@@ -113,7 +97,6 @@ export default function SplitTransactionForm({
   const [shareById, setShareById] = useState({});
   const [adjAmountById, setAdjAmountById] = useState({});
   const [splitNote, setSplitNote] = useState('');
-  const [participantSearch, setParticipantSearch] = useState('');
   // Settlement only: per participant, which of their entries this payment pays
   // off and by how much (see SettlementAllocator), and whether that is valid.
   const [allocationDrafts, setAllocationDrafts] = useState({});
@@ -123,6 +106,9 @@ export default function SplitTransactionForm({
   const [groupByParticipant, setGroupByParticipant] = useState({});
   const [groupsByFriend, setGroupsByFriend] = useState({});
   const requestedGroups = useRef(new Set());
+  // After an apply: the people just split with. Once they all show up as
+  // tagged, the split went through and the form starts over.
+  const [pendingResetIds, setPendingResetIds] = useState(null);
 
   useEffect(() => {
     setSplitDirection(defaultDirection);
@@ -135,6 +121,7 @@ export default function SplitTransactionForm({
   }, [totalAmount, minorPerMajor]);
 
   const toggleFriend = useCallback((id) => {
+    setPendingResetIds(null);
     setSelectedIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
       return [...prev, id];
@@ -146,31 +133,9 @@ export default function SplitTransactionForm({
     return selectedIds.slice().sort((a, b) => order.indexOf(a) - order.indexOf(b));
   }, [selectedIds, participants]);
 
-  const filteredParticipants = useMemo(() => {
-    if (participants.length === 0) return [];
-    const q = participantSearch.trim().toLowerCase();
-    const selected = new Set(selectedIds);
-    if (!q) return participants;
-    // Only names that match the query. Selected people who don't match stay on chips only,
-    // so they don't jump to the top of the list and steal Enter / visual order.
-    const list = participants.filter((p) => p.name && p.name.toLowerCase().includes(q));
-    return list.slice().sort((a, b) => {
-      const aSel = selected.has(String(a.id));
-      const bSel = selected.has(String(b.id));
-      if (aSel !== bSel) return aSel ? -1 : 1;
-      return (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
-    });
-  }, [participants, participantSearch, selectedIds]);
-
-  const handleParticipantSearchKeyDown = useCallback(
-    (e) => {
-      if (e.key !== 'Enter') return;
-      e.preventDefault();
-      const first = filteredParticipants[0];
-      if (!first) return;
-      toggleFriend(String(first.id));
-    },
-    [filteredParticipants, toggleFriend],
+  const nameOf = useCallback(
+    (id) => participants.find((p) => String(p.id) === String(id))?.name || id,
+    [participants],
   );
 
   const results = useMemo(() => {
@@ -231,9 +196,14 @@ export default function SplitTransactionForm({
 
   const validation = useMemo(() => {
     const errors = [];
+    // Shown elsewhere (the summary line), so left out of the inline list.
+    const quiet = [];
     if (totalMinor == null) errors.push('Invalid transaction total.');
     const sel = validateSelectedParticipants(selectedIds);
-    if (!sel.valid) errors.push(...sel.errors);
+    if (!sel.valid) {
+      errors.push(...sel.errors);
+      if (selectedIds.length === 0) quiet.push(...sel.errors);
+    }
 
     const align = validateEntriesMatchParticipants(
       orderedSelected.map((participantId) => ({ participantId })),
@@ -244,7 +214,10 @@ export default function SplitTransactionForm({
     if (splitDirection !== 'NOTHING_OUTSTANDING') {
       if (totalMinor != null && results.length > 0) {
         const t = validateSplitTotal(results, totalMinor);
-        if (!t.valid) errors.push(...t.errors);
+        if (!t.valid) {
+          errors.push(...t.errors);
+          quiet.push(...t.errors);
+        }
       }
 
       if (method === 'PERCENT') {
@@ -318,7 +291,11 @@ export default function SplitTransactionForm({
       }
     }
 
-    return { valid: errors.length === 0, errors };
+    return {
+      valid: errors.length === 0,
+      errors,
+      shown: errors.filter((e) => !quiet.includes(e)),
+    };
   }, [
     totalMinor,
     selectedIds,
@@ -360,6 +337,8 @@ export default function SplitTransactionForm({
     ? []
     : orderedSelected.filter((id) => groupsByFriend[id]?.length > 0);
 
+  const canApply = validation.valid && Boolean(onApplySplit) && !applying;
+
   const handleApply = async () => {
     if (!validation.valid || !onApplySplit || applying) return;
     const note = splitNote.trim();
@@ -376,6 +355,7 @@ export default function SplitTransactionForm({
     for (const id of groupPickIds) {
       if (groupByParticipant[id]) groupPicks[id] = groupByParticipant[id];
     }
+    const appliedIds = orderedSelected.slice();
     await onApplySplit({
       results,
       direction: splitDirection,
@@ -383,262 +363,240 @@ export default function SplitTransactionForm({
       allocationsByParticipant,
       groupByParticipant: groupPicks,
     });
+    setPendingResetIds(appliedIds);
   };
 
+  // Start over once the split has landed, so the people just tagged don't
+  // stay selected and trip "Already tagged on this transaction".
+  useEffect(() => {
+    if (!pendingResetIds || pendingResetIds.length === 0) return;
+    if (!pendingResetIds.every((id) => taggedSet.has(String(id)))) return;
+    setSelectedIds([]);
+    setExactById({});
+    setPercentById({});
+    setShareById({});
+    setAdjAmountById({});
+    setSplitNote('');
+    setAllocationDrafts({});
+    setAllocationStatuses({});
+    setGroupByParticipant({});
+    setPendingResetIds(null);
+  }, [pendingResetIds, taggedSet]);
+
+  const applyRef = useRef(handleApply);
+  applyRef.current = handleApply;
+  useImperativeHandle(ref, () => ({ apply: () => applyRef.current() }), []);
+
+  useEffect(() => {
+    onStateChange?.({ canApply });
+  }, [canApply, onStateChange]);
+
+  const tracksAmounts = splitDirection !== 'NOTHING_OUTSTANDING';
+
+  const addOptions = useMemo(
+    () => participants
+      .filter((p) => !selectedIds.includes(String(p.id)))
+      .map((p) => {
+        const tagged = taggedSet.has(String(p.id));
+        return {
+          label: p.name,
+          value: String(p.id),
+          disabled: tagged,
+          description: tagged ? 'Already on this transaction' : undefined,
+        };
+      }),
+    [participants, selectedIds, taggedSet],
+  );
+
+  function amountInput(id, name) {
+    if (!tracksAmounts) return null;
+    if (method === 'EXACT') {
+      const raw = exactById[id] ?? '';
+      return (
+        <TextInput
+          className="txs-person__input"
+          inputMode="decimal"
+          prefix={<span className="txs-affix">₹</span>}
+          placeholder="0.00"
+          aria-label={`${name} amount`}
+          value={raw}
+          invalid={raw.trim() !== '' && roundCurrencyToMinor(raw, minorPerMajor) == null}
+          onChange={(e) => setExactById((prev) => ({ ...prev, [id]: e.target.value }))}
+        />
+      );
+    }
+    if (method === 'PERCENT') {
+      const raw = percentById[id] ?? '';
+      return (
+        <TextInput
+          className="txs-person__input"
+          inputMode="decimal"
+          suffix={<span className="txs-affix">%</span>}
+          placeholder="0"
+          aria-label={`${name} percent`}
+          value={raw}
+          invalid={raw.trim() !== '' && parsePercentStringToBps(raw) == null}
+          onChange={(e) => setPercentById((prev) => ({ ...prev, [id]: e.target.value }))}
+        />
+      );
+    }
+    if (method === 'SHARES') {
+      const raw = shareById[id] ?? '';
+      return (
+        <TextInput
+          className="txs-person__input"
+          inputMode="decimal"
+          placeholder="1"
+          aria-label={`${name} shares`}
+          value={raw}
+          invalid={raw.trim() !== '' && parseShareStringToWeight(raw) == null}
+          onChange={(e) => setShareById((prev) => ({ ...prev, [id]: e.target.value }))}
+        />
+      );
+    }
+    if (method === 'ADJUSTMENT') {
+      const raw = adjAmountById[id] ?? '';
+      return (
+        <TextInput
+          className="txs-person__input"
+          inputMode="decimal"
+          prefix={<span className="txs-affix">₹</span>}
+          placeholder="Auto"
+          aria-label={`${name} fixed amount; leave blank for auto`}
+          value={raw}
+          invalid={raw.trim() !== '' && roundCurrencyToMinor(raw, minorPerMajor) == null}
+          onChange={(e) => setAdjAmountById((prev) => ({ ...prev, [id]: e.target.value }))}
+        />
+      );
+    }
+    return null;
+  }
+
+  const balanced = deltaMinor === 0;
+  const hasPeople = orderedSelected.length > 0;
+
+  let summary;
+  if (!tracksAmounts) {
+    summary = 'No amount is tracked for these tags.';
+  } else if (totalMinor == null || !hasPeople) {
+    summary = 'Select participants to preview the split.';
+  } else {
+    summary = (
+      <>
+        <Money minor={sumResultsMinor} minorPerMajor={minorPerMajor} />
+        {' of '}
+        <Money minor={totalMinor} minorPerMajor={minorPerMajor} />
+        {' assigned'}
+        {deltaMinor > 0 && (
+          <>
+            {' · '}
+            <Money minor={deltaMinor} minorPerMajor={minorPerMajor} />
+            {' left to assign'}
+          </>
+        )}
+        {deltaMinor < 0 && (
+          <>
+            {' · over by '}
+            <Money minor={-deltaMinor} minorPerMajor={minorPerMajor} />
+          </>
+        )}
+      </>
+    );
+  }
+  const summaryOff = tracksAmounts && hasPeople && totalMinor != null && !balanced;
+
   return (
-    <div className="split-txn-form">
-      <h4 className="split-txn-form__title">Split transaction</h4>
-
-      <div className="split-txn-form__total">
-        <span>Total</span>
-        <strong>
-          {totalMinor != null ? formatInr(totalMinor, minorPerMajor) : '—'}
-        </strong>
-      </div>
-
-      <label className="split-txn-label">Who owes whom</label>
-      <select
-        className="split-txn-direction"
+    <div className="txs-form">
+      <FormControl
+        type="select"
+        label="Who owes whom"
+        options={DIRECTIONS}
         value={splitDirection}
         onChange={(e) => setSplitDirection(e.target.value)}
-        aria-label="Who owes whom for tags created from split"
-      >
-        <option value="NOTHING_OUTSTANDING">Nothing outstanding</option>
-        <option value="I_OWE">I owe them</option>
-        <option value="OWES_ME">They owe me</option>
-        <option value="SETTLEMENT">Settlement</option>
-      </select>
-
-      <label className="split-txn-label" htmlFor="split-txn-note">
-        Note <span className="split-txn-label-optional">(optional)</span>
-      </label>
-      <textarea
-        id="split-txn-note"
-        className="split-txn-note"
-        rows={3}
-        maxLength={SPLIT_NOTE_MAX_LEN}
-        placeholder="Same note on each tag created by this split"
-        value={splitNote}
-        onChange={(e) => setSplitNote(e.target.value)}
-        aria-describedby="split-txn-note-hint"
       />
-      <p id="split-txn-note-hint" className="split-txn-note-hint">
-        {splitNote.length}/{SPLIT_NOTE_MAX_LEN}
-      </p>
 
-      {splitDirection !== 'NOTHING_OUTSTANDING' && (
-      <div className="split-txn-method-row" role="tablist" aria-label="Split method">
-        {METHODS.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            className={`split-txn-method${method === m.id ? ' split-txn-method--active' : ''}`}
-            onClick={() => setMethod(m.id)}
-            role="tab"
-            aria-selected={method === m.id}
-            aria-label={m.label}
-            title={m.label}
-          >
-            <SplitMethodIcon methodId={m.id} />
-            <span className="split-txn-method__label">{m.label}</span>
-          </button>
-        ))}
-      </div>
-      )}
-
-      <label className="split-txn-label" htmlFor="split-txn-participant-search">
-        Participants
-      </label>
-      {participants.length > 0 && (
-        <div className="split-txn-participant-search-wrap">
-          <input
-            id="split-txn-participant-search"
-            type="search"
-            enterKeyHint="done"
-            className="split-txn-participant-search"
-            placeholder="Search by name…"
-            value={participantSearch}
-            onChange={(e) => setParticipantSearch(e.target.value)}
-            onKeyDown={handleParticipantSearchKeyDown}
-            autoComplete="off"
-            spellCheck={false}
-            aria-label="Filter friends by name"
+      {tracksAmounts && (
+        <div className="txs-field">
+          <span className="txs-label">Split method</span>
+          <TabButtons
+            fluid
+            aria-label="Split method"
+            options={METHODS}
+            value={method}
+            onChange={setMethod}
           />
-          {orderedSelected.length > 0 && (
-            <div className="split-txn-participant-chips" role="list" aria-label="Selected participants">
-              {orderedSelected.map((id) => {
-                const p = participants.find((x) => String(x.id) === id);
-                const label = p?.name || id;
-                return (
-                  <span key={id} className="split-txn-chip" role="listitem">
-                    <span className="split-txn-chip__name" title={label}>
-                      {label}
-                    </span>
-                    <button
-                      type="button"
-                      className="split-txn-chip__remove"
-                      aria-label={`Remove ${label}`}
-                      onClick={(ev) => {
-                        ev.stopPropagation();
-                        toggleFriend(id);
-                      }}
-                    >
-                      ×
-                    </button>
-                  </span>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-      <div className="split-txn-friend-list">
-        {participants.length === 0 ? (
-          <p className="empty">No friends yet.</p>
-        ) : filteredParticipants.length === 0 ? (
-          <p className="empty split-txn-friend-empty">
-            No friends match &ldquo;{participantSearch.trim()}&rdquo;. Try a different name or clear the
-            search.
-          </p>
-        ) : (
-          filteredParticipants.map((f) => {
-            const id = String(f.id);
-            const checked = selectedIds.includes(id);
-            return (
-              <button
-                key={id}
-                type="button"
-                className={`split-txn-friend-row settlement-link-item split-txn-friend-item${
-                  checked ? ' settlement-link-item--selected' : ''
-                }`}
-                onClick={() => toggleFriend(id)}
-                aria-pressed={checked}
-                aria-label={`${checked ? 'Deselect' : 'Select'} ${f.name}`}
-              >
-                <span className="split-txn-friend-name">{f.name}</span>
-              </button>
-            );
-          })
-        )}
-      </div>
-
-      {splitDirection !== 'NOTHING_OUTSTANDING' && method === 'EXACT' && orderedSelected.length > 0 && (
-        <div className="split-txn-grid">
-          {orderedSelected.map((id) => {
-            const p = participants.find((x) => String(x.id) === id);
-            return (
-              <label key={id} className="field split-txn-field">
-                <span>{p?.name || id}</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={exactById[id] ?? ''}
-                  onChange={(e) => setExactById((prev) => ({ ...prev, [id]: e.target.value }))}
-                  placeholder="0.00"
-                />
-              </label>
-            );
-          })}
         </div>
       )}
 
-      {splitDirection !== 'NOTHING_OUTSTANDING' && method === 'PERCENT' && orderedSelected.length > 0 && (
-        <div className="split-txn-grid">
-          {orderedSelected.map((id) => {
-            const p = participants.find((x) => String(x.id) === id);
-            return (
-              <label key={id} className="field split-txn-field">
-                <span>{p?.name || id}</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={percentById[id] ?? ''}
-                  onChange={(e) => setPercentById((prev) => ({ ...prev, [id]: e.target.value }))}
-                  placeholder="0"
-                />
-              </label>
-            );
-          })}
-        </div>
-      )}
-
-      {splitDirection !== 'NOTHING_OUTSTANDING' && method === 'SHARES' && orderedSelected.length > 0 && (
-        <div className="split-txn-grid">
-          {orderedSelected.map((id) => {
-            const p = participants.find((x) => String(x.id) === id);
-            return (
-              <label key={id} className="field split-txn-field">
-                <span>{p?.name || id}</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={shareById[id] ?? ''}
-                  onChange={(e) => setShareById((prev) => ({ ...prev, [id]: e.target.value }))}
-                  placeholder="1"
-                />
-              </label>
-            );
-          })}
-        </div>
-      )}
-
-      {splitDirection !== 'NOTHING_OUTSTANDING' && method === 'ADJUSTMENT' && orderedSelected.length > 0 && (
-        <div className="split-txn-grid">
-          {orderedSelected.map((id) => {
-            const p = participants.find((x) => String(x.id) === id);
-            return (
-              <label key={id} className="field split-txn-field">
-                <span>{p?.name || id}</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={adjAmountById[id] ?? ''}
-                  onChange={(e) =>
-                    setAdjAmountById((prev) => ({ ...prev, [id]: e.target.value }))
-                  }
-                  placeholder="Auto"
-                  aria-label={`${p?.name || id} fixed amount; leave blank for auto`}
-                />
-              </label>
-            );
-          })}
-        </div>
-      )}
-
-      {splitDirection !== 'NOTHING_OUTSTANDING' && orderedSelected.length > 0 && results.length > 0 && (
-        <div className="split-txn-results">
-          <p className="split-txn-results__title">Final split</p>
-          <ul className="split-txn-results__list">
-            {results.map((r) => {
-              const p = participants.find((x) => String(x.id) === r.participantId);
+      <div className="txs-field">
+        <span className="txs-label">Participants</span>
+        {hasPeople && (
+          <ul className="txs-people" aria-label="Selected participants">
+            {orderedSelected.map((id) => {
+              const name = nameOf(id);
+              const amountMinor = results.find((r) => r.participantId === id)?.amountMinor;
+              const showComputed = tracksAmounts && method !== 'EXACT' && amountMinor != null;
               return (
-                <li key={r.participantId}>
-                  <span>{p?.name || r.participantId}</span>
-                  <strong>{formatInr(r.amountMinor, minorPerMajor)}</strong>
+                <li key={id} className={`txs-person${tracksAmounts && method !== 'EQUAL' ? ' has-input' : ''}`}>
+                  <Avatar label={name} size="lg" aria-hidden />
+                  <span className="txs-person__text">
+                    <span className="txs-person__name truncate">{name}</span>
+                    <span className="txs-person__phrase truncate">
+                      {ledgerDirectionPhrase(splitDirection, name)}
+                    </span>
+                  </span>
+                  {amountInput(id, name)}
+                  {showComputed && (
+                    <span className="txs-person__amount">
+                      <Money minor={amountMinor} minorPerMajor={minorPerMajor} />
+                    </span>
+                  )}
+                  <Button
+                    variant="ghost"
+                    icon={X}
+                    label={`Remove ${name}`}
+                    className="txs-person__remove"
+                    onClick={() => toggleFriend(id)}
+                  />
                 </li>
               );
             })}
           </ul>
-        </div>
-      )}
+        )}
+        {participants.length === 0 ? (
+          <p className="txs-muted">No friends yet.</p>
+        ) : (
+          <Combobox
+            className="txs-add"
+            options={addOptions}
+            value={null}
+            onChange={(value) => value != null && toggleFriend(String(value))}
+            placeholder="Add person"
+            prefix={Plus}
+            searchPlaceholder="Search by name…"
+            emptyText="No friends match"
+          />
+        )}
+      </div>
 
-      {splitDirection === 'SETTLEMENT' && orderedSelected.length > 0 && (
-        <div className="split-txn-settlement-section">
-          <p className="split-txn-label">
-            Apply to their entries <span className="split-txn-label-optional">(optional — anything not applied stays on account)</span>
-          </p>
+      {splitDirection === 'SETTLEMENT' && hasPeople && (
+        <div className="txs-field">
+          <span className="txs-label">Apply to their entries</span>
+          <p className="txs-muted">Optional. Anything not applied stays on account.</p>
           {orderedSelected.map((id) => {
-            const p = participants.find((x) => String(x.id) === id);
+            const name = nameOf(id);
             const amountMinor = results.find((r) => r.participantId === id)?.amountMinor ?? 0;
             return (
-              <div key={id} className="split-txn-settlement-participant">
-                <p className="split-txn-settlement-participant__name">
-                  {p?.name || id} · {formatInr(amountMinor, minorPerMajor)}
+              <div key={id} className="txs-settle">
+                <p className="txs-settle__name">
+                  {name}
+                  {' · '}
+                  <Money minor={amountMinor} minorPerMajor={minorPerMajor} />
                 </p>
                 {amountMinor > 0 ? (
                   <SettlementAllocator
                     friendId={id}
-                    friendName={p?.name || id}
+                    friendName={name}
                     amountMinor={amountMinor}
                     draft={allocationDrafts[id] || {}}
                     onDraftChange={(draft) =>
@@ -649,7 +607,7 @@ export default function SplitTransactionForm({
                     }
                   />
                 ) : (
-                  <p className="empty">Give {p?.name || 'them'} an amount in the split first.</p>
+                  <p className="txs-muted">Give {name || 'them'} an amount in the split first.</p>
                 )}
               </div>
             );
@@ -658,72 +616,59 @@ export default function SplitTransactionForm({
       )}
 
       {groupPickIds.length > 0 && (
-        <div className="split-txn-settlement-section">
-          <p className="split-txn-label">
-            Add to a group <span className="split-txn-label-optional">(optional)</span>
-          </p>
-          {groupPickIds.map((id) => {
-            const p = participants.find((x) => String(x.id) === id);
-            return (
-              <label key={id} className="split-txn-settlement-participant">
-                <span className="split-txn-settlement-participant__name">{p?.name || id}</span>
-                <select
-                  value={groupByParticipant[id] || ''}
-                  onChange={(e) => setGroupByParticipant((prev) => ({ ...prev, [id]: e.target.value }))}
-                >
-                  <option value="">Not in a group</option>
-                  {groupsByFriend[id].map((g) => (
-                    <option key={g.id} value={String(g.id)}>
-                      {g.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            );
-          })}
+        <div className="txs-field">
+          <span className="txs-label">Add to a group</span>
+          <p className="txs-muted">Optional.</p>
+          <div className="txs-groups">
+            {groupPickIds.map((id) => (
+              <FormControl
+                key={id}
+                type="select"
+                label={nameOf(id)}
+                options={[
+                  { label: 'Not in a group', value: '' },
+                  ...groupsByFriend[id].map((g) => ({ label: g.title, value: String(g.id) })),
+                ]}
+                value={groupByParticipant[id] || ''}
+                onChange={(e) => setGroupByParticipant((prev) => ({ ...prev, [id]: e.target.value }))}
+              />
+            ))}
+          </div>
         </div>
       )}
 
-      <div
-        className={`split-txn-delta${
-          splitDirection === 'NOTHING_OUTSTANDING' || deltaMinor === 0 ? ' split-txn-delta--ok' : ''
-        }${deltaMinor < 0 ? ' split-txn-delta--over' : ''}`}
-      >
-        {splitDirection === 'NOTHING_OUTSTANDING' ? (
-          <span>No amount is tracked for these tags.</span>
-        ) : totalMinor == null || orderedSelected.length === 0 ? (
-          <span>Select participants to preview the split.</span>
-        ) : deltaMinor === 0 ? (
-          <span>Balanced</span>
-        ) : deltaMinor > 0 ? (
-          <span>
-            Left to assign: {formatInr(deltaMinor, minorPerMajor)}
-          </span>
-        ) : (
-          <span>
-            Over by {formatInr(-deltaMinor, minorPerMajor)}
-          </span>
-        )}
+      <FormControl
+        type="textarea"
+        label={<>Note <span className="txs-optional">(optional)</span></>}
+        rows={2}
+        maxLength={SPLIT_NOTE_MAX_LEN}
+        placeholder="Same note on each tag created by this split"
+        value={splitNote}
+        onChange={(e) => setSplitNote(e.target.value)}
+        description={`${splitNote.length}/${SPLIT_NOTE_MAX_LEN}`}
+      />
+
+      <div className="txs-check">
+        <p className={`txs-summary${summaryOff ? ' is-off' : ''}`} aria-live="polite">
+          {summary}
+        </p>
+        {hasPeople && validation.shown.length > 0 && <ErrorMessage message={validation.shown} />}
       </div>
 
-      {!validation.valid && validation.errors.length > 0 && (
-        <ul className="split-txn-errors">
-          {validation.errors.map((e) => (
-            <li key={e}>{e}</li>
-          ))}
-        </ul>
+      {!hideApplyButton && (
+        <div className="txs-actions">
+          <Button
+            variant="solid"
+            label="Add split"
+            loading={applying}
+            loadingText="Adding…"
+            disabled={!canApply}
+            onClick={() => void handleApply()}
+          />
+        </div>
       )}
-
-      <div className="split-txn-actions">
-        <button
-          type="button"
-          className="secondary"
-          disabled={!validation.valid || !onApplySplit || applying}
-          onClick={() => void handleApply()}
-        >
-          {applying ? 'Adding…' : 'Add split'}
-        </button>
-      </div>
     </div>
   );
-}
+});
+
+export default SplitTransactionForm;

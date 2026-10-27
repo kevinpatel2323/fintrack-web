@@ -167,3 +167,13 @@ svg {
 .no-transition *::after {
   transition: none !important;
 }
+
+/* iOS zooms the page when a focused field's text is under 16px. On phones,
+   text entry gets 16px so tapping a field never rescales the layout. */
+@media (max-width: 767.98px) and (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}

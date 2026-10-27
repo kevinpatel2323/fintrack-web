@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import Dialog from './ui/Dialog.jsx';
+import { Alert, Dialog, ErrorMessage, toast } from './ui';
 import SettlementAllocator from './SettlementAllocator.jsx';
-import { GhostBtn, PrimaryBtn } from './ui/primitives.jsx';
 import { saveSettlementAllocations } from '../services/friendsApi.js';
 import {
   draftFromCurrent,
@@ -33,6 +32,7 @@ export default function SettlementAllocationModal({ tag, friendName, onClose, on
     try {
       await saveSettlementAllocations(tag, draftToAllocations(draft));
       await onSaved?.();
+      toast.success(`Settlement of ${rupees(amountMinor)} updated`);
       onClose();
     } catch (e) {
       setError(e.message || 'Could not save.');
@@ -42,23 +42,21 @@ export default function SettlementAllocationModal({ tag, friendName, onClose, on
 
   return (
     <Dialog
-      overline="Apply settlement"
-      title={`${rupees(amountMinor)} with ${name}`}
+      size="2xl"
+      title="Apply settlement"
+      description={`${rupees(amountMinor)} with ${name}. Choose the entries it settles; anything not applied stays on account.`}
       onClose={onClose}
-      footer={
-        <>
-          <GhostBtn onClick={onClose}>Cancel</GhostBtn>
-          <PrimaryBtn onClick={save} disabled={saving || !status?.valid}>
-            {saving ? 'Saving…' : 'Save'}
-          </PrimaryBtn>
-        </>
-      }
+      actions={[
+        { label: 'Cancel' },
+        { label: 'Save', variant: 'solid', onClick: save, loading: saving, disabled: !status?.valid },
+      ]}
     >
       {tag.settlementLegacy && (
-        <p style={{ margin: 0, padding: '9px 11px', borderRadius: 10, background: 'var(--ft-warn-soft)', fontSize: 12.5, lineHeight: 1.5 }}>
-          This settlement was linked before amounts were recorded. Saving replaces those
-          links with the amounts below.
-        </p>
+        <Alert
+          theme="amber"
+          title="Linked before amounts were recorded"
+          description="Saving replaces those links with the amounts below."
+        />
       )}
       <SettlementAllocator
         friendId={tag.friendId}
@@ -70,7 +68,7 @@ export default function SettlementAllocationModal({ tag, friendName, onClose, on
         onStatusChange={setStatus}
         onDuesLoaded={(dues, refundable) => setDraft(draftFromCurrent(dues, refundable))}
       />
-      {error && <p style={{ margin: 0, color: 'var(--ft-spend)', fontSize: 12.5 }}>{error}</p>}
+      <ErrorMessage message={error} />
     </Dialog>
   );
 }

@@ -27,7 +27,7 @@ const OTHERS_KEY = '__others__';
 const COMPACT_SIZE = 128;
 
 /** Sorted, coloured slices with the tail grouped. Negative values have no arc and are dropped. */
-function buildSlices(data, maxSlices) {
+function buildSlices(data, maxSlices, othersLabel = 'Others') {
   const entries = data
     .map((datum) => ({ datum, value: toNumber(datum?.value) }))
     .filter((e) => e.value !== null && e.value >= 0)
@@ -50,12 +50,13 @@ function buildSlices(data, maxSlices) {
   const overflow = entries.slice(keep);
   if (overflow.length) {
     const value = overflow.reduce((sum, e) => sum + e.value, 0);
+    const label = typeof othersLabel === 'function' ? othersLabel(overflow.length) : othersLabel;
     slices.push({
       key: OTHERS_KEY,
-      label: 'Others',
+      label,
       value,
       color: 'var(--ui-chart-others)',
-      datum: { key: OTHERS_KEY, label: 'Others', value, items: overflow.map((e) => e.datum) },
+      datum: { key: OTHERS_KEY, label, value, items: overflow.map((e) => e.datum) },
     });
   }
   return slices;
@@ -73,6 +74,7 @@ function buildSlices(data, maxSlices) {
  * @param {string} [props.emptyText]
  * @param {false|true|'bottom'|'right'} [props.legend=false]
  * @param {number} [props.maxSlices=9]    "Others" counts as one of them.
+ * @param {string|((count:number) => string)} [props.othersLabel='Others']  Name of the folded slice.
  * @param {string} [props.ariaLabel]
  */
 export default function DonutChart({
@@ -86,11 +88,12 @@ export default function DonutChart({
   emptyText = 'No data to show',
   legend = false,
   maxSlices = 9,
+  othersLabel = 'Others',
   ariaLabel,
   className,
 }) {
   const items = Array.isArray(data) ? data : [];
-  const slices = useMemo(() => buildSlices(items, maxSlices), [items, maxSlices]);
+  const slices = useMemo(() => buildSlices(items, maxSlices, othersLabel), [items, maxSlices, othersLabel]);
   const [hidden, toggleSlice] = useHiddenKeys(slices.map((s) => s.key));
   const visible = slices.filter((s) => !hidden.includes(s.key));
   const arcs = donutLayout(visible.map((s) => s.value));

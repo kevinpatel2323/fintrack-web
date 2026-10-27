@@ -16,11 +16,7 @@ Fintrack looks and behaves like a Frappe app (Frappe CRM, Helpdesk, Gameplan): c
 
 Page and feature CSS goes in a file next to the component (`Transactions.css`). Use Espresso variables only, and prefix classes with the page name (`.txn-…`, `.people-…`). Don't use inline styles except for truly dynamic values (computed widths, a category colour).
 
-**Retired.** Don't import or use any of these in new code; they get deleted once the last screen moves off them:
-- `components/ui/primitives.jsx` and `components/ui/Icon.jsx`
-- the `--ft-*` variables
-- the `ft-*` classes
-- the old `legacy-adapter.css` classes (`button.primary`, `.ghost`, `.field`, …)
+The pre-redesign layer (`primitives.jsx`, `Icon.jsx`, the `--ft-*` variables and the global `button.primary` / `.field` styles) has been removed. Build everything from the kit and tokens above.
 
 ## Look
 

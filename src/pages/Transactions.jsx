@@ -1,153 +1,46 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  AlertTriangle, CreditCard, Inbox, Plus, RefreshCw, Search, SearchX, SlidersHorizontal, Upload,
+} from 'lucide-react';
 import CcLinkModal from '../components/CcLinkModal.jsx';
-import ConfirmDialog from '../components/ConfirmDialog.jsx';
-import { FriendTagCard } from '../components/FriendTagLedgerDisplay.jsx';
-import Portal from '../components/Portal.jsx';
-import SplitTransactionForm from '../components/SplitTransactionForm.jsx';
 import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
 import TransactionMobileList from '../components/TransactionMobileList.jsx';
 import TransactionTable, {
-  TXN_TABLE_COLSPAN,
-  TransactionTableRow,
-  buildTransactionColumns,
+  transactionColumnChoices,
+  useTransactionColumns,
 } from '../components/TransactionTable.jsx';
+import ManualTransactionDialog from '../components/transactions/ManualTransactionDialog.jsx';
+import TransactionColumnsMenu from '../components/transactions/TransactionColumnsMenu.jsx';
+import {
+  TYPE_OPTIONS,
+  TransactionFilterSheet,
+  TransactionPeriodFilter,
+  accountOptions,
+  useCategoryFilterOptions,
+} from '../components/transactions/TransactionFilters.jsx';
+import {
+  ccExpansionItems,
+  countActiveFilters,
+  formatRangeLabel,
+  getCurrentMonthRange,
+  getMonthOptions,
+  matchMonthValue,
+} from '../components/transactions/transactionListModel.js';
+import {
+  Alert, Amount, Badge, Button, Combobox, ConfirmDialog, EmptyState, ErrorMessage, KeyboardShortcut,
+  PageBody, PageHeader, Select, Skeleton, TabButtons, TextInput, toast,
+} from '../components/ui';
 import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
 import { useIsCompact } from '../styles/breakpoints.js';
-import {
-  Card, Num, Pill, PrimaryBtn, GhostBtn, Avatar, Overline, SectionTitle,
-} from '../components/ui/primitives.jsx';
-import {
-  IcSearch, IcPlus, IcCommand, IcRepeat, IcArrowDL, IcArrowUR, IcClose, IcCal,
-  IcCard,
-} from '../components/ui/Icon.jsx';
 import { getCcLink, unlinkCcBillPayment } from '../services/cardsApi.js';
 import { cardTxnStatus, toCardTableRow } from '../utils/cardTransactionRow.jsx';
-import { getLast30DayRange } from '../utils/dateUtils.js';
-import { inr } from '../utils/inr.js';
-import { friendTint, initialsOf } from '../utils/categoryColors.js';
 import {
   parseTransactionsListParams,
   patchTransactionsListParams,
 } from '../utils/transactionsListParams.js';
-import '../styles/transactions-redesign.css';
-
 import { API_BASE, apiFetch } from '../services/http.js';
-
-function formatDate(value) {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(d);
-}
-
-function formatDateShort(value) {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(d);
-}
-
-function formatTimeShort(value) {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
-}
-
-function getCurrentMonthRange() {
-  const now = new Date();
-  const start = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
-  const end = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0));
-  return { startIso: start.toISOString().slice(0, 10), endIso: end.toISOString().slice(0, 10) };
-}
-
-/** Last `count` months, newest first, as `{ value: 'YYYY-MM', label, startIso, endIso }`. */
-function getMonthOptions(count = 24) {
-  const now = new Date();
-  const out = [];
-  for (let i = 0; i < count; i += 1) {
-    const start = new Date(Date.UTC(now.getFullYear(), now.getMonth() - i, 1));
-    const end = new Date(Date.UTC(now.getFullYear(), now.getMonth() - i + 1, 0));
-    out.push({
-      value: start.toISOString().slice(0, 7),
-      label: new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(start),
-      startIso: start.toISOString().slice(0, 10),
-      endIso: end.toISOString().slice(0, 10),
-    });
-  }
-  return out;
-}
-
-/** `YYYY-MM` when the range covers exactly one calendar month, else '' (custom range). */
-function matchMonthValue(startIso, endIso, options) {
-  const hit = options.find((m) => m.startIso === startIso && m.endIso === endIso);
-  return hit ? hit.value : '';
-}
-
-function MobileTxnDateRange({ rangeStart, rangeEnd, onStartChange, onEndChange, onRangeChange }) {
-  return (
-    <div className="txn-mobile-range">
-      <div className="txn-mobile-range__dates">
-        <label className="ft-date-chip txn-mobile-range__chip">
-          <IcCal size={14} style={{ color: 'var(--ft-text-dim)', flexShrink: 0 }} />
-          <span className="txn-mobile-range__chip-copy">
-            <span className="txn-mobile-range__chip-label">From</span>
-            <span className="txn-mobile-range__chip-value">{formatDateShort(rangeStart)}</span>
-          </span>
-          <input
-            type="date"
-            value={rangeStart}
-            max={rangeEnd || undefined}
-            onChange={(e) => onStartChange(e.target.value)}
-            aria-label="Start date"
-          />
-        </label>
-        <label className="ft-date-chip txn-mobile-range__chip">
-          <IcCal size={14} style={{ color: 'var(--ft-text-dim)', flexShrink: 0 }} />
-          <span className="txn-mobile-range__chip-copy">
-            <span className="txn-mobile-range__chip-label">To</span>
-            <span className="txn-mobile-range__chip-value">{formatDateShort(rangeEnd)}</span>
-          </span>
-          <input
-            type="date"
-            value={rangeEnd}
-            min={rangeStart || undefined}
-            onChange={(e) => onEndChange(e.target.value)}
-            aria-label="End date"
-          />
-        </label>
-      </div>
-      <div className="txn-mobile-range__presets" role="group" aria-label="Date range presets">
-        <button
-          type="button"
-          className="txn-mobile-range__preset"
-          onClick={() => {
-            const { startIso, endIso } = getCurrentMonthRange();
-            onRangeChange(startIso, endIso);
-          }}
-        >
-          This month
-        </button>
-        <button
-          type="button"
-          className="txn-mobile-range__preset"
-          onClick={() => {
-            const { startIso, endIso } = getLast30DayRange();
-            onRangeChange(startIso, endIso);
-          }}
-        >
-          Last 30 days
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function getTodayIso() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
+import './Transactions.css';
 
 /** Maps a bank transaction into the shape TransactionTable renders. */
 function toTableRow(row, tagsByTransaction) {
@@ -164,10 +57,7 @@ function toTableRow(row, tagsByTransaction) {
     title: row.upiName || row.narration || '',
     subtitle: row.upiDescription || row.narration || row.upiBank,
     titleBadge: cc ? (
-      <span className="txn-row__cc-badge">
-        <IcCard size={11} />
-        CC bill{cc.cardLast4 ? ` · ····${cc.cardLast4}` : ''}
-      </span>
+      <Badge size="sm" prefix={CreditCard} label={`CC bill${cc.cardLast4 ? ` · •• ${cc.cardLast4}` : ''}`} />
     ) : null,
     category: row.category,
     categoryId: row.categoryId,
@@ -176,19 +66,39 @@ function toTableRow(row, tagsByTransaction) {
     amount: isIncome ? deposit : withdrawal,
     isIncome,
     expandable: Boolean(cc),
-    // Mobile-only extras.
+    // Phone-only extras.
     mobileSubtitle: row.upiDescription || row.upiBank || 'Manual',
-    metaTrailing: row.accountNumber ? `····${row.accountNumber.slice(-4)}` : null,
+    metaTrailing: row.accountNumber ? `•• ${row.accountNumber.slice(-4)}` : null,
   };
+}
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+function ListSkeleton() {
+  return (
+    <div className="txns-skeleton" aria-busy="true" aria-label="Loading transactions">
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <div className="txns-skeleton__row" key={i}>
+          <Skeleton width={32} height={32} />
+          <div className="txns-skeleton__text">
+            <Skeleton height={12} width={`${60 - i * 4}%`} />
+            <Skeleton height={10} width="35%" />
+          </div>
+          <Skeleton height={12} width={56} />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function Transactions() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsCompact();
 
   const monthRange = useMemo(() => getCurrentMonthRange(), []);
-  const { rangeStart, rangeEnd, filterTab, search } = useMemo(
+  const { rangeStart, rangeEnd, filterTab, search, categoryFilter } = useMemo(
     () => parseTransactionsListParams(searchParams, monthRange),
     [searchParams, monthRange],
   );
@@ -214,6 +124,10 @@ export default function Transactions() {
     setSearchParams((prev) => patchTransactionsListParams(prev, { search: value }), { replace: true });
   }, [setSearchParams]);
 
+  const setCategoryFilter = useCallback((value) => {
+    setSearchParams((prev) => patchTransactionsListParams(prev, { categoryFilter: value }), { replace: true });
+  }, [setSearchParams]);
+
   const openTransactionDetail = useCallback((row) => {
     const qs = searchParams.toString();
     navigate(`/transactions/${row.id}`, {
@@ -227,10 +141,8 @@ export default function Transactions() {
   const [friends, setFriends] = useState([]);
   const [friendsStatus, setFriendsStatus] = useState('');
   const [categories, setCategories] = useState([]);
-  const [categoryFilter, setCategoryFilter] = useState('');
   const [categoryStatusByTransaction, setCategoryStatusByTransaction] = useState({});
   const [rangeAccount, setRangeAccount] = useState('');
-  const [rangeResult, setRangeResult] = useState(null);
   const [rangeStatus, setRangeStatus] = useState('');
   const [transactions, setTransactions] = useState([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
@@ -244,21 +156,11 @@ export default function Transactions() {
   const [expandedCcIds, setExpandedCcIds] = useState(() => new Set());
   const [ccDetailByTransaction, setCcDetailByTransaction] = useState({});
   const [ccLinkModalRow, setCcLinkModalRow] = useState(null);
-  const [manualStatus, setManualStatus] = useState('');
-  const [manualSubmitting, setManualSubmitting] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
-  const [manualForm, setManualForm] = useState({
-    transactionDate: getTodayIso(),
-    narration: '',
-    type: 'PAID',
-    settlementDirection: 'WITHDRAWAL',
-    amount: '',
-    balance: '',
-    upiName: '',
-    upiDescription: '',
-    upiBank: '',
-  });
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
+  // The box keeps what was typed; the URL keeps it trimmed.
+  const [searchDraft, setSearchDraft] = useState(search);
   const [searchFocused, setSearchFocused] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -266,16 +168,29 @@ export default function Transactions() {
   const [sortDir, setSortDir] = useState('desc');
 
   const searchInputRef = useRef(null);
-
-  const isMac = useMemo(
-    () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent),
-    [],
-  );
-  const showSearchShortcut = !searchFocused && !search;
+  const columnSettings = useTransactionColumns('fintrack.ledger.bank');
+  const categoryFilterOptions = useCategoryFilterOptions(categories);
 
   const canFetchRange = useMemo(() => rangeStart && rangeEnd, [rangeStart, rangeEnd]);
 
-  // -- Effects (preserved from original) --
+  useEffect(() => {
+    setSearchDraft((draft) => (draft.trim() === search ? draft : search));
+  }, [search]);
+
+  // "New transaction" elsewhere (the dashboard) lands here with router state.
+  // Open the form once, then drop the state so a refresh doesn't reopen it.
+  useEffect(() => {
+    if (!location.state?.openNewTransaction) return;
+    setManualOpen(true);
+    navigate(location.pathname + location.search, { replace: true, state: null });
+  }, [location.state, location.pathname, location.search, navigate]);
+
+  // A narrower filter can leave the current page past the end.
+  useEffect(() => {
+    setPage(1);
+  }, [filterTab, search, categoryFilter]);
+
+  // -- Effects --
   useEffect(() => {
     (async () => {
       setAccountsStatus('');
@@ -321,6 +236,7 @@ export default function Transactions() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rangeStart, rangeEnd, rangeAccount]);
 
+  // ⌘K / Ctrl+K focuses the search box.
   useEffect(() => {
     if (isMobile) return undefined;
     function onKeyDown(e) {
@@ -338,7 +254,6 @@ export default function Transactions() {
     if (event) event.preventDefault();
     if (!canFetchRange) return;
     setRangeStatus('Loading...');
-    setRangeResult(null);
     setTransactionsLoading(true);
     try {
       const accountQuery = rangeAccount ? `&accountNumber=${encodeURIComponent(rangeAccount)}` : '';
@@ -348,11 +263,10 @@ export default function Transactions() {
       if (!res.ok) throw new Error('Failed to fetch transactions');
       const data = await res.json();
       const rows = data.data || [];
-      setRangeResult(data);
       setTransactions(rows);
       setFriendTagsSheetId(null);
-      // The /range payload now carries each transaction's friend tags inline,
-      // so seed the Tags column from it instead of fetching them per row.
+      // The /range payload carries each transaction's friend tags inline, so
+      // seed the People column from it instead of fetching them per row.
       const tagsByTx = {};
       for (const tx of rows) tagsByTx[tx.id] = tx.friendTags || [];
       setTagsByTransaction(tagsByTx);
@@ -376,6 +290,8 @@ export default function Transactions() {
   function closeFriendTagsSheet() {
     setFriendTagsSheetId(null);
   }
+
+  const closeConfirm = useCallback(() => setConfirmState((p) => ({ ...p, open: false })), []);
 
   // ── CC bill payment nesting ─────────────────────────────────────────────
   // The nested card transactions are managed exactly like top-level rows;
@@ -467,7 +383,6 @@ export default function Transactions() {
         'The covered card transactions go back to unpaid, and this debit counts as ordinary spend again.',
       confirmLabel: 'Unlink',
       onConfirm: async () => {
-        setConfirmState({ open: false });
         try {
           await unlinkCcBillPayment(transactionId);
           setTransactions((prev) =>
@@ -483,13 +398,15 @@ export default function Transactions() {
             next.delete(transactionId);
             return next;
           });
+          toast.success('Card bill unlinked');
         } catch (error) {
-          setRangeStatus(error.message || 'Failed to unlink');
+          toast.error(error.message || 'Failed to unlink');
         }
+        closeConfirm();
       },
-      onCancel: () => setConfirmState({ open: false }),
+      onCancel: closeConfirm,
     });
-  }, []);
+  }, [closeConfirm]);
 
   async function fetchTags(transactionId) {
     setTagsStatusByTransaction((p) => ({ ...p, [transactionId]: 'Loading tags...' }));
@@ -550,10 +467,10 @@ export default function Transactions() {
       message: 'This will remove the friend tag from this transaction.',
       confirmLabel: 'Remove',
       onConfirm: async () => {
-        setConfirmState({ open: false });
         await runDeleteTag(transactionId, tagId);
+        closeConfirm();
       },
-      onCancel: () => setConfirmState({ open: false }),
+      onCancel: closeConfirm,
     });
   }
   async function runDeleteTag(transactionId, tagId) {
@@ -568,55 +485,24 @@ export default function Transactions() {
     }
   }
 
-  async function handleManualSubmit(event) {
-    event.preventDefault();
-    setManualStatus('');
-    const narration = manualForm.narration.trim();
-    const amountValue = Number(manualForm.amount);
-    const balanceValue = manualForm.balance === '' ? undefined : Number(manualForm.balance);
-
-    if (!manualForm.transactionDate) return setManualStatus('Select a transaction date.');
-    if (!narration) return setManualStatus('Enter a narration.');
-    if (!manualForm.amount || Number.isNaN(amountValue) || amountValue <= 0) return setManualStatus('Enter a valid amount.');
-    if (manualForm.type === 'SETTLEMENT' && !manualForm.settlementDirection) return setManualStatus('Select settlement direction.');
-    if (balanceValue !== undefined && (Number.isNaN(balanceValue) || balanceValue < 0)) return setManualStatus('Balance must be zero or positive.');
-
-    setManualSubmitting(true);
-    try {
-      const res = await apiFetch(`${API_BASE}/transactions/manual`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transactionDate: manualForm.transactionDate,
-          narration,
-          type: manualForm.type,
-          settlementDirection: manualForm.type === 'SETTLEMENT' ? manualForm.settlementDirection : undefined,
-          amount: amountValue,
-          balance: balanceValue,
-          upiName: manualForm.upiName.trim() || undefined,
-          upiDescription: manualForm.upiDescription.trim() || undefined,
-          upiBank: manualForm.upiBank.trim() || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to add manual transaction.');
-      setManualStatus('Manual transaction added.');
-      setManualForm((p) => ({
-        ...p,
-        narration: '', type: 'PAID', settlementDirection: 'WITHDRAWAL',
-        amount: '', balance: '', upiName: '', upiDescription: '', upiBank: '',
-      }));
-      setManualOpen(false);
-      await handleRangeFetch();
-    } catch (error) {
-      setManualStatus(error.message || 'Failed to add manual transaction.');
-    } finally {
-      setManualSubmitting(false);
-    }
+  /** POST /transactions/manual. Throws so the form stays open with the message. */
+  async function submitManual(payload) {
+    const res = await apiFetch(`${API_BASE}/transactions/manual`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to add manual transaction.');
+    setManualOpen(false);
+    toast.success('Transaction added');
+    await handleRangeFetch();
   }
 
+  // `notify`: inline pickers in the list toast a failure themselves; the
+  // manage sheet turns the status string into its own toast.
   const assignCategory = useCallback(
-    async (transactionId, categoryId) => {
+    async (transactionId, categoryId, { notify = false } = {}) => {
       setCategoryStatusByTransaction((p) => ({ ...p, [transactionId]: 'Saving…' }));
       try {
         if (categoryId) {
@@ -635,9 +521,15 @@ export default function Transactions() {
         setCategoryStatusByTransaction((p) => ({ ...p, [transactionId]: '' }));
       } catch {
         setCategoryStatusByTransaction((p) => ({ ...p, [transactionId]: 'Failed to save' }));
+        if (notify) toast.error('Could not save the category');
       }
     },
     [categories],
+  );
+
+  const assignCategoryInline = useCallback(
+    (transactionId, categoryId) => assignCategory(transactionId, categoryId, { notify: true }),
+    [assignCategory],
   );
 
   function handleSort(col) {
@@ -649,6 +541,37 @@ export default function Transactions() {
     }
     setPage(1);
   }
+
+  // -- Filters --
+  const clearListFilters = useCallback(() => {
+    setSearchParams(
+      (prev) => patchTransactionsListParams(prev, { filterTab: 'all', search: '', categoryFilter: '' }),
+      { replace: true },
+    );
+    setSearchDraft('');
+    setRangeAccount('');
+  }, [setSearchParams]);
+
+  const resetSheetFilters = useCallback(() => {
+    setSearchParams(
+      (prev) => patchTransactionsListParams(prev, {
+        filterTab: 'all', rangeStart: '', rangeEnd: '', categoryFilter: '',
+      }),
+      { replace: true },
+    );
+    setRangeAccount('');
+  }, [setSearchParams]);
+
+  const hasClientFilters = filterTab !== 'all' || Boolean(search.trim()) || Boolean(categoryFilter);
+  const hasListFilters = hasClientFilters || Boolean(rangeAccount);
+  const activeSheetFilters = countActiveFilters({
+    filterTab,
+    account: rangeAccount,
+    category: categoryFilter,
+    rangeStart,
+    rangeEnd,
+    defaultRange: monthRange,
+  });
 
   // -- Derived --
   const filteredTransactions = useMemo(() => {
@@ -703,18 +626,30 @@ export default function Transactions() {
     return sorted;
   }, [filteredTransactions, sortCol, sortDir, tagsByTransaction]);
 
+  // Totals describe what the list shows: the whole period, or the filtered rows.
+  const summaryRows = hasClientFilters ? filteredTransactions : transactions;
   const totalSpent = useMemo(
-    () => transactions.reduce((s, t) => s + (Number(t.withdrawal) || 0), 0),
-    [transactions],
+    () => summaryRows.reduce((s, t) => s + (Number(t.withdrawal) || 0), 0),
+    [summaryRows],
   );
   const totalEarned = useMemo(
-    () => transactions.reduce((s, t) => s + (Number(t.deposit) || 0), 0),
-    [transactions],
+    () => summaryRows.reduce((s, t) => s + (Number(t.deposit) || 0), 0),
+    [summaryRows],
   );
 
   const tableRows = useMemo(
     () => sortedTransactions.map((row) => toTableRow(row, tagsByTransaction)),
     [sortedTransactions, tagsByTransaction],
+  );
+
+  const { tagsByTransaction: cardTags, assignCategory: assignCardCategory, openManage: openCardManage } = cardManager;
+  const ccExpansionRows = useCallback(
+    (row) => ccExpansionItems(row.id, ccDetailByTransaction[row.id], (t) => toCardTableRow(t, cardTags)),
+    [ccDetailByTransaction, cardTags],
+  );
+  const ccExpansionHandlers = useMemo(
+    () => ({ onAssignCategory: assignCardCategory, onOpenManage: openCardManage }),
+    [assignCardCategory, openCardManage],
   );
 
   const friendTagsSheetRow = useMemo(
@@ -728,12 +663,64 @@ export default function Transactions() {
     }
   }, [transactions, friendTagsSheetId]);
 
-  const sheet = friendTagsSheetRow && (
+  // -- Copy --
+  const periodLabel = selectedMonth
+    ? monthOptions.find((m) => m.value === selectedMonth)?.label
+    : null;
+  const loadError = rangeStatus && rangeStatus !== 'Loading...' ? rangeStatus : '';
+  const countLabel = hasClientFilters
+    ? `${filteredTransactions.length} of ${plural(transactions.length, 'transaction')}`
+    : plural(transactions.length, 'transaction');
+
+  const summaryContent = transactionsLoading ? null : (
+    <>
+      {countLabel}
+      {' · '}
+      <Amount value={totalSpent} sign="never" tone="inherit" /> spent
+      {' · '}
+      <Amount value={totalEarned} sign="never" tone="inherit" /> earned
+    </>
+  );
+
+  let emptyState;
+  if (loadError) {
+    emptyState = (
+      <EmptyState
+        icon={AlertTriangle}
+        title="Couldn't load transactions"
+        description={loadError}
+        action={<Button label="Try again" iconLeft={RefreshCw} onClick={() => handleRangeFetch()} />}
+      />
+    );
+  } else if (hasListFilters) {
+    emptyState = (
+      <EmptyState
+        icon={SearchX}
+        title="No transactions match these filters"
+        description={periodLabel
+          ? `Nothing in ${periodLabel} matches the search and filters.`
+          : 'Nothing in these dates matches the search and filters.'}
+        action={<Button label="Clear filters" onClick={clearListFilters} />}
+      />
+    );
+  } else {
+    emptyState = (
+      <EmptyState
+        icon={Inbox}
+        title={periodLabel ? `No transactions in ${periodLabel}` : 'No transactions in these dates'}
+        description="Import a statement or add one by hand."
+        action={<Button iconLeft={Upload} label="Import statement" to="/import" />}
+      />
+    );
+  }
+
+  // -- Overlays --
+  const manageSheet = friendTagsSheetRow && (
     <TransactionManageSheet
       transaction={friendTagsSheetRow}
       date={friendTagsSheetRow.transactionDate}
       metaLine={[friendTagsSheetRow.accountNumber, friendTagsSheetRow.isManual ? 'Manual' : null]
-        .filter(Boolean).join(' \u00b7 ')}
+        .filter(Boolean).join(' · ')}
       amountIn={Number(friendTagsSheetRow.deposit || 0)}
       amountOut={Number(friendTagsSheetRow.withdrawal || 0)}
       categories={categories}
@@ -741,13 +728,13 @@ export default function Transactions() {
       onAssignCategory={(value) => assignCategory(friendTagsSheetRow.id, value)}
       categoryStatus={categoryStatusByTransaction[friendTagsSheetRow.id]}
       actions={
-        /* Only a debit can be a card bill payment \u2014 the API enforces this too. */
+        /* Only a debit can be a card bill payment — the API enforces this too. */
         Number(friendTagsSheetRow.withdrawal || 0) > 0
         && !(Number(friendTagsSheetRow.deposit || 0) > 0)
           ? (friendTagsSheetRow.ccBillPayment ? (
-            <GhostBtn onClick={() => unlinkCc(friendTagsSheetRow.id)}>Unlink card bill</GhostBtn>
+            <Button label="Unlink card bill" onClick={() => unlinkCc(friendTagsSheetRow.id)} />
           ) : (
-            <GhostBtn onClick={() => setCcLinkModalRow(friendTagsSheetRow)}>Link to card bill</GhostBtn>
+            <Button iconLeft={CreditCard} label="Link to card bill" onClick={() => setCcLinkModalRow(friendTagsSheetRow)} />
           ))
           : null
       }
@@ -762,86 +749,7 @@ export default function Transactions() {
     />
   );
 
-  const manualSheet = manualOpen && (
-    <Portal>
-      <div
-        className="calendar-sheet-backdrop"
-        onClick={(e) => e.target === e.currentTarget && setManualOpen(false)}
-      >
-        <div className="calendar-sheet" role="dialog" aria-modal="true">
-          <div className="ft-sheet__grabber" />
-          <h3 className="ft-sheet__title">Add manual transaction</h3>
-          <p className="ft-sheet__sub">Manual entries are posted to the Wallet account.</p>
-          <form onSubmit={handleManualSubmit} className="form-grid" style={{ marginTop: 4 }}>
-            <label className="field"><span>Date</span>
-              <input type="date" value={manualForm.transactionDate}
-                onChange={(e) => setManualForm((p) => ({ ...p, transactionDate: e.target.value }))} />
-            </label>
-            <label className="field"><span>Type</span>
-              <select value={manualForm.type}
-                onChange={(e) => setManualForm((p) => ({ ...p, type: e.target.value }))}>
-                <option value="PAID">Paid</option>
-                <option value="RECEIVED">Received</option>
-                <option value="I_OWE">I owe</option>
-                <option value="SETTLEMENT">Settlement</option>
-              </select>
-            </label>
-            {manualForm.type === 'SETTLEMENT' && (
-              <label className="field"><span>Settlement direction</span>
-                <select value={manualForm.settlementDirection}
-                  onChange={(e) => setManualForm((p) => ({ ...p, settlementDirection: e.target.value }))}>
-                  <option value="WITHDRAWAL">Withdrawal</option>
-                  <option value="DEPOSIT">Deposit</option>
-                </select>
-              </label>
-            )}
-            <label className="field"><span>Amount (₹)</span>
-              <input type="number" min="0" step="0.01" placeholder="0.00"
-                value={manualForm.amount}
-                onChange={(e) => setManualForm((p) => ({ ...p, amount: e.target.value }))} />
-            </label>
-            <label className="field" style={{ gridColumn: '1 / -1' }}><span>Narration</span>
-              <input type="text" placeholder="What was this for?" value={manualForm.narration}
-                onChange={(e) => setManualForm((p) => ({ ...p, narration: e.target.value }))} />
-            </label>
-            <label className="field"><span>Balance (optional)</span>
-              <input type="number" min="0" step="0.01" placeholder="0.00" value={manualForm.balance}
-                onChange={(e) => setManualForm((p) => ({ ...p, balance: e.target.value }))} />
-            </label>
-            <label className="field"><span>UPI name</span>
-              <input type="text" placeholder="Optional" value={manualForm.upiName}
-                onChange={(e) => setManualForm((p) => ({ ...p, upiName: e.target.value }))} />
-            </label>
-            <label className="field"><span>UPI description</span>
-              <input type="text" placeholder="Optional" value={manualForm.upiDescription}
-                onChange={(e) => setManualForm((p) => ({ ...p, upiDescription: e.target.value }))} />
-            </label>
-            <label className="field"><span>UPI bank</span>
-              <input type="text" placeholder="Optional" value={manualForm.upiBank}
-                onChange={(e) => setManualForm((p) => ({ ...p, upiBank: e.target.value }))} />
-            </label>
-            <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 6 }}>
-              <GhostBtn onClick={() => setManualOpen(false)}>Cancel</GhostBtn>
-              <PrimaryBtn type="submit" disabled={manualSubmitting}>
-                {manualSubmitting ? 'Adding…' : 'Save transaction'}
-              </PrimaryBtn>
-            </div>
-            {manualStatus && <p className="status" style={{ gridColumn: '1 / -1' }}>{manualStatus}</p>}
-          </form>
-        </div>
-      </div>
-    </Portal>
-  );
-
-  const ccModal = ccLinkModalRow && (
-    <CcLinkModal
-      transaction={ccLinkModalRow}
-      onClose={() => setCcLinkModalRow(null)}
-      onLinked={(result) => handleCcLinked(ccLinkModalRow.id, result)}
-    />
-  );
-
-  // Manage sheet for a nested card transaction (opened from a CC child row).
+  // Manage sheet for a nested card transaction (opened from a card bill's row).
   const cardSheet = cardManageRow && (
     <TransactionManageSheet
       {...cardManager.manageSheetPropsFor(cardManageRow)}
@@ -850,69 +758,115 @@ export default function Transactions() {
     />
   );
 
-  // ===== MOBILE =====
+  const overlays = (
+    <>
+      <ConfirmDialog
+        open={Boolean(confirmState.open)}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
+        onConfirm={confirmState.onConfirm}
+        onCancel={confirmState.onCancel || closeConfirm}
+      />
+      {manageSheet}
+      {cardSheet}
+      {ccLinkModalRow && (
+        <CcLinkModal
+          transaction={ccLinkModalRow}
+          onClose={() => setCcLinkModalRow(null)}
+          onLinked={(result) => handleCcLinked(ccLinkModalRow.id, result)}
+        />
+      )}
+      <ManualTransactionDialog open={manualOpen} onClose={() => setManualOpen(false)} onSubmit={submitManual} />
+    </>
+  );
+
+  const pageErrors = [accountsStatus, friendsStatus].filter(Boolean);
+  const newTransaction = () => setManualOpen(true);
+
+  // ===== PHONE =====
   if (isMobile) {
     return (
       <>
-        <ConfirmDialog {...confirmState} />
-        {sheet}
-        {cardSheet}
-        {ccModal}
-        {manualSheet}
-        <header className="ft-mobile__header">
-          <h1 className="ft-mobile__title">Activity</h1>
-          <button className="ft-mobile__icon-btn" onClick={() => setManualOpen(true)} aria-label="Add transaction">
-            <IcPlus size={20} />
-          </button>
-        </header>
-        <main className="ft-mobile__content">
-          <div className="txn-search">
-            <IcSearch size={16} />
-            <input
+        <PageHeader
+          title="Activity"
+          mobileActions={<Button variant="ghost" size="md" icon={Plus} label="New transaction" onClick={newTransaction} />}
+        />
+        <PageBody className="txns-page">
+          <div className="txns-mobile-toolbar">
+            <TextInput
+              className="txns-search"
               type="search"
+              prefix={Search}
               placeholder="Search transactions"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search transactions"
+              value={searchDraft}
+              onChange={(e) => {
+                setSearchDraft(e.target.value);
+                setSearch(e.target.value);
+              }}
+            />
+            <Button
+              iconLeft={SlidersHorizontal}
+              iconRight={activeSheetFilters > 0
+                ? <Badge variant="solid" size="sm" label={activeSheetFilters} aria-hidden="true" />
+                : undefined}
+              label="Filter"
+              aria-label={activeSheetFilters ? `Filter, ${activeSheetFilters} active` : 'Filter'}
+              aria-haspopup="dialog"
+              active={activeSheetFilters > 0}
+              onClick={() => setFiltersOpen(true)}
             />
           </div>
-          <MobileTxnDateRange
-            rangeStart={rangeStart}
-            rangeEnd={rangeEnd}
-            onRangeChange={applyDateRange}
-            onStartChange={(start) => applyDateRange(start, rangeEnd)}
-            onEndChange={(end) => applyDateRange(rangeStart, end)}
-          />
-          {rangeStatus && <p className="status">{rangeStatus}</p>}
-          <div className="txn-pills">
-            <Pill active={filterTab === 'all'} onClick={() => setFilterTab('all')}>All</Pill>
-            <Pill active={filterTab === 'spent'} onClick={() => setFilterTab('spent')}>Spent</Pill>
-            <Pill active={filterTab === 'earned'} onClick={() => setFilterTab('earned')}>Earned</Pill>
-          </div>
-          <div className="txn-mobile-stats">
-            <div>
-              <Overline>Spent</Overline>
-              <Num size={20} weight={600} color="var(--ft-spend)">{inr(totalSpent)}</Num>
-            </div>
-            <div>
-              <Overline>Earned</Overline>
-              <Num size={20} weight={600} color="var(--ft-income)">{inr(totalEarned)}</Num>
-            </div>
-          </div>
-          <Card pad={14}>
-            {transactionsLoading ? (
-              <p className="status">Loading…</p>
-            ) : filteredTransactions.length === 0 ? (
-              <p className="empty">No transactions in this range.</p>
-            ) : (
-              <TransactionMobileList
-                rows={tableRows}
-                onOpenDetail={openTransactionDetail}
-                categories={categories}
-                onAssignCategory={assignCategory}
-              />
-            )}
-          </Card>
-        </main>
+
+          <p className="txns-summary txns-summary--mobile">
+            {periodLabel || formatRangeLabel(rangeStart, rangeEnd)}
+            {summaryContent && <> · {summaryContent}</>}
+          </p>
+
+          {pageErrors.length > 0 && <ErrorMessage message={pageErrors} />}
+          {loadError && transactions.length > 0 && (
+            <Alert
+              theme="red"
+              title="Couldn't refresh transactions"
+              description={loadError}
+              primaryAction={{ label: 'Try again', onClick: () => handleRangeFetch() }}
+            />
+          )}
+
+          {transactionsLoading ? (
+            <ListSkeleton />
+          ) : tableRows.length === 0 ? (
+            emptyState
+          ) : (
+            <TransactionMobileList
+              rows={tableRows}
+              onOpenDetail={openTransactionDetail}
+              categories={categories}
+              onAssignCategory={assignCategoryInline}
+            />
+          )}
+        </PageBody>
+
+        <TransactionFilterSheet
+          open={filtersOpen}
+          onClose={() => setFiltersOpen(false)}
+          activeCount={activeSheetFilters}
+          onReset={resetSheetFilters}
+          filterTab={filterTab}
+          onFilterTabChange={setFilterTab}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          onRangeChange={applyDateRange}
+          monthOptions={monthOptions}
+          accounts={accounts}
+          account={rangeAccount}
+          onAccountChange={setRangeAccount}
+          categoryOptions={categoryFilterOptions}
+          category={categoryFilter}
+          onCategoryChange={setCategoryFilter}
+        />
+        {overlays}
       </>
     );
   }
@@ -920,107 +874,90 @@ export default function Transactions() {
   // ===== DESKTOP =====
   return (
     <>
-      <ConfirmDialog {...confirmState} />
-      {sheet}
-      {cardSheet}
-      {ccModal}
-      {manualSheet}
-
-      <header className="ft-page-header">
-        <div>
-          <p className="ft-page-header__sub">{rangeResult ? `${rangeResult.count || transactions.length} transactions` : 'Filterable ledger'}</p>
-          <h1 className="ft-page-header__title">Transactions</h1>
-        </div>
-        <div className="ft-page-header__actions">
-          <GhostBtn onClick={() => handleRangeFetch()}>Refresh</GhostBtn>
-          <PrimaryBtn onClick={() => setManualOpen(true)}>
-            <IcPlus size={16} /> New transaction
-          </PrimaryBtn>
-        </div>
-      </header>
-
-      <Card pad={18} style={{ marginBottom: 16 }}>
-        <div className="txn-toolbar">
-          <div className="txn-search txn-search--wide">
-            <IcSearch size={16} />
-            <input
+      <PageHeader
+        title="Transactions"
+        actions={(
+          <>
+            <Button iconLeft={Upload} label="Import" to="/import" />
+            <Button variant="solid" iconLeft={Plus} label="New transaction" onClick={newTransaction} />
+          </>
+        )}
+      />
+      <PageBody className="txns-page">
+        <div className="txns-toolbar">
+          <div className="txns-toolbar__filters">
+            <TextInput
               ref={searchInputRef}
+              className="txns-search"
               type="search"
-              placeholder="Search by description, party, category…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              prefix={Search}
+              suffix={!searchFocused && !searchDraft ? <KeyboardShortcut combo="Mod+K" /> : null}
+              placeholder="Search transactions"
+              aria-label="Search transactions"
+              value={searchDraft}
+              onChange={(e) => {
+                setSearchDraft(e.target.value);
+                setSearch(e.target.value);
+              }}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
             />
-            <button
-              type="button"
-              className={`txn-search__keys${showSearchShortcut ? '' : ' is-hidden'}`}
-              onClick={() => searchInputRef.current?.focus()}
-              tabIndex={-1}
-              aria-label={isMac ? 'Focus search (Command K)' : 'Focus search (Control K)'}
-            >
-              <kbd className="txn-key">{isMac ? <IcCommand size={10} /> : 'Ctrl'}</kbd>
-              <kbd className="txn-key">K</kbd>
-            </button>
+            <TabButtons aria-label="Type" options={TYPE_OPTIONS} value={filterTab} onChange={setFilterTab} />
+            <Select
+              aria-label="Account"
+              className="txns-filter"
+              options={accountOptions(accounts)}
+              value={rangeAccount}
+              onChange={(e) => setRangeAccount(e.target.value)}
+            />
+            <Combobox
+              aria-label="Category"
+              className="txns-filter"
+              options={categoryFilterOptions}
+              value={categoryFilter || null}
+              onChange={(value) => setCategoryFilter(value || '')}
+              placeholder="All categories"
+              searchPlaceholder="Search categories"
+              clearable
+            />
+            <TransactionPeriodFilter
+              rangeStart={rangeStart}
+              rangeEnd={rangeEnd}
+              onChange={applyDateRange}
+              monthOptions={monthOptions}
+            />
           </div>
-          <div className="txn-pills">
-            <Pill active={filterTab === 'all'} onClick={() => setFilterTab('all')}>All</Pill>
-            <Pill active={filterTab === 'spent'} onClick={() => setFilterTab('spent')}>Spent</Pill>
-            <Pill active={filterTab === 'earned'} onClick={() => setFilterTab('earned')}>Earned</Pill>
-          </div>
-          <div style={{ display: 'flex', gap: 10, marginLeft: 'auto', alignItems: 'center' }}>
-            <select value={rangeAccount} onChange={(e) => setRangeAccount(e.target.value)}>
-              <option value="">All accounts</option>
-              {accounts.map((a) => <option key={a} value={a}>{a}</option>)}
-            </select>
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-              <option value="">All categories</option>
-              <option value="__none__">Uncategorised</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div className="txn-range-row">
-          <label className="txn-field">
-            <span>Month</span>
-            <select
-              value={selectedMonth}
-              onChange={(e) => {
-                const m = monthOptions.find((o) => o.value === e.target.value);
-                if (m) applyDateRange(m.startIso, m.endIso);
-              }}
-            >
-              {!selectedMonth && <option value="">Custom range</option>}
-              {monthOptions.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
-          </label>
-          <label className="txn-field">
-            <span>Start</span>
-            <input type="date" value={rangeStart} onChange={(e) => applyDateRange(e.target.value, rangeEnd)} />
-          </label>
-          <label className="txn-field">
-            <span>End</span>
-            <input type="date" value={rangeEnd} onChange={(e) => applyDateRange(rangeStart, e.target.value)} />
-          </label>
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14 }}>
-            <Num size={13} color="var(--ft-text-dim)">
-              {inr(totalSpent)} spent · {inr(totalEarned)} earned
-            </Num>
+          <div className="txns-toolbar__meta">
+            {summaryContent && <span className="txns-summary">{summaryContent}</span>}
+            <TransactionColumnsMenu columns={transactionColumnChoices()} settings={columnSettings} />
+            <Button
+              variant="ghost"
+              icon={RefreshCw}
+              label="Refresh"
+              tooltip="Refresh"
+              loading={transactionsLoading}
+              onClick={() => handleRangeFetch()}
+            />
           </div>
         </div>
-        {accountsStatus && <p className="status">{accountsStatus}</p>}
-        {friendsStatus && <p className="status">{friendsStatus}</p>}
-        {rangeStatus && <p className="status">{rangeStatus}</p>}
-      </Card>
 
-      <Card pad={0}>
+        {pageErrors.length > 0 && <ErrorMessage message={pageErrors} />}
+        {loadError && transactions.length > 0 && (
+          <Alert
+            theme="red"
+            title="Couldn't refresh transactions"
+            description={loadError}
+            primaryAction={{ label: 'Try again', onClick: () => handleRangeFetch() }}
+          />
+        )}
+
         <TransactionTable
+          className="txns-table"
           rows={tableRows}
           storageKey="fintrack.ledger.bank"
+          columnSettings={columnSettings}
           categories={categories}
-          onAssignCategory={assignCategory}
+          onAssignCategory={assignCategoryInline}
           onOpenManage={openFriendTagsSheet}
           onOpenDetail={openTransactionDetail}
           sortCol={sortCol}
@@ -1032,85 +969,14 @@ export default function Transactions() {
           onPageSizeChange={setPageSize}
           expandedIds={expandedCcIds}
           onToggleExpand={toggleCcExpanded}
-          renderExpansion={(row, { colSpan, columns }) => (
-            <CcChildRows
-              detail={ccDetailByTransaction[row.id]}
-              colSpan={colSpan}
-              columns={columns}
-              categories={categories}
-              tagsByTransaction={cardManager.tagsByTransaction}
-              onAssignCategory={cardManager.assignCategory}
-              onOpenManage={cardManager.openManage}
-            />
-          )}
+          expansionRows={ccExpansionRows}
+          expansionHandlers={ccExpansionHandlers}
           loading={transactionsLoading}
+          stickyHeader
+          emptyState={emptyState}
         />
-      </Card>
-    </>
-  );
-}
-
-// The credit-card transactions a bill payment covers, rendered as nested rows
-// of the payment — same columns and same management as any other ledger row.
-// The remainder is not a transaction, so it keeps its own spanned line.
-function CcChildRows({
-  detail, colSpan, columns, categories, tagsByTransaction, onAssignCategory, onOpenManage,
-}) {
-  // The parent hands over its *visible* columns; rebuild them against the card
-  // manager's handlers (a nested row is a card transaction, not a bank one) and
-  // reorder to match, so hiding a column hides it on the nested rows too.
-  const nestedColumns = useMemo(() => {
-    const byId = new Map(
-      buildTransactionColumns({
-        categories,
-        onAssignCategory,
-        onOpenManage,
-      }).map((c) => [c.id, c]),
-    );
-    return columns.map((c) => byId.get(c.id)).filter(Boolean);
-  }, [columns, categories, onAssignCategory, onOpenManage]);
-
-  const cell = (content) => (
-    <tr className="txn-row__child">
-      <td colSpan={colSpan ?? TXN_TABLE_COLSPAN}>{content}</td>
-    </tr>
-  );
-
-  if (!detail || detail.loading) return cell(<span className="txn-row__child-note">Loading card transactions…</span>);
-  if (detail.error) return cell(<span className="txn-row__child-note">{detail.error}</span>);
-  if (!detail.linked) return cell(<span className="txn-row__child-note">Not linked to a card bill.</span>);
-
-  const covered = detail.coveredTransactions || [];
-  const remainder = Number(detail.remainder || 0);
-
-  return (
-    <>
-      {covered.length === 0 && cell(<span className="txn-row__child-note">No card transactions covered.</span>)}
-      {covered.map((t, i) => (
-        <TransactionTableRow
-          key={t.id}
-          nested
-          nestedLast={i === covered.length - 1}
-          row={toCardTableRow(t, tagsByTransaction)}
-          columns={nestedColumns}
-        />
-      ))}
-      {remainder !== 0 && (
-        <tr className="txn-row__child txn-row__remainder">
-          <td colSpan={colSpan ?? TXN_TABLE_COLSPAN}>
-            <div className="txn-row__child-line">
-              <span className="txn-row__child-merchant">
-                {remainder > 0 ? 'Carried forward / other charges' : 'Not covered by this payment'}
-              </span>
-              <span className="txn-row__child-amount">
-                <Num size={12.5} weight={600} color="var(--ft-text-dim)">
-                  {inr(remainder, { decimals: 2 })}
-                </Num>
-              </span>
-            </div>
-          </td>
-        </tr>
-      )}
+      </PageBody>
+      {overlays}
     </>
   );
 }

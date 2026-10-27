@@ -1,10 +1,15 @@
-import { useMemo } from 'react';
-import DynamicTable from './DynamicTable.jsx';
-import { CategoryChip, Num } from './ui/primitives.jsx';
-import { IcChevR, IcMore } from './ui/Icon.jsx';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, MoreHorizontal, Users } from 'lucide-react';
+import { Amount, Badge, Button, Combobox, EmptyState, ListView, Select } from './ui';
+import { CategoryBadge, CategoryIcon } from './common/Category.jsx';
+import TransactionColumnsMenu from './transactions/TransactionColumnsMenu.jsx';
+import { flattenWithExpansion, signedAmount } from './transactions/transactionListModel.js';
+import { useTransactionTableSettings } from './transactions/useTransactionTableSettings.js';
 import { categoryColor } from '../utils/categoryColors.js';
-import { inr } from '../utils/inr.js';
-import '../styles/transactions-redesign.css';
+import { getPaginationItems, paginateRows } from '../utils/tableModel.js';
+import './transactions/transactions.css';
+
+const cx = (...parts) => parts.filter(Boolean).join(' ');
 
 export function formatDateShort(value) {
   if (!value) return '—';
@@ -13,25 +18,9 @@ export function formatDateShort(value) {
   return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(d);
 }
 
-export function TransactionCategoryGlyph({ category, size = 38 }) {
-  const color = categoryColor(category);
-  const emoji = category?.icon?.trim() || '◌';
-
-  return (
-    <div
-      className={`txn-category-glyph${category?.icon ? '' : ' is-empty'}`}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 12,
-        background: `color-mix(in srgb, ${color} 10%, transparent)`,
-        color,
-      }}
-      aria-hidden="true"
-    >
-      <span>{emoji}</span>
-    </div>
-  );
+/** Kept for existing imports: the category tile is now the shared `CategoryIcon`. */
+export function TransactionCategoryGlyph({ category, size = 32 }) {
+  return <CategoryIcon category={category} size={size} />;
 }
 
 /**
@@ -44,16 +33,14 @@ export const DEFAULT_COLUMNS = {
   description: 'Description',
   category: 'Category',
   method: 'Method',
-  tags: 'Split count',
+  tags: 'People',
   amount: 'Amount',
 };
 
-/**
- * Full column count including the trailing menu cell. Only correct when every
- * column is visible — expansion rows should use the `colSpan` handed to
- * `renderExpansion` instead, which tracks hidden columns.
- */
+/** Column count including the trailing menu cell (kept for existing imports). */
 export const TXN_TABLE_COLSPAN = 7;
+
+export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 /**
  * Sorts already-normalized rows. Pages that sort their raw records before
@@ -83,205 +70,176 @@ export function sortTableRows(rows, col, dir) {
 }
 
 /**
- * The ledger's column definitions, in DynamicTable's shape. Split out so the
- * nested card rows inside an expansion can render the same cells against the
- * same visible columns.
+ * Track sizes and rules per column. Description is the flexible column (it
+ * takes the leftover width); the rest can be dragged wider or narrower.
  */
-export function buildTransactionColumns({
-  labels = DEFAULT_COLUMNS,
-  categories = [],
-  onAssignCategory,
-  onOpenManage,
-  expandedIds,
-  onToggleExpand,
-} = {}) {
-  return [
-    {
-      id: 'date',
-      header: labels.date,
-      width: 110,
-      minWidth: 84,
-      sortable: true,
-      accessor: (row) => row.date || '',
-      filterValue: (row) => formatDateShort(row.date),
-      cell: (row) => (
-        <span style={{ fontFamily: 'var(--ft-font-mono)', fontSize: 12.5, color: 'var(--ft-text)', fontWeight: 500 }}>
-          {formatDateShort(row.date)}
-        </span>
-      ),
-    },
-    {
-      id: 'description',
-      header: labels.description,
-      width: 320,
-      minWidth: 160,
-      sortable: true,
-      hideable: false,
-      className: 'txn-cell--description',
-      headerClassName: 'txn-cell--description',
-      accessor: (row) => (row.title || '').toLowerCase(),
-      filterValue: (row) => `${row.title || ''} ${row.subtitle || ''}`,
-      cell: (row) => {
-        const expanded = Boolean(expandedIds?.has(row.id));
-        return (
-          <div className="txn-row__desc">
-            {/* The whole <tr> navigates to the detail page, so the disclosure
-                must not let its click bubble. */}
-            {row.expandable && (
-              <button
-                type="button"
-                className={`txn-row__disclosure${expanded ? ' is-open' : ''}`}
-                aria-label={expanded ? 'Hide linked transactions' : 'Show linked transactions'}
-                aria-expanded={expanded}
-                onClick={(e) => { e.stopPropagation(); onToggleExpand?.(row.id); }}
-              >
-                <IcChevR size={13} stroke={2} />
-              </button>
-            )}
-            <TransactionCategoryGlyph category={row.category} size={30} />
-            <div className="txn-row__desc-text">
-              <div className="txn-row__title" title={row.title || undefined}>
-                {row.title || '—'}
-                {row.titleBadge}
-              </div>
-              <div className="txn-row__subtitle" title={row.subtitle || undefined}>
-                {row.subtitle}
-              </div>
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      id: 'category',
-      header: labels.category,
-      width: 160,
-      minWidth: 110,
-      sortable: true,
-      // Assigning a category must not also open the row's detail page.
-      stopRowClick: true,
-      accessor: (row) => (row.category?.name || '').toLowerCase(),
-      cell: (row) => (row.category ? (
-        <CategoryChip category={row.category} />
-      ) : (
-        <select
-          className="txn-inline-select"
-          value={row.categoryId || ''}
-          onChange={(e) => onAssignCategory?.(row.id, e.target.value)}
-        >
-          <option value="">Set category</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>
-          ))}
-        </select>
-      )),
-    },
-    {
-      id: 'method',
-      header: labels.method,
-      width: 120,
-      minWidth: 90,
-      sortable: true,
-      accessor: (row) => row.method || '',
-      cell: (row) => <span style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>{row.method}</span>,
-    },
-    {
-      id: 'tags',
-      header: labels.tags,
-      width: 100,
-      minWidth: 80,
-      sortable: true,
-      accessor: (row) => row.tagCount ?? -1,
-      cell: (row) => (row.tagCount !== null ? (
-        row.tagCount > 0 ? (
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            background: 'var(--ft-accent-soft)', color: 'var(--ft-accent-fg)',
-            fontFamily: 'var(--ft-font-mono)', fontSize: 12, fontWeight: 600,
-            padding: '2px 8px', borderRadius: 6, minWidth: 24,
-          }}>
-            {row.tagCount}
-          </span>
-        ) : <span style={{ color: 'var(--ft-text-faint)', fontSize: 12 }}>—</span>
-      ) : (
-        <span style={{ color: 'var(--ft-text-faint)', fontSize: 12 }}>·</span>
-      )),
-    },
-    {
-      id: 'amount',
-      header: labels.amount,
-      width: 130,
-      minWidth: 100,
-      sortable: true,
-      align: 'right',
-      // Sort on the signed ledger effect so income and spend separate.
-      accessor: (row) => (row.isIncome ? Number(row.amount) : -Number(row.amount)),
-      filterValue: (row) => String(row.amount ?? ''),
-      cell: (row) => (
-        <Num size={14} weight={600} color={row.isIncome ? 'var(--ft-income)' : 'var(--ft-spend)'}>
-          {inr(row.isIncome ? row.amount : -row.amount, { sign: row.isIncome })}
-        </Num>
-      ),
-    },
-    {
-      id: 'actions',
-      header: '',
-      width: 48,
-      minWidth: 48,
-      sortable: false,
-      hideable: false,
-      resizable: false,
-      filterable: false,
-      stopRowClick: true,
-      cell: (row) => (onOpenManage ? (
-        <button
-          className="txn-row__menu"
-          aria-label="Manage transaction"
-          onClick={(e) => { e.stopPropagation(); onOpenManage(row.id); }}
-        >
-          <IcMore size={16} />
-        </button>
-      ) : null),
-    },
-  ];
+const COLUMN_SPECS = [
+  { id: 'date', width: 88, min: 72 },
+  { id: 'description', width: 240, min: 200, flex: true, pinned: true },
+  { id: 'category', width: 168, min: 112 },
+  { id: 'method', width: 128, min: 88, hideBelow: 'lg' },
+  { id: 'tags', width: 88, min: 72, hideBelow: 'lg' },
+  { id: 'amount', width: 120, min: 96, align: 'right' },
+];
+
+const PINNED = COLUMN_SPECS.filter((c) => c.pinned).map((c) => c.id);
+
+/** Hideable columns as `[{ id, label }]`, for a page that renders its own Columns menu. */
+export function transactionColumnChoices(columnLabels) {
+  const labels = { ...DEFAULT_COLUMNS, ...(columnLabels || {}) };
+  return COLUMN_SPECS.filter((c) => !c.pinned).map((c) => ({ id: c.id, label: labels[c.id] }));
 }
 
-/**
- * One ledger row rendered outside DynamicTable's own body — used for the card
- * transactions a bill payment covers, which stay aligned to the parent table's
- * columns instead of collapsing into a colSpan. `columns` comes from the
- * `renderExpansion` callback so hidden columns stay hidden here too.
- */
-export function TransactionTableRow({
-  row, columns, onOpenDetail, nested = false, nestedLast = false,
-}) {
+/** Column preferences for a ledger; pass the result to both the table and its Columns menu. */
+export function useTransactionColumns(storageKey) {
+  return useTransactionTableSettings(storageKey, { pinned: PINNED });
+}
+
+function stopRowClick(e) {
+  e.stopPropagation();
+}
+
+/** Uncategorised rows get an inline picker; a set category reads as a badge. */
+function CategoryCell({ row, categoryOptions, onAssignCategory }) {
+  if (row.category || !onAssignCategory) return <CategoryBadge category={row.category} />;
   return (
-    <tr
-      className={`txn-row${nested ? ` txn-row--nested${nestedLast ? ' is-last' : ''}` : ''}`}
-      onClick={onOpenDetail ? () => onOpenDetail(row.raw) : undefined}
-    >
-      {columns.map((col) => (
-        <td
-          key={col.id}
-          className={['dyn-td', col.align === 'right' ? 'is-right' : '', col.className]
-            .filter(Boolean).join(' ')}
-          onClick={col.stopRowClick ? (e) => e.stopPropagation() : undefined}
-        >
-          {col.cell(row)}
-        </td>
-      ))}
-    </tr>
+    // Options render in a portal, but React still bubbles their clicks
+    // through here: stop them before they reach the row and open it.
+    <div className="txl-cell-control" data-row-click-ignore onClick={stopRowClick}>
+      <Combobox
+        variant="ghost"
+        options={categoryOptions}
+        value={row.categoryId ? String(row.categoryId) : null}
+        onChange={(value) => value && onAssignCategory(row.id, value)}
+        placeholder="Set category"
+        searchPlaceholder="Search categories"
+        aria-label="Set category"
+        className="txl-category-picker"
+      />
+    </div>
+  );
+}
+
+function DescriptionCell({ row, expanded, onToggleExpand }) {
+  return (
+    <div className="txl-desc">
+      {row.expandable && onToggleExpand && (
+        <Button
+          variant="ghost"
+          size="xs"
+          icon={ChevronRight}
+          label={expanded ? 'Hide linked card transactions' : 'Show linked card transactions'}
+          aria-expanded={expanded}
+          className={cx('txl-disclosure', expanded && 'is-open')}
+          onClick={() => onToggleExpand(row.id)}
+        />
+      )}
+      <div className="txl-desc__text">
+        <div className="txl-desc__title">
+          <span className="truncate" title={row.title || undefined}>{row.title || '—'}</span>
+          {row.titleBadge}
+        </div>
+        {row.subtitle ? (
+          <div className="txl-desc__subtitle truncate" title={row.subtitle}>{row.subtitle}</div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** Header label plus the drag handle that resizes its column. */
+function HeaderLabel({ text, onResizeStart, onResizeReset }) {
+  return (
+    <>
+      {text}
+      <span
+        className="txl-resizer"
+        aria-hidden="true"
+        onPointerDown={onResizeStart}
+        onClick={stopRowClick}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          onResizeReset();
+        }}
+      />
+    </>
+  );
+}
+
+/** Rows-per-page and page buttons under a ledger. */
+function TablePager({ total, currentPage, totalPages, pageStart, pageEnd, pageSize, onPageChange, onPageSizeChange }) {
+  return (
+    <div className="txl-pager">
+      <label className="txl-pager__size">
+        <span>Rows per page</span>
+        <Select
+          options={PAGE_SIZE_OPTIONS.map((n) => ({ label: String(n), value: String(n) }))}
+          value={String(pageSize)}
+          onChange={(e) => {
+            onPageSizeChange(Number(e.target.value));
+            onPageChange(1);
+          }}
+        />
+      </label>
+      <div className="txl-pager__nav">
+        <span className="txl-pager__range">
+          {pageStart}–{pageEnd} of {total}
+        </span>
+        {totalPages > 1 && (
+          <div className="txl-pager__pages">
+            <Button
+              variant="ghost"
+              icon={ChevronLeft}
+              label="Previous page"
+              disabled={currentPage <= 1}
+              onClick={() => onPageChange(currentPage - 1)}
+            />
+            {getPaginationItems(currentPage, totalPages).map((item) => (typeof item === 'string' ? (
+              <span key={item} className="txl-pager__ellipsis" aria-hidden="true">…</span>
+            ) : (
+              <Button
+                key={item}
+                variant={item === currentPage ? 'subtle' : 'ghost'}
+                label={String(item)}
+                aria-label={`Page ${item}`}
+                aria-current={item === currentPage ? 'page' : undefined}
+                className="txl-pager__page"
+                onClick={() => onPageChange(item)}
+              />
+            )))}
+            <Button
+              variant="ghost"
+              icon={ChevronRight}
+              label="Next page"
+              disabled={currentPage >= totalPages}
+              onClick={() => onPageChange(currentPage + 1)}
+            />
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
 /**
- * The desktop ledger table, shared by the bank transactions page and a card's
- * transactions tab. Callers hand over rows already normalized (see the
+ * The desktop ledger, shared by the bank transactions page, a card's
+ * transactions tab and a bill payment's covered list. Rendered through the
+ * kit ListView. Callers hand over rows already normalized (see the
  * `toTableRow` mappers on each page) and already sorted — sorting rules differ
- * per ledger, so the table only reports the click.
+ * per ledger, so the table only reports which header was clicked.
  *
- * Built on DynamicTable, so every ledger also gets resizable columns, a
- * column-visibility menu and a search box for free.
+ * Row shape: `{ id, raw, date, title, subtitle, titleBadge, category,
+ * categoryId, method, tagCount, amount, isIncome, expandable }`.
+ *
+ * Expansion: rows in `expandedIds` get the items `expansionRows(row)` returns
+ * inserted after them (see `ccExpansionItems`): `kind: 'nested'` rows render
+ * like any ledger row against `expansionHandlers`, `kind: 'note'` and
+ * `kind: 'remainder'` render as a single muted line.
+ *
+ * Columns can be hidden and resized; preferences persist per `storageKey`.
+ * Pass `columnSettings` (from `useTransactionColumns`) when the page renders
+ * its own `TransactionColumnsMenu`; otherwise the table shows one above itself
+ * unless `showColumnsMenu` is false.
  */
 export default function TransactionTable({
   rows,
@@ -299,64 +257,243 @@ export default function TransactionTable({
   onPageSizeChange,
   expandedIds,
   onToggleExpand,
-  renderExpansion,
+  expansionRows,
+  expansionHandlers,
   loading = false,
-  loadingMessage = 'Loading transactions…',
   emptyMessage = 'No transactions match.',
-  // Each ledger persists its own widths and hidden columns — the bank ledger
+  emptyState,
+  // Each ledger persists its own hidden columns and widths — the bank ledger
   // and a card's ledger are different views even though the columns match.
   storageKey = 'fintrack.ledger',
+  columnSettings,
+  showColumnsMenu = true,
+  stickyHeader = false,
+  className,
 }) {
-  const labels = useMemo(
-    () => ({ ...DEFAULT_COLUMNS, ...(columnLabels || {}) }),
-    [columnLabels],
+  const labels = useMemo(() => ({ ...DEFAULT_COLUMNS, ...(columnLabels || {}) }), [columnLabels]);
+
+  // The page's settings when it renders its own Columns menu; ours otherwise
+  // (inert with no storage key, so the two never write over each other).
+  const ownSettings = useTransactionTableSettings(columnSettings ? null : storageKey, { pinned: PINNED });
+  const settings = columnSettings || ownSettings;
+  const { hidden, widths, setWidth, resetWidth } = settings;
+
+  // ── paging (controlled by the page, or local) ─────────────────────────────
+  const [localPage, setLocalPage] = useState(1);
+  const [localPageSize, setLocalPageSize] = useState(25);
+  const pageValue = page ?? localPage;
+  const pageSizeValue = pageSize ?? localPageSize;
+  const setPage = useCallback((p) => {
+    if (page === undefined) setLocalPage(p);
+    onPageChange?.(p);
+  }, [page, onPageChange]);
+  const setPageSize = useCallback((n) => {
+    if (pageSize === undefined) setLocalPageSize(n);
+    onPageSizeChange?.(n);
+  }, [pageSize, onPageSizeChange]);
+
+  const { pageRows, currentPage, totalPages, pageStart, pageEnd } = useMemo(
+    () => paginateRows(rows || [], pageValue, pageSizeValue),
+    [rows, pageValue, pageSizeValue],
   );
 
-  const columns = useMemo(
-    () => buildTransactionColumns({
-      labels,
-      categories,
-      onAssignCategory,
-      onOpenManage,
-      expandedIds,
-      onToggleExpand,
-    }),
-    [labels, categories, onAssignCategory, onOpenManage, expandedIds, onToggleExpand],
+  const items = useMemo(
+    () => flattenWithExpansion(pageRows, expandedIds, expansionRows),
+    [pageRows, expandedIds, expansionRows],
   );
 
-  const sort = useMemo(
-    () => (sortCol ? { columnId: sortCol, dir: sortDir } : null),
-    [sortCol, sortDir],
+  // ── column resizing ───────────────────────────────────────────────────────
+  const [resizing, setResizing] = useState(null);
+  const cleanupRef = useRef(null);
+
+  const startResize = useCallback((spec, event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const cell = event.currentTarget.closest('.txl-hcell');
+    const startWidth = cell ? cell.getBoundingClientRect().width : (widths[spec.id] ?? spec.width);
+    const startX = event.clientX;
+    setResizing(spec.id);
+
+    function onMove(e) {
+      setWidth(spec.id, Math.max(spec.min, Math.round(startWidth + (e.clientX - startX))));
+    }
+    function onUp() {
+      cleanupRef.current?.();
+      setResizing(null);
+      // The release can land on the header's sort button; that click must
+      // not re-sort the table.
+      const swallow = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      };
+      document.addEventListener('click', swallow, true);
+      setTimeout(() => document.removeEventListener('click', swallow, true), 0);
+    }
+    cleanupRef.current?.();
+    cleanupRef.current = () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+      cleanupRef.current = null;
+    };
+    document.addEventListener('pointermove', onMove, { passive: true });
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+  }, [widths, setWidth]);
+
+  // ── columns ───────────────────────────────────────────────────────────────
+  const categoryOptions = useMemo(
+    () => categories.map((c) => ({
+      label: c.name,
+      value: String(c.id),
+      // Category colour is per-record data, so it is set inline.
+      icon: <span className="txl-dot" style={{ background: categoryColor(c) }} aria-hidden="true" />,
+    })),
+    [categories],
   );
+
+  const columns = useMemo(() => {
+    const nestedHandlers = expansionHandlers || {};
+    const ctxFor = (item) => (item.kind === 'nested'
+      ? { onAssignCategory: nestedHandlers.onAssignCategory, onOpenManage: nestedHandlers.onOpenManage, nested: true }
+      : { onAssignCategory, onOpenManage, nested: false });
+
+    const render = {
+      date: (row) => <span className="txl-date">{formatDateShort(row.date)}</span>,
+      description: (row) => (
+        <DescriptionCell
+          row={row}
+          expanded={Boolean(expandedIds?.has(row.id))}
+          onToggleExpand={row.kind ? undefined : onToggleExpand}
+        />
+      ),
+      category: (row, ctx) => (
+        <CategoryCell row={row} categoryOptions={categoryOptions} onAssignCategory={ctx.onAssignCategory} />
+      ),
+      method: (row) => <span className="txl-muted truncate">{row.method}</span>,
+      tags: (row) => (row.tagCount > 0 ? (
+        <Badge prefix={Users} label={row.tagCount} title={`Split with ${row.tagCount} ${row.tagCount === 1 ? 'person' : 'people'}`} />
+      ) : null),
+      amount: (row) => <Amount value={signedAmount(row)} sign="always" />,
+    };
+
+    const cols = COLUMN_SPECS.filter((spec) => !hidden[spec.id] || spec.pinned).map((spec) => {
+      const custom = widths[spec.id];
+      const width = spec.flex ? `minmax(${spec.min}px, 1fr)` : (custom ?? spec.width);
+      return {
+        key: spec.id,
+        label: spec.flex ? labels[spec.id] : (
+          <HeaderLabel
+            text={labels[spec.id]}
+            onResizeStart={(e) => startResize(spec, e)}
+            onResizeReset={() => resetWidth(spec.id)}
+          />
+        ),
+        width,
+        align: spec.align,
+        hideBelow: spec.hideBelow,
+        sortable: Boolean(onSort),
+        headerClassName: 'txl-hcell',
+        className: `txl-cell txl-cell--${spec.id}`,
+        render: (item) => {
+          if (item.kind === 'note' || item.kind === 'remainder') {
+            if (spec.id === 'description') return <span className="txl-note">{item.text}</span>;
+            if (spec.id === 'amount' && item.kind === 'remainder') {
+              return <Amount value={item.amount} decimals={2} tone="muted" />;
+            }
+            return null;
+          }
+          return render[spec.id](item, ctxFor(item));
+        },
+      };
+    });
+
+    if (onOpenManage || nestedHandlers.onOpenManage) {
+      cols.push({
+        key: 'actions',
+        label: '',
+        width: 36,
+        align: 'right',
+        className: 'txl-cell txl-cell--actions',
+        render: (item) => {
+          if (item.kind === 'note' || item.kind === 'remainder') return null;
+          const open = ctxFor(item).onOpenManage;
+          return open ? (
+            <Button
+              variant="ghost"
+              icon={MoreHorizontal}
+              label="Manage transaction"
+              className="txl-manage"
+              onClick={() => open(item.id)}
+            />
+          ) : null;
+        },
+      });
+    }
+    return cols;
+  }, [
+    hidden, widths, labels, categoryOptions, expandedIds, onToggleExpand, onAssignCategory, onOpenManage,
+    expansionHandlers, onSort, startResize, resetWidth,
+  ]);
+
+  const sort = sortCol ? { key: sortCol, direction: sortDir === 'desc' ? 'desc' : 'asc' } : null;
+
+  const handleRowClick = useCallback((item) => {
+    if (item.kind === 'nested') {
+      expansionHandlers?.onOpenManage?.(item.id);
+      return;
+    }
+    if (item.kind) return;
+    onOpenDetail?.(item.raw);
+  }, [expansionHandlers, onOpenDetail]);
+
+  const clickable = Boolean(onOpenDetail || expansionHandlers?.onOpenManage);
+  const total = (rows || []).length;
 
   return (
-    <DynamicTable
-      columns={columns}
-      rows={rows}
-      getRowKey={(row) => row.id}
-      aria-label="Transactions"
-      tableClassName="txn-table"
-      storageKey={storageKey}
-      // The page owns sorting: each ledger has its own tie-breaks and sorts raw
-      // records before mapping, so DynamicTable only reports which column was
-      // clicked and the page decides the direction.
-      sort={sort}
-      onSortChange={(next) => next && onSort?.(next.columnId)}
-      page={page}
-      onPageChange={onPageChange}
-      pageSize={pageSize}
-      onPageSizeChange={onPageSizeChange}
-      enableGlobalFilter={false}
-      onRowClick={onOpenDetail ? (row) => onOpenDetail(row.raw) : undefined}
-      // `txn-row` carries the ledger's row decoration — notably the hover-reveal
-      // manage button and the open-bill-payment highlight.
-      rowClassName={(row) => `txn-row${expandedIds?.has(row.id) ? ' is-cc-open' : ''}`}
-      expandedIds={expandedIds}
-      renderExpansion={renderExpansion}
-      loading={loading}
-      loadingMessage={loadingMessage}
-      emptyMessage={emptyMessage}
-      filteredEmptyMessage={emptyMessage}
-    />
+    <div className={cx('txl-table', className)} data-resizing={resizing ? '' : undefined}>
+      {!columnSettings && showColumnsMenu && (
+        <div className="txl-table__bar">
+          <TransactionColumnsMenu
+            variant="ghost"
+            columns={transactionColumnChoices(columnLabels)}
+            settings={settings}
+          />
+        </div>
+      )}
+      <ListView
+        aria-label="Transactions"
+        className="txl-list"
+        columns={columns}
+        rows={loading ? [] : items}
+        rowKey={(item) => item.key ?? item.id}
+        rowClassName={(item) => cx(
+          'txl-row',
+          item.kind && `is-${item.kind}`,
+          item.last && 'is-last',
+          !item.kind && expandedIds?.has(item.id) && 'is-open',
+        )}
+        onRowClick={clickable ? handleRowClick : undefined}
+        sort={sort}
+        onSortChange={onSort ? (next) => onSort(next ? next.key : sortCol) : undefined}
+        loading={loading}
+        skeletonRows={8}
+        stickyHeader={stickyHeader}
+        emptyState={emptyState ?? <EmptyState size="sm" title={emptyMessage} />}
+        footer={!loading && total > 0 ? (
+          <TablePager
+            total={total}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageStart={pageStart}
+            pageEnd={pageEnd}
+            pageSize={pageSizeValue}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        ) : undefined}
+      />
+    </div>
   );
 }

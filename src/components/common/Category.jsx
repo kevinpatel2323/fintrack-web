@@ -26,7 +26,7 @@ export function categoryIcon(category) {
 
 /**
  * Category as a coloured dot and its name — how a category reads inside
- * tables, rows and pickers. `null` renders "Uncategorized" with a hollow dot.
+ * tables, rows and pickers. `null` renders "Uncategorised" with a hollow dot.
  */
 export function CategoryBadge({ category, label, size = 'md', className = '', ...rest }) {
   const name = label ?? category?.name;
@@ -34,7 +34,7 @@ export function CategoryBadge({ category, label, size = 'md', className = '', ..
     return (
       <span className={`category-badge category-badge--${size} is-empty ${className}`.trim()} {...rest}>
         <span className="category-badge__dot" aria-hidden />
-        <span className="category-badge__name truncate">Uncategorized</span>
+        <span className="category-badge__name truncate">Uncategorised</span>
       </span>
     );
   }

@@ -89,6 +89,7 @@ export default function ListView({
   rowKey = 'id',
   onRowClick,
   rowHref,
+  rowLinkState,
   selectable = false,
   selection: selectionProp,
   onSelectionChange,
@@ -224,6 +225,12 @@ export default function ListView({
     const href = rowHref ? rowHref(row) : undefined;
 
     const onClick = (e) => {
+      // Clicks inside portaled content (a menu or picker opened from a cell)
+      // bubble here through React but never touched the row itself.
+      if (!(e.target instanceof Node) || !e.currentTarget.contains(e.target)) {
+        if (href) e.preventDefault();
+        return;
+      }
       const inner = e.target instanceof Element ? e.target.closest(INTERACTIVE_INSIDE) : null;
       if (inner && inner !== e.currentTarget) {
         // A control inside the row handles its own click; never navigate.
@@ -297,7 +304,7 @@ export default function ListView({
 
     if (href) {
       return (
-        <Link key={String(key)} to={href} {...props}>
+        <Link key={String(key)} to={href} state={rowLinkState?.(row)} {...props}>
           {content}
         </Link>
       );
@@ -426,7 +433,7 @@ export default function ListView({
                     <Glyph size={14} />
                   </span>
                 );
-                const labelText = typeof col.label === 'string' ? col.label : String(col.key);
+                const labelText = col.sortLabel ?? (typeof col.label === 'string' ? col.label : String(col.key));
                 return (
                   <div
                     key={col.key}

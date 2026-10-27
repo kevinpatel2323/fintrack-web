@@ -14,6 +14,7 @@ import './StatCard.css';
 //                   null/undefined shows a muted em dash
 //   delta           percent change (number); the arrow carries the sign
 //   deltaLabel      caption after the percent, e.g. "vs last month"
+//   deltaUnit       suffix after the number (default "%"; e.g. " pts")
 //   positiveIsGood  default true; false makes a rise red (spend, dues)
 //   hint            muted line under the figure
 //   loading         skeletons the figure and delta, keeping the card's height
@@ -28,8 +29,8 @@ function formatValue(value) {
   return value.toLocaleString('en-IN', { maximumFractionDigits: Number.isInteger(value) ? 0 : 2 });
 }
 
-function formatDelta(delta) {
-  return `${Math.abs(delta).toLocaleString('en-IN', { maximumFractionDigits: 1 })}%`;
+function formatDelta(delta, unit) {
+  return `${Math.abs(delta).toLocaleString('en-IN', { maximumFractionDigits: 1 })}${unit}`;
 }
 
 const StatCard = forwardRef(function StatCard(
@@ -38,6 +39,7 @@ const StatCard = forwardRef(function StatCard(
     value,
     delta,
     deltaLabel,
+    deltaUnit = '%',
     positiveIsGood = true,
     hint,
     loading = false,
@@ -91,7 +93,7 @@ const StatCard = forwardRef(function StatCard(
                   </>
                 )}
                 {isPresent(delta) && (
-                  <span className={`ui-stat-card__delta-value ui-stat-card__tone--${tone}`}>{formatDelta(delta)}</span>
+                  <span className={`ui-stat-card__delta-value ui-stat-card__tone--${tone}`}>{formatDelta(delta, deltaUnit)}</span>
                 )}
                 {deltaLabel && (
                   <span className="ui-stat-card__caption" title={typeof deltaLabel === 'string' ? deltaLabel : undefined}>
@@ -101,7 +103,9 @@ const StatCard = forwardRef(function StatCard(
               </span>
             )
           )}
-          {hint && <span className="ui-stat-card__hint">{hint}</span>}
+          {/* A div can hold block content (e.g. a Progress) except inside a
+              <button>, where only phrasing content is allowed. */}
+          {hint && (!to && onClick ? <span className="ui-stat-card__hint">{hint}</span> : <div className="ui-stat-card__hint">{hint}</div>)}
         </>
       )}
     </>

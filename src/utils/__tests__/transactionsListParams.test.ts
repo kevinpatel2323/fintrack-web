@@ -15,6 +15,7 @@ describe('transactionsListParams', () => {
       rangeEnd: '2026-01-31',
       filterTab: 'spent',
       search: 'coffee',
+      categoryFilter: '',
     });
   });
 
@@ -25,6 +26,7 @@ describe('transactionsListParams', () => {
       rangeEnd: defaults.endIso,
       filterTab: 'all',
       search: '',
+      categoryFilter: '',
     });
   });
 
@@ -36,6 +38,26 @@ describe('transactionsListParams', () => {
       search: '  rent ',
     });
     expect(next.toString()).toBe('start=2026-03-01&end=2026-03-15&tab=earned&q=rent');
+  });
+
+  it('reads category=none as the Uncategorised filter and other values as category ids', () => {
+    expect(parseTransactionsListParams(new URLSearchParams('category=none'), defaults).categoryFilter)
+      .toBe('__none__');
+    expect(parseTransactionsListParams(new URLSearchParams('category=12'), defaults).categoryFilter)
+      .toBe('12');
+    expect(parseTransactionsListParams(new URLSearchParams('category='), defaults).categoryFilter)
+      .toBe('');
+  });
+
+  it('patches the category filter, writing Uncategorised as category=none', () => {
+    const start = new URLSearchParams('tab=spent');
+    expect(patchTransactionsListParams(start, { categoryFilter: '__none__' }).toString())
+      .toBe('tab=spent&category=none');
+    expect(patchTransactionsListParams(start, { categoryFilter: 7 }).toString())
+      .toBe('tab=spent&category=7');
+    const cleared = patchTransactionsListParams(new URLSearchParams('tab=spent&category=none'), { categoryFilter: '' });
+    expect(cleared.toString()).toBe('tab=spent');
+    expect(patchTransactionsListParams(start, { categoryFilter: null }).toString()).toBe('tab=spent');
   });
 
   it('builds list path with or without leading question mark', () => {

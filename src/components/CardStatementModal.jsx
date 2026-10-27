@@ -1,21 +1,37 @@
-import { useState } from 'react';
-import Portal from './Portal.jsx';
-import { GhostBtn, Overline, PrimaryBtn } from './ui/primitives.jsx';
-import { IcClose } from './ui/Icon.jsx';
+import { useId, useState } from 'react';
+import { Dialog, ErrorMessage, FormControl, toast } from './ui';
 import { createCardStatement } from '../services/cardsApi.js';
+import './cards/cards.css';
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-export default function CardStatementModal({ cardId, defaults = {}, onClose, onSaved }) {
+/** Add a statement (billing cycle) to a credit card by hand. */
+export default function CardStatementModal({ cardId, defaults = {}, onClose, onSaved, open = true }) {
+  const formId = useId();
   const [cycleStart, setCycleStart] = useState(defaults.cycleStart || todayIso());
   const [cycleEnd, setCycleEnd] = useState(defaults.cycleEnd || todayIso());
   const [dueDate, setDueDate] = useState(defaults.dueDate || todayIso());
   const [minDue, setMinDue] = useState(defaults.minDue ? String(defaults.minDue) : '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  const clear = (k) => setFieldErrors((f) => (f[k] ? { ...f, [k]: undefined } : f));
 
   const submit = async (e) => {
     e.preventDefault();
+    // The same rules the API applies, caught before the round trip.
+    const errs = {};
+    if (!cycleStart) errs.cycleStart = 'Pick the first day of the cycle';
+    if (!cycleEnd) errs.cycleEnd = 'Pick the statement date';
+    else if (cycleStart && cycleEnd < cycleStart) errs.cycleEnd = 'Must be on or after the cycle start';
+    if (!dueDate) errs.dueDate = 'Pick the due date';
+    else if (cycleEnd && dueDate < cycleEnd) errs.dueDate = 'Must be on or after the cycle end';
+    if (minDue !== '' && !(Number(minDue) >= 0)) errs.minDue = 'Enter an amount';
+    if (Object.keys(errs).length) {
+      setFieldErrors(errs);
+      return;
+    }
     setSubmitting(true);
     setError('');
     try {
@@ -26,6 +42,7 @@ export default function CardStatementModal({ cardId, defaults = {}, onClose, onS
         minDue: minDue === '' ? 0 : Number(minDue),
       };
       const saved = await createCardStatement(cardId, payload);
+      toast.success('Statement added');
       onSaved?.(saved);
     } catch (err) {
       setError(err.message || 'Failed to create statement');
@@ -35,120 +52,57 @@ export default function CardStatementModal({ cardId, defaults = {}, onClose, onS
   };
 
   return (
-    <Portal>
-      <div
-        role="dialog"
-        aria-modal="true"
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'var(--ft-scrim)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 16,
-          zIndex: 1000,
-        }}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onClose?.();
-        }}
-      >
-        <div
-          style={{
-            width: '100%',
-            maxWidth: 500,
-            background: 'var(--ft-surface)',
-            border: '1px solid var(--ft-border)',
-            borderRadius: 20,
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '16px 20px',
-              borderBottom: '1px solid var(--ft-border)',
-            }}
-          >
-            <div>
-              <Overline>Statement cycle</Overline>
-              <h2 style={{ margin: '2px 0 0', fontSize: 18, fontWeight: 600 }}>Generate statement</h2>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              style={{ background: 'transparent', border: 0, color: 'var(--ft-text-dim)', cursor: 'pointer', padding: 6 }}
-            >
-              <IcClose size={18} />
-            </button>
-          </div>
-
-          <form onSubmit={submit} style={{ padding: 20, display: 'grid', gap: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="Cycle start" required>
-                <Input value={cycleStart} onChange={(e) => setCycleStart(e.target.value)} required type="date" />
-              </Field>
-              <Field label="Cycle end" required>
-                <Input value={cycleEnd} onChange={(e) => setCycleEnd(e.target.value)} required type="date" />
-              </Field>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="Due date" required>
-                <Input value={dueDate} onChange={(e) => setDueDate(e.target.value)} required type="date" />
-              </Field>
-              <Field label="Minimum due (₹)">
-                <Input value={minDue} onChange={(e) => setMinDue(e.target.value)} type="number" min="0" step="0.01" placeholder="2421.00" />
-              </Field>
-            </div>
-            <div style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>
-              Transactions in this date range without a statement will be auto-linked.
-            </div>
-            {error && <div style={{ color: 'var(--ft-spend)', fontSize: 13 }}>{error}</div>}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <GhostBtn onClick={onClose} type="button">Cancel</GhostBtn>
-              <PrimaryBtn type="submit" disabled={submitting}>
-                {submitting ? 'Saving…' : 'Generate'}
-              </PrimaryBtn>
-            </div>
-          </form>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      size="md"
+      title="Add statement"
+      description="Card transactions in this cycle that aren't on a statement yet are added to it."
+      actions={[
+        { label: 'Cancel', onClick: () => onClose?.() },
+        { label: 'Add statement', variant: 'solid', type: 'submit', form: formId, loading: submitting },
+      ]}
+    >
+      <form id={formId} className="cardform" onSubmit={submit} noValidate>
+        <div className="cardform__grid cardform__grid--keep">
+          <FormControl
+            type="date"
+            label="Cycle start"
+            required
+            value={cycleStart}
+            onChange={(v) => { setCycleStart(v); clear('cycleStart'); }}
+            error={fieldErrors.cycleStart}
+          />
+          <FormControl
+            type="date"
+            label="Cycle end"
+            required
+            value={cycleEnd}
+            onChange={(v) => { setCycleEnd(v); clear('cycleEnd'); }}
+            error={fieldErrors.cycleEnd}
+          />
+          <FormControl
+            type="date"
+            label="Due date"
+            required
+            value={dueDate}
+            onChange={(v) => { setDueDate(v); clear('dueDate'); }}
+            error={fieldErrors.dueDate}
+          />
+          <FormControl
+            type="number"
+            label="Minimum due"
+            value={minDue}
+            onChange={(e) => { setMinDue(e.target.value); clear('minDue'); }}
+            min="0"
+            step="0.01"
+            placeholder="2421"
+            prefix={<span className="cardform__currency">₹</span>}
+            error={fieldErrors.minDue}
+          />
         </div>
-      </div>
-    </Portal>
-  );
-}
-
-function Field({ label, required, children }) {
-  return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <span style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-        {label}
-        {required && <span style={{ color: 'var(--ft-spend)', marginLeft: 4 }}>*</span>}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-function Input(props) {
-  return (
-    <input
-      {...props}
-      style={{
-        background: 'var(--ft-surface-2)',
-        border: '1px solid var(--ft-border)',
-        color: 'var(--ft-text)',
-        borderRadius: 10,
-        padding: '10px 12px',
-        fontFamily: 'var(--ft-font-ui)',
-        fontSize: 13.5,
-        outline: 'none',
-        ...(props.style || {}),
-      }}
-    />
+        <ErrorMessage message={error} />
+      </form>
+    </Dialog>
   );
 }

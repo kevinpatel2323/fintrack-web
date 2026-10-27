@@ -1,841 +1,265 @@
-/* Friend ledger export modal — Fintrack design tokens */
+/* Ledger export dialog (FriendLedgerExportModal + LedgerRowPicker).
+ * Prefix: lx-. The paper preview itself is styled in
+ * ledger-export/LedgerPaper.css. */
 
-.ledger-export-backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--ft-scrim);
-  backdrop-filter: blur(4px);
-  display: grid;
-  place-items: center;
-  z-index: 2000;
-  padding: 16px;
-  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
-}
+/* ---------- Frame: options column + preview ---------- */
 
-.ledger-export-modal {
-  width: min(980px, 100%);
-  max-width: 100%;
-  min-width: 0;
-  max-height: min(92vh, 900px);
-  max-height: min(92dvh, 900px);
-  background: var(--ft-surface);
-  color: var(--ft-text);
-  border: 1px solid var(--ft-border);
-  border-radius: var(--ft-r-2xl);
-  padding: 20px 22px;
-  box-shadow: var(--ft-shadow-pop);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  overflow: hidden;
-}
-
-.ledger-export-modal__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-.ledger-export-modal__header h3 {
-  margin: 0 0 4px;
-  font-family: var(--ft-font-ui);
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-.ledger-export-modal__header p {
-  margin: 0;
-  font-size: 0.88rem;
-  color: var(--ft-text-dim);
-}
-
-.ledger-export-modal__close {
-  flex-shrink: 0;
-}
-
-/* Stepper — aligned with import wizard (imp-step) */
-.ledger-export-stepper {
-  position: relative;
-  flex-shrink: 0;
-  padding: 6px 4px 2px;
-  margin: 0 -2px;
-}
-
-.ledger-export-stepper__track {
-  position: absolute;
-  left: 14%;
-  right: 14%;
-  top: 22px;
-  height: 4px;
-  background: var(--ft-surface-2);
-  border-radius: 4px;
-  overflow: hidden;
-  z-index: 0;
-}
-
-.ledger-export-stepper__track-fill {
+/* Use the full height the dialog layer allows, so the preview has room. */
+.lx-dialog {
   height: 100%;
-  border-radius: 4px;
-  background: var(--ft-accent);
-  transition: width 0.35s ease;
 }
 
-.ledger-export-stepper__list {
-  position: relative;
-  z-index: 1;
+.lx-dialog .lx-body {
+  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  align-content: stretch;
+  gap: 24px;
+  overflow: hidden;
+  padding-bottom: 8px;
+}
+
+.lx-options {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  list-style: none;
+  min-height: 0;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  /* Room for focus rings at the scroll edge. */
+  padding: 2px;
+  margin: -2px;
+}
+
+.lx-section-title {
   margin: 0;
-  padding: 0 8px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--ink-gray-9);
+}
+
+/* ---------- Row picker ---------- */
+
+.lx-picker {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
   gap: 8px;
 }
 
-.ledger-export-stepper__item {
+.lx-picker__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lx-picker__count {
+  color: var(--ink-gray-5);
+  white-space: nowrap;
+}
+
+.lx-picker__hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-gray-5);
+}
+
+.lx-picker__filters {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.lx-picker__search {
   flex: 1;
   min-width: 0;
+}
+
+.lx-picker__sort {
+  width: 132px;
+  flex-shrink: 0;
+}
+
+.lx-picker__all {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 0 4px 8px;
+  border-bottom: 1px solid var(--outline-gray-1);
+}
+
+.lx-picker__list {
+  min-height: 160px;
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.lx-picker__state {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.lx-pick {
+  display: flex;
+  min-height: 48px;
   align-items: center;
-  text-align: center;
   gap: 10px;
+  padding: 6px 0 6px 8px;
+  border-bottom: 1px solid var(--outline-gray-1);
 }
 
-.ledger-export-stepper__node {
+.lx-pick:last-child {
+  border-bottom: 0;
+}
+
+.lx-pick__text {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  font-family: var(--ft-font-mono);
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--ft-text-faint);
-  background: var(--ft-surface-2);
-  border: 1px solid var(--ft-border);
-  box-shadow: var(--ft-shadow-card);
-  transition:
-    color 0.2s,
-    border-color 0.2s,
-    background 0.2s,
-    box-shadow 0.2s,
-    transform 0.2s;
-}
-
-.ledger-export-stepper__item.is-complete .ledger-export-stepper__node {
-  color: var(--ft-text-on-accent);
-  border-color: var(--ft-accent-strong);
-  background: var(--ft-accent);
-}
-
-.ledger-export-stepper__item.is-active .ledger-export-stepper__node {
-  color: var(--ft-accent-fg);
-  border-color: var(--ft-accent-hairline);
-  background: var(--ft-accent-soft);
-  box-shadow: 0 0 0 3px var(--ft-accent-soft);
-  transform: scale(1.06);
-}
-
-.ledger-export-stepper__check {
-  display: block;
-}
-
-.ledger-export-stepper__text {
-  display: flex;
+  min-width: 0;
+  flex: 1;
   flex-direction: column;
   gap: 2px;
-  max-width: 9.5rem;
-}
-
-.ledger-export-stepper__title {
-  font-family: var(--ft-font-ui);
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--ft-text-faint);
-  line-height: 1.25;
-  letter-spacing: -0.01em;
-}
-
-.ledger-export-stepper__item.is-active .ledger-export-stepper__title {
-  color: var(--ft-text);
-  font-size: 0.82rem;
-}
-
-.ledger-export-stepper__item.is-complete .ledger-export-stepper__title {
-  color: var(--ft-text-dim);
-}
-
-.ledger-export-stepper__hint {
-  font-size: 0.68rem;
-  font-weight: 500;
-  color: var(--ft-text-faint);
-  line-height: 1.3;
-}
-
-.ledger-export-stepper__item.is-active .ledger-export-stepper__hint {
-  color: var(--ft-text-dim);
-}
-
-.ledger-export-stepper__item.is-complete .ledger-export-stepper__hint {
-  color: var(--ft-text-faint);
-}
-
-/* Step 3: preview + export */
-.ledger-export-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-height: 0;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.ledger-export-body {
-  overflow-x: hidden;
-  overflow-y: auto;
-  flex: 1;
-  min-height: 0;
-  min-width: 0;
-  padding-right: 4px;
-  -webkit-overflow-scrolling: touch;
-}
-
-.ledger-export-dates {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  align-items: flex-end;
-}
-
-.ledger-export-dates label {
-  display: grid;
-  gap: 6px;
-  font-size: 0.85rem;
-  color: var(--ft-text-dim);
-}
-
-.ledger-export-dates input[type='date'] {
-  padding: 8px 10px;
-  border-radius: var(--ft-r-md);
-  border: 1px solid var(--ft-border);
-  font-family: inherit;
-  color: var(--ft-text);
-  background: var(--ft-surface-2);
-}
-
-.ledger-export-dates input[type='date']:focus {
-  border-color: var(--ft-accent-strong);
-  background: var(--ft-surface);
-}
-
-.ledger-export-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.ledger-export-toolbar .status {
-  margin: 0;
-}
-
-.ledger-export-toolbar__count {
-  color: var(--ft-text-dim);
-  font-size: 0.85rem;
-}
-
-/* The wrap is only the frame — DynamicTable owns scrolling and the sticky
-   header, so no overflow/max-height here or the two would fight. */
-.ledger-select-table-wrap {
-  border: 1px solid var(--ft-border);
-  border-radius: var(--ft-r-md);
-  background: var(--ft-surface-2);
-  overflow: hidden;
-}
-
-.ledger-select-table { font-size: 0.82rem; }
-
-.ledger-select-table .dyn-th { background: var(--ft-surface-3); font-weight: 600; }
-
-.ledger-select-table .dyn-td {
-  padding: 8px 10px;
-  color: var(--ft-text);
-  vertical-align: top;
-}
-
-.ledger-select-table .num {
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.ledger-select-table input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
   cursor: pointer;
-  accent-color: var(--ft-accent-fg);
 }
 
-/* The pin that turns a row's checkbox into a remembered choice. Unpinned it is
-   a faint outline; pinned it takes the accent, or the spend colour when the
-   remembered answer is "leave this out". */
-.ledger-pin {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: var(--ft-r-sm, 6px);
-  background: none;
-  color: var(--ft-text-faint);
-  cursor: pointer;
-  transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+.lx-pick__title {
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--ink-gray-8);
 }
 
-.ledger-pin:hover {
-  color: var(--ft-text);
-  background: var(--ft-surface-3);
+.lx-pick__meta {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
 }
 
-.ledger-pin:focus-visible {
-  outline: 2px solid var(--ft-accent-strong);
-  outline-offset: 1px;
+.lx-pick__amount {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: var(--ink-gray-8);
 }
 
-.ledger-pin.is-pinned {
-  color: var(--ft-accent-fg);
-  border-color: var(--ft-accent-hairline);
-  background: var(--ft-accent-soft);
+.lx-pick.is-excluded .lx-pick__title,
+.lx-pick.is-excluded .lx-pick__amount {
+  color: var(--ink-gray-5);
 }
 
-.ledger-pin.is-pinned.is-excluded {
-  color: var(--ft-spend);
-  border-color: var(--ft-spend-hairline);
-  background: var(--ft-spend-soft);
-}
-
-.ledger-export-toolbar__sep {
-  width: 1px;
-  align-self: stretch;
-  min-height: 20px;
-  background: var(--ft-border);
-}
-
-.ledger-export-toolbar__pref-status {
-  color: var(--ft-text-dim);
-  font-size: 0.8rem;
-  margin-left: auto;
-}
-
-.ledger-export-hint {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin: 0 0 10px;
-  color: var(--ft-text-dim);
-  font-size: 0.8rem;
-  line-height: 1.5;
-}
-
-.ledger-export-hint svg {
-  vertical-align: -2px;
-  color: var(--ft-accent-fg);
-}
-
-.ledger-export-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: flex-end;
-  padding-top: 8px;
-  border-top: 1px solid var(--ft-border);
+.lx-pick__pin {
   flex-shrink: 0;
 }
 
-/* Ledger preview — a WYSIWYG proof of the exported PDF. Everything below
-   .ledger-sheet is deliberately theme-INDEPENDENT: it depicts printed paper,
-   so it stays light under both themes. Only the surrounding chrome themes. */
-.ledger-sheet-outer {
-  padding: 16px 20px 20px;
-  background: var(--ft-surface-2);
-  border: 1px solid var(--ft-border);
-  border-radius: var(--ft-r-md);
-  box-sizing: border-box;
-  min-width: 0;
-  max-width: 100%;
+.lx-pick--skeleton {
+  gap: 12px;
 }
 
-.ledger-sheet {
-  --ledger-ink: #0c1929;
-  --ledger-muted: #5c6b7e;
-  --ledger-border: #c8ced6;
-  --ledger-thead: #eceff4;
-  max-width: 100%;
-  min-width: 0;
-  margin: 0 auto;
-  font-family: Helvetica, var(--ft-font-ui), system-ui, sans-serif;
-  font-size: 11px;
-  line-height: 1.45;
-  color: var(--ledger-ink);
-  background: #fff;
-  border-radius: 2px;
-  overflow-x: hidden;
-  overflow-y: visible;
-  box-shadow: 0 0 0 1px rgba(12, 25, 41, 0.1);
+.lx-pick--skeleton .lx-pick__text {
+  gap: 6px;
+  cursor: default;
 }
 
-.ledger-sheet__doc-header {
-  background: #fff;
-}
+/* ---------- Preview ---------- */
 
-.ledger-sheet__doc-header-inner {
-  text-align: left;
-  padding: 26px 28px 0;
-  min-width: 0;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.ledger-sheet__doc-brand {
-  display: block;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--ledger-muted);
-  margin-bottom: 18px;
-}
-
-.ledger-sheet__doc-title {
-  margin: 0;
-  font-family: Helvetica, var(--ft-font-ui), system-ui, sans-serif;
-  font-size: 1.28rem;
-  font-weight: 700;
-  color: var(--ledger-ink);
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-}
-
-.ledger-sheet__doc-blurb {
-  margin: 20px 0 0;
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  color: #374151;
-  max-width: 48rem;
-}
-
-.ledger-sheet__doc-period {
-  margin: 16px 0 0;
-  font-size: 0.6875rem;
-  line-height: 1.45;
-  color: #505a66;
-}
-
-.ledger-sheet__doc-rule {
-  height: 1px;
-  margin-top: 18px;
-  background: var(--ledger-border);
-}
-
-.ledger-sheet__body {
-  padding: 18px 28px 24px;
-  background: #fff;
-  min-width: 0;
-}
-
-.ledger-table-wrap {
-  overflow-x: auto;
-  overflow-y: visible;
-  -webkit-overflow-scrolling: touch;
-  min-width: 0;
-  max-width: 100%;
-  border: 1px solid var(--ledger-border);
-  background: #fff;
-}
-
-.ledger-table {
-  width: max-content;
-  min-width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-}
-
-.ledger-table thead th {
-  background: var(--ledger-thead);
-  color: #1e293b;
-  font-weight: 700;
-  font-size: 9px;
-  text-align: left;
-  padding: 10px 8px;
-  border: 1px solid var(--ledger-border);
-  border-bottom: 1px solid var(--ledger-border);
-  white-space: nowrap;
-}
-
-.ledger-table thead th:first-child {
-  border-left: 1px solid var(--ledger-border);
-}
-
-.ledger-table th.num {
-  text-align: right;
-}
-
-.ledger-table th.idx {
-  width: 32px;
-  text-align: center;
-}
-
-.ledger-table tbody td {
-  padding: 8px 8px;
-  border: 1px solid #dcdfe4;
-  vertical-align: top;
-  font-size: 10px;
-  background: #fff;
-}
-
-.ledger-table tbody tr:last-child td {
-  border-bottom: 1px solid #dcdfe4;
-}
-
-.ledger-table td.num {
-  text-align: right;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.ledger-table td.idx {
-  text-align: center;
-  color: var(--ledger-muted);
-  font-weight: 500;
-  font-size: 9.5px;
-}
-
-.ledger-table__amount {
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.ledger-row--owes .ledger-dir {
-  color: #166534;
-}
-
-.ledger-row--owe .ledger-dir {
-  color: #9f1239;
-}
-
-.ledger-row--settlement .ledger-dir {
-  color: #854d0e;
-}
-
-.ledger-dir {
-  display: inline;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1.35;
-  white-space: normal;
-}
-
-.ledger-impact--pos {
-  color: #be123c;
-  font-weight: 600;
-}
-
-.ledger-impact--neg {
-  color: #15803d;
-  font-weight: 600;
-}
-
-.ledger-table__running {
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.ledger-impact--settled {
-  color: #15803d;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.ledger-table__links {
-  font-size: 9px;
-  color: #475569;
-  white-space: normal;
-}
-
-.ledger-link-line {
-  display: block;
-  white-space: nowrap;
-}
-
-.ledger-settlement-table td {
-  vertical-align: top;
-}
-
-.ledger-settle-entry {
+.lx-preview {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 5px;
-  padding: 1px 0;
-}
-
-.ledger-settle-ref {
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.ledger-settle-sep {
-  color: #b4bcc8;
-}
-
-.ledger-settle-entry__desc {
-  color: #475569;
-}
-
-/* The sum that shows how a settlement splits across its entries. */
-.ledger-settle-check {
-  margin-top: 3px;
-  color: #475569;
-  font-size: 0.92em;
-}
-
-.ledger-summary-table-block {
-  margin-top: 20px;
-}
-
-.ledger-summary-table-block__title {
-  margin: 0 0 10px;
-  font-family: Helvetica, var(--ft-font-ui), system-ui, sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--ledger-ink);
-}
-
-.ledger-summary-table-wrap {
-  overflow-x: auto;
-  overflow-y: visible;
-  -webkit-overflow-scrolling: touch;
   min-width: 0;
-  max-width: 100%;
-  border: 1px solid var(--ledger-border);
-  background: #fff;
+  min-height: 0;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.ledger-summary-table {
-  width: max-content;
-  min-width: 100%;
-  border-collapse: collapse;
-  font-size: 10px;
-}
-
-.ledger-summary-table thead th {
-  background: var(--ledger-thead);
-  color: #1e293b;
-  font-weight: 700;
-  font-size: 9px;
-  text-align: left;
-  padding: 10px 10px;
-  border: 1px solid var(--ledger-border);
-}
-
-.ledger-summary-table th.num {
-  text-align: right;
-}
-
-.ledger-summary-table tbody td {
-  padding: 9px 10px;
-  border: 1px solid #dcdfe4;
-  color: var(--ledger-ink);
-  background: #fff;
-}
-
-.ledger-summary-table td.num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
-}
-
-.ledger-summary-table__net td {
-  font-weight: 700;
-}
-
-.ledger-sheet__footer {
+.lx-preview__head {
   display: flex;
-  flex-wrap: wrap;
+  min-height: 20px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* The desk the page sits on. It scrolls both ways inside its own box. */
+.lx-preview__desk {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 20px;
+  border-radius: var(--radius-5);
+  background: var(--surface-gray-2);
+  overscroll-behavior: contain;
+}
+
+.lx-preview__state {
+  display: flex;
+  min-height: 200px;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 20px 16px;
-  background: #fafbfc;
-  border-top: 1px solid var(--ledger-border);
-  font-size: 8px;
-  color: #78869a;
-}
-
-.ledger-sheet__footer-brand {
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #3d5266;
-}
-
-.ledger-sheet__footer-sep {
-  opacity: 0.55;
-  font-weight: 400;
-}
-
-.ledger-sheet__footer-meta {
-  font-variant-numeric: tabular-nums;
-}
-
-.ledger-empty {
-  text-align: center;
-  padding: 40px 24px;
-  color: var(--ledger-muted);
-  font-size: 13px;
   margin: 0;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+  text-align: center;
 }
+
+/* ---------- Footer ---------- */
+
+.lx-footer__status {
+  min-width: 0;
+  margin-right: auto;
+  overflow: hidden;
+  color: var(--ink-gray-5);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Tablets: narrower options column ---------- */
+
+@media (max-width: 1023.98px) {
+  .lx-dialog .lx-body {
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 16px;
+  }
+}
+
+/* ---------- Phones: options above the preview, one scroll ---------- */
 
 @media (max-width: 767.98px) {
-  .ledger-export-backdrop {
-    align-items: flex-end;
-    justify-content: stretch;
-    padding: 0;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+  .lx-dialog .lx-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    align-content: start;
+    gap: 24px;
+    overflow-y: auto;
   }
 
-  .ledger-export-modal {
-    width: 100%;
-    max-width: none;
-    max-height: min(96dvh, 100%);
-    border-radius: var(--ft-r-xl) var(--ft-r-xl) 0 0;
-    padding: 16px 16px max(16px, env(safe-area-inset-bottom, 0px));
-    gap: 12px;
+  .lx-options {
+    overflow: visible;
   }
 
-  .ledger-export-modal__header h3 {
-    font-size: 1.1rem;
+  .lx-picker__list {
+    max-height: 50dvh;
+    flex: none;
   }
 
-  .ledger-export-modal__header p {
-    font-size: 0.82rem;
-  }
-
-  .ledger-export-modal__close {
-    min-width: 44px;
-    min-height: 44px;
-    padding: 10px 12px;
-  }
-
-  .ledger-export-stepper {
-    padding: 4px 0 0;
-  }
-
-  .ledger-export-stepper__track {
-    left: 12%;
-    right: 12%;
-    top: 18px;
-  }
-
-  .ledger-export-stepper__node {
-    width: 32px;
-    height: 32px;
-    font-size: 0.82rem;
-  }
-
-  .ledger-export-stepper__hint {
-    display: none;
-  }
-
-  .ledger-export-stepper__title {
-    font-size: 0.72rem;
-  }
-
-  .ledger-export-dates {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .ledger-export-dates label {
-    width: 100%;
-  }
-
-  .ledger-export-dates input[type='date'] {
-    width: 100%;
-    min-height: 44px;
-    font-size: 16px;
-    box-sizing: border-box;
-  }
-
-  .ledger-export-toolbar button {
-    min-height: 44px;
-    padding: 10px 14px;
-  }
-
-  .ledger-select-table-wrap .dyn-table-scroll {
-    max-height: min(50dvh, 360px);
-  }
-
-  .ledger-select-table input[type='checkbox'] {
-    width: 22px;
-    height: 22px;
-  }
-
-  .ledger-pin {
-    width: 34px;
-    height: 34px;
-  }
-
-  .ledger-export-toolbar__pref-status {
-    margin-left: 0;
-  }
-
-  .ledger-export-actions {
-    flex-direction: column-reverse;
-    align-items: stretch;
-    gap: 8px;
-    padding-top: 12px;
-  }
-
-  .ledger-export-actions button {
-    width: 100%;
-    min-height: 44px;
-    justify-content: center;
-  }
-
-  .ledger-sheet-outer {
+  .lx-preview__desk {
+    flex: none;
+    overflow-x: auto;
+    overflow-y: visible;
     padding: 12px;
   }
 
-  .ledger-sheet__body {
-    padding: 14px 12px 18px;
+  .lx-footer__status {
+    flex-basis: 100%;
+    margin-right: 0;
   }
 
-  .ledger-sheet__doc-header-inner {
-    padding-left: 16px;
-    padding-right: 16px;
+  .lx-footer__status:empty {
+    display: none;
   }
-
-  .ledger-table thead th,
-  .ledger-table tbody td {
-    font-size: 9px;
-    padding: 6px 5px;
-  }
-}
-
-/* An entry group ("Ketul's wedding") printed as one row. */
-.ledger-row--group td {
-  background: #f8fafc;
-}
-
-.ledger-table__group-title {
-  font-weight: 700;
-  color: #1e293b;
 }

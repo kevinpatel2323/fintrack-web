@@ -1,4 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Columns3, Search } from 'lucide-react';
+import { Button, Checkbox, LoadingIndicator, Popover, Select, TextInput } from './ui';
 import { sortTableRows } from '../utils/tableSort.js';
 import { filterTableRows, getPaginationItems, paginateRows } from '../utils/tableModel.js';
 import './DynamicTable.css';
@@ -64,65 +66,44 @@ function useOptionalControl(controlledValue, onChange, initialValue) {
 }
 
 function SortIcon({ active, dir }) {
+  const Glyph = active ? (dir === 'desc' ? ArrowDown : ArrowUp) : ArrowUpDown;
   return (
     <span className={`dyn-th__sort${active ? ' is-active' : ''}`} aria-hidden="true">
-      {active ? (dir === 'desc' ? '▼' : '▲') : '▲'}
+      <Glyph size={14} strokeWidth={1.5} />
     </span>
   );
 }
 
-/** Dropdown listing every hideable column. Closes on outside click or Escape. */
+/** "Columns" popover: a checkbox per hideable column and a reset. */
 function ColumnVisibilityMenu({ columns, hiddenById, onToggle, onReset }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    function onDocPointerDown(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    }
-    function onKeyDown(e) {
-      if (e.key === 'Escape') setOpen(false);
-    }
-    document.addEventListener('pointerdown', onDocPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onDocPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
-
   const hiddenCount = columns.filter((c) => hiddenById[c.id]).length;
 
   return (
-    <div className="dyn-colmenu" ref={ref}>
-      <button
-        type="button"
-        className={`dyn-colmenu__trigger${hiddenCount ? ' has-hidden' : ''}`}
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-haspopup="true"
-      >
-        Columns{hiddenCount ? ` · ${columns.length - hiddenCount}/${columns.length}` : ''}
-      </button>
-      {open && (
-        <div className="dyn-colmenu__panel" role="group" aria-label="Show or hide columns">
-          {columns.map((c) => (
-            <label key={c.id} className="dyn-colmenu__item">
-              <input
-                type="checkbox"
-                checked={!hiddenById[c.id]}
-                onChange={() => onToggle(c.id)}
-              />
-              <span>{c.header}</span>
-            </label>
-          ))}
-          <button type="button" className="dyn-colmenu__reset" onClick={onReset}>
-            Show all
-          </button>
+    <Popover
+      placement="bottom-end"
+      trigger={
+        <Button
+          variant="ghost"
+          iconLeft={Columns3}
+          label={hiddenCount ? `Columns · ${columns.length - hiddenCount}/${columns.length}` : 'Columns'}
+        />
+      }
+    >
+      <div className="dyn-colmenu" role="group" aria-label="Show or hide columns">
+        {columns.map((c) => (
+          <Checkbox
+            key={c.id}
+            padded
+            label={c.header}
+            checked={!hiddenById[c.id]}
+            onChange={() => onToggle(c.id)}
+          />
+        ))}
+        <div className="dyn-colmenu__footer">
+          <Button variant="ghost" label="Show all columns" disabled={hiddenCount === 0} onClick={onReset} />
         </div>
-      )}
-    </div>
+      </div>
+    </Popover>
   );
 }
 
@@ -406,19 +387,18 @@ export default function DynamicTable({
   const toolbar = showToolbar ? (
     <div className="dyn-toolbar">
       {enableGlobalFilter && (
-        <div className="dyn-search">
-          <input
-            type="search"
-            className="dyn-search__input"
-            placeholder={searchPlaceholder}
-            value={globalFilter ?? ''}
-            onChange={(e) => {
-              setGlobalFilter(e.target.value);
-              if (!pageControlled) setPage(1);
-            }}
-            aria-label={searchPlaceholder}
-          />
-        </div>
+        <TextInput
+          type="search"
+          className="dyn-search"
+          prefix={Search}
+          placeholder={searchPlaceholder}
+          value={globalFilter ?? ''}
+          onChange={(e) => {
+            setGlobalFilter(e.target.value);
+            if (!pageControlled) setPage(1);
+          }}
+          aria-label={searchPlaceholder}
+        />
       )}
       {toolbarLeft}
       <div className="dyn-toolbar__right">
@@ -439,9 +419,8 @@ export default function DynamicTable({
     return (
       <div className={`dyn-table-host ${className}`.trim()}>
         {toolbar}
-        <div className="dyn-state" role="status">
-          <span className="dyn-state__spinner" aria-hidden="true" />
-          <span>{loadingMessage}</span>
+        <div className="dyn-state">
+          <LoadingIndicator text={loadingMessage} />
         </div>
       </div>
     );
@@ -455,7 +434,8 @@ export default function DynamicTable({
 
       <div
         className="dyn-table-scroll"
-        style={maxHeight ? { maxHeight, overflowY: 'auto' } : undefined}
+        data-capped={maxHeight ? '' : undefined}
+        style={maxHeight ? { maxHeight } : undefined}
       >
         <table
           className={`dyn-table ${tableClassName}`.trim()}
@@ -516,8 +496,8 @@ export default function DynamicTable({
                 {visibleColumns.map((col) => (
                   <th key={col.id} className="dyn-filter-cell">
                     {col.filterable === false ? null : (
-                      <input
-                        type="text"
+                      <TextInput
+                        size="xs"
                         className="dyn-filter-input"
                         value={columnFilters[col.id] ?? ''}
                         placeholder="Filter"
@@ -542,16 +522,13 @@ export default function DynamicTable({
                   <div className="dyn-state">
                     <span>{hasActiveFilter ? filteredEmptyMessage : emptyMessage}</span>
                     {hasActiveFilter && (
-                      <button
-                        type="button"
-                        className="dyn-state__action"
+                      <Button
+                        label="Clear filters"
                         onClick={() => {
                           setGlobalFilter('');
                           setColumnFilters({});
                         }}
-                      >
-                        Clear filters
-                      </button>
+                      />
                     )}
                   </div>
                 </td>
@@ -601,65 +578,55 @@ export default function DynamicTable({
 
       {paginated && !isEmpty && (
         <div className="dyn-footer">
-          <div className="dyn-footer__meta">
-            {pageSizeOptions.length > 0 && (
-              <div className="dyn-pagesize" role="group" aria-label="Rows per page">
-                <span className="dyn-footer__label">Rows per page</span>
-                <div className="dyn-pagesize__options">
-                  {pageSizeOptions.map((size) => (
-                    <button
-                      key={size}
-                      type="button"
-                      className={`dyn-pagesize__option${pageSize === size ? ' is-active' : ''}`}
-                      aria-pressed={pageSize === size}
-                      onClick={() => {
-                        setPageSize(size);
-                        setPage(1);
-                      }}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            <span className="dyn-footer__summary">
-              Showing {pageStart}–{pageEnd} of {sortedRows.length}
-            </span>
-          </div>
+          {pageSizeOptions.length > 0 && (
+            <label className="dyn-pagesize">
+              <span>Rows per page</span>
+              <Select
+                options={pageSizeOptions.map((size) => ({ label: String(size), value: String(size) }))}
+                value={String(pageSize)}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+              />
+            </label>
+          )}
 
           <div className="dyn-pager">
-            <button
-              type="button"
-              className="dyn-pager__nav"
-              disabled={currentPage === 1}
-              onClick={() => setPage(currentPage - 1)}
-            >
-              Prev
-            </button>
-            <div className="dyn-pager__pages" aria-label={`Page ${currentPage} of ${totalPages}`}>
-              {getPaginationItems(currentPage, totalPages).map((item) => (typeof item === 'string' ? (
-                <span key={item} className="dyn-pager__ellipsis" aria-hidden="true">…</span>
-              ) : (
-                <button
-                  key={item}
-                  type="button"
-                  className={`dyn-pager__page${item === currentPage ? ' is-active' : ''}`}
-                  aria-current={item === currentPage ? 'page' : undefined}
-                  onClick={() => setPage(item)}
-                >
-                  {item}
-                </button>
-              )))}
-            </div>
-            <button
-              type="button"
-              className="dyn-pager__nav"
-              disabled={currentPage >= totalPages}
-              onClick={() => setPage(currentPage + 1)}
-            >
-              Next
-            </button>
+            <span className="dyn-footer__summary">
+              {pageStart}–{pageEnd} of {sortedRows.length}
+            </span>
+            {totalPages > 1 && (
+              <div className="dyn-pager__pages" aria-label={`Page ${currentPage} of ${totalPages}`}>
+                <Button
+                  variant="ghost"
+                  icon={ChevronLeft}
+                  label="Previous page"
+                  disabled={currentPage === 1}
+                  onClick={() => setPage(currentPage - 1)}
+                />
+                {getPaginationItems(currentPage, totalPages).map((item) => (typeof item === 'string' ? (
+                  <span key={item} className="dyn-pager__ellipsis" aria-hidden="true">…</span>
+                ) : (
+                  <Button
+                    key={item}
+                    variant={item === currentPage ? 'subtle' : 'ghost'}
+                    className="dyn-pager__page"
+                    label={String(item)}
+                    aria-label={`Page ${item}`}
+                    aria-current={item === currentPage ? 'page' : undefined}
+                    onClick={() => setPage(item)}
+                  />
+                )))}
+                <Button
+                  variant="ghost"
+                  icon={ChevronRight}
+                  label="Next page"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setPage(currentPage + 1)}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

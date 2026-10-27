@@ -1,0 +1,194 @@
+/* Transaction record page (/transactions/:id), Frappe CRM style:
+ * summary + sections on the left, a details side panel on the right,
+ * one column below 1024px (summary, details, sections). */
+
+.txd-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'summary'
+    'side'
+    'main';
+  gap: 16px;
+  align-items: start;
+}
+
+.txd-layout__summary {
+  grid-area: summary;
+}
+
+.txd-layout__side {
+  grid-area: side;
+  min-width: 0;
+}
+
+.txd-layout__main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .txd-layout {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    /* The side panel spans both rows; the spare height goes to the second
+       row, so the sections sit right under the summary. */
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      'summary side'
+      'main side';
+    column-gap: 20px;
+  }
+}
+
+/* ---------- Summary ---------- */
+
+.txd-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 4px 12px;
+  padding: 4px 0;
+}
+
+.txd-summary__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.txd-summary__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink-gray-9);
+  overflow-wrap: anywhere;
+}
+
+.txd-summary__meta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.txd-summary__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.txd-summary__amount {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* Phones: the next step sits under the summary, full width. */
+.txd-summary__primary {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin-top: 12px;
+}
+
+/* ---------- Sections ---------- */
+
+.txd-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.txd-skeleton-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.txd-bill__rows {
+  padding: 0 4px 4px;
+}
+
+.txd-bill__empty {
+  margin: 0;
+  padding: 12px 16px 16px;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.txd-bill__remainder {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 2px 0;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+/* ---------- Details side panel ---------- */
+
+.txd-fields {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.txd-field {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 12px;
+  min-height: 32px;
+  padding: 6px 0;
+}
+
+.txd-field__label {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.txd-field__value {
+  margin: 0;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-gray-8);
+  overflow-wrap: anywhere;
+}
+
+.txd-field__value.is-mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.txd-field__control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  /* Ghost control: its text lines up with the other values. */
+  margin: -6px 0 -6px -8px;
+}
+
+.txd-category {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 767.98px) {
+  .txd-summary__amount {
+    font-size: 20px;
+  }
+
+  .txd-field {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+}

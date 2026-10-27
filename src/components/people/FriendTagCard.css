@@ -1,0 +1,63 @@
+/* FriendTagCard: one friend on a transaction (transaction page, manage
+ * sheet). A quiet bordered row: avatar, who and what, the amount. */
+
+.people-tag-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-5);
+  background: var(--surface-base);
+}
+
+.people-tag-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.people-tag-card__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--ink-gray-9);
+}
+
+.people-tag-card__line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-gray-5);
+}
+
+.people-tag-card__line[data-tone='warn'] {
+  color: var(--ink-amber-7);
+  white-space: normal;
+}
+
+.people-tag-card__action {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.people-tag-card__side {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.people-tag-card__amount {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+}

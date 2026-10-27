@@ -240,11 +240,12 @@ A list or table (frappe-ui's list molecule) driven by `columns`. One CSS grid te
 
 | Prop | Type | Default | Notes |
 |---|---|---|---|
-| `columns` | `[{ key, label, width, align, render?(row), sortable?, className?, headerClassName?, hideBelow? }]` | `[]` | `width`: a CSS track (`'2fr'`, `'minmax(120px,1fr)'`) or px number. A bare `Nfr` becomes `minmax(96px, Nfr)`, and no width means `minmax(96px, 1fr)`. `align`: `'left' \| 'right' \| 'center'`. `hideBelow`: `'sm' \| 'md' \| 'lg'` (640 / 768 / 1024px) drops the track and the cell. |
+| `columns` | `[{ key, label, width, align, render?(row), sortable?, sortLabel?, className?, headerClassName?, hideBelow? }]` | `[]` | `width`: a CSS track (`'2fr'`, `'minmax(120px,1fr)'`) or px number. A bare `Nfr` becomes `minmax(96px, Nfr)`, and no width means `minmax(96px, 1fr)`. `align`: `'left' \| 'right' \| 'center'`. `hideBelow`: `'sm' \| 'md' \| 'lg'` (640 / 768 / 1024px) drops the track and the cell. |
 | `rows` | array | `[]` | Ignored when `groups` is set. |
 | `rowKey` | string or `(row, index) => key` | `'id'` | |
 | `onRowClick` | `(row, event) => void` | | Clicks on buttons, links or inputs inside a cell don't trigger it. |
 | `rowHref` | `(row) => to` | | The row is a router `Link` (Cmd-click opens a new tab). `onRowClick` still runs first. |
+| `rowLinkState` | `(row) => state` | | Router `state` passed with a `rowHref` link (e.g. the row's data, so the detail page can render at once). |
 | `selectable` | bool | `false` | Shows the checkbox column and a select-all checkbox in the header. Shift-click selects a range. Without `onRowClick`/`rowHref`, a row click toggles the row. |
 | `selection` / `onSelectionChange` | keys / `(keys) => void` | | Controlled. Leave out `selection` to let the list manage it. |
 | `selectionActions` | `(selectedKeys, clearSelection) => node` | | Buttons in the banner, before "Select all" and ×. Style them with `ui-list-banner__btn` to match. |

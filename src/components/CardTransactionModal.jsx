@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import Portal from './Portal.jsx';
-import { GhostBtn, Overline, PrimaryBtn } from './ui/primitives.jsx';
-import { IcClose } from './ui/Icon.jsx';
+import { useEffect, useId, useMemo, useState } from 'react';
+import { Checkbox, Dialog, ErrorMessage, FormControl, toast } from './ui';
+import { CategoryBadge } from './common/Category.jsx';
 import { createCardTransaction, updateCardTransaction } from '../services/cardsApi.js';
+import './cards/cards.css';
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -17,7 +17,9 @@ export default function CardTransactionModal({
   initial = null,
   onClose,
   onSaved,
+  open = true,
 }) {
+  const formId = useId();
   const isEdit = Boolean(initial);
   const [merchant, setMerchant] = useState(initial?.merchant ?? '');
   const [amount, setAmount] = useState(initial ? String(initial.amount ?? '') : '');
@@ -29,13 +31,30 @@ export default function CardTransactionModal({
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
     setError('');
   }, [merchant, amount, txnDate]);
 
+  const categoryOptions = useMemo(
+    () => categories.map((c) => ({ label: c.name, value: String(c.id), category: c })),
+    [categories],
+  );
+
+  const clear = (k) => setFieldErrors((f) => (f[k] ? { ...f, [k]: undefined } : f));
+
   const submit = async (e) => {
     e.preventDefault();
+    const errs = {};
+    if (!merchant.trim()) errs.merchant = 'Enter the merchant';
+    const n = Number(amount);
+    if (amount === '' || !Number.isFinite(n) || n <= 0) errs.amount = 'Enter the amount';
+    if (!txnDate) errs.txnDate = 'Pick the date';
+    if (Object.keys(errs).length) {
+      setFieldErrors(errs);
+      return;
+    }
     setSubmitting(true);
     setError('');
     try {
@@ -55,6 +74,7 @@ export default function CardTransactionModal({
             ...payload,
             ...(statementId ? { statementId } : {}),
           });
+      toast.success(isEdit ? 'Transaction updated' : 'Transaction added');
       onSaved?.(saved);
     } catch (err) {
       setError(err.message || `Failed to ${isEdit ? 'update' : 'add'} transaction`);
@@ -64,159 +84,82 @@ export default function CardTransactionModal({
   };
 
   return (
-    <Portal>
-      <div
-        role="dialog"
-        aria-modal="true"
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'var(--ft-scrim)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 16,
-          zIndex: 1000,
-        }}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onClose?.();
-        }}
-      >
-        <div
-          style={{
-            width: '100%',
-            maxWidth: 500,
-            background: 'var(--ft-surface)',
-            border: '1px solid var(--ft-border)',
-            borderRadius: 20,
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '16px 20px',
-              borderBottom: '1px solid var(--ft-border)',
-            }}
-          >
-            <div>
-              <Overline>Card transaction</Overline>
-              <h2 style={{ margin: '2px 0 0', fontSize: 18, fontWeight: 600 }}>
-                {isEdit ? 'Edit transaction' : 'Add transaction'}
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              style={{ background: 'transparent', border: 0, color: 'var(--ft-text-dim)', cursor: 'pointer', padding: 6 }}
-            >
-              <IcClose size={18} />
-            </button>
-          </div>
-
-          <form onSubmit={submit} style={{ padding: 20, display: 'grid', gap: 14 }}>
-            <Field label="Merchant" required>
-              <Input value={merchant} onChange={(e) => setMerchant(e.target.value)} required maxLength={200} placeholder="Amazon India" />
-            </Field>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="Amount (₹)" required>
-                <Input value={amount} onChange={(e) => setAmount(e.target.value)} required type="number" min="0" step="0.01" placeholder="1248.00" />
-              </Field>
-              <Field label="Date" required>
-                <Input value={txnDate} onChange={(e) => setTxnDate(e.target.value)} required type="date" />
-              </Field>
-            </div>
-            <Field label="Category">
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                style={{
-                  background: 'var(--ft-surface-2)',
-                  border: '1px solid var(--ft-border)',
-                  color: 'var(--ft-text)',
-                  borderRadius: 10,
-                  padding: '10px 12px',
-                  fontFamily: 'var(--ft-font-ui)',
-                  fontSize: 13.5,
-                }}
-              >
-                <option value="">Uncategorised</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--ft-text)', fontSize: 13.5 }}>
-              <input type="checkbox" checked={isRefund} onChange={(e) => setIsRefund(e.target.checked)} />
-              Refund (credits back to the card)
-            </label>
-            <Field label="Notes">
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                maxLength={2000}
-                rows={2}
-                style={{
-                  width: '100%',
-                  background: 'var(--ft-surface-2)',
-                  border: '1px solid var(--ft-border)',
-                  color: 'var(--ft-text)',
-                  borderRadius: 10,
-                  padding: '10px 12px',
-                  fontFamily: 'var(--ft-font-ui)',
-                  fontSize: 13.5,
-                  resize: 'vertical',
-                }}
-              />
-            </Field>
-            {error && <div style={{ color: 'var(--ft-spend)', fontSize: 13 }}>{error}</div>}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <GhostBtn onClick={onClose} type="button">Cancel</GhostBtn>
-              <PrimaryBtn type="submit" disabled={submitting}>
-                {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Add transaction'}
-              </PrimaryBtn>
-            </div>
-          </form>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      size="md"
+      title={isEdit ? 'Edit transaction' : 'Add transaction'}
+      actions={[
+        { label: 'Cancel', onClick: () => onClose?.() },
+        {
+          label: isEdit ? 'Save changes' : 'Add transaction',
+          variant: 'solid',
+          type: 'submit',
+          form: formId,
+          loading: submitting,
+        },
+      ]}
+    >
+      <form id={formId} className="cardform" onSubmit={submit} noValidate>
+        <FormControl
+          label="Merchant"
+          required
+          value={merchant}
+          onChange={(e) => { setMerchant(e.target.value); clear('merchant'); }}
+          maxLength={200}
+          placeholder="Amazon India"
+          error={fieldErrors.merchant}
+          autoFocus={!isEdit}
+        />
+        <div className="cardform__grid cardform__grid--keep">
+          <FormControl
+            type="number"
+            label="Amount"
+            required
+            value={amount}
+            onChange={(e) => { setAmount(e.target.value); clear('amount'); }}
+            min="0"
+            step="0.01"
+            placeholder="1248"
+            prefix={<span className="cardform__currency">₹</span>}
+            error={fieldErrors.amount}
+          />
+          <FormControl
+            type="date"
+            label="Date"
+            required
+            value={txnDate}
+            onChange={(v) => { setTxnDate(v); clear('txnDate'); }}
+            error={fieldErrors.txnDate}
+          />
         </div>
-      </div>
-    </Portal>
-  );
-}
-
-function Field({ label, required, children }) {
-  return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <span style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-        {label}
-        {required && <span style={{ color: 'var(--ft-spend)', marginLeft: 4 }}>*</span>}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-function Input(props) {
-  return (
-    <input
-      {...props}
-      style={{
-        background: 'var(--ft-surface-2)',
-        border: '1px solid var(--ft-border)',
-        color: 'var(--ft-text)',
-        borderRadius: 10,
-        padding: '10px 12px',
-        fontFamily: 'var(--ft-font-ui)',
-        fontSize: 13.5,
-        outline: 'none',
-        ...(props.style || {}),
-      }}
-    />
+        <FormControl
+          type="combobox"
+          label="Category"
+          options={categoryOptions}
+          value={categoryId || null}
+          onChange={(v) => setCategoryId(v ?? '')}
+          placeholder="Uncategorised"
+          searchPlaceholder="Search categories"
+          renderOption={(o) => <CategoryBadge category={o.category} />}
+          clearable
+        />
+        <Checkbox
+          label="Refund"
+          description="Money credited back to the card"
+          checked={isRefund}
+          onChange={(e) => setIsRefund(e.target.checked)}
+        />
+        <FormControl
+          type="textarea"
+          label="Notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          maxLength={2000}
+          rows={2}
+        />
+        <ErrorMessage message={error} />
+      </form>
+    </Dialog>
   );
 }

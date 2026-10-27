@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
-import Portal from './Portal.jsx';
-import { GhostBtn, PrimaryBtn, Pill } from './ui/primitives.jsx';
-import { IcDownload } from './ui/Icon.jsx';
+import { useEffect, useMemo, useState } from 'react';
+import { Download } from 'lucide-react';
+import { Dialog, ErrorMessage, FormControl, toast } from './ui';
+import { formatDate } from './ui/DatePicker.jsx';
+import { categoryColor } from '../utils/categoryColors.js';
 import { downloadCategoryCsv } from '../services/categoriesApi.js';
+import './categories/category-dialogs.css';
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -29,42 +31,70 @@ function presetRange(preset) {
   }
 }
 
-export default function CategoryExportModal({ category, open, onClose }) {
-  const [start, setStart] = useState('');
-  const [end, setEnd] = useState('');
+const PERIODS = [
+  { label: 'All time', value: 'all' },
+  { label: 'This month', value: 'thisMonth' },
+  { label: 'Last 30 days', value: '30days' },
+  { label: 'This year', value: 'thisYear' },
+  { label: 'Custom range', value: 'custom' },
+];
+
+function rangeText({ start, end }) {
+  if (!start && !end) return 'Every transaction in the category.';
+  return `${formatDate(start)} to ${formatDate(end)}`;
+}
+
+/**
+ * Downloads a category's transactions as CSV, optionally for a date range.
+ *
+ * `category` preselects one (the row's "Export CSV"). Pass `categories` to
+ * let the user pick, e.g. from the page header's "Export".
+ */
+export default function CategoryExportModal({ category, categories, open, onClose }) {
+  const [categoryId, setCategoryId] = useState(null);
+  const [period, setPeriod] = useState('all');
+  const [custom, setCustom] = useState({ start: '', end: '' });
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
 
-  // Reset to the "all time" default whenever the modal opens for a category.
+  // Reset to the "all time" default whenever the dialog opens.
   useEffect(() => {
     if (open) {
-      setStart('');
-      setEnd('');
+      setCategoryId(category?.id ?? null);
+      setPeriod('all');
+      setCustom({ start: '', end: '' });
       setBusy(false);
       setStatus('');
     }
   }, [open, category?.id]);
 
-  if (!open || !category) return null;
+  const list = useMemo(() => categories || (category ? [category] : []), [categories, category]);
+  const options = useMemo(
+    () =>
+      [...list]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((c) => ({
+          label: c.name,
+          value: c.id,
+          icon: <span className="catx-dot" style={{ background: categoryColor(c) }} aria-hidden />,
+        })),
+    [list],
+  );
 
-  const dateOrderOk = !start || !end || start <= end;
-  const isAllTime = !start && !end;
-
-  function applyPreset(preset) {
-    const r = presetRange(preset);
-    setStart(r.start);
-    setEnd(r.end);
-  }
+  const range = period === 'custom' ? custom : presetRange(period);
+  const customMissing = period === 'custom' && (!custom.start || !custom.end);
+  const selected = list.find((c) => String(c.id) === String(categoryId)) || null;
 
   async function exportCsv() {
-    if (!dateOrderOk) return;
+    if (!selected || customMissing) return;
     setBusy(true);
     setStatus('');
     try {
-      await downloadCategoryCsv(category.id, {
-        start: start || undefined,
-        end: end || undefined,
+      const filename = await downloadCategoryCsv(selected.id, {
+        start: range.start || undefined,
+        end: range.end || undefined,
       });
+      toast.success({ title: 'Export downloaded', description: filename });
       onClose();
     } catch (e) {
       setStatus(e.message || 'Export failed');
@@ -74,87 +104,64 @@ export default function CategoryExportModal({ category, open, onClose }) {
   }
 
   return (
-    <Portal>
-      <div
-        className="calendar-sheet-backdrop"
-        onClick={(e) => e.target === e.currentTarget && onClose()}
-      >
-        <div
-          className="calendar-sheet"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Export category transactions"
-        >
-          <div className="ft-sheet__grabber" />
-          <h3 className="ft-sheet__title">Export “{category.name}”</h3>
-          <p className="ft-sheet__sub">
-            Download this category’s transactions as a CSV. Leave the dates empty to export
-            everything.
-          </p>
-
-          <div className="form-grid">
-            <label className="field">
-              <span>Start date</span>
-              <input
-                type="date"
-                value={start}
-                max={end || undefined}
-                onChange={(e) => setStart(e.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span>End date</span>
-              <input
-                type="date"
-                value={end}
-                min={start || undefined}
-                onChange={(e) => setEnd(e.target.value)}
-              />
-            </label>
-
-            <div className="field" style={{ gridColumn: '1 / -1' }}>
-              <span>Quick ranges</span>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-                <Pill active={isAllTime} onClick={() => applyPreset('all')}>
-                  All time
-                </Pill>
-                <Pill onClick={() => applyPreset('thisMonth')}>This month</Pill>
-                <Pill onClick={() => applyPreset('30days')}>Last 30 days</Pill>
-                <Pill onClick={() => applyPreset('thisYear')}>This year</Pill>
-              </div>
-            </div>
-
-            {!dateOrderOk && (
-              <p className="status" style={{ gridColumn: '1 / -1' }}>
-                End date must be on or after start date.
-              </p>
-            )}
-
-            <div
-              style={{
-                gridColumn: '1 / -1',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: 10,
-                marginTop: 6,
-              }}
-            >
-              <GhostBtn onClick={onClose} disabled={busy}>
-                Cancel
-              </GhostBtn>
-              <PrimaryBtn onClick={exportCsv} disabled={busy || !dateOrderOk}>
-                <IcDownload size={16} /> {busy ? 'Exporting…' : 'Export CSV'}
-              </PrimaryBtn>
-            </div>
-
-            {status && (
-              <p className="status" style={{ gridColumn: '1 / -1' }}>
-                {status}
-              </p>
-            )}
+    <Dialog
+      open={open}
+      onClose={onClose}
+      size="sm"
+      title="Export to CSV"
+      description="Download a category's transactions as a spreadsheet."
+      actions={[
+        { label: 'Cancel', disabled: busy },
+        {
+          label: 'Export CSV',
+          variant: 'solid',
+          icon: Download,
+          loading: busy,
+          loadingText: 'Exporting…',
+          disabled: !selected || customMissing,
+          onClick: exportCsv,
+        },
+      ]}
+    >
+      {categories ? (
+        <FormControl
+          type="combobox"
+          label="Category"
+          placeholder="Choose a category"
+          searchPlaceholder="Search categories"
+          options={options}
+          value={categoryId}
+          onChange={setCategoryId}
+        />
+      ) : (
+        selected && (
+          <div className="catx-fixed">
+            <span className="catx-dot" style={{ background: categoryColor(selected) }} aria-hidden />
+            <span className="truncate">{selected.name}</span>
           </div>
-        </div>
-      </div>
-    </Portal>
+        )
+      )}
+
+      <FormControl
+        type="select"
+        label="Period"
+        options={PERIODS}
+        value={period}
+        onChange={(e) => setPeriod(e.target.value)}
+        description={period === 'custom' ? undefined : rangeText(range)}
+      />
+
+      {period === 'custom' && (
+        <FormControl
+          type="daterange"
+          label="Dates"
+          placeholder="Pick a start and end date"
+          value={custom}
+          onChange={setCustom}
+        />
+      )}
+
+      <ErrorMessage message={status} />
+    </Dialog>
   );
 }

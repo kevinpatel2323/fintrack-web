@@ -1,17 +1,17 @@
-import { Num } from './ui/primitives.jsx';
-import { TransactionCategoryGlyph, formatDateShort } from './TransactionTable.jsx';
-import { inr } from '../utils/inr.js';
-import '../styles/transactions-redesign.css';
+import { Amount } from './ui';
+import { CategoryIcon } from './common/Category.jsx';
+import { formatDateShort } from './TransactionTable.jsx';
+import { signedAmount } from './transactions/transactionListModel.js';
+import './transactions/transactions.css';
 
 /**
- * One ledger row outside a table: category glyph (tap to recategorise), title,
- * meta line, amount. This is the non-table counterpart of TransactionTableRow,
- * used by the mobile ledger and by narrow panels such as the calendar's day
- * list — anywhere a <table> would not fit.
+ * One ledger row outside a table: category tile (tap to recategorise), title,
+ * a muted second line, amount. The phone ledger uses it, and so do narrow
+ * panels such as the calendar's day list — anywhere a table would not fit.
  *
  * `nested` renders it as a subordinate of the row above (the card transactions
- * a bill payment covers). `showDate` puts the row's own date in the meta line,
- * which the grouped mobile list does not need but nested rows do.
+ * a bill payment covers). `showDate` puts the row's own date in the second
+ * line, which the day-grouped list does not need but nested rows do.
  */
 export default function TransactionListRow({
   row,
@@ -22,55 +22,45 @@ export default function TransactionListRow({
   nestedLast = false,
   showDate = false,
 }) {
-  return (
-    <div className={`txn-mobile-row${
-      nested ? ` txn-mobile-row--nested${nestedLast ? ' is-last' : ''}` : ''}`}>
-      {/* Category glyph — tap to pick category */}
-      <label
-        className="txn-mobile-row__cat-pick"
-        title="Change category"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <TransactionCategoryGlyph category={row.category} size={nested ? 30 : 38} />
-        <select
-          className="txn-mobile-cat-select"
-          value={row.categoryId || ''}
-          onChange={(e) => { e.stopPropagation(); onAssignCategory(row.id, e.target.value); }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <option value="">No category</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>
-          ))}
-        </select>
-      </label>
+  const secondary = row.mobileSubtitle ?? row.subtitle;
+  const categoryName = row.category?.name || 'Uncategorized';
 
-      {/* Tap-to-open body */}
-      <button
-        type="button"
-        className="txn-mobile-row__body"
-        onClick={() => onOpenDetail?.(row.raw ?? row)}
-      >
-        <div className="txn-mobile-row__copy">
-          <div className="txn-mobile-row__title">{row.title || '—'}</div>
-          <div className="txn-mobile-row__meta">
-            {showDate && (
-              <span className="txn-mobile-row__meta-date">{formatDateShort(row.date)}</span>
-            )}
+  return (
+    <div className={['txl-item', nested && 'txl-item--nested', nested && nestedLast && 'is-last'].filter(Boolean).join(' ')}>
+      {onAssignCategory ? (
+        // The tile is a native select laid over the category icon: a phone
+        // opens its own picker, which beats any custom menu at this size.
+        <label className="txl-item__category" title="Change category">
+          <CategoryIcon category={row.category} size={nested ? 28 : 32} />
+          <select
+            className="txl-item__category-select"
+            value={row.categoryId || ''}
+            aria-label={`Category: ${categoryName}. Change category`}
+            onChange={(e) => onAssignCategory(row.id, e.target.value)}
+          >
+            <option value="">No category</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <span className="txl-item__category">
+          <CategoryIcon category={row.category} size={nested ? 28 : 32} />
+        </span>
+      )}
+
+      <button type="button" className="txl-item__body" onClick={() => onOpenDetail?.(row.raw ?? row)}>
+        <span className="txl-item__text">
+          <span className="txl-item__title truncate">{row.title || '—'}</span>
+          <span className="txl-item__meta">
+            {showDate && <span className="txl-item__meta-date">{formatDateShort(row.date)}</span>}
             {row.titleBadge}
-            <span className="txn-mobile-row__meta-copy">
-              {row.mobileSubtitle ?? row.subtitle}
-            </span>
-            {row.metaTrailing && (
-              <span className="txn-mobile-row__meta-trailing">{row.metaTrailing}</span>
-            )}
-          </div>
-        </div>
-        <div className="txn-mobile-row__amount">
-          <Num size={nested ? 13 : 14} weight={600} color={row.isIncome ? 'var(--ft-income)' : 'var(--ft-spend)'}>
-            {inr(row.isIncome ? row.amount : -row.amount, { sign: row.isIncome })}
-          </Num>
-        </div>
+            {secondary ? <span className="txl-item__meta-copy truncate">{secondary}</span> : null}
+            {row.metaTrailing && <span className="txl-item__meta-trailing">{row.metaTrailing}</span>}
+          </span>
+        </span>
+        <Amount className="txl-item__amount" value={signedAmount(row)} sign="always" />
       </button>
     </div>
   );

@@ -1,103 +1,323 @@
-/* Overview — dashboard widgets only */
-.dashboard-widgets-section {
+/* Dashboard (route `/`). Page prefix: `dash-`.
+ *
+ * Desktop: stat row, "Needs attention", then a 2:1 grid of cards
+ *   [Income vs expenses | Spending by category]
+ *   [Recent activity    | People + Accounts   ]
+ * Below 1024px the grid is one column; phones get their own stack. */
+
+.dash-page {
   display: flex;
   flex-direction: column;
-  gap: clamp(0.75rem, 2vw, 1rem);
-  margin-bottom: 0;
+  gap: 16px;
 }
 
-.dashboard-widgets-intro {
-  margin: 0;
-  padding: 0;
+/* Wide enough for "28 Sep 2026 to 28 Oct 2026". */
+.dash-range {
+  width: 236px;
 }
 
-.dashboard-widgets-title {
-  margin: 0 0 0.35rem;
-  font-family: 'Fraunces', serif;
-  font-size: clamp(1.35rem, 3.5vw, 1.75rem);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--ink);
-  line-height: 1.2;
+/* ---------- Stats ---------- */
+
+.dash-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
 }
 
-.dashboard-widgets-lead {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--muted);
-  line-height: 1.45;
-  max-width: 42rem;
+/* ---------- Card grid ---------- */
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 16px;
+  transition: opacity 150ms;
 }
 
-.dashboard-widgets-toolbar {
+.dash-stack,
+.dash-mobile-stack {
   display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  justify-content: flex-start;
-  gap: 0.75rem 1rem;
-  padding: clamp(0.75rem, 2vw, 1rem) clamp(0.875rem, 2vw, 1.125rem);
+  flex-direction: column;
+  gap: 16px;
   min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
+  transition: opacity 150ms;
 }
 
-.dashboard-widgets-toolbar .date-range-picker--dashboard {
+.dash-stack > .dash-people {
   flex: 1 1 auto;
-  min-width: 0;
-  max-width: 100%;
 }
 
-.dashboard-refresh-btn {
+/* Cards in a row share its height; the body takes the slack so footers line up. */
+.dash-grid .ui-card__body,
+.dash-mobile-stack .ui-card__body {
+  flex: 1 1 auto;
+}
+
+/* A new range is loading: keep the old figures in view, quietly. */
+.dash-grid.is-refreshing,
+.dash-mobile-stack.is-refreshing {
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-grid,
+  .dash-stack,
+  .dash-mobile-stack {
+    transition: none;
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .dash-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dash-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- Card pieces ---------- */
+
+.dash-card-title {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  flex: 0 1 auto;
-  min-width: 0;
-  align-self: center;
-  padding: 10px 16px;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 0.875rem;
+  gap: 8px;
 }
 
-.dashboard-refresh-btn svg {
+/* Ghost button text lines up with the row content above it. Two classes so
+   it beats the button's own `margin: 0` whatever order the sheets load in. */
+.ui-card__footer .dash-viewall {
+  margin-left: -8px;
+}
+
+.dash-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dash-list > li + li {
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.dash-tile {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
+  border-radius: var(--radius-4);
+  background: var(--surface-gray-2);
+  color: var(--ink-gray-6);
 }
 
-.dashboard-refresh-icon--spinning {
-  animation: dashboard-refresh-spin 0.9s linear infinite;
+.dash-chevron {
+  flex-shrink: 0;
+  color: var(--ink-gray-4);
 }
 
-@keyframes dashboard-refresh-spin {
-  from {
-    transform: rotate(0deg);
+/* ---------- Rows (people, accounts, attention) ---------- */
+
+.dash-row,
+.dash-attn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 16px;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 150ms;
+}
+
+.dash-attn {
+  min-height: 52px;
+}
+
+.dash-row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dash-row-title {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--ink-gray-8);
+}
+
+.dash-row-meta {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+}
+
+.dash-row-amount {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.dash-attn.is-due .dash-attn__detail {
+  color: var(--ink-money-due);
+}
+
+.dash-attn__action {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--ink-gray-6);
+}
+
+/* ---------- Recent activity ---------- */
+
+/* Desktop: one 40px line — date, description, category, amount. */
+.dash-txn {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) minmax(0, 148px) minmax(96px, auto);
+  grid-template-areas: 'date name cat amount';
+  align-items: center;
+  column-gap: 12px;
+  min-height: 40px;
+  padding: 6px 16px;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 150ms;
+}
+
+.dash-txn__date {
+  grid-area: date;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+  white-space: nowrap;
+}
+
+.dash-txn__name {
+  grid-area: name;
+  font-size: 14px;
+  color: var(--ink-gray-8);
+}
+
+.dash-txn__note {
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.dash-txn__cat {
+  grid-area: cat;
+  display: flex;
+  min-width: 0;
+}
+
+.dash-txn__amount {
+  grid-area: amount;
+  justify-self: end;
+  font-size: 14px;
+}
+
+/* ---------- Interactive rows ---------- */
+
+@media (hover: hover) and (pointer: fine) {
+  a.dash-row:hover,
+  .dash-attn:hover,
+  .dash-txn:hover {
+    background: var(--surface-gray-1);
   }
-  to {
-    transform: rotate(360deg);
+}
+
+a.dash-row:active,
+.dash-attn:active,
+.dash-txn:active {
+  background: var(--surface-gray-2);
+}
+
+a.dash-row:focus-visible,
+.dash-attn:focus-visible,
+.dash-txn:focus-visible {
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-row,
+  .dash-attn,
+  .dash-txn {
+    transition: none;
   }
 }
 
-/* Stack toolbar before date inputs + refresh compete on one row (fixes mobile overflow) */
-@media (max-width: 1024px) {
-  .dashboard-widgets-toolbar {
+/* ---------- Loading and error ---------- */
+
+.dash-skel-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  padding: 8px 16px;
+}
+
+.dash-skel-row.is-two-line {
+  min-height: 48px;
+}
+
+/* Inside a padded card body the card already supplies the inset. */
+.dash-categories .dash-skel-row {
+  padding-inline: 0;
+}
+
+.dash-skel-row__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dash-error__body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* ---------- Phone ---------- */
+
+.dash-mobile-range {
+  display: flex;
+}
+
+@media (max-width: 767.98px) {
+  .dash-page {
+    gap: 12px;
+  }
+
+  .dash-stats {
+    gap: 8px;
+  }
+
+  .dash-mobile-stack {
+    gap: 12px;
+  }
+
+  /* Two lines: description and amount, then date and category. */
+  .dash-txn {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'name name amount'
+      'date cat cat';
+    column-gap: 8px;
+    row-gap: 2px;
+    min-height: 52px;
+    padding: 8px 16px;
+  }
+
+  /* The chevron already says "go"; the label would crowd the text. */
+  .dash-attn__action {
+    display: none;
+  }
+
+  .dash-error__body {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .dashboard-widgets-toolbar .date-range-picker--dashboard {
-    max-width: 100%;
-  }
-
-  .dashboard-refresh-btn {
-    align-self: stretch;
-    width: 100%;
-    flex: none;
-  }
-}
-
-@media (max-width: 480px) {
-  .dashboard-widgets-lead {
-    font-size: 0.85rem;
   }
 }

@@ -1,10 +1,10 @@
 import { useState } from 'react';
+import { Trash2 } from 'lucide-react';
+import { Amount, Avatar, Button } from './ui';
 import { ledgerDirectionPhrase } from '../utils/ledgerParties.js';
-import { friendTint, initialsOf } from '../utils/categoryColors.js';
 import { rupees, toMinor } from '../utils/settlementAllocation.js';
-import { IcTrash } from './ui/Icon.jsx';
-import { inr } from '../utils/inr.js';
 import SettlementAllocationModal from './SettlementAllocationModal.jsx';
+import './people/FriendTagCard.css';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -17,27 +17,19 @@ function formatDate(value) {
   }).format(date);
 }
 
-function directionTone(direction) {
-  if (direction === 'OWES_ME') return 'receivable';
-  if (direction === 'I_OWE') return 'payable';
-  if (direction === 'SETTLEMENT') return 'settlement';
-  return 'settled';
+// Money the friend owes reads in the money-in tone; the rest stays in ink.
+function amountTone(direction) {
+  if (direction === 'OWES_ME') return 'in';
+  if (direction === 'NOTHING_OUTSTANDING') return 'muted';
+  return 'out';
 }
 
-function tagAmountColor(direction) {
-  if (direction === 'OWES_ME') return 'var(--ft-income)';
-  if (direction === 'I_OWE') return 'var(--ft-spend)';
-  if (direction === 'SETTLEMENT') return 'var(--ft-violet)';
-  return 'var(--ft-text-dim)';
-}
-
-function TransactionMeta({ transaction }) {
+function transactionMeta(transaction) {
   const items = [
     formatDate(transaction?.transactionDate),
     transaction?.upiBank || (transaction?.isManual ? 'Manual' : null),
   ].filter(Boolean);
-
-  return items.length ? <>{items.join(' · ')}</> : <>Transaction split</>;
+  return items.length ? items.join(' · ') : 'Transaction split';
 }
 
 /**
@@ -84,63 +76,54 @@ function settlementLine(tag) {
 
 export function FriendTagCard({ tag, transaction, friendName, onRemove, onAllocationChanged }) {
   const displayName = friendName || tag.friend?.name || `Friend #${tag.friendId}`;
-  const tone = directionTone(tag.direction);
   const amount = Number(tag.amount || 0);
   const tx = tag.transaction || transaction;
-  const tint = friendTint(displayName);
   const note = typeof tag.note === 'string' ? tag.note.trim() : '';
   const settlement = settlementLine(tag);
   const [allocating, setAllocating] = useState(false);
   const canAllocate = tag.direction === 'SETTLEMENT' && Boolean(onAllocationChanged);
 
   return (
-    <article className={`friend-tag-card friend-tag-card--${tone}`}>
-      <div
-        className="friend-tag-card__avatar"
-        style={{
-          color: tint,
-          borderColor: `${tint}55`,
-          background: `linear-gradient(135deg, ${tint}33, ${tint}14)`,
-        }}
-        aria-hidden="true"
-      >
-        {initialsOf(displayName)}
-      </div>
+    <article className="people-tag-card">
+      <Avatar label={displayName} size="xl" aria-hidden />
 
-      <div className="friend-tag-card__copy">
-        <div className="friend-tag-card__eyebrow">
-          <TransactionMeta transaction={tx} />
-        </div>
-        <h4>{displayName}</h4>
-        <p className="friend-tag-card__summary">{ledgerDirectionPhrase(tag.direction, displayName)}</p>
-        {note ? <p className="friend-tag-card__note">{note}</p> : null}
-        {tag.entryGroup?.title ? (
-          <p className="friend-tag-card__note">Part of {tag.entryGroup.title}</p>
-        ) : null}
+      <div className="people-tag-card__body">
+        <h4 className="people-tag-card__name">{displayName}</h4>
+        <p className="people-tag-card__line">
+          {ledgerDirectionPhrase(tag.direction, displayName)} · {transactionMeta(tx)}
+        </p>
+        {note ? <p className="people-tag-card__line">{note}</p> : null}
+        {tag.entryGroup?.title ? <p className="people-tag-card__line">Part of {tag.entryGroup.title}</p> : null}
         {settlement ? (
-          <p className="friend-tag-card__note" style={settlement.warn ? { color: 'var(--ft-warn)' } : undefined}>
+          <p className="people-tag-card__line" data-tone={settlement.warn ? 'warn' : undefined}>
             {settlement.text}
           </p>
         ) : null}
         {canAllocate ? (
-          <button
-            type="button"
-            className="friend-tag-card__apply"
+          <Button
+            className="people-tag-card__action"
+            size="sm"
+            variant="subtle"
+            label={
+              tag.settlementLegacy === false && toMinor(tag.allocatedAmount) === 0
+                ? 'Apply to entries'
+                : 'Change what it settles'
+            }
             onClick={() => setAllocating(true)}
-          >
-            {tag.settlementLegacy === false && toMinor(tag.allocatedAmount) === 0
-              ? 'Apply to entries'
-              : 'Change what it settles'}
-          </button>
+          />
         ) : null}
       </div>
 
-      <div className="friend-tag-card__side">
-        <strong style={{ color: tagAmountColor(tag.direction) }}>{inr(amount)}</strong>
+      <div className="people-tag-card__side">
+        <Amount className="people-tag-card__amount" value={amount} tone={amountTone(tag.direction)} />
         {onRemove ? (
-          <button className="friend-tag-card__delete" type="button" onClick={onRemove} aria-label={`Remove split for ${displayName}`}>
-            <IcTrash size={14} />
-          </button>
+          <Button
+            variant="ghost"
+            icon={Trash2}
+            label={`Remove split for ${displayName}`}
+            tooltip="Remove split"
+            onClick={onRemove}
+          />
         ) : null}
       </div>
 

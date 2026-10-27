@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calendarPath,
   parseCalendarParams,
+  parseCalendarView,
   parseMonthParam,
   patchCalendarParams,
 } from '../calendarParams.js';
@@ -51,5 +52,25 @@ describe('calendarParams', () => {
     expect(calendarPath('month=2026-06&day=2026-06-03')).toBe('/calendar?month=2026-06&day=2026-06-03');
     expect(calendarPath('?month=2026-06')).toBe('/calendar?month=2026-06');
     expect(calendarPath('')).toBe('/calendar');
+  });
+});
+
+describe('calendar view param', () => {
+  it('reads the subscriptions view, defaulting to transactions', () => {
+    expect(parseCalendarView(new URLSearchParams('view=subscriptions'))).toBe('subscriptions');
+    expect(parseCalendarView(new URLSearchParams('view=other'))).toBe('transactions');
+    expect(parseCalendarView(new URLSearchParams(''))).toBe('transactions');
+  });
+
+  it('sets and clears the view while keeping month and day', () => {
+    const base = new URLSearchParams('month=2026-10&day=2026-10-28');
+    const subs = patchCalendarParams(base, { view: 'subscriptions' });
+    expect(subs.toString()).toBe('month=2026-10&day=2026-10-28&view=subscriptions');
+    expect(patchCalendarParams(subs, { view: 'transactions' }).toString()).toBe('month=2026-10&day=2026-10-28');
+  });
+
+  it('leaves the view alone when the patch does not mention it', () => {
+    const next = patchCalendarParams(new URLSearchParams('view=subscriptions'), { selectedIso: '2026-10-01' });
+    expect(next.get('view')).toBe('subscriptions');
   });
 });

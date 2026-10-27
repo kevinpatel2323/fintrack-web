@@ -1,336 +1,783 @@
-@import '../styles/transactionSheet.css';
+/* Calendar page (/calendar). Prefix: cal-. Espresso + Fintrack tokens only. */
 
-.calendar-view-toggle {
-  display: flex;
-  gap: 8px;
-  padding: 10px 12px;
-  margin-bottom: 14px;
-  border-radius: 16px;
-}
-
-.calendar-view-toggle__btn {
-  flex: 1;
-  min-height: 44px;
-  border-radius: 12px;
-  border: 1px solid var(--ft-border-s);
-  background: transparent;
-  color: var(--ft-text-dim);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.calendar-view-toggle__btn--active {
-  background: var(--ft-accent-soft);
-  border-color: var(--ft-accent-strong);
-  color: var(--ft-text);
-}
-
-.calendar-card {
-  gap: 14px;
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.calendar-card .card-header > div:first-child {
-  min-width: 0;
-  max-width: 100%;
-}
-
-.calendar-card .card-header p {
-  overflow-wrap: anywhere;
-  word-wrap: break-word;
-  max-width: 100%;
-}
-
-.calendar-filters.glass-panel {
-  padding: 16px;
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-  overflow-x: clip;
-}
-
-.calendar-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.calendar-toolbar h2 {
-  font-size: 1.25rem;
-  margin: 0;
-}
-
-.calendar-nav-cluster {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.calendar-nav-cluster button {
-  min-width: 44px;
-  min-height: 44px;
-}
-
-.calendar-month-label {
-  font-family: 'Fraunces', serif;
-  font-size: clamp(1.05rem, 3.5vw, 1.35rem);
-  font-weight: 700;
-  color: var(--ink);
-  min-width: 0;
-  flex: 1 1 6.5rem;
-  text-align: center;
-}
-
-.calendar-grid-wrap {
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  overflow-x: clip;
-  box-sizing: border-box;
-}
-
-.calendar-weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
-  margin-bottom: 6px;
-  min-width: 0;
-}
-
-.calendar-weekdays span {
-  text-align: center;
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-  padding: 6px 1px;
-  min-width: 0;
-}
-
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
-  min-width: 0;
-  width: 100%;
-}
-
-.calendar-cell {
-  aspect-ratio: 1;
-  min-width: 0;
-  width: 100%;
-  max-width: 100%;
-  min-height: 48px;
-  max-height: 88px;
-  border-radius: 14px;
-  border: 1px solid var(--stroke);
-  background: var(--ft-surface);
+.cal-page {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 6px 4px 8px;
-  gap: 2px;
-  cursor: default;
-  box-sizing: border-box;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+  gap: 16px;
 }
 
-.calendar-cell--muted {
-  opacity: 0.38;
+/* ── Header controls ──────────────────────────────────────────────────── */
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Phone: view switch and month navigation in one row under the header. */
+.cal-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cal-toolbar__tabs {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+/* ── Layout: main column + ~320px side panel ──────────────────────────── */
+
+.cal-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.cal-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cal-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.cal-aside > * {
+  flex-shrink: 0;
+}
+
+@media (min-width: 1024px) {
+  .cal-layout {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+
+  /* The side panel is pinned beside the grid and scrolls by itself, so a
+     busier or quieter day doesn't change the page height. */
+  .cal-aside {
+    position: sticky;
+    top: calc(var(--header-height) + 20px);
+    max-height: calc(100dvh - var(--header-height) - 40px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Room for focus rings inside the scroll box. */
+    padding: 2px;
+    margin: -2px;
+  }
+
+  /* The subscription list needs the width; its bills panel moves under it
+     until there is room for both. */
+  .cal-layout--subs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cal-layout--subs .cal-aside {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (min-width: 1280px) {
+  .cal-layout--subs {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+
+  .cal-layout--subs .cal-aside {
+    position: sticky;
+    max-height: calc(100dvh - var(--header-height) - 40px);
+    overflow-y: auto;
+  }
+}
+
+.cal-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Month summary ────────────────────────────────────────────────────── */
+
+.cal-summary-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+}
+
+.cal-summary {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+}
+
+.cal-summary__figure {
+  font-weight: 500;
+  color: var(--ink-gray-8);
+}
+
+.cal-summary__figure.ui-amount--in {
+  color: var(--ink-money-in);
+}
+
+/* ── Month grid ───────────────────────────────────────────────────────── */
+
+.cal-grid {
+  overflow: hidden;
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-5);
+  background: var(--surface-base);
+  transition: opacity 150ms;
+}
+
+.cal-grid.is-loading {
+  opacity: 0.55;
   pointer-events: none;
 }
 
-.calendar-cell--today {
-  border-color: var(--ft-accent-strong);
-  box-shadow: 0 0 0 1px var(--ft-accent-hairline);
+.cal-grid__weekdays,
+.cal-grid__days {
+  display: grid;
+  /* minmax(0, 1fr) lets the seven columns shrink on narrow phones instead of
+     pushing the page sideways. */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
-.calendar-cell--has-data {
+.cal-grid__weekdays {
+  border-bottom: 1px solid var(--outline-gray-1);
+}
+
+.cal-grid__weekday {
+  padding: 8px;
+  font-size: 12px;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: var(--ink-gray-5);
+}
+
+.cal-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+  min-height: 104px;
+  margin: 0;
+  padding: 6px 8px 8px;
+  border: 0;
+  border-right: 1px solid var(--outline-gray-1);
+  border-bottom: 1px solid var(--outline-gray-1);
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: var(--ink-gray-8);
   cursor: pointer;
+  transition: background-color 100ms;
 }
 
-/* Days with ≥1 transaction: category coverage (see computeCategoryCoverageByDay) */
-.calendar-cell--cats-complete {
-  background: var(--ft-income-soft);
-  border-color: var(--ft-income-hairline);
+.cal-day:nth-child(7n) {
+  border-right: 0;
 }
 
-.calendar-cell--cats-incomplete {
-  background: var(--ft-spend-soft);
-  border-color: var(--ft-spend-hairline);
+/* The last week has no rule under it; the frame draws the edge. */
+.cal-day:nth-last-child(-n + 7) {
+  border-bottom: 0;
 }
 
-.calendar-cell--has-data:hover,
-.calendar-cell--has-data:focus-visible {
-  background: var(--ft-accent-soft);
-  border-color: var(--ft-accent-hairline);
-  transform: translateY(-1px);
-  outline: none;
+.cal-day.is-outside {
+  cursor: default;
 }
 
-.calendar-cell--has-data.calendar-cell--cats-complete:hover,
-.calendar-cell--has-data.calendar-cell--cats-complete:focus-visible {
-  background: var(--ft-income-soft);
-  border-color: var(--ft-income-hairline);
+@media (hover: hover) and (pointer: fine) {
+  button.cal-day:hover {
+    background: var(--surface-gray-1);
+  }
 }
 
-.calendar-cell--has-data.calendar-cell--cats-incomplete:hover,
-.calendar-cell--has-data.calendar-cell--cats-incomplete:focus-visible {
-  background: var(--ft-spend-soft);
-  border-color: var(--ft-spend-hairline);
+.cal-day.is-selected,
+.cal-day.is-selected:hover {
+  background: var(--surface-gray-2);
+  box-shadow: inset 0 0 0 1px var(--outline-gray-3);
 }
 
-.calendar-cell__dow-num {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--ink);
-  line-height: 1.2;
+.cal-day:focus-visible {
+  z-index: 1;
+  outline: var(--focus-outline-default);
+  outline-offset: -2px;
 }
 
-.calendar-cell__net {
-  font-size: clamp(0.58rem, 2.4vw, 0.72rem);
-  font-weight: 700;
-  line-height: 1.15;
-  text-align: center;
-  width: 100%;
-  max-width: 100%;
-  padding: 0 1px;
-  box-sizing: border-box;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.cal-day__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  min-height: 22px;
+}
+
+.cal-day__num {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
+  color: var(--ink-gray-8);
 }
 
-.calendar-cell__net--in {
-  color: var(--success);
+.cal-day.is-outside .cal-day__num {
+  color: var(--ink-gray-4);
 }
 
-.calendar-cell__net--out {
-  color: var(--danger);
-}
-
-.calendar-cell__net--zero {
-  color: var(--teal);
-}
-
-.calendar-cell__count {
-  font-size: 0.58rem;
+.cal-day.is-today .cal-day__num {
+  background: var(--surface-gray-10);
   font-weight: 600;
-  color: var(--muted);
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 0 1px;
+  color: var(--ink-base);
 }
 
-.calendar-legend {
+.cal-day__marks {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.cal-day__amounts {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.cal-day__spent {
+  color: var(--ink-gray-7);
+}
+
+/* A card bill paid this day: a tiny label naming the owner and the card. */
+.cal-day__bill {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  margin-top: auto;
+  padding: 3px 5px;
+  border-radius: var(--radius-2);
+  background: var(--surface-gray-2);
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--ink-gray-7);
+}
+
+.cal-day__bill-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cal-day__bill-line svg {
+  color: var(--ink-gray-5);
+}
+
+.cal-day__bill-line--sub {
+  justify-content: space-between;
+  color: var(--ink-gray-5);
+}
+
+/* Phone: day number and dots only. */
+.cal-grid--compact .cal-grid__weekday {
+  padding: 6px 0;
+  text-align: center;
+}
+
+.cal-grid--compact .cal-day {
+  align-items: center;
+  min-height: 48px;
+  padding: 5px 2px 6px;
+}
+
+.cal-grid--compact .cal-day__head {
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 4px;
+}
+
+.cal-grid--compact .cal-day__marks {
+  min-height: 6px;
+}
+
+/* ── Status dots and legend ───────────────────────────────────────────── */
+
+.cal-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: var(--ink-gray-4);
+}
+
+.cal-dot--needs { background: var(--ink-amber-5); }
+.cal-dot--done { background: var(--ink-green-5); }
+.cal-dot--bill { background: var(--ink-violet-5); }
+.cal-dot--card { background: var(--ink-gray-5); }
+
+.cal-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 14px 20px;
-  font-size: 0.78rem;
-  color: var(--muted);
-  padding-top: 4px;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
 }
 
-.calendar-legend span {
+.cal-legend li {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
-.calendar-legend i {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--muted);
+.cal-legend__icon {
+  color: var(--ink-gray-5);
 }
 
-.calendar-legend i.in {
-  background: var(--success);
+/* ── Side panel cards ─────────────────────────────────────────────────── */
+
+.cal-section-label {
+  padding: 12px 16px 4px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
 }
 
-.calendar-legend i.out {
-  background: var(--danger);
+.cal-day-panel__totals {
+  display: flex;
+  gap: 24px;
+  margin: 0;
+  padding: 0 16px 10px;
 }
 
-.calendar-legend i.cats-ok {
-  background: var(--ft-income);
-  box-shadow: inset 0 0 0 1px var(--ft-income-hairline);
+.cal-day-panel__totals div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.calendar-legend i.cats-miss {
-  background: var(--ft-spend);
-  box-shadow: inset 0 0 0 1px var(--ft-spend-hairline);
+.cal-day-panel__totals dt {
+  font-size: 13px;
+  color: var(--ink-gray-5);
 }
+
+.cal-day-panel__totals dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.cal-day-panel__loading {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+  color: var(--ink-gray-5);
+}
+
+.cal-day-panel__bills {
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+/* ── Day transaction rows ─────────────────────────────────────────────── */
+
+.cal-txns,
+.cal-bills {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cal-txn {
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+/* The whole row opens the transaction; the category picker and the card
+   bill toggle sit above that hit area. */
+.cal-txn__row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 2px;
+  padding: 10px 12px 8px 16px;
+  transition: background-color 100ms;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cal-txn__row:hover {
+    background: var(--surface-gray-1);
+  }
+}
+
+.cal-txn__icon {
+  grid-row: 1 / span 2;
+  align-self: start;
+  margin-top: 1px;
+}
+
+.cal-txn__open {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.cal-txn__open::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.cal-txn__open:focus-visible {
+  outline: none;
+}
+
+.cal-txn__open:focus-visible::after {
+  outline: var(--focus-outline-default);
+  outline-offset: -2px;
+}
+
+.cal-txn__title {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--ink-gray-8);
+}
+
+.cal-txn__amount {
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.cal-txn__sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* A ghost picker's text lines up with the title above it. */
+.cal-txn__category.is-ghost {
+  margin-left: -6px;
+}
+
+.cal-txn__category,
+.cal-txn__cc-toggle {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.cal-txn__category {
+  max-width: 55%;
+}
+
+.cal-txn__meta,
+.cal-txn__status {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-gray-5);
+}
+
+.cal-txn__status.is-error {
+  color: var(--ink-red-6);
+}
+
+.cal-txn__cc-toggle {
+  margin-left: auto;
+}
+
+.cal-txn__children {
+  padding: 0 8px 8px 16px;
+}
+
+.cal-txn__note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 4px 38px;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.cal-txn__remainder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 4px 2px 38px;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+/* Colour dot shown before a category in the pickers. */
+.cal-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  margin: 0 4px;
+  border-radius: var(--radius-full);
+}
+
+/* ── Bill rows ────────────────────────────────────────────────────────── */
+
+.cal-bill + .cal-bill {
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.cal-card > .ui-card__body > .cal-bills {
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.cal-bill__body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  margin: 0;
+  padding: 8px 16px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+}
+
+.cal-bill__body.is-interactive {
+  cursor: pointer;
+  transition: background-color 100ms;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cal-bill__body.is-interactive:hover {
+    background: var(--surface-gray-1);
+  }
+}
+
+.cal-bill__body:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: -2px;
+}
+
+.cal-bill__date {
+  width: 44px;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--ink-gray-6);
+}
+
+.cal-bill__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cal-bill__name {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--ink-gray-8);
+}
+
+.cal-bill__meta {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-gray-5);
+}
+
+.cal-bill__amount {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.cal-bill.is-past .cal-bill__name,
+.cal-bill.is-past .cal-bill__date {
+  color: var(--ink-gray-5);
+}
+
+/* ── Subscriptions view ───────────────────────────────────────────────── */
+
+.cal-sub-name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cal-sub-name__title {
+  flex-shrink: 0;
+  max-width: 100%;
+  font-weight: 500;
+  color: var(--ink-gray-8);
+}
+
+.cal-sub-name__meta {
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.cal-sub-status {
+  display: inline-flex;
+}
+
+/* Phone rows: name and cadence on the left, amount and status on the right. */
+.cal-sub-list {
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-5);
+}
+
+.cal-sub-list > li + li,
+.cal-sub-list > .cal-sub-row + .cal-sub-row {
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.cal-sub-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.cal-sub-row:active {
+  background: var(--surface-gray-2);
+}
+
+.cal-sub-row:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: -2px;
+}
+
+.cal-sub-row__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cal-sub-row__name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-8);
+}
+
+.cal-sub-row__meta {
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.cal-sub-row__end {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 14px;
+}
+
+/* ── Forms ────────────────────────────────────────────────────────────── */
+
+.cal-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+.cal-form__full {
+  grid-column: 1 / -1;
+}
+
+.cal-form__mono {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.cal-form__footer {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cal-form__delete {
+  margin-right: auto;
+}
+
+/* ── Phone ────────────────────────────────────────────────────────────── */
 
 @media (max-width: 767.98px) {
-  .calendar-filters.glass-panel {
-    padding: 12px;
+  .cal-page {
+    gap: 12px;
   }
 
-  .calendar-toolbar {
-    flex-direction: column;
-    align-items: stretch;
+  .cal-layout {
+    gap: 16px;
   }
 
-  .calendar-toolbar h2 {
-    text-align: center;
+  .cal-form {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .calendar-nav-cluster {
-    justify-content: center;
-    width: 100%;
+  .cal-txn__row {
+    padding-left: 12px;
   }
 
-  .calendar-month-label {
-    flex: 1 1 auto;
-    font-size: 1.05rem;
-  }
-
-  .calendar-weekdays {
-    gap: 2px;
-  }
-
-  .calendar-weekdays span {
-    font-size: 0.58rem;
-    letter-spacing: 0.04em;
-    padding: 4px 0;
-  }
-
-  .calendar-grid {
-    gap: 3px;
-  }
-
-  .calendar-cell {
-    border-radius: 10px;
-    padding: 4px 2px 5px;
-    gap: 1px;
-  }
-
-  .calendar-cell__dow-num {
-    font-size: 0.72rem;
-  }
-
-  .calendar-cell__net {
-    font-size: 0.62rem;
-  }
-
-  .calendar-cell__count {
-    font-size: 0.52rem;
-  }
-
-  .calendar-legend {
-    font-size: 0.72rem;
-    gap: 10px 14px;
+  .cal-txn__children {
+    padding-left: 12px;
   }
 }

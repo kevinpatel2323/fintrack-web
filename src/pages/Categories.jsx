@@ -1,21 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
-import ConfirmDialog from '../components/ConfirmDialog.jsx';
-import Portal from '../components/Portal.jsx';
-import CategoryExportModal from '../components/CategoryExportModal.jsx';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Card, Num, PrimaryBtn, GhostBtn, Overline, CatGlyph,
-} from '../components/ui/primitives.jsx';
-import { IcPlus, IcEdit, IcTrash, IcDownload, IcChevR, IcChevL, IcSearch } from '../components/ui/Icon.jsx';
-import { useIsCompact } from '../styles/breakpoints.js';
-import { CATEGORY_PALETTE, categoryColor } from '../utils/categoryColors.js';
-import { inr } from '../utils/inr.js';
+  ChevronLeft, ChevronRight, Download, MoreHorizontal, Pencil, Plus, Search, Tags, Trash2,
+} from 'lucide-react';
+import {
+  Alert, Amount, Button, ConfirmDialog, Dropdown, EmptyState, ListView, PageBody, PageHeader, Skeleton, TextInput,
+  toast,
+} from '../components/ui';
+import { CategoryIcon } from '../components/common/Category.jsx';
+import CategoryExportModal from '../components/CategoryExportModal.jsx';
+import CategoryFormDialog from '../components/categories/CategoryFormDialog.jsx';
+import CategorySplitCard from '../components/categories/CategorySplitCard.jsx';
+import { categoryColor } from '../utils/categoryColors.js';
 import { fetchCategoryBreakdown } from '../services/dashboardApi.js';
-
 import { API_BASE, apiFetch } from '../services/http.js';
-import './categories-redesign.css';
-
-const PRESET_COLORS = Object.values(CATEGORY_PALETTE);
-const EMPTY_FORM = { name: '', color: PRESET_COLORS[0], icon: '' };
+import './Categories.css';
 
 /** First and last day of the month `offset` months from now, as ISO dates. */
 function monthRange(offset = 0) {
@@ -34,112 +32,112 @@ function plural(n, one, many) {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-export default function Categories() {
-  const isMobile = useIsCompact();
+function pctText(pct) {
+  return `${pct < 1 ? '<1' : pct.toFixed(0)}%`;
+}
 
+/** Colour for spending that has no category (list bar and donut slice). */
+const UNCATEGORISED_COLOR = 'var(--ink-gray-6)';
+
+export default function Categories() {
   const [categories, setCategories] = useState([]);
-  const [breakdown, setBreakdown] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('');
-  const [formOpen, setFormOpen] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [formStatus, setFormStatus] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [confirmState, setConfirmState] = useState({ open: false });
-  const [exportCat, setExportCat] = useState(null);
+  const [loadError, setLoadError] = useState('');
+  const [breakdown, setBreakdown] = useState(null);
+  const [breakdownError, setBreakdownError] = useState('');
+  const [breakdownKey, setBreakdownKey] = useState(0);
   const [monthOffset, setMonthOffset] = useState(0);
   const [query, setQuery] = useState('');
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editCat, setEditCat] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportCat, setExportCat] = useState(null);
+
   const month = useMemo(() => monthRange(monthOffset), [monthOffset]);
 
-  async function fetchCategories() {
-    setLoading(true); setStatus('');
+  const fetchCategories = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
     try {
       const res = await apiFetch(`${API_BASE}/categories`);
       if (!res.ok) throw new Error('Failed to fetch categories');
       setCategories((await res.json()).data || []);
-    } catch (err) { setStatus(err.message || 'Failed to fetch categories'); }
-    finally { setLoading(false); }
-  }
+    } catch (err) {
+      setLoadError(err.message || 'Failed to fetch categories');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  useEffect(() => { fetchCategories(); }, []);
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
   useEffect(() => {
     let cancelled = false;
     setBreakdown(null);
+    setBreakdownError('');
     (async () => {
       try {
         const b = await fetchCategoryBreakdown(month.startDate, month.endDate);
         if (!cancelled) setBreakdown(b);
-      } catch {}
+      } catch (err) {
+        if (!cancelled) setBreakdownError(err?.message || 'Could not load spending');
+      }
     })();
-    return () => { cancelled = true; };
-  }, [month]);
+    return () => {
+      cancelled = true;
+    };
+  }, [month, breakdownKey]);
 
   function openCreate() {
-    setEditId(null);
-    setForm(EMPTY_FORM);
-    setFormStatus('');
+    setEditCat(null);
     setFormOpen(true);
   }
 
   function openEdit(cat) {
-    setEditId(cat.id);
-    setForm({ name: cat.name, color: cat.color || PRESET_COLORS[0], icon: cat.icon || '' });
-    setFormStatus('');
+    setEditCat(cat);
     setFormOpen(true);
   }
 
-  async function submit(e) {
-    e.preventDefault();
-    const name = form.name.trim();
-    if (!name) { setFormStatus('Name is required.'); return; }
-    setSubmitting(true);
-    setFormStatus('');
-    try {
-      const url = editId ? `${API_BASE}/categories/${editId}` : `${API_BASE}/categories`;
-      const res = await apiFetch(url, {
-        method: editId ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          color: form.color || undefined,
-          icon: form.icon.trim() || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'Save failed');
-      setFormOpen(false);
-      setEditId(null);
-      await fetchCategories();
-    } catch (err) {
-      setFormStatus(err.message || 'Save failed');
-    } finally {
-      setSubmitting(false);
-    }
+  function openExport(cat = null) {
+    setExportCat(cat);
+    setExportOpen(true);
   }
 
-  function askDelete(cat) {
-    setConfirmState({
-      open: true,
-      title: `Delete "${cat.name}"?`,
-      message: 'Transactions using this category will lose their category.',
-      confirmLabel: 'Delete',
-      onConfirm: async () => {
-        setConfirmState({ open: false });
-        try {
-          const res = await apiFetch(`${API_BASE}/categories/${cat.id}`, { method: 'DELETE' });
-          if (!res.ok) {
-            const data = await res.json().catch(() => ({}));
-            setStatus(data.message || 'Delete failed');
-            return;
-          }
-          await fetchCategories();
-        } catch (err) {
-          setStatus(err.message || 'Delete failed');
-        }
-      },
-      onCancel: () => setConfirmState({ open: false }),
+  async function saveCategory({ name, color, icon }) {
+    const editId = editCat?.id;
+    const url = editId ? `${API_BASE}/categories/${editId}` : `${API_BASE}/categories`;
+    const res = await apiFetch(url, {
+      method: editId ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        color: color || undefined,
+        icon: icon.trim() || undefined,
+      }),
     });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || data.error || 'Save failed');
+    setFormOpen(false);
+    toast.success(editId ? 'Category saved' : `Added ${name}`);
+    await fetchCategories();
+  }
+
+  async function confirmDelete() {
+    const cat = deleting;
+    const res = await apiFetch(`${API_BASE}/categories/${cat.id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.message || 'Delete failed');
+    }
+    setDeleting(null);
+    toast.success(`Deleted ${cat.name}`);
+    await fetchCategories();
+    // Its spending is uncategorised now; the month's split has to follow.
+    setBreakdownKey((k) => k + 1);
   }
 
   // Spend for the chosen month, keyed by category id.
@@ -151,12 +149,24 @@ export default function Categories() {
     return m;
   }, [breakdown]);
 
+  const uncategorizedStat = breakdown?.uncategorizedAmount > 0
+    ? breakdown.categories.find((c) => c.categoryId == null) || null
+    : null;
+
+  const usedCount = useMemo(
+    () => categories.filter((c) => {
+      const stat = statById.get(String(c.id));
+      return stat && stat.totalAmount !== 0;
+    }).length,
+    [categories, statById],
+  );
+
   // Categories with movement this month first, biggest spend on top; the rest
   // alphabetically underneath, where they are out of the way but findable.
   const { active, idle } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const matches = categories.filter((c) => !q || c.name.toLowerCase().includes(q));
-    const withStat = matches.map((c) => ({ cat: c, stat: statById.get(String(c.id)) || null }));
+    const withStat = matches.map((c) => ({ id: c.id, cat: c, stat: statById.get(String(c.id)) || null }));
     return {
       active: withStat
         .filter((r) => r.stat && r.stat.totalAmount !== 0)
@@ -167,340 +177,325 @@ export default function Categories() {
     };
   }, [categories, statById, query]);
 
-  const uncategorized = breakdown?.uncategorizedAmount > 0 && !query.trim()
-    ? breakdown.categories.find((c) => c.categoryId == null)
+  const uncategorisedRow = uncategorizedStat && !query.trim()
+    ? { id: '__uncategorised__', cat: null, stat: uncategorizedStat, uncategorised: true }
     : null;
 
-  const rowActions = (c) => (
-    <div className="cat-row__actions">
-      <button type="button" className="cat-icon-btn" onClick={() => setExportCat(c)} aria-label={`Export ${c.name} as CSV`} title="Export transactions as CSV">
-        <IcDownload size={14} />
-      </button>
-      <button type="button" className="cat-icon-btn" onClick={() => openEdit(c)} aria-label={`Edit ${c.name}`} title="Edit">
-        <IcEdit size={14} />
-      </button>
-      <button type="button" className="cat-icon-btn cat-icon-btn--danger" onClick={() => askDelete(c)} aria-label={`Delete ${c.name}`} title="Delete">
-        <IcTrash size={14} />
-      </button>
-    </div>
+  // The donut follows the categories as they are now (a rename or recolour
+  // shows at once), and ignores the search box.
+  const splitItems = useMemo(() => {
+    const items = [];
+    for (const c of categories) {
+      const stat = statById.get(String(c.id));
+      if (stat && stat.totalAmount > 0) {
+        items.push({ key: String(c.id), label: c.name, value: stat.totalAmount, color: categoryColor(c) });
+      }
+    }
+    if (uncategorizedStat && uncategorizedStat.totalAmount > 0) {
+      items.push({ key: '__uncategorised__', label: 'Uncategorised', value: uncategorizedStat.totalAmount, color: UNCATEGORISED_COLOR });
+    }
+    return items;
+  }, [categories, statById, uncategorizedStat]);
+  const splitTotal = splitItems.reduce((sum, i) => sum + i.value, 0);
+
+  const breakdownLoading = !breakdown && !breakdownError;
+
+  const rowMenu = (cat) => (
+    <Dropdown
+      placement="bottom-end"
+      options={[
+        {
+          items: [
+            { label: 'Edit', icon: Pencil, onClick: () => openEdit(cat) },
+            { label: 'Export CSV', icon: Download, onClick: () => openExport(cat) },
+          ],
+        },
+        { items: [{ label: 'Delete', icon: Trash2, theme: 'red', onClick: () => setDeleting(cat) }] },
+      ]}
+    >
+      <Button variant="ghost" icon={MoreHorizontal} label={`Actions for ${cat.name}`} />
+    </Dropdown>
   );
 
-  const formSheet = formOpen && (
-    <Portal>
-      <div className="calendar-sheet-backdrop" onClick={(e) => e.target === e.currentTarget && setFormOpen(false)}>
-        <div className="calendar-sheet" role="dialog" aria-modal="true">
-          <div className="ft-sheet__grabber" />
-          <h3 className="ft-sheet__title">{editId ? 'Edit category' : 'New category'}</h3>
-          <p className="ft-sheet__sub">Color-coded buckets for your spending.</p>
-          <form onSubmit={submit} className="form-grid">
-            <label className="field" style={{ gridColumn: '1 / -1' }}><span>Name</span>
-              <input type="text" value={form.name}
-                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                placeholder="e.g. Coffee" autoFocus />
-            </label>
-            <div className="field" style={{ gridColumn: '1 / -1' }}>
-              <span>Color</span>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-                {PRESET_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setForm((p) => ({ ...p, color: c }))}
-                    aria-label={c}
-                    style={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: 8,
-                      background: c,
-                      border: form.color === c ? '2px solid var(--ft-text)' : '2px solid transparent',
-                      cursor: 'pointer',
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-            <label className="field" style={{ gridColumn: '1 / -1' }}><span>Icon (emoji or short)</span>
-              <input type="text" value={form.icon}
-                onChange={(e) => setForm((p) => ({ ...p, icon: e.target.value }))}
-                placeholder="optional" maxLength={6} />
-            </label>
-            <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
-              <GhostBtn onClick={() => setFormOpen(false)}>Cancel</GhostBtn>
-              <PrimaryBtn type="submit" disabled={submitting}>{submitting ? 'Saving…' : 'Save'}</PrimaryBtn>
-            </div>
-            {formStatus && <p className="status" style={{ gridColumn: '1 / -1' }}>{formStatus}</p>}
-          </form>
-        </div>
-      </div>
-    </Portal>
-  );
+  const columns = [
+    {
+      key: 'name',
+      label: 'Category',
+      width: 'minmax(160px, 2fr)',
+      render: (row) => <NameCell row={row} loading={breakdownLoading} />,
+    },
+    {
+      key: 'spent',
+      label: 'Spent',
+      width: 112,
+      align: 'right',
+      render: (row) => <SpentCell stat={row.stat} loading={breakdownLoading} />,
+    },
+    {
+      key: 'share',
+      label: `Share of ${month.short}`,
+      width: 'minmax(140px, 1fr)',
+      hideBelow: 'md',
+      render: (row) => <ShareCell row={row} loading={breakdownLoading} />,
+    },
+    {
+      key: 'count',
+      label: 'Transactions',
+      width: 104,
+      align: 'right',
+      hideBelow: 'md',
+      render: (row) =>
+        breakdownLoading ? (
+          <Skeleton as="span" width={24} height={12} />
+        ) : row.stat && row.stat.totalAmount !== 0 ? (
+          <span className="tabular-nums">{row.stat.transactionCount}</span>
+        ) : (
+          <span className="catg-muted">—</span>
+        ),
+    },
+    {
+      key: 'actions',
+      label: <span className="sr-only">Actions</span>,
+      width: 40,
+      align: 'right',
+      render: (row) => (row.uncategorised ? null : rowMenu(row.cat)),
+    },
+  ];
 
-  const list = (
-    <Card pad={0}>
-      <div className="cat-toolbar">
-        <label className="cat-search">
-          <IcSearch size={14} />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={`Search ${categories.length} categories`}
-            aria-label="Search categories"
-          />
-        </label>
-        {isMobile && (
-          <MonthSwitch month={month} offset={monthOffset} onChange={setMonthOffset} />
-        )}
-      </div>
+  const activeRows = uncategorisedRow ? [...active, uncategorisedRow] : active;
+  const groups = breakdown
+    ? [
+        activeRows.length > 0 && { key: 'spent', label: `Spent in ${month.short}`, rows: activeRows },
+        idle.length > 0 && { key: 'idle', label: `No spending in ${month.short}`, rows: idle },
+      ].filter(Boolean)
+    : undefined;
+  // Until the month's figures arrive (or if they fail), one alphabetical list.
+  const flatRows = breakdown ? undefined : idle;
+  const visibleCount = active.length + idle.length;
 
-      {loading && categories.length === 0 ? (
-        <p className="status" style={{ padding: '0 18px 16px' }}>Loading…</p>
-      ) : categories.length === 0 ? (
-        <div className="cat-empty">
-          <p>No categories yet.</p>
-          <GhostBtn onClick={openCreate}><IcPlus size={14} /> Add your first category</GhostBtn>
-        </div>
-      ) : (
-        <>
-          {(active.length > 0 || uncategorized) && (
-            <section>
-              <div className="cat-section-head">
-                <Overline>Spent in {month.short}</Overline>
-                <span>{plural(active.length, 'category', 'categories')}</span>
-              </div>
-              {active.map(({ cat, stat }) => (
-                <CategoryRow key={cat.id} cat={cat} stat={stat} actions={rowActions(cat)} />
-              ))}
-              {uncategorized && (
-                <CategoryRow
-                  cat={{ id: 'none', name: 'Uncategorised', color: null, icon: '?' }}
-                  stat={uncategorized}
-                  hint="Not in any category yet"
-                />
-              )}
-            </section>
-          )}
+  const q = query.trim();
+  let summary = '';
+  if (q) summary = `${visibleCount} of ${plural(categories.length, 'category', 'categories')}`;
+  else if (categories.length || !loading) {
+    summary = plural(categories.length, 'category', 'categories');
+    if (breakdown) summary += ` · ${usedCount} used in ${month.short}`;
+  }
 
-          {idle.length > 0 && (
-            <section>
-              <div className="cat-section-head">
-                <Overline>{breakdown ? `Nothing in ${month.short}` : 'All categories'}</Overline>
-                <span>{plural(idle.length, 'category', 'categories')}</span>
-              </div>
-              <div className="cat-idle-grid">
-                {idle.map(({ cat }) => (
-                  <div key={cat.id} className="cat-idle">
-                    <CatGlyph category={cat} size={32} />
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div className="cat-row__name">{cat.name}</div>
-                      <div className="cat-row__meta">
-                        {cat.transactionCount ? plural(cat.transactionCount, 'transaction', 'transactions') + ' all time' : 'Not used yet'}
-                      </div>
-                    </div>
-                    {rowActions(cat)}
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+  const noCategories = !loading && !loadError && categories.length === 0;
 
-          {active.length === 0 && idle.length === 0 && (
-            <p className="empty" style={{ padding: '4px 18px 18px' }}>No category matches “{query}”.</p>
-          )}
-        </>
-      )}
-      {status && <p className="status" style={{ padding: '0 18px 14px' }}>{status}</p>}
-    </Card>
-  );
+  // When the first load fails, the alert says so; an empty table adds nothing.
+  const showList = !(loadError && !categories.length);
 
-  const donut = (
-    <MonthSummary
-      breakdown={breakdown}
-      month={month}
-      offset={monthOffset}
-      onOffsetChange={setMonthOffset}
-      showSwitch={!isMobile}
-    />
-  );
-
-  if (isMobile) {
-    return (
-      <>
-        <ConfirmDialog {...confirmState} />
-        {formSheet}
-        <CategoryExportModal
-          category={exportCat}
-          open={!!exportCat}
-          onClose={() => setExportCat(null)}
-        />
-        <header className="ft-mobile__header">
-          <h1 className="ft-mobile__title">Categories</h1>
-          <button className="ft-mobile__icon-btn" onClick={openCreate} aria-label="New category">
-            <IcPlus size={20} />
-          </button>
-        </header>
-        <main className="ft-mobile__content">
-          {donut}
-          {list}
-        </main>
-      </>
+  let list = null;
+  if (noCategories) {
+    list = (
+      <EmptyState
+        className="catg-empty"
+        icon={Tags}
+        title="No categories yet"
+        description="Add categories to sort your spending, like Food or Rent."
+        action={<Button iconLeft={Plus} label="Add category" onClick={openCreate} />}
+      />
+    );
+  } else if (showList) {
+    list = (
+      <ListView
+        className="catg-list"
+        aria-label={`Categories, ${month.label}`}
+        columns={columns}
+        rows={flatRows}
+        groups={flatRows ? undefined : groups}
+        rowKey="id"
+        loading={loading && categories.length === 0}
+        onRowClick={(row) => {
+          if (!row.uncategorised) openEdit(row.cat);
+        }}
+        rowClassName={(row) => (row.uncategorised ? 'catg-row--static' : '')}
+        emptyState={
+          q ? (
+            <EmptyState
+              size="sm"
+              icon={Search}
+              title={`No category matches “${q}”`}
+              action={<Button label="Clear search" onClick={() => setQuery('')} />}
+            />
+          ) : null
+        }
+      />
     );
   }
 
   return (
     <>
-      <ConfirmDialog {...confirmState} />
-      {formSheet}
-      <CategoryExportModal
-        category={exportCat}
-        open={!!exportCat}
-        onClose={() => setExportCat(null)}
+      <PageHeader
+        title="Categories"
+        actions={
+          <>
+            <Button iconLeft={Download} label="Export" onClick={() => openExport(null)} disabled={!categories.length} />
+            <Button variant="solid" iconLeft={Plus} label="Add category" onClick={openCreate} />
+          </>
+        }
+        mobileActions={
+          <>
+            <Button variant="ghost" size="md" icon={Download} label="Export" onClick={() => openExport(null)} disabled={!categories.length} />
+            <Button variant="ghost" size="md" icon={Plus} label="Add category" onClick={openCreate} />
+          </>
+        }
       />
-      <header className="ft-page-header">
-        <div>
-          <p className="ft-page-header__sub">
-            {plural(categories.length, 'category', 'categories')}
-            {breakdown ? ` · ${active.length} used in ${month.short}` : ''}
-          </p>
-          <h1 className="ft-page-header__title">Categories</h1>
+      <PageBody className="catg-page">
+        <div className="catg-layout">
+          <div className="catg-main">
+            <div className="catg-toolbar">
+              <TextInput
+                className="catg-search"
+                type="search"
+                prefix={Search}
+                placeholder="Search categories"
+                aria-label="Search categories"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              <div className="catg-toolbar__end">
+                <span className="catg-summary text-sm">{summary}</span>
+                <div className="catg-month" role="group" aria-label="Month">
+                  <Button variant="ghost" icon={ChevronLeft} label="Previous month" onClick={() => setMonthOffset((o) => o - 1)} />
+                  <span className="catg-month__label" aria-live="polite">{month.label}</span>
+                  <Button
+                    variant="ghost"
+                    icon={ChevronRight}
+                    label="Next month"
+                    disabled={monthOffset >= 0}
+                    onClick={() => setMonthOffset((o) => o + 1)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {loadError && (
+              <Alert
+                theme="red"
+                title="Couldn't load categories"
+                description={loadError}
+                primaryAction={{ label: 'Try again', onClick: fetchCategories }}
+              />
+            )}
+            {breakdownError && !loadError && (
+              <Alert
+                theme="amber"
+                title={`Couldn't load spending for ${month.label}`}
+                primaryAction={{ label: 'Try again', onClick: () => setBreakdownKey((k) => k + 1) }}
+              />
+            )}
+
+            {list}
+          </div>
+
+          <aside className="catg-aside" aria-label="Spending split">
+            <CategorySplitCard
+              month={month}
+              items={splitItems}
+              total={breakdown?.totalSpent || splitTotal}
+              loading={breakdownLoading || (loading && categories.length === 0)}
+              error={breakdownError}
+              onRetry={() => setBreakdownKey((k) => k + 1)}
+            />
+          </aside>
         </div>
-        <div className="ft-page-header__actions">
-          <PrimaryBtn onClick={openCreate}><IcPlus size={16} /> Add category</PrimaryBtn>
-        </div>
-      </header>
-      <div className="ft-split" style={{ '--ft-split-aside': '340px' }}>
-        {list}
-        <div className="cat-aside">{donut}</div>
-      </div>
+      </PageBody>
+
+      <CategoryFormDialog
+        open={formOpen}
+        category={editCat}
+        onClose={() => setFormOpen(false)}
+        onSubmit={saveCategory}
+      />
+
+      <CategoryExportModal
+        open={exportOpen}
+        category={exportCat}
+        categories={categories}
+        onClose={() => setExportOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleting)}
+        title={deleting ? `Delete “${deleting.name}”?` : 'Delete category?'}
+        message={deleting ? deleteMessage(deleting) : ''}
+        confirmLabel="Delete category"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleting(null)}
+      />
     </>
   );
 }
 
-function MonthSwitch({ month, offset, onChange }) {
+/** What deleting a category does to the transactions filed under it. */
+function deleteMessage(cat) {
+  const n = Number(cat.transactionCount) || 0;
+  if (n === 0) {
+    return 'No transactions use it. Any card transactions or subscriptions filed under it become uncategorised.';
+  }
+  return `Its ${plural(n, 'transaction', 'transactions')} won’t be deleted: ${n === 1 ? 'it becomes' : 'they become'} uncategorised, and so do card transactions and subscriptions filed under it.`;
+}
+
+function NameCell({ row, loading }) {
+  const { cat, stat, uncategorised } = row;
+  const amount = stat?.totalAmount || 0;
+  const used = stat && amount !== 0;
+  let hint = null;
+  if (uncategorised) hint = 'Not in any category yet';
+  else if (!used && !loading) {
+    hint = cat.transactionCount ? `${plural(cat.transactionCount, 'transaction', 'transactions')} all time` : 'Not used yet';
+  }
+
+  // Phones drop the share and count columns; this line carries them instead.
+  let meta = hint;
+  if (used) {
+    meta = amount < 0
+      ? `Money in · ${plural(stat.transactionCount, 'transaction', 'transactions')}`
+      : `${plural(stat.transactionCount, 'transaction', 'transactions')} · ${pctText(Math.max(0, stat.percentage || 0))}`;
+    if (uncategorised) meta = `${hint} · ${meta}`;
+  }
+
   return (
-    <div className="cat-month">
-      <button type="button" className="cat-icon-btn" onClick={() => onChange(offset - 1)} aria-label="Previous month">
-        <IcChevL size={14} />
-      </button>
-      <span>{month.label}</span>
-      <button type="button" className="cat-icon-btn" onClick={() => onChange(offset + 1)} disabled={offset >= 0} aria-label="Next month">
-        <IcChevR size={14} />
-      </button>
+    <div className="catg-name">
+      <CategoryIcon category={cat} size={24} />
+      <div className="catg-name__text">
+        <span className="catg-name__label truncate">{uncategorised ? 'Uncategorised' : cat.name}</span>
+        {hint && <span className="catg-name__hint truncate">{hint}</span>}
+        {meta && <span className="catg-name__meta truncate">{meta}</span>}
+      </div>
     </div>
   );
 }
 
 /**
- * One category with spend in the month. A category can net to a credit (a
- * card bill paid from the account, refunds) — that shows as money in, with no
- * share-of-spend bar, since it is not part of the total spent.
+ * A category can net to a credit (refunds, a card bill paid from the account)
+ * — that shows as money in, outside the month's spend.
  */
-function CategoryRow({ cat, stat, actions, hint }) {
-  const amount = stat.totalAmount;
-  const isCredit = amount < 0;
-  const pct = Math.max(0, stat.percentage || 0);
-  const color = categoryColor(cat);
-  return (
-    <div className="cat-row">
-      <CatGlyph category={cat} size={36} />
-      <div className="cat-row__body">
-        <div className="cat-row__line">
-          <span className="cat-row__name">{cat.name}</span>
-          <Num size={14} weight={600} color={isCredit ? 'var(--ft-income)' : undefined} style={{ flexShrink: 0 }}>
-            {isCredit ? inr(-amount, { sign: true }) : inr(amount)}
-          </Num>
-        </div>
-        <div className="cat-row__line" style={{ marginTop: 6 }}>
-          {isCredit ? (
-            <span className="cat-row__meta">Net money in · {plural(stat.transactionCount, 'transaction', 'transactions')}</span>
-          ) : (
-            <>
-              <div className="cat-bar"><div style={{ width: `${Math.min(100, Math.max(pct, 1))}%`, background: color }} /></div>
-              <span className="cat-row__meta" style={{ flexShrink: 0 }}>
-                {hint ? `${hint} · ` : ''}{plural(stat.transactionCount, 'txn', 'txns')} · {pct < 1 ? '<1' : pct.toFixed(0)}%
-              </span>
-            </>
-          )}
-        </div>
-      </div>
-      {actions || <div className="cat-row__actions" aria-hidden />}
-    </div>
-  );
+function SpentCell({ stat, loading }) {
+  if (loading) return <Skeleton as="span" width={56} height={12} />;
+  if (!stat || stat.totalAmount === 0) return <span className="catg-muted">—</span>;
+  if (stat.totalAmount < 0) return <Amount value={-stat.totalAmount} sign="always" />;
+  return <Amount value={stat.totalAmount} tone="out" />;
 }
 
-const DONUT_SLICES = 5;
-
-/** Total spent in the month, and a donut of where it went — top five plus the rest. */
-function MonthSummary({ breakdown, month, offset, onOffsetChange, showSwitch }) {
-  const spend = (breakdown?.categories || [])
-    .filter((c) => c.totalAmount > 0)
-    .sort((a, b) => b.totalAmount - a.totalAmount);
-  const total = spend.reduce((sum, c) => sum + c.totalAmount, 0);
-  const top = spend.slice(0, DONUT_SLICES).map((c) => ({
-    name: c.categoryId == null ? 'Uncategorised' : c.categoryName,
-    amount: c.totalAmount,
-    color: c.categoryId == null ? 'var(--ft-text-faint)' : categoryColor({ name: c.categoryName, color: c.categoryColor }),
-  }));
-  const rest = spend.slice(DONUT_SLICES).reduce((sum, c) => sum + c.totalAmount, 0);
-  if (rest > 0) top.push({ name: `${spend.length - DONUT_SLICES} more`, amount: rest, color: 'var(--ft-surface-3)' });
-
-  const R = 52;
-  const C = 2 * Math.PI * R;
-  let offsetAcc = 0;
-
+function ShareCell({ row, loading }) {
+  const { cat, stat, uncategorised } = row;
+  if (loading) return <Skeleton as="span" width="70%" height={4} />;
+  if (!stat || stat.totalAmount === 0) return null;
+  if (stat.totalAmount < 0) return <span className="catg-muted text-sm">Money in</span>;
+  const pct = Math.max(0, stat.percentage || 0);
+  const color = uncategorised ? UNCATEGORISED_COLOR : categoryColor(cat);
   return (
-    <Card pad={18}>
-      {showSwitch ? (
-        <MonthSwitch month={month} offset={offset} onChange={onOffsetChange} />
-      ) : (
-        <Overline>{month.label}</Overline>
-      )}
-
-      {!breakdown ? (
-        <p className="status" style={{ margin: '18px 0 4px' }}>Loading…</p>
-      ) : total === 0 ? (
-        <p className="empty" style={{ margin: '18px 0 4px' }}>No spending in {month.short}.</p>
-      ) : (
-        <>
-          <div className="cat-donut">
-            <svg viewBox="0 0 128 128" width="148" height="148" aria-hidden>
-              <circle cx="64" cy="64" r={R} fill="none" stroke="var(--ft-surface-2)" strokeWidth="14" />
-              {top.map((s) => {
-                const len = (s.amount / total) * C;
-                // A hairline gap between slices, unless the slice is too thin to spare it.
-                const gap = len > 4 ? 1.5 : 0;
-                const el = (
-                  <circle
-                    key={s.name}
-                    cx="64" cy="64" r={R} fill="none"
-                    stroke={s.color} strokeWidth="14"
-                    strokeDasharray={`${len - gap} ${C - len + gap}`}
-                    strokeDashoffset={-offsetAcc}
-                    transform="rotate(-90 64 64)"
-                  />
-                );
-                offsetAcc += len;
-                return el;
-              })}
-            </svg>
-            <div className="cat-donut__center">
-              <Num size={19} weight={600}>{inr(breakdown.totalSpent || total)}</Num>
-              <span>spent</span>
-            </div>
-          </div>
-
-          <div className="cat-legend">
-            {top.map((s) => (
-              <div key={s.name} className="cat-legend__row">
-                <span className="cat-legend__dot" style={{ background: s.color }} />
-                <span className="cat-legend__name">{s.name}</span>
-                <Num size={12} weight={500} color="var(--ft-text-dim)">{((s.amount / total) * 100).toFixed(0)}%</Num>
-                <Num size={12.5} weight={600} style={{ minWidth: 72, textAlign: 'right' }}>{inr(s.amount)}</Num>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </Card>
+    <div className="catg-share">
+      <div className="catg-share__track" aria-hidden>
+        <div
+          className="catg-share__fill"
+          style={{ width: `${Math.min(100, Math.max(pct, 1))}%`, background: color }}
+        />
+      </div>
+      <span className="catg-share__pct tabular-nums">{pctText(pct)}</span>
+    </div>
   );
 }

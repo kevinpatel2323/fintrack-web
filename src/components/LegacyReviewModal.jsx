@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import Dialog from './ui/Dialog.jsx';
-import { GhostBtn, PrimaryBtn } from './ui/primitives.jsx';
+import { Button, Dialog, ErrorMessage, LoadingIndicator, toast } from './ui';
+import { AllocRowView, AllocTable } from './people/AllocTable.jsx';
 import { applyLegacyReview, fetchLegacyReview } from '../services/friendsApi.js';
 import { friendFirstName } from '../utils/ledgerParties.js';
 import { roundCurrencyToMinor } from '../utils/splitEngine.ts';
 import { minorToInput, rupees, toMinor } from '../utils/settlementAllocation.js';
-import '../styles/settlement-allocator.css';
+import './people/allocation.css';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -52,6 +52,7 @@ export default function LegacyReviewModal({ friendId, friendName, onClose, onSav
   // { [settlementId]: { [tagId]: amountString } } — a key present means "applies".
   const [amounts, setAmounts] = useState({});
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -67,7 +68,7 @@ export default function LegacyReviewModal({ friendId, friendName, onClose, onSav
         }
         setAmounts(seed);
       })
-      .catch((e) => setError(e.message || 'Could not load the review.'));
+      .catch((e) => setLoadError(e.message || 'Could not load the review.'));
   }, [friendId]);
 
   // Per settlement: what it applies, what is left on account, and which way
@@ -115,6 +116,7 @@ export default function LegacyReviewModal({ friendId, friendName, onClose, onSav
         })),
       );
       await onSaved?.();
+      toast.success(`Older settlements with ${first} reviewed`);
       onClose();
     } catch (e) {
       setError(e.message || 'Could not save the review.');
@@ -129,107 +131,93 @@ export default function LegacyReviewModal({ friendId, friendName, onClose, onSav
 
   return (
     <Dialog
-      overline="Review older settlements"
-      title={friendName}
-      maxWidth={620}
+      size="2xl"
+      title={`Review older settlements with ${friendName}`}
+      description="These settlements were saved before Fintrack recorded how much of a payment went to each entry. Check the amounts below — they are a suggestion — and save to record them. Anything left over can then be applied, refunded or written off."
       onClose={onClose}
       footer={
         <>
-          <span style={{ marginRight: 'auto', fontSize: 12.5, color: outcome.netChange ? 'var(--ft-warn)' : 'var(--ft-text-dim)' }}>
-            {review && (outcome.netChange
-              ? `Balance: ${balanceText(netBefore)} → ${balanceText(netAfter)}`
-              : `Balance stays: ${balanceText(netBefore)}`)}
+          <span className="alloc-dialog__status" data-tone={outcome.netChange ? 'warn' : undefined}>
+            {review &&
+              (outcome.netChange
+                ? `Balance: ${balanceText(netBefore)} → ${balanceText(netAfter)}`
+                : `Balance stays: ${balanceText(netBefore)}`)}
           </span>
-          <GhostBtn onClick={onClose}>Cancel</GhostBtn>
-          <PrimaryBtn onClick={save} disabled={saving || !review || outcome.invalid}>
-            {saving ? 'Saving…' : 'Save review'}
-          </PrimaryBtn>
+          <Button label="Cancel" onClick={onClose} />
+          <Button
+            variant="solid"
+            label="Save review"
+            loading={saving}
+            disabled={!review || outcome.invalid}
+            onClick={save}
+          />
         </>
       }
     >
-      <p style={{ margin: 0, color: 'var(--ft-text-dim)', fontSize: 12.5, lineHeight: 1.5 }}>
-        These settlements were saved before Fintrack recorded how much of a payment went to each
-        entry. Check the amounts below — they are a suggestion — and save to record them.
-        Anything left over can then be applied, refunded or written off.
-      </p>
-      {!review && !error && <p className="status">Loading…</p>}
+      {!review && !loadError && <LoadingIndicator text="Loading settlements…" />}
+      <ErrorMessage message={loadError} />
       {review?.settlements.map((s) => {
         const tx = s.settlement.transaction || {};
         const o = outcome.result[s.settlementId];
         const chosen = amounts[s.settlementId] ?? {};
+        const hint = refundHint(s, review.settlements, outcome.result, first);
         return (
-          <section key={s.settlementId} className="settle-alloc__group" style={{ padding: 12, borderRadius: 14, border: '1px solid var(--ft-border)' }}>
-            <div className="settle-alloc__group-head" style={{ color: 'var(--ft-text)' }}>
-              <span>
+          <section key={s.settlementId} className="alloc alloc-review">
+            <div className="alloc-review__head">
+              <span className="truncate">
                 {formatDate(tx.transactionDate)} · {tx.upiName || tx.narration || s.settlement.note || 'Settlement'}
               </span>
-              <strong>{rupees(toMinor(s.settlement.amount))}</strong>
+              <span className="alloc-review__amount">{rupees(toMinor(s.settlement.amount))}</span>
             </div>
             {s.reasons.length > 0 && (
-              <span style={{ color: 'var(--ft-warn)', fontSize: 11.5 }}>
+              <p className="alloc-section__note alloc-section__note--warn">
                 Needs a look: {s.reasons.map((r) => REASON_TEXT[r]).join(', ')}
-              </span>
+              </p>
             )}
-            {refundHint(s, review.settlements, outcome.result, first) && (
-              <span style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, lineHeight: 1.5 }}>
-                {refundHint(s, review.settlements, outcome.result, first)}
-              </span>
-            )}
-            {s.linked.map((entry) => {
-              const id = String(entry.id);
-              const selected = id in chosen;
-              const etx = entry.transaction || {};
-              const rowError = o?.rowErrors[id];
-              return (
-                <div key={id} className={`settle-alloc__row${selected ? ' settle-alloc__row--selected' : ''}${rowError ? ' settle-alloc__row--error' : ''}`}>
-                  <label className="settle-alloc__pick">
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => {
-                        const next = { ...chosen };
-                        if (selected) delete next[id];
-                        else next[id] = minorToInput(toMinor(entry.suggestedAmount || entry.amount));
-                        setAmounts({ ...amounts, [s.settlementId]: next });
-                      }}
-                    />
-                    <span className="settle-alloc__what">
-                      <span className="settle-alloc__name">{etx.upiName || etx.narration || entry.note || 'Entry'}</span>
-                      <span className="settle-alloc__meta">
-                        {formatDate(etx.transactionDate)} · {rupees(toMinor(entry.amount))} ·{' '}
-                        {entry.direction === 'OWES_ME' ? `${first} owed you` : `you owed ${first}`}
-                        {entry.stale && ' · already paid by another settlement'}
-                      </span>
-                    </span>
-                  </label>
-                  {selected && (
-                    <div className="settle-alloc__apply">
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        className="settle-alloc__amount"
-                        value={chosen[id]}
-                        onChange={(e) => setAmounts({ ...amounts, [s.settlementId]: { ...chosen, [id]: e.target.value } })}
-                      />
-                      {rowError && <span className="settle-alloc__after settle-alloc__after--error">{rowError}</span>}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {hint && <p className="alloc-section__note">{hint}</p>}
+            <AllocTable label="Linked entries" openLabel="Amount" applyLabel="Applied">
+              {s.linked.map((entry) => {
+                const id = String(entry.id);
+                const selected = id in chosen;
+                const etx = entry.transaction || {};
+                const rowError = o?.rowErrors[id];
+                return (
+                  <AllocRowView
+                    key={id}
+                    name={etx.upiName || etx.narration || entry.note || 'Entry'}
+                    meta={`${formatDate(etx.transactionDate)} · ${
+                      entry.direction === 'OWES_ME' ? `${first} owed you` : `you owed ${first}`
+                    }${entry.stale ? ' · already paid by another settlement' : ''}`}
+                    open={rupees(toMinor(entry.amount))}
+                    selected={selected}
+                    onToggle={() => {
+                      const next = { ...chosen };
+                      if (selected) delete next[id];
+                      else next[id] = minorToInput(toMinor(entry.suggestedAmount || entry.amount));
+                      setAmounts({ ...amounts, [s.settlementId]: next });
+                    }}
+                    value={chosen[id]}
+                    onChange={(value) => setAmounts({ ...amounts, [s.settlementId]: { ...chosen, [id]: value } })}
+                    after={rowError}
+                    tone={rowError ? 'error' : undefined}
+                    invalid={Boolean(rowError)}
+                  />
+                );
+              })}
+            </AllocTable>
             {o && (
-              <span style={{ fontSize: 12, color: o.onAccount < 0 ? 'var(--ft-spend)' : 'var(--ft-text-dim)' }}>
+              <p className={`alloc-section__note${o.onAccount < 0 ? ' alloc-section__note--error' : ''}`}>
                 {o.onAccount < 0
                   ? `That is ${rupees(-o.onAccount)} more than this settlement.`
                   : `Applies ${rupees(o.applied)}${o.onAccount > 0 ? ` · ${rupees(o.onAccount)} left on account` : ''} · money ${
                       o.side === 'paid' ? `you paid ${first}` : `${first} paid you`
                     }`}
-              </span>
+              </p>
             )}
           </section>
         );
       })}
-      {error && <p style={{ margin: 0, color: 'var(--ft-spend)', fontSize: 12.5 }}>{error}</p>}
+      <ErrorMessage message={error} />
     </Dialog>
   );
 }

@@ -1,0 +1,32 @@
+/* Forms in the People dialogs (add/edit person, write off, group title). */
+
+.people-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.people-form__pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.people-form__context {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-8);
+}
+
+.people-form__text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-gray-7);
+}
+
+@media (max-width: 479.98px) {
+  .people-form__pair {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+}

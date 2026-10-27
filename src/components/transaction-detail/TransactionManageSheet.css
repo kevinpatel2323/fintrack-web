@@ -1,0 +1,68 @@
+/* TransactionManageSheet — summary, category, current split, split form. */
+
+.txm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.txm-summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.txm-summary__amount {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.txm-summary__meta {
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.txm-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.txm-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.txm-heading {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--ink-gray-9);
+}
+
+.txm-muted {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.txm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.txm-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

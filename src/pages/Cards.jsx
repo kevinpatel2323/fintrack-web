@@ -1,61 +1,65 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { CreditCard, Plus } from 'lucide-react';
 import {
-  Card,
-  GhostBtn,
-  HeroAmount,
-  Num,
-  Overline,
-  PrimaryBtn,
-  SectionTitle,
-  StatCard,
-} from '../components/ui/primitives.jsx';
-import { IcPlus, IcChevR, IcWallet } from '../components/ui/Icon.jsx';
-import CardFace from '../components/ui/CardFace.jsx';
+  Alert, Amount, Button, EmptyState, PageBody, PageHeader, Progress, StatCard,
+} from '../components/ui';
 import CardFormModal from '../components/CardFormModal.jsx';
+import CardTile, { CardTileSkeleton } from './cards/CardTile.jsx';
+import UpcomingDues from './cards/UpcomingDues.jsx';
 import { fetchDues, fetchWallet } from '../services/cardsApi.js';
 import { useImportSchedule } from '../hooks/useImportSchedule.js';
-import { inr, inrCompact } from '../utils/inr.js';
-import { useIsCompact } from '../styles/breakpoints.js';
+import { inrCompact } from '../utils/inr.js';
+import { dayLabel, formatPct } from '../components/cards/cardFormat.js';
+import './cards/cards-page.css';
 
-const STATUS_COLORS = {
-  overdue: 'var(--ft-spend)',
-  'due-today': 'var(--ft-warn)',
-  'due-tomorrow': 'var(--ft-warn)',
-  upcoming: 'var(--ft-info)',
-  'no-due': 'var(--ft-text-dim)',
+const EMPTY_TOTALS = {
+  totalLimit: 0,
+  totalOutstanding: 0,
+  totalAvailable: 0,
+  totalDue: 0,
+  utilizationPct: 0,
+  totalPoints: 0,
+  totalPointsValue: 0,
+  creditCount: 0,
+  debitCount: 0,
 };
 
-const STATUS_LABELS = {
-  overdue: 'Overdue',
-  'due-today': 'Due today',
-  'due-tomorrow': 'Due tomorrow',
-  upcoming: 'Upcoming',
-  'no-due': 'No due',
-};
-
-/** One line under a credit card: the statement to import next, or when it lands. */
-function NextStatementHint({ schedule }) {
-  if (!schedule?.next) return null;
-  const { status, next, pending } = schedule;
-  if (status === 'ready') {
+function DueSoonHint({ dues }) {
+  const overdue = dues.filter((d) => d.status === 'overdue');
+  if (overdue.length) {
     return (
-      <div style={{ color: 'var(--ft-warn)', fontSize: 11.5, marginTop: 2, fontWeight: 500 }}>
-        Import next · {next.label}
-        {pending.length > 1 ? ` (+${pending.length - 1} more)` : ''}
-      </div>
+      <span className="cards-stat__alert">
+        {overdue.length} overdue · <Amount value={overdue.reduce((s, d) => s + Number(d.amount || 0), 0)} tone="inherit" />
+      </span>
     );
   }
+  const next = dues[0];
+  if (!next) return 'Nothing due';
+  return `Next ${dayLabel(next.dueDate)} · ${next.cardName}`;
+}
+
+function CardSection({ title, cards, scheduleByCard, dueByCard }) {
+  if (!cards.length) return null;
   return (
-    <div style={{ color: 'var(--ft-text-faint)', fontSize: 11.5, marginTop: 2 }}>
-      Statements up to date · {next.label} in {next.daysAway} day{next.daysAway === 1 ? '' : 's'}
-    </div>
+    <section className="cards-section" aria-label={title}>
+      <h2 className="cards-section__title">
+        {title} <span className="cards-section__count">{cards.length}</span>
+      </h2>
+      <div className="cards-grid">
+        {cards.map((card) => (
+          <CardTile
+            key={card.id}
+            card={card}
+            schedule={scheduleByCard.get(card.id)}
+            due={dueByCard.get(card.id)}
+          />
+        ))}
+      </div>
+    </section>
   );
 }
 
 export default function Cards() {
-  const navigate = useNavigate();
-  const isMobile = useIsCompact();
   const [wallet, setWallet] = useState(null);
   const [dues, setDues] = useState([]);
   const [error, setError] = useState('');
@@ -83,237 +87,118 @@ export default function Cards() {
   }, []);
 
   const cards = wallet?.cards ?? [];
-  const totals = wallet?.totals ?? {
-    totalLimit: 0,
-    totalOutstanding: 0,
-    totalAvailable: 0,
-    totalDue: 0,
-    utilizationPct: 0,
-    totalPoints: 0,
-    totalPointsValue: 0,
-    creditCount: 0,
-    debitCount: 0,
-  };
+  const totals = wallet?.totals ?? EMPTY_TOTALS;
+  const creditCards = cards.filter((c) => c.kind === 'credit');
+  const debitCards = cards.filter((c) => c.kind !== 'credit');
+  const activeDues = dues.filter((d) => d.status !== 'no-due');
+  const dueByCard = new Map(dues.map((d) => [d.cardId, d]));
+
+  // First load only: a refresh after adding a card keeps the list in place.
+  const initialLoading = loading && !wallet;
+  const hasCredit = totals.creditCount > 0 || creditCards.length > 0;
 
   const onCreated = () => {
     setFormOpen(false);
     load();
   };
 
+  const openForm = () => setFormOpen(true);
+
   return (
     <>
-      <header className={isMobile ? 'ft-mobile__header' : 'ft-page-header'}>
-        <div>
-          <Overline>Wallet</Overline>
-          <h1 style={{ margin: '4px 0 0', fontSize: isMobile ? 22 : 26, fontWeight: 700, letterSpacing: '-0.5px' }}>
-            Cards
-          </h1>
-        </div>
-        <PrimaryBtn onClick={() => setFormOpen(true)}>
-          <IcPlus size={15} /> Add card
-        </PrimaryBtn>
-      </header>
-
-      <main className={isMobile ? 'ft-mobile__content' : ''}>
+      <PageHeader
+        title="Cards"
+        actions={<Button variant="solid" iconLeft={Plus} label="Add card" onClick={openForm} />}
+        mobileActions={<Button variant="ghost" size="md" icon={Plus} label="Add card" onClick={openForm} />}
+      />
+      <PageBody className="cards-page">
         {error && (
-          <Card pad={14} style={{ marginBottom: 18, borderColor: 'var(--ft-spend)' }}>
-            <span style={{ color: 'var(--ft-spend)' }}>{error}</span>
-          </Card>
-        )}
-
-        {/* Hero stats */}
-        <Card pad={22} style={{ marginBottom: 18, position: 'relative', overflow: 'hidden' }}>
-          <div
-            aria-hidden
-            style={{
-              position: 'absolute',
-              right: -60,
-              top: -60,
-              width: 240,
-              height: 240,
-              borderRadius: '50%',
-              background: 'var(--ft-accent-soft)',
-              filter: 'blur(60px)',
-              pointerEvents: 'none',
-            }}
+          <Alert
+            theme="red"
+            title="Couldn't load your cards"
+            description={error}
+            primaryAction={{ label: 'Try again', onClick: () => load() }}
           />
-          <Overline>Total outstanding</Overline>
-          <HeroAmount color={totals.totalOutstanding > 0 ? 'var(--ft-text)' : 'var(--ft-text-dim)'} style={{ marginTop: 4 }}>
-            {inr(totals.totalOutstanding)}
-          </HeroAmount>
-          <div style={{ display: 'flex', gap: 14, marginTop: 12, flexWrap: 'wrap', color: 'var(--ft-text-dim)', fontSize: 12.5 }}>
-            <span>
-              <Num size={13} weight={600} color="var(--ft-text)">{inrCompact(totals.totalAvailable)}</Num> available
-            </span>
-            <span>
-              <Num size={13} weight={600} color="var(--ft-text)">{inrCompact(totals.totalLimit)}</Num> total limit
-            </span>
-            <span>
-              <Num size={13} weight={600} color="var(--ft-warn)">{totals.utilizationPct.toFixed(1)}%</Num> utilization
-            </span>
-          </div>
-          <div style={{ marginTop: 14, height: 8, borderRadius: 4, background: 'var(--ft-surface-2)', overflow: 'hidden' }}>
-            <div
-              style={{
-                width: `${Math.min(totals.utilizationPct, 100)}%`,
-                height: '100%',
-                background:
-                  totals.utilizationPct > 70
-                    ? 'var(--ft-spend)'
-                    : totals.utilizationPct > 40
-                    ? 'var(--ft-warn)'
-                    : 'var(--ft-income)',
-                transition: 'width 0.3s',
-              }}
+        )}
+
+        {(initialLoading || hasCredit) && (
+          <div className="cards-stats">
+            <StatCard
+              label="Total outstanding"
+              loading={initialLoading}
+              value={<Amount value={totals.totalOutstanding} tone="inherit" />}
+              hint={`Across ${totals.creditCount} credit card${totals.creditCount === 1 ? '' : 's'}`}
             />
+            <StatCard
+              label="Due soon"
+              loading={initialLoading}
+              value={<Amount value={totals.totalDue} tone={activeDues.some((d) => d.status === 'overdue') ? 'due' : 'inherit'} />}
+              hint={<DueSoonHint dues={activeDues} />}
+            />
+            <StatCard
+              label="Available credit"
+              loading={initialLoading}
+              value={<Amount value={totals.totalAvailable} tone="inherit" />}
+              hint={
+                totals.totalLimit > 0 ? (
+                  <Progress
+                    className="cards-stat__progress"
+                    value={totals.utilizationPct}
+                    label={`${formatPct(totals.utilizationPct)} of ${inrCompact(totals.totalLimit)} used`}
+                  />
+                ) : (
+                  'No credit limits set'
+                )
+              }
+            />
+            {totals.totalPointsValue > 0 && (
+              <StatCard
+                label="Rewards value"
+                value={<Amount value={totals.totalPointsValue} tone="inherit" />}
+                hint="Points across your credit cards"
+              />
+            )}
           </div>
-        </Card>
+        )}
 
-        <div className="ft-stat-row" style={{ gap: 12, marginBottom: 22 }}>
-          <StatCard label="Total due" value={inr(totals.totalDue)} accent={totals.totalDue > 0} />
-          <StatCard label="Credit cards" value={String(totals.creditCount)} />
-          <StatCard label="Debit cards" value={String(totals.debitCount)} />
-          <StatCard label="Rewards value" value={inr(totals.totalPointsValue)} />
-        </div>
-
-        {/* Cards list */}
-        <SectionTitle>Your cards</SectionTitle>
-        {loading ? (
-          <Card pad={20}>
-            <span style={{ color: 'var(--ft-text-dim)' }}>Loading…</span>
-          </Card>
+        {initialLoading ? (
+          <div className="cards-layout">
+            <div className="cards-layout__main">
+              <div className="cards-grid" aria-busy="true" aria-label="Loading cards">
+                <CardTileSkeleton />
+                <CardTileSkeleton />
+              </div>
+            </div>
+          </div>
         ) : cards.length === 0 ? (
-          <Card pad={26} style={{ textAlign: 'center' }}>
-            <IcWallet size={32} style={{ color: 'var(--ft-text-dim)' }} />
-            <div style={{ marginTop: 10, color: 'var(--ft-text)', fontWeight: 600 }}>
-              No cards yet
-            </div>
-            <div style={{ marginTop: 4, color: 'var(--ft-text-dim)', fontSize: 13 }}>
-              Add your first card to start tracking spends and dues.
-            </div>
-            <PrimaryBtn onClick={() => setFormOpen(true)} style={{ marginTop: 14 }}>
-              <IcPlus size={15} /> Add card
-            </PrimaryBtn>
-          </Card>
+          !error && (
+            <EmptyState
+              icon={CreditCard}
+              title="No cards yet"
+              description="Add a card to track its spends, statements and bills."
+              action={<Button iconLeft={Plus} label="Add card" onClick={openForm} />}
+            />
+          )
         ) : (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(300px, 1fr))',
-              gap: 16,
-              marginBottom: 24,
-            }}
-          >
-            {cards.map((card) => (
-              <button
-                key={card.id}
-                type="button"
-                onClick={() => navigate(`/cards/${card.id}`)}
-                style={{
-                  background: 'var(--ft-surface)',
-                  border: '1px solid var(--ft-border)',
-                  borderRadius: 18,
-                  padding: 14,
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 12,
-                }}
-              >
-                <CardFace card={card} width={isMobile ? 280 : 280} height={170} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                  <div>
-                    <div style={{ color: 'var(--ft-text)', fontSize: 13.5, fontWeight: 600 }}>
-                      {card.nickname || card.name}
-                      {card.isPrimary && (
-                        <span
-                          style={{
-                            marginLeft: 6,
-                            padding: '1px 6px',
-                            borderRadius: 6,
-                            background: 'var(--ft-accent-soft)',
-                            color: 'var(--ft-accent-fg)',
-                            fontSize: 9.5,
-                            fontWeight: 700,
-                            letterSpacing: 0.4,
-                            textTransform: 'uppercase',
-                          }}
-                        >
-                          Primary
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, marginTop: 2 }}>
-                      {card.kind === 'credit'
-                        ? `Outstanding · ${inrCompact(card.outstanding)}`
-                        : `Spent this month · ${inrCompact(card.thisMonthSpend)}`}
-                    </div>
-                    <NextStatementHint schedule={scheduleByCard.get(card.id)} />
-                  </div>
-                  <IcChevR size={16} style={{ color: 'var(--ft-text-dim)' }} />
-                </div>
-              </button>
-            ))}
+          <div className={`cards-layout${hasCredit ? ' cards-layout--with-dues' : ''}`}>
+            {hasCredit && <UpcomingDues className="cards-layout__dues" dues={activeDues} />}
+            <div className="cards-layout__main">
+              <CardSection
+                title="Credit cards"
+                cards={creditCards}
+                scheduleByCard={scheduleByCard}
+                dueByCard={dueByCard}
+              />
+              <CardSection
+                title="Debit cards"
+                cards={debitCards}
+                scheduleByCard={scheduleByCard}
+                dueByCard={dueByCard}
+              />
+            </div>
           </div>
         )}
-
-        {/* Upcoming dues */}
-        {dues.length > 0 && (
-          <>
-            <SectionTitle>Upcoming dues</SectionTitle>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
-              {dues
-                .filter((d) => d.status !== 'no-due')
-                .map((d) => (
-                  <button
-                    key={`${d.cardId}-${d.statementId ?? d.dueDate}`}
-                    type="button"
-                    onClick={() => navigate(`/cards/${d.cardId}`)}
-                    style={{
-                      background: 'var(--ft-surface)',
-                      border: '1px solid var(--ft-border)',
-                      borderRadius: 14,
-                      padding: '12px 14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 14,
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      width: '100%',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 6,
-                        height: 40,
-                        borderRadius: 3,
-                        background: STATUS_COLORS[d.status],
-                        flexShrink: 0,
-                      }}
-                    />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ color: 'var(--ft-text)', fontSize: 13.5, fontWeight: 600 }}>
-                        {d.cardName} · •• {d.last4}
-                      </div>
-                      <div style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, marginTop: 2 }}>
-                        {d.dueDate} · {STATUS_LABELS[d.status]}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <Num size={15} weight={600} color={d.status === 'overdue' ? 'var(--ft-spend)' : 'var(--ft-text)'}>
-                        {inr(d.amount)}
-                      </Num>
-                      <div style={{ color: 'var(--ft-text-faint)', fontSize: 10.5, marginTop: 2 }}>
-                        min {inr(d.minDue)}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-            </div>
-          </>
-        )}
-      </main>
+      </PageBody>
 
       {formOpen && <CardFormModal onClose={() => setFormOpen(false)} onSaved={onCreated} />}
     </>

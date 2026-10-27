@@ -1,56 +1,43 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Card,
-  GhostBtn,
-  HeroAmount,
-  Num,
-  Overline,
-  Pill,
-  PrimaryBtn,
-  SectionTitle,
-} from '../components/ui/primitives.jsx';
+  Banknote, ClipboardPaste, CreditCard, FileText, MoreHorizontal, Pencil, Plus, Receipt, Search, Star, Trash2, Upload,
+} from 'lucide-react';
 import {
-  IcChevL,
-  IcEdit,
-  IcPlus,
-  IcRefresh,
-  IcSearch,
-  IcTrash,
-} from '../components/ui/Icon.jsx';
-import CardFace from '../components/ui/CardFace.jsx';
+  Alert, Amount, Badge, Button, ConfirmDialog, Dropdown, EmptyState, ListView, PageBody, PageHeader, Select,
+  Skeleton, StatCard, Tabs, TextInput, toast,
+} from '../components/ui';
 import CardFormModal from '../components/CardFormModal.jsx';
 import CardTransactionModal from '../components/CardTransactionModal.jsx';
 import UnbilledPasteModal from '../components/UnbilledPasteModal.jsx';
 import CardPaymentModal from '../components/CardPaymentModal.jsx';
 import CardStatementModal from '../components/CardStatementModal.jsx';
-import ConfirmDialog from '../components/ConfirmDialog.jsx';
 import TransactionTable from '../components/TransactionTable.jsx';
 import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
 import TransactionMobileList from '../components/TransactionMobileList.jsx';
+import CardDetailsPanel from './cards/CardDetailsPanel.jsx';
+import StatementBreakdownDialog from './cards/StatementBreakdownDialog.jsx';
 import {
-  addCardTransactionFriend,
   deleteCard,
   deleteCardPayment,
   deleteCardStatement,
   deleteCardTransaction,
-  deleteCardTransactionFriend,
   fetchStatementBreakdown,
   getCard,
   listCardPayments,
   listCardStatements,
-  listCardTransactionFriends,
   listCardTransactions,
-  setCardControls,
-  setCardFreeze,
   setCardPrimary,
-  updateCardTransaction,
 } from '../services/cardsApi.js';
 import { cardTxnStatus, toCardTableRow } from '../utils/cardTransactionRow.jsx';
-import { inr, inrCompact } from '../utils/inr.js';
 import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
-import { refreshImportSchedule } from '../hooks/useImportSchedule.js';
+import { refreshImportSchedule, useImportSchedule } from '../hooks/useImportSchedule.js';
+import { useMediaQuery } from '../hooks/useMediaQuery.js';
 import { useIsCompact } from '../styles/breakpoints.js';
+import {
+  STATEMENT_STATUS, cardLabel, dayLabel, dueBadge, formatPct, rangeLabel, relativeDays,
+} from '../components/cards/cardFormat.js';
+import './cards/card-detail.css';
 
 import { API_BASE, apiFetch } from '../services/http.js';
 
@@ -59,17 +46,34 @@ const shortDay = (iso) =>
     new Date(`${iso}T00:00:00`),
   );
 
-const STATEMENT_STATUS_COLORS = {
-  open: 'var(--ft-info)',
-  closed: 'var(--ft-warn)',
-  paid: 'var(--ft-income)',
-  overdue: 'var(--ft-spend)',
-};
+// Below this the side panel folds into a "Details" tab.
+const QUERY_STACKED = '(max-width: 1023.98px)';
+
+const BILLING_OPTIONS = [
+  { label: 'Billed and unbilled', value: '' },
+  { label: 'Unbilled only', value: 'unbilled' },
+  { label: 'Billed only', value: 'billed' },
+];
+
+/** The card's next bill in the same shape /cards/dues uses, for its badge. */
+function cardDue(card) {
+  if (!card || !(card.currentDue > 0) || !card.currentDueDate) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(`${card.currentDueDate}T00:00:00`);
+  const daysAway = Math.round((due.getTime() - today.getTime()) / 86400000);
+  let status = 'upcoming';
+  if (daysAway < 0) status = 'overdue';
+  else if (daysAway === 0) status = 'due-today';
+  else if (daysAway === 1) status = 'due-tomorrow';
+  return { status, daysAway, amount: card.currentDue, dueDate: card.currentDueDate };
+}
 
 export default function CardDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isMobile = useIsCompact();
+  const isStacked = useMediaQuery(QUERY_STACKED);
 
   const [card, setCard] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -100,6 +104,12 @@ export default function CardDetail() {
   const [pageSize, setPageSize] = useState(25);
   const [editTxn, setEditTxn] = useState(null);
   const [confirmState, setConfirmState] = useState({ open: false });
+
+  const { data: schedule } = useImportSchedule();
+  const cardSchedule = useMemo(
+    () => (schedule?.cards ?? []).find((s) => String(s.card.id) === String(id)) ?? null,
+    [schedule, id],
+  );
 
   const loadAll = async () => {
     setLoading(true);
@@ -136,65 +146,56 @@ export default function CardDetail() {
 
   const isCredit = card?.kind === 'credit';
 
-  const onFreezeToggle = async () => {
-    if (!card) return;
-    try {
-      const updated = await setCardFreeze(card.id, !card.frozen);
-      setCard((prev) => ({ ...prev, ...updated }));
-    } catch (e) {
-      setError(e.message || 'Failed to update');
-    }
-  };
-
-  const onControlToggle = async (key) => {
-    if (!card) return;
-    try {
-      const updated = await setCardControls(card.id, { [key]: !card[key] });
-      setCard((prev) => ({ ...prev, ...updated }));
-    } catch (e) {
-      setError(e.message || 'Failed to update');
-    }
-  };
+  // ── Confirmations: one kit ConfirmDialog for every destructive action ──
+  const closeConfirm = () => setConfirmState((s) => ({ ...s, open: false }));
+  const askConfirm = ({ action, ...opts }) =>
+    setConfirmState({
+      open: true,
+      confirmLabel: 'Delete',
+      ...opts,
+      // A rejection stays in the dialog as its error; success closes it.
+      onConfirm: async () => {
+        await action();
+        closeConfirm();
+      },
+    });
 
   const onMakePrimary = async () => {
     if (!card || card.isPrimary) return;
     try {
       await setCardPrimary(card.id);
+      toast.success(`${cardLabel(card)} is now your primary card`);
       await loadAll();
     } catch (e) {
-      setError(e.message || 'Failed to update');
+      toast.error(e.message || 'Failed to update');
     }
   };
 
-  const onDeleteCard = async () => {
+  const onDeleteCard = () => {
     if (!card) return;
-    if (!confirm('Delete this card? Statements, transactions and payments will also be removed.')) return;
-    try {
-      await deleteCard(card.id);
-      refreshImportSchedule();
-      navigate('/cards');
-    } catch (e) {
-      setError(e.message || 'Failed to delete');
-    }
+    askConfirm({
+      title: `Delete ${cardLabel(card)}?`,
+      message: 'Its statements, transactions and payments are deleted too. This can’t be undone.',
+      confirmLabel: 'Delete card',
+      action: async () => {
+        await deleteCard(card.id);
+        refreshImportSchedule();
+        toast.success('Card deleted');
+        navigate('/cards');
+      },
+    });
   };
 
   const onDeleteTxn = (txnId) => {
-    setConfirmState({
-      open: true,
+    askConfirm({
       title: 'Delete transaction?',
       message: 'This removes the card transaction and any friend tags on it.',
-      confirmLabel: 'Delete',
-      onConfirm: async () => {
-        setConfirmState({ open: false });
-        try {
-          await deleteCardTransaction(txnId);
-          setManageSheetId((current) => (current === txnId ? null : current));
-          await loadAll();
-        } catch (e) {
-          setError(e.message || 'Failed to delete');
-        }
+      action: async () => {
+        await deleteCardTransaction(txnId);
+        setManageSheetId((current) => (current === txnId ? null : current));
+        toast.success('Transaction deleted');
+        await loadAll();
       },
-      onCancel: () => setConfirmState({ open: false }),
     });
   };
 
@@ -208,21 +209,16 @@ export default function CardDetail() {
       ),
   });
   const {
-    tagsByTransaction, categoryStatusByTransaction, manageSheetId,
+    tagsByTransaction, manageSheetId,
     setManageSheetId, seedTags, assignCategory, openManage, manageSheetPropsFor,
   } = manager;
 
   const deleteTag = useCallback((txnId, tagId) => {
-    setConfirmState({
-      open: true,
+    askConfirm({
       title: 'Remove tag?',
       message: 'This will remove the friend tag from this transaction.',
       confirmLabel: 'Remove',
-      onConfirm: async () => {
-        setConfirmState({ open: false });
-        await manager.removeTag(txnId, tagId);
-      },
-      onCancel: () => setConfirmState({ open: false }),
+      action: () => manager.removeTag(txnId, tagId),
     });
   }, [manager]);
 
@@ -238,42 +234,55 @@ export default function CardDetail() {
     setPage(1);
   }, []);
 
-  const onDeletePayment = async (paymentId) => {
-    if (!confirm('Delete this payment?')) return;
-    try {
-      await deleteCardPayment(paymentId);
-      await loadAll();
-    } catch (e) {
-      setError(e.message || 'Failed to delete');
-    }
+  const onDeletePayment = (payment) => {
+    askConfirm({
+      title: 'Delete payment?',
+      message: (
+        <>
+          The <Amount value={Number(payment.amount)} tone="inherit" /> payment on {dayLabel(payment.paidOn)} is
+          removed from this card.
+        </>
+      ),
+      action: async () => {
+        await deleteCardPayment(payment.id);
+        toast.success('Payment deleted');
+        await loadAll();
+      },
+    });
   };
 
-  const onDeleteStatement = async (stmtId) => {
-    if (!confirm('Delete this statement? Transactions linked to it will be unlinked, not removed.')) return;
-    try {
-      await deleteCardStatement(stmtId);
-      await loadAll();
-    } catch (e) {
-      setError(e.message || 'Failed to delete');
-    }
+  const onDeleteStatement = (stmt) => {
+    askConfirm({
+      title: 'Delete statement?',
+      message: `Transactions on the ${rangeLabel(stmt.cycleStart, stmt.cycleEnd)} statement are unlinked, not deleted.`,
+      action: async () => {
+        await deleteCardStatement(stmt.id);
+        setActiveBreakdown((b) => (b?.statement?.id === stmt.id ? null : b));
+        toast.success('Statement deleted');
+        await loadAll();
+      },
+    });
   };
 
-  const openBreakdown = async (statementId) => {
+  const openBreakdown = async (stmt) => {
+    // Open straight away with what the row knows; the breakdown fills in.
+    setActiveBreakdown({ loading: true, statement: stmt });
     try {
-      const data = await fetchStatementBreakdown(statementId);
-      setActiveBreakdown(data);
+      const data = await fetchStatementBreakdown(stmt.id);
+      setActiveBreakdown((b) => (b?.statement?.id === stmt.id ? data : b));
     } catch (e) {
-      setError(e.message || 'Failed to load breakdown');
+      setActiveBreakdown(null);
+      toast.error(e.message || 'Failed to load breakdown');
     }
   };
 
   // "Spent 17 Aug–16 Sep" reads better than a bare "this cycle" when the point
   // is precisely which days are still open.
-  const cycleSpendLabel = useMemo(() => {
+  const cycleRange = useMemo(() => {
     const start = card?.currentCycle?.start;
     const end = card?.currentCycle?.end;
-    if (!start || !end) return 'Spent this cycle';
-    return `Spent ${shortDay(start)}–${shortDay(end)}`;
+    if (!start || !end) return null;
+    return `${shortDay(start)}–${shortDay(end)}`;
   }, [card]);
 
   const totalSpend = useMemo(
@@ -301,6 +310,11 @@ export default function CardDetail() {
     }
     return list;
   }, [transactions, categoryFilter, billingFilter, search]);
+
+  const filteredSpend = useMemo(
+    () => filteredTransactions.reduce((s, t) => s + (t.isRefund ? -Number(t.amount) : Number(t.amount)), 0),
+    [filteredTransactions],
+  );
 
   const sortedTransactions = useMemo(() => {
     const sorted = [...filteredTransactions];
@@ -350,298 +364,521 @@ export default function CardDetail() {
     }
   }, [transactions, manageSheetId]);
 
+  const categoryOptions = useMemo(
+    () => [
+      { label: 'All categories', value: '' },
+      { label: 'Uncategorised', value: '__none__' },
+      ...categories.map((c) => ({ label: c.name, value: String(c.id) })),
+    ],
+    [categories],
+  );
+
+  const filtersActive = Boolean(search.trim() || categoryFilter || billingFilter);
+  const clearFilters = () => {
+    setSearch('');
+    setCategoryFilter('');
+    setBillingFilter('');
+    setPage(1);
+  };
+
+  // ── Header ──
+  const title = card ? cardLabel(card) : 'Card';
+  const breadcrumbs = [{ label: 'Cards', to: '/cards' }, { label: title }];
+
+  const menuOptions = card
+    ? [
+        {
+          items: [
+            ...(isMobile && isCredit
+              ? [{ label: 'Paste unbilled', icon: ClipboardPaste, onClick: () => setPasteOpen(true) }]
+              : []),
+            { label: 'Edit card', icon: Pencil, onClick: () => setEditOpen(true) },
+            ...(!card.isPrimary ? [{ label: 'Make primary', icon: Star, onClick: onMakePrimary }] : []),
+          ],
+        },
+        ...(isCredit
+          ? [
+              {
+                items: [
+                  { label: 'Record payment', icon: Banknote, onClick: () => setPayOpen(true) },
+                  { label: 'Add statement', icon: FileText, onClick: () => setStmtOpen(true) },
+                ],
+              },
+            ]
+          : []),
+        { items: [{ label: 'Delete card', icon: Trash2, theme: 'red', onClick: onDeleteCard }] },
+      ]
+    : [];
+
+  const header = (
+    <PageHeader
+      title={title}
+      breadcrumbs={breadcrumbs}
+      back="/cards"
+      actions={
+        card && (
+          <>
+            {isCredit && (
+              <Button iconLeft={ClipboardPaste} label="Paste unbilled" onClick={() => setPasteOpen(true)} />
+            )}
+            <Button variant="solid" iconLeft={Plus} label="Add transaction" onClick={() => setTxnOpen(true)} />
+            <Dropdown options={menuOptions} placement="bottom-end">
+              <Button icon={MoreHorizontal} label="More actions" />
+            </Dropdown>
+          </>
+        )
+      }
+      mobileActions={
+        card && (
+          <>
+            <Button variant="ghost" size="md" icon={Plus} label="Add transaction" onClick={() => setTxnOpen(true)} />
+            <Dropdown options={menuOptions} placement="bottom-end">
+              <Button variant="ghost" size="md" icon={MoreHorizontal} label="More actions" />
+            </Dropdown>
+          </>
+        )
+      }
+    />
+  );
+
+  // ── Not found / failed to load ──
   if (!card && !loading) {
     return (
-      <main className={isMobile ? 'ft-mobile__content' : ''}>
-        <p style={{ color: 'var(--ft-spend)' }}>{error || 'Card not found.'}</p>
-        <GhostBtn onClick={() => navigate('/cards')}><IcChevL size={14} /> Back to cards</GhostBtn>
-      </main>
+      <>
+        {header}
+        <PageBody>
+          <EmptyState
+            icon={CreditCard}
+            title="Couldn't open this card"
+            description={error || 'It may have been deleted.'}
+            action={
+              <div className="cardd-empty-actions">
+                {error && <Button label="Try again" onClick={() => loadAll()} />}
+                <Button to="/cards" label="Back to cards" />
+              </div>
+            }
+          />
+        </PageBody>
+      </>
     );
   }
 
-  return (
-    <>
-      <header className={isMobile ? 'ft-mobile__header' : 'ft-page-header'}>
+  // ── First load ──
+  if (!card) {
+    return (
+      <>
+        {header}
+        <PageBody className="cardd-body">
+          <div className="cardd">
+            <div className="cardd__main" aria-busy="true">
+              <div className="cardd-summary">
+                <StatCard label="Outstanding" loading />
+                <StatCard label="Spent this cycle" loading />
+                <StatCard label="Amount due" loading />
+              </div>
+              <div className="cardd-skeleton-rows">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} height={16} width={`${90 - i * 8}%`} />
+                ))}
+              </div>
+            </div>
+            {!isStacked && (
+              <aside className="cardd__aside" aria-hidden="true">
+                <div className="cardd__aside-inner cardd-skeleton-rows">
+                  {[0, 1, 2, 3, 4, 5].map((i) => (
+                    <Skeleton key={i} height={14} width={`${85 - i * 6}%`} />
+                  ))}
+                </div>
+              </aside>
+            )}
+          </div>
+        </PageBody>
+      </>
+    );
+  }
+
+  // ── Summary figures ──
+  const due = cardDue(card);
+  const badge = dueBadge(due);
+  const summary = isCredit ? (
+    <div className="cardd-summary">
+      <StatCard
+        label="Outstanding"
+        value={<Amount value={Number(card.outstanding || 0)} tone="inherit" />}
+        hint={
+          Number(card.unbilledTotal ?? 0) !== 0 ? (
+            <span>
+              <Amount value={Number(card.unbilledTotal)} tone="inherit" /> not yet billed
+            </span>
+          ) : card.utilizationPct != null ? (
+            `${formatPct(card.utilizationPct)} of limit used`
+          ) : undefined
+        }
+      />
+      <StatCard
+        label="Spent this cycle"
+        value={<Amount value={Number(card.thisCycleSpend ?? 0)} tone="inherit" />}
+        hint={cycleRange || 'Set a statement day to track cycles'}
+      />
+      {due ? (
+        <StatCard
+          label={`Due ${dayLabel(due.dueDate)}`}
+          value={<Amount value={Number(due.amount)} tone={due.status === 'overdue' ? 'due' : 'inherit'} />}
+          hint={
+            <span className="cardd-summary__due">
+              {badge && <Badge size="sm" theme={badge.theme} label={badge.label} />}
+              {due.status !== 'due-today' && due.status !== 'due-tomorrow' && (
+                <span>{relativeDays(due.daysAway)}</span>
+              )}
+            </span>
+          }
+        />
+      ) : (
+        <StatCard label="Amount due" value={<Amount value={0} tone="inherit" />} hint="No bill due" />
+      )}
+    </div>
+  ) : (
+    <div className="cardd-summary">
+      <StatCard
+        label="Spent this month"
+        value={<Amount value={Number(card.thisMonthSpend ?? 0)} tone="inherit" />}
+      />
+      <StatCard
+        label="Total spent"
+        value={<Amount value={totalSpend} tone="inherit" />}
+        hint={`${transactions.length} transaction${transactions.length === 1 ? '' : 's'}`}
+      />
+    </div>
+  );
+
+  // ── Tabs ──
+  const tabs = [
+    { label: 'Transactions', value: 'transactions', count: transactions.length },
+    ...(isCredit
+      ? [
+          { label: 'Statements', value: 'statements', count: statements.length },
+          { label: 'Payments', value: 'payments', count: payments.length },
+        ]
+      : []),
+    ...(isStacked ? [{ label: 'Details', value: 'details' }] : []),
+  ];
+  const activeTab = tabs.some((t) => t.value === tab) ? tab : 'transactions';
+
+  const transactionsPanel =
+    transactions.length === 0 && !loading ? (
+      <EmptyState
+        icon={Receipt}
+        title="No transactions yet"
+        description={
+          isCredit
+            ? 'Import a statement, paste unbilled spends, or add one by hand.'
+            : 'Add a transaction by hand.'
+        }
+        action={
+          isCredit ? (
+            <Button iconLeft={Upload} label="Import statement" to="/import" />
+          ) : (
+            <Button iconLeft={Plus} label="Add transaction" onClick={() => setTxnOpen(true)} />
+          )
+        }
+      />
+    ) : (
+      <>
+        <div className="cardd-toolbar">
+          <TextInput
+            className="cardd-toolbar__search"
+            type="search"
+            prefix={Search}
+            placeholder="Search merchant, note or category"
+            aria-label="Search transactions"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          />
+          <Select
+            className="cardd-toolbar__filter"
+            aria-label="Category"
+            options={categoryOptions}
+            value={categoryFilter}
+            onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
+          />
+          {isCredit && (
+            <Select
+              className="cardd-toolbar__filter"
+              aria-label="Billing status"
+              options={BILLING_OPTIONS}
+              value={billingFilter}
+              onChange={(e) => { setBillingFilter(e.target.value); setPage(1); }}
+            />
+          )}
+          <span className="cardd-toolbar__summary" aria-live="polite">
+            {filtersActive ? (
+              <>
+                {filteredTransactions.length} of {transactions.length} ·{' '}
+                <Amount value={filteredSpend} tone="inherit" />
+              </>
+            ) : (
+              <>
+                {transactions.length} transaction{transactions.length === 1 ? '' : 's'} ·{' '}
+                <Amount value={totalSpend} tone="inherit" /> spent
+              </>
+            )}
+          </span>
+        </div>
+
         {isMobile ? (
-          <button
-            className="ft-mobile__icon-btn"
-            onClick={() => navigate('/cards')}
-            aria-label="Back"
-            style={{
-              background: 'transparent',
-              border: 0,
-              color: 'var(--ft-text)',
-              cursor: 'pointer',
-              padding: 6,
-            }}
-          >
-            <IcChevL size={18} />
-          </button>
+          tableRows.length === 0 ? (
+            <EmptyState
+              size="sm"
+              icon={Search}
+              title="No transactions match"
+              action={<Button label="Clear filters" onClick={clearFilters} />}
+            />
+          ) : (
+            <TransactionMobileList
+              rows={tableRows}
+              categories={categories}
+              onAssignCategory={assignCategory}
+              onOpenDetail={(row) => openManage(row.id)}
+            />
+          )
         ) : (
-          <GhostBtn onClick={() => navigate('/cards')}><IcChevL size={14} /> Cards</GhostBtn>
-        )}
-        {card && (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <GhostBtn onClick={() => setEditOpen(true)}>
-              <IcEdit size={14} /> Edit
-            </GhostBtn>
-            <GhostBtn onClick={onDeleteCard} style={{ color: 'var(--ft-spend)' }}>
-              <IcTrash size={14} /> Delete
-            </GhostBtn>
+          <div className="cardd-ledger">
+            <TransactionTable
+              rows={tableRows}
+              storageKey="fintrack.ledger.card"
+              showColumnsMenu={false}
+              columnLabels={{ description: 'Merchant', method: 'Status' }}
+              categories={categories}
+              onAssignCategory={assignCategory}
+              onOpenManage={openManage}
+              onOpenDetail={(row) => openManage(row.id)}
+              sortCol={sortCol}
+              sortDir={sortDir}
+              onSort={handleSort}
+              page={page}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              loading={loading}
+              emptyMessage="No transactions match."
+            />
           </div>
         )}
-      </header>
+      </>
+    );
 
-      <main className={isMobile ? 'ft-mobile__content' : ''}>
-        {error && (
-          <Card pad={14} style={{ marginBottom: 18, borderColor: 'var(--ft-spend)' }}>
-            <span style={{ color: 'var(--ft-spend)' }}>{error}</span>
-          </Card>
-        )}
-        {!card ? (
-          <p style={{ color: 'var(--ft-text-dim)' }}>Loading…</p>
-        ) : (
-          <>
-            <Card pad={isMobile ? 16 : 22} style={{ marginBottom: 18 }}>
-              <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', alignItems: 'center' }}>
-                <CardFace card={card} width={isMobile ? 280 : 320} height={isMobile ? 170 : 200} privacy={false} />
-                <div style={{ flex: 1, minWidth: 240 }}>
-                  <Overline>{isCredit ? 'Outstanding' : 'Linked balance'}</Overline>
-                  <HeroAmount
-                    color={
-                      isCredit
-                        ? card.outstanding > 0
-                          ? 'var(--ft-text)'
-                          : 'var(--ft-text-dim)'
-                        : 'var(--ft-text)'
-                    }
-                    style={{ marginTop: 4 }}
-                  >
-                    {isCredit ? inr(card.outstanding) : inr(card.thisMonthSpend)}
-                  </HeroAmount>
-                  <div style={{ marginTop: 12, color: 'var(--ft-text-dim)', fontSize: 13, display: 'grid', gap: 6 }}>
-                    {isCredit ? (
-                      <>
-                        <Row label="Available">
-                          <Num size={13} weight={600}>{inr(card.available ?? 0)}</Num>
-                        </Row>
-                        <Row label="Limit">
-                          <Num size={13} weight={600}>{inr(card.creditLimit ?? 0)}</Num>
-                        </Row>
-                        <Row label="Utilization">
-                          <Num size={13} weight={600} color="var(--ft-warn)">
-                            {(card.utilizationPct ?? 0).toFixed(1)}%
-                          </Num>
-                        </Row>
-                        <Row label={cycleSpendLabel}>
-                          <Num size={13} weight={600}>{inr(card.thisCycleSpend ?? 0)}</Num>
-                        </Row>
-                        {Number(card.unbilledTotal ?? 0) !== 0 && (
-                          <Row label="Not yet billed">
-                            <Num size={13} weight={600} color="var(--ft-warn)">
-                              {inr(card.unbilledTotal)}
-                            </Num>
-                          </Row>
-                        )}
-                        {card.currentDue > 0 && (
-                          <Row label={`Due ${card.currentDueDate ?? ''}`}>
-                            <Num size={13} weight={600} color="var(--ft-warn)">{inr(card.currentDue)}</Num>
-                          </Row>
-                        )}
-                        {card.pointsLabel && (
-                          <Row label={card.pointsLabel}>
-                            <Num size={13} weight={600}>
-                              {card.pointsBalance} · {inrCompact(card.pointsValue)}
-                            </Num>
-                          </Row>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <Row label="Daily limit">
-                          <Num size={13} weight={600}>{inr(card.dailyLimit ?? 0)}</Num>
-                        </Row>
-                        <Row label="ATM limit">
-                          <Num size={13} weight={600}>{inr(card.atmLimit ?? 0)}</Num>
-                        </Row>
-                        {card.linkedAccountNumber && (
-                          <Row label="Linked">
-                            <span style={{ color: 'var(--ft-text)' }}>{card.linkedAccountNumber}</span>
-                          </Row>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
+  const statementColumns = [
+    {
+      key: 'cycle',
+      label: 'Cycle',
+      width: 'minmax(132px, 2fr)',
+      render: (s) => (
+        <span className="cardd-cell">
+          <span className="truncate">{rangeLabel(s.cycleStart, s.cycleEnd)}</span>
+          <span className="cardd-cell__sub">Due {dayLabel(s.dueDate)}</span>
+        </span>
+      ),
+    },
+    { key: 'due', label: 'Due', width: 120, hideBelow: 'sm', render: (s) => dayLabel(s.dueDate, { year: true }) },
+    {
+      key: 'status',
+      label: 'Status',
+      width: 88,
+      render: (s) => {
+        const st = STATEMENT_STATUS[s.status] || { label: s.status, theme: 'gray' };
+        return <Badge theme={st.theme} label={st.label} />;
+      },
+    },
+    {
+      key: 'paid',
+      label: 'Paid',
+      width: 120,
+      align: 'right',
+      hideBelow: 'md',
+      render: (s) => <Amount value={Number(s.paidAmount)} tone="inherit" />,
+    },
+    {
+      key: 'total',
+      label: 'Total',
+      width: 112,
+      align: 'right',
+      render: (s) => <Amount value={Number(s.totalAmount)} tone="inherit" />,
+    },
+    {
+      key: 'actions',
+      label: <span className="sr-only">Actions</span>,
+      width: 40,
+      align: 'right',
+      hideBelow: 'sm',
+      render: (s) => (
+        <Button
+          variant="ghost"
+          icon={Trash2}
+          label="Delete statement"
+          tooltip="Delete statement"
+          onClick={() => onDeleteStatement(s)}
+        />
+      ),
+    },
+  ];
 
-              {/* Controls */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 18 }}>
-                <Toggle active={card.frozen} onClick={onFreezeToggle} accent="var(--ft-info)">
-                  {card.frozen ? '❄ Frozen' : 'Freeze card'}
-                </Toggle>
-                <Toggle active={card.onlineEnabled} onClick={() => onControlToggle('onlineEnabled')}>
-                  Online {card.onlineEnabled ? 'on' : 'off'}
-                </Toggle>
-                <Toggle active={card.contactlessEnabled} onClick={() => onControlToggle('contactlessEnabled')}>
-                  Contactless {card.contactlessEnabled ? 'on' : 'off'}
-                </Toggle>
-                <Toggle active={card.internationalEnabled} onClick={() => onControlToggle('internationalEnabled')}>
-                  Intl. {card.internationalEnabled ? 'on' : 'off'}
-                </Toggle>
-                {!card.isPrimary && (
-                  <Toggle active={false} onClick={onMakePrimary} accent="var(--ft-accent)">
-                    Make primary
-                  </Toggle>
+  const paymentColumns = [
+    { key: 'paidOn', label: 'Date', width: 120, hideBelow: 'sm', render: (p) => dayLabel(p.paidOn, { year: true }) },
+    {
+      key: 'via',
+      label: 'Paid from',
+      width: 'minmax(120px, 2fr)',
+      render: (p) => (
+        <span className="cardd-cell">
+          <span className="truncate">{p.viaLabel || 'Manual payment'}</span>
+          <span className="cardd-cell__sub">{dayLabel(p.paidOn)}</span>
+        </span>
+      ),
+    },
+    {
+      key: 'notes',
+      label: 'Notes',
+      width: 'minmax(120px, 2fr)',
+      hideBelow: 'md',
+      render: (p) => <span className="truncate text-ink-gray-5">{p.notes || ''}</span>,
+    },
+    {
+      key: 'amount',
+      label: 'Amount',
+      width: 112,
+      align: 'right',
+      render: (p) => <Amount value={Number(p.amount)} tone="in" />,
+    },
+    {
+      key: 'actions',
+      label: <span className="sr-only">Actions</span>,
+      width: 40,
+      align: 'right',
+      render: (p) => (
+        <Button
+          variant="ghost"
+          icon={Trash2}
+          label="Delete payment"
+          tooltip="Delete payment"
+          onClick={() => onDeletePayment(p)}
+        />
+      ),
+    },
+  ];
+
+  const paidTotal = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+
+  const statementsPanel = (
+    <>
+      <div className="cardd-toolbar">
+        <span className="cardd-toolbar__summary cardd-toolbar__summary--start">
+          {statements.length} statement{statements.length === 1 ? '' : 's'}
+        </span>
+        <Button iconLeft={Plus} label="Add statement" onClick={() => setStmtOpen(true)} />
+      </div>
+      <ListView
+        aria-label="Statements"
+        columns={statementColumns}
+        rows={statements}
+        onRowClick={(s) => openBreakdown(s)}
+        loading={loading && statements.length === 0}
+        emptyState={
+          <EmptyState
+            size="sm"
+            icon={FileText}
+            title="No statements yet"
+            description="Import the card's statement, or add one by hand."
+            action={<Button iconLeft={Upload} label="Import statement" to="/import" />}
+          />
+        }
+      />
+    </>
+  );
+
+  const paymentsPanel = (
+    <>
+      <div className="cardd-toolbar">
+        <span className="cardd-toolbar__summary cardd-toolbar__summary--start">
+          {payments.length} payment{payments.length === 1 ? '' : 's'}
+          {payments.length > 0 && (
+            <>
+              {' · '}
+              <Amount value={paidTotal} tone="inherit" /> paid
+            </>
+          )}
+        </span>
+        <Button iconLeft={Plus} label="Record payment" onClick={() => setPayOpen(true)} />
+      </div>
+      <ListView
+        aria-label="Payments"
+        columns={paymentColumns}
+        rows={payments}
+        loading={loading && payments.length === 0}
+        emptyState={
+          <EmptyState
+            size="sm"
+            icon={Banknote}
+            title="No payments yet"
+            description="Record a bill payment to keep the outstanding right."
+          />
+        }
+      />
+    </>
+  );
+
+  const readyToImport = isCredit && cardSchedule?.status === 'ready' && cardSchedule.next;
+
+  return (
+    <>
+      {header}
+      <PageBody className="cardd-body">
+        <div className="cardd">
+          <div className="cardd__main">
+            {error && (
+              <Alert
+                theme="red"
+                title="Couldn't refresh this card"
+                description={error}
+                primaryAction={{ label: 'Try again', onClick: () => loadAll() }}
+              />
+            )}
+            {readyToImport && (
+              <Alert
+                theme="blue"
+                title={`${cardSchedule.next.label} statement is ready to import`}
+                primaryAction={{ label: 'Import', onClick: () => navigate('/import') }}
+              />
+            )}
+
+            {summary}
+
+            <div className="cardd-tabs">
+              <Tabs idPrefix="cardd" aria-label="Card sections" tabs={tabs} value={activeTab} onChange={setTab} />
+              <div
+                className="cardd-tabpanel"
+                role="tabpanel"
+                id={`cardd-panel-${activeTab}`}
+                aria-labelledby={`cardd-tab-${activeTab}`}
+              >
+                {activeTab === 'transactions' && transactionsPanel}
+                {activeTab === 'statements' && isCredit && statementsPanel}
+                {activeTab === 'payments' && isCredit && paymentsPanel}
+                {activeTab === 'details' && (
+                  <CardDetailsPanel card={card} schedule={cardSchedule} onEdit={() => setEditOpen(true)} />
                 )}
               </div>
-            </Card>
-
-            {/* Tabs */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-              <Pill active={tab === 'transactions'} onClick={() => setTab('transactions')}>
-                Transactions · {transactions.length}
-              </Pill>
-              {isCredit && (
-                <Pill active={tab === 'statements'} onClick={() => setTab('statements')}>
-                  Statements · {statements.length}
-                </Pill>
-              )}
-              {isCredit && (
-                <Pill active={tab === 'payments'} onClick={() => setTab('payments')}>
-                  Payments · {payments.length}
-                </Pill>
-              )}
             </div>
+          </div>
 
-            {tab === 'transactions' && (
-              <>
-                <SectionTitle
-                  action={
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      {card?.kind === 'credit' && (
-                        <GhostBtn onClick={() => setPasteOpen(true)}>Paste unbilled</GhostBtn>
-                      )}
-                      <PrimaryBtn onClick={() => setTxnOpen(true)}>
-                        <IcPlus size={14} /> Add
-                      </PrimaryBtn>
-                    </div>
-                  }
-                >
-                  Transactions {totalSpend > 0 && `· ${inr(totalSpend)}`}
-                </SectionTitle>
-
-                <Card pad={isMobile ? 12 : 14} style={{ marginBottom: 14 }}>
-                  <div className="txn-toolbar">
-                    <div className="txn-search txn-search--wide">
-                      <IcSearch size={16} />
-                      <input
-                        type="search"
-                        placeholder="Search by merchant, note, category…"
-                        value={search}
-                        onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                      />
-                    </div>
-                    <select
-                      className="txn-toolbar__filter"
-                      value={categoryFilter}
-                      onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
-                    >
-                      <option value="">All categories</option>
-                      <option value="__none__">Uncategorised</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>
-                      ))}
-                    </select>
-                    {isCredit && (
-                      <select
-                        className="txn-toolbar__filter"
-                        value={billingFilter}
-                        onChange={(e) => { setBillingFilter(e.target.value); setPage(1); }}
-                        aria-label="Billing status"
-                      >
-                        <option value="">Billed &amp; unbilled</option>
-                        <option value="unbilled">Unbilled only</option>
-                        <option value="billed">Billed only</option>
-                      </select>
-                    )}
-                  </div>
-                </Card>
-
-                {isMobile ? (
-                  <Card pad={14}>
-                    {tableRows.length === 0 ? (
-                      <p className="empty">No transactions match.</p>
-                    ) : (
-                      <TransactionMobileList
-                        rows={tableRows}
-                        categories={categories}
-                        onAssignCategory={assignCategory}
-                        onOpenDetail={(row) => openManage(row.id)}
-                      />
-                    )}
-                  </Card>
-                ) : (
-                  <Card pad={0}>
-                    <TransactionTable
-                      rows={tableRows}
-                      storageKey="fintrack.ledger.card"
-                      columnLabels={{ description: 'Merchant', method: 'Status' }}
-                      categories={categories}
-                      onAssignCategory={assignCategory}
-                      onOpenManage={openManage}
-                      onOpenDetail={(row) => openManage(row.id)}
-                      sortCol={sortCol}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                      page={page}
-                      pageSize={pageSize}
-                      onPageChange={setPage}
-                      onPageSizeChange={setPageSize}
-                      loading={loading}
-                      emptyMessage="No transactions match."
-                    />
-                  </Card>
-                )}
-              </>
-            )}
-
-            {tab === 'statements' && isCredit && (
-              <>
-                <SectionTitle
-                  action={
-                    <PrimaryBtn onClick={() => setStmtOpen(true)}>
-                      <IcPlus size={14} /> New cycle
-                    </PrimaryBtn>
-                  }
-                >
-                  Statements
-                </SectionTitle>
-                <StatementList
-                  statements={statements}
-                  onOpen={openBreakdown}
-                  onDelete={onDeleteStatement}
-                />
-              </>
-            )}
-
-            {tab === 'payments' && isCredit && (
-              <>
-                <SectionTitle
-                  action={
-                    <PrimaryBtn onClick={() => setPayOpen(true)}>
-                      <IcPlus size={14} /> Record
-                    </PrimaryBtn>
-                  }
-                >
-                  Payments
-                </SectionTitle>
-                <PaymentList payments={payments} onDelete={onDeletePayment} />
-              </>
-            )}
-          </>
-        )}
-      </main>
+          {!isStacked && (
+            <aside className="cardd__aside" aria-label="Card details">
+              <div className="cardd__aside-inner">
+                <CardDetailsPanel card={card} schedule={cardSchedule} onEdit={() => setEditOpen(true)} />
+              </div>
+            </aside>
+          )}
+        </div>
+      </PageBody>
 
       {editOpen && (
         <CardFormModal
@@ -698,22 +935,26 @@ export default function CardDetail() {
           onDeleteTag={(tagId) => deleteTag(manageRow.id, tagId)}
           actions={
             <>
-              <GhostBtn onClick={() => { setManageSheetId(null); setEditTxn(manageRow); }}>
-                <IcEdit size={14} /> Edit
-              </GhostBtn>
-              <GhostBtn onClick={() => onDeleteTxn(manageRow.id)} style={{ color: 'var(--ft-spend)' }}>
-                <IcTrash size={14} /> Delete
-              </GhostBtn>
+              <Button
+                iconLeft={Pencil}
+                label="Edit"
+                onClick={() => { setManageSheetId(null); setEditTxn(manageRow); }}
+              />
+              <Button theme="red" iconLeft={Trash2} label="Delete" onClick={() => onDeleteTxn(manageRow.id)} />
             </>
           }
         />
       )}
-      <ConfirmDialog {...confirmState} />
       {payOpen && (
         <CardPaymentModal
           cardId={card?.id}
           statementId={card?.nextStatementId ?? null}
           suggestedAmount={card?.currentDue || ''}
+          description={
+            card?.currentDue > 0 && card?.currentDueDate
+              ? `Counts towards the bill due ${dayLabel(card.currentDueDate)}.`
+              : undefined
+          }
           onClose={() => setPayOpen(false)}
           onSaved={async () => {
             setPayOpen(false);
@@ -732,282 +973,20 @@ export default function CardDetail() {
         />
       )}
       {activeBreakdown && (
-        <StatementBreakdownPanel data={activeBreakdown} onClose={() => setActiveBreakdown(null)} />
+        <StatementBreakdownDialog
+          data={activeBreakdown}
+          onClose={() => setActiveBreakdown(null)}
+          onDelete={onDeleteStatement}
+        />
       )}
+      <ConfirmDialog
+        open={Boolean(confirmState.open)}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
+        onConfirm={confirmState.onConfirm}
+        onCancel={closeConfirm}
+      />
     </>
-  );
-}
-
-function Row({ label, children }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-      <span>{label}</span>
-      <span style={{ color: 'var(--ft-text)' }}>{children}</span>
-    </div>
-  );
-}
-
-function Toggle({ active, onClick, children, accent }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        border: '1px solid var(--ft-border)',
-        background: active ? `${accent || 'var(--ft-accent)'}1A` : 'var(--ft-surface-2)',
-        color: active ? accent || 'var(--ft-accent)' : 'var(--ft-text-dim)',
-        padding: '7px 13px',
-        borderRadius: 999,
-        fontFamily: 'var(--ft-font-ui)',
-        fontSize: 12.5,
-        fontWeight: 500,
-        cursor: 'pointer',
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function StatementList({ statements, onOpen, onDelete }) {
-  if (statements.length === 0)
-    return (
-      <Card pad={20}>
-        <span style={{ color: 'var(--ft-text-dim)' }}>No statements yet.</span>
-      </Card>
-    );
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {statements.map((s) => (
-        <button
-          key={s.id}
-          type="button"
-          onClick={() => onOpen(s.id)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            background: 'var(--ft-surface)',
-            border: '1px solid var(--ft-border)',
-            borderRadius: 12,
-            padding: '12px 14px',
-            textAlign: 'left',
-            cursor: 'pointer',
-            width: '100%',
-          }}
-        >
-          <div
-            style={{
-              width: 6,
-              height: 38,
-              borderRadius: 3,
-              background: STATEMENT_STATUS_COLORS[s.status] || 'var(--ft-text-dim)',
-            }}
-          />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ color: 'var(--ft-text)', fontSize: 13.5, fontWeight: 500 }}>
-              {s.cycleStart} → {s.cycleEnd}
-            </div>
-            <div style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, marginTop: 2 }}>
-              Due {s.dueDate} · {s.status} · paid {inrCompact(s.paidAmount)} / {inrCompact(s.totalAmount)}
-            </div>
-          </div>
-          <Num size={14} weight={600}>
-            {inr(s.totalAmount)}
-          </Num>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(s.id);
-            }}
-            aria-label="Delete"
-            style={{
-              background: 'transparent',
-              border: 0,
-              color: 'var(--ft-text-faint)',
-              cursor: 'pointer',
-              padding: 4,
-            }}
-          >
-            <IcTrash size={15} />
-          </button>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function PaymentList({ payments, onDelete }) {
-  if (payments.length === 0)
-    return (
-      <Card pad={20}>
-        <span style={{ color: 'var(--ft-text-dim)' }}>No payments yet.</span>
-      </Card>
-    );
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {payments.map((p) => (
-        <div
-          key={p.id}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            background: 'var(--ft-surface)',
-            border: '1px solid var(--ft-border)',
-            borderRadius: 12,
-            padding: '12px 14px',
-          }}
-        >
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ color: 'var(--ft-text)', fontSize: 13.5, fontWeight: 500 }}>
-              {p.viaLabel || 'Manual payment'}
-            </div>
-            <div style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, marginTop: 2 }}>{p.paidOn}</div>
-          </div>
-          <Num size={14} weight={600} color="var(--ft-income)">
-            {inr(p.amount)}
-          </Num>
-          <button
-            type="button"
-            onClick={() => onDelete(p.id)}
-            aria-label="Delete"
-            style={{
-              background: 'transparent',
-              border: 0,
-              color: 'var(--ft-text-faint)',
-              cursor: 'pointer',
-              padding: 4,
-            }}
-          >
-            <IcTrash size={15} />
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function StatementBreakdownPanel({ data, onClose }) {
-  const { statement, categories: cats, transactions } = data;
-  const max = Math.max(...cats.map((c) => c.amount), 1);
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'var(--ft-scrim)',
-        backdropFilter: 'blur(6px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-        zIndex: 1000,
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: 640,
-          maxHeight: '90dvh',
-          overflow: 'auto',
-          background: 'var(--ft-surface)',
-          border: '1px solid var(--ft-border)',
-          borderRadius: 20,
-        }}
-      >
-        <div
-          style={{
-            padding: '18px 22px',
-            borderBottom: '1px solid var(--ft-border)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-          }}
-        >
-          <div>
-            <Overline>Statement</Overline>
-            <h2 style={{ margin: '2px 0 0', fontSize: 18 }}>
-              {statement.cycleStart} → {statement.cycleEnd}
-            </h2>
-            <div style={{ marginTop: 4, color: 'var(--ft-text-dim)', fontSize: 12.5 }}>
-              Total {inr(statement.totalAmount)} · Paid {inr(statement.paidAmount)} · Due {statement.dueDate} · {statement.status}
-            </div>
-          </div>
-          <GhostBtn onClick={onClose}>Close</GhostBtn>
-        </div>
-        <div style={{ padding: 22 }}>
-          <SectionTitle>By category</SectionTitle>
-          {cats.length === 0 && (
-            <Card pad={14}>
-              <span style={{ color: 'var(--ft-text-dim)' }}>No transactions in this statement.</span>
-            </Card>
-          )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {cats.map((c) => (
-              <div key={c.categoryId || 'uncat'}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                  <span style={{ color: 'var(--ft-text)' }}>{c.categoryName || 'Uncategorised'}</span>
-                  <Num size={13} weight={600}>{inr(c.amount)}</Num>
-                </div>
-                <div
-                  style={{
-                    marginTop: 4,
-                    height: 6,
-                    borderRadius: 3,
-                    background: 'var(--ft-surface-2)',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: `${(c.amount / max) * 100}%`,
-                      height: '100%',
-                      background: c.categoryColor || 'var(--ft-accent)',
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 22 }}>
-            <SectionTitle>Transactions</SectionTitle>
-            {transactions.length === 0 ? (
-              <Card pad={14}>
-                <span style={{ color: 'var(--ft-text-dim)' }}>None</span>
-              </Card>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {transactions.map((t) => (
-                  <div
-                    key={t.id}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      padding: '8px 12px',
-                      background: 'var(--ft-surface-2)',
-                      borderRadius: 10,
-                      fontSize: 13,
-                    }}
-                  >
-                    <div>
-                      <span style={{ color: 'var(--ft-text)' }}>{t.merchant}</span>
-                      <span style={{ color: 'var(--ft-text-faint)', marginLeft: 8, fontSize: 11.5 }}>{t.txnDate}</span>
-                    </div>
-                    <Num size={13} weight={600} color={t.isRefund ? 'var(--ft-income)' : 'var(--ft-text)'}>
-                      {t.isRefund ? '-' : ''}{inr(t.amount)}
-                    </Num>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }

@@ -1,18 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import ConfirmDialog from '../components/ConfirmDialog.jsx';
-import Portal from '../components/Portal.jsx';
+import { ChevronDown, Plus, Search, Users } from 'lucide-react';
 import {
-  Card, Num, Pill, Avatar, PrimaryBtn, GhostBtn, Overline,
-} from '../components/ui/primitives.jsx';
-import { IcPlus, IcSearch, IcEdit, IcTrash, IcChevR } from '../components/ui/Icon.jsx';
-import { useIsCompact } from '../styles/breakpoints.js';
-import { inr } from '../utils/inr.js';
-import { friendTint, initialsOf } from '../utils/categoryColors.js';
+  Alert, Amount, Avatar, Button, Card, Dropdown, EmptyState, ListView, PageBody, PageHeader, Select, Skeleton,
+  TabButtons, TextInput,
+} from '../components/ui';
+import PersonDialog from '../components/people/PersonDialog.jsx';
 import { useReviewSummary } from '../hooks/useReviewSummary.js';
-
 import { API_BASE, apiFetch } from '../services/http.js';
-import './friends-redesign.css';
+import './Friends.css';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -22,9 +17,9 @@ const FILTERS = [
 ];
 
 const SORTS = [
-  { id: 'amount', label: 'Largest balance' },
-  { id: 'recent', label: 'Recent activity' },
-  { id: 'name', label: 'Name' },
+  { value: 'amount', label: 'Largest balance' },
+  { value: 'recent', label: 'Recent activity' },
+  { value: 'name', label: 'Name' },
 ];
 
 // Under a rupee either way reads as settled (paise left over from splits).
@@ -51,28 +46,24 @@ function fmtActivity(iso) {
 }
 
 const SECTIONS = [
-  { id: 'owed', title: 'Owes you', tone: 'var(--ft-income)' },
-  { id: 'owe', title: 'You owe', tone: 'var(--ft-spend)' },
-  { id: 'settled', title: 'Settled up', tone: 'var(--ft-text-dim)' },
+  { id: 'owed', title: 'Owes you' },
+  { id: 'owe', title: 'You owe' },
+  { id: 'settled', title: 'Settled' },
 ];
 
-export default function Friends() {
-  const navigate = useNavigate();
-  const isMobile = useIsCompact();
+const people = (n) => `${n} ${n === 1 ? 'person' : 'people'}`;
 
+export default function Friends() {
   const [friends, setFriends] = useState([]);
   const [balances, setBalances] = useState([]);
   const [queryInput, setQueryInput] = useState('');
   const [query, setQuery] = useState('');
-  const [status, setStatus] = useState('');
-  const [formStatus, setFormStatus] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
   const [filter, setFilter] = useState('all'); // all | owed | owe | settled
   const [sort, setSort] = useState('amount'); // amount | recent | name
-
   const [createOpen, setCreateOpen] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [form, setForm] = useState({ name: '', email: '', phone: '', note: '' });
-  const [confirmState, setConfirmState] = useState({ open: false });
 
   useEffect(() => {
     const t = setTimeout(() => setQuery(queryInput.trim()), 250);
@@ -82,21 +73,23 @@ export default function Friends() {
   useEffect(() => {
     const ctrl = new AbortController();
     (async () => {
-      setStatus('Loading…');
+      setLoading(true);
+      setError('');
       try {
         const qParam = query ? `?q=${encodeURIComponent(query)}` : '';
         const res = await apiFetch(`${API_BASE}/friends${qParam}`, { signal: ctrl.signal });
         if (!res.ok) throw new Error('Failed to fetch friends');
         const data = await res.json();
         setFriends(data.data || []);
-        setStatus('');
+        setLoading(false);
       } catch (e) {
         if (e.name === 'AbortError') return;
-        setStatus(e.message || 'Failed to fetch friends');
+        setError(e.message || 'Failed to fetch friends');
+        setLoading(false);
       }
     })();
     return () => ctrl.abort();
-  }, [query]);
+  }, [query, reloadKey]);
 
   useEffect(() => {
     (async () => {
@@ -106,6 +99,12 @@ export default function Friends() {
       } catch {}
     })();
   }, [friends.length]);
+
+  // After adding someone: the same list request, with the current search.
+  async function refreshFriends() {
+    const r = await apiFetch(`${API_BASE}/friends${query ? `?q=${encodeURIComponent(query)}` : ''}`);
+    if (r.ok) setFriends((await r.json()).data || []);
+  }
 
   const balanceByFriend = useMemo(() => {
     const m = new Map();
@@ -138,411 +137,288 @@ export default function Friends() {
     return SECTIONS
       .filter((sec) => filter === 'all' || filter === sec.id)
       .map((sec) => {
-        const people = merged.filter((f) => balanceSide(Number(f.summary?.netBalance || 0)) === sec.id);
+        const rows = merged.filter((f) => balanceSide(Number(f.summary?.netBalance || 0)) === sec.id);
         // Settled people have no balance to rank by; keep them alphabetical.
-        people.sort(sec.id === 'settled' && sort === 'amount' ? comparators.name : comparators[sort]);
-        const total = people.reduce((sum, f) => sum + Math.abs(Number(f.summary.netBalance || 0)), 0);
-        return { ...sec, people, total };
+        rows.sort(sec.id === 'settled' && sort === 'amount' ? comparators.name : comparators[sort]);
+        const total = rows.reduce((sum, f) => sum + Math.abs(Number(f.summary.netBalance || 0)), 0);
+        return { ...sec, rows, total };
       })
-      .filter((sec) => sec.people.length > 0);
+      .filter((sec) => sec.rows.length > 0);
   }, [merged, filter, sort]);
-  const shownCount = sections.reduce((n, sec) => n + sec.people.length, 0);
+  const shownCount = sections.reduce((n, sec) => n + sec.rows.length, 0);
 
   const owedToMe = balances.reduce((s, b) => s + Math.max(0, Number(b.netBalance) || 0), 0);
   const iOwe = balances.reduce((s, b) => s - Math.min(0, Number(b.netBalance) || 0), 0);
   const net = owedToMe - iOwe;
 
-  function openCreate() {
-    setEditId(null);
-    setForm({ name: '', email: '', phone: '', note: '' });
-    setFormStatus('');
-    setCreateOpen(true);
-  }
-
-  function openEdit(f) {
-    setEditId(f.id);
-    setForm({ name: f.name || '', email: f.email || '', phone: f.phone || '', note: f.note || '' });
-    setFormStatus('');
-    setCreateOpen(true);
-  }
-
-  async function submit(e) {
-    e.preventDefault();
-    if (!form.name.trim()) { setFormStatus('Enter a name.'); return; }
-    setFormStatus('Saving…');
-    try {
-      const url = editId ? `${API_BASE}/friends/${editId}` : `${API_BASE}/friends`;
-      const res = await apiFetch(url, {
-        method: editId ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: form.name.trim(),
-          email: form.email.trim() || undefined,
-          phone: form.phone.trim() || undefined,
-          note: form.note.trim() || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Save failed');
-      setCreateOpen(false);
-      setEditId(null);
-      setQuery((q) => q); // re-trigger fetch
-      const r = await apiFetch(`${API_BASE}/friends${query ? `?q=${encodeURIComponent(query)}` : ''}`);
-      if (r.ok) setFriends((await r.json()).data || []);
-    } catch (err) {
-      setFormStatus(err.message || 'Save failed');
-    }
-  }
-
-  function askDelete(f) {
-    setConfirmState({
-      open: true,
-      title: `Delete ${f.name}?`,
-      message: 'This removes the friend and unlinks any tagged transactions.',
-      confirmLabel: 'Delete',
-      onConfirm: async () => {
-        setConfirmState({ open: false });
-        try {
-          const res = await apiFetch(`${API_BASE}/friends/${f.id}`, { method: 'DELETE' });
-          if (!res.ok) throw new Error('Delete failed');
-          setFriends((prev) => prev.filter((x) => x.id !== f.id));
-        } catch (err) {
-          setStatus(err.message || 'Delete failed');
-        }
+  const columns = [
+    {
+      key: 'name',
+      label: 'Name',
+      width: 'minmax(140px, 3fr)',
+      render: (f) => {
+        const activity = fmtActivity(f.summary?.lastTransactionDate);
+        return (
+          <span className="people-row__who">
+            <Avatar label={f.name} size="xl" aria-hidden />
+            <span className="people-row__text">
+              <span className="people-row__name">{f.name}</span>
+              <span className="people-row__meta">
+                {activity ? `Last activity ${activity}` : 'No shared expenses yet'}
+              </span>
+            </span>
+          </span>
+        );
       },
-      onCancel: () => setConfirmState({ open: false }),
-    });
-  }
-
-  const formSheet = createOpen && (
-    <Portal>
-      <div className="calendar-sheet-backdrop" onClick={(e) => e.target === e.currentTarget && setCreateOpen(false)}>
-        <div className="calendar-sheet" role="dialog" aria-modal="true">
-          <div className="ft-sheet__grabber" />
-          <h3 className="ft-sheet__title">{editId ? 'Edit person' : 'New person'}</h3>
-          <p className="ft-sheet__sub">Track who owes you and who you owe.</p>
-          <form onSubmit={submit} className="form-grid">
-            <label className="field" style={{ gridColumn: '1 / -1' }}><span>Name</span>
-              <input type="text" value={form.name}
-                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                placeholder="Full name" autoFocus />
-            </label>
-            <label className="field"><span>Email</span>
-              <input type="email" value={form.email}
-                onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
-            </label>
-            <label className="field"><span>Phone</span>
-              <input type="tel" value={form.phone}
-                onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} />
-            </label>
-            <label className="field" style={{ gridColumn: '1 / -1' }}><span>Note</span>
-              <input type="text" value={form.note}
-                onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))} />
-            </label>
-            <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-              {editId && (
-                <GhostBtn
-                  onClick={() => {
-                    setCreateOpen(false);
-                    const f = friends.find((x) => x.id === editId);
-                    if (f) askDelete(f);
-                  }}
-                  style={{ color: 'var(--ft-spend)', borderColor: 'var(--ft-spend-hairline)' }}
-                >
-                  <IcTrash size={14} /> Delete
-                </GhostBtn>
-              )}
-              <div style={{ display: 'flex', gap: 10, marginLeft: 'auto' }}>
-                <GhostBtn onClick={() => setCreateOpen(false)}>Cancel</GhostBtn>
-                <PrimaryBtn type="submit">Save</PrimaryBtn>
-              </div>
-            </div>
-            {formStatus && <p className="status" style={{ gridColumn: '1 / -1' }}>{formStatus}</p>}
-          </form>
-        </div>
-      </div>
-    </Portal>
-  );
-
-  const header = isMobile ? (
-    <header className="ft-mobile__header">
-      <h1 className="ft-mobile__title">People</h1>
-      <button className="ft-mobile__icon-btn" onClick={openCreate} aria-label="New person">
-        <IcPlus size={20} />
-      </button>
-    </header>
-  ) : (
-    <header className="ft-page-header">
-      <div>
-        <p className="ft-page-header__sub">
-          {counts.all > 0
-            ? `${counts.all} people · ${counts.owed + counts.owe} with an open balance`
-            : 'Track shared expenses'}
-        </p>
-        <h1 className="ft-page-header__title">People</h1>
-      </div>
-      <div className="ft-page-header__actions">
-        <PrimaryBtn onClick={openCreate}><IcPlus size={16} /> Add person</PrimaryBtn>
-      </div>
-    </header>
-  );
-
-  const owedShare = owedToMe + iOwe > 0 ? (owedToMe / (owedToMe + iOwe)) * 100 : 50;
-  const balanceHero = (
-    <Card pad={18} className="friends-summary">
-      <div className="friends-summary__net">
-        <Overline>Net balance</Overline>
-        <Num size={30} weight={600} color={Math.abs(net) < SETTLED_BELOW ? 'var(--ft-text)' : net > 0 ? 'var(--ft-income)' : 'var(--ft-spend)'}>
-          {inr(Math.abs(net))}
-        </Num>
-        <span className="friends-summary__caption">
-          {Math.abs(net) < SETTLED_BELOW
-            ? 'You and your people are square overall.'
-            : net > 0 ? 'More is owed to you than you owe.' : 'You owe more than is owed to you.'}
-        </span>
-      </div>
-
-      {owedToMe + iOwe > 0 && (
-        <div className="friends-summary__bar" aria-hidden>
-          <span style={{ width: `${owedShare}%`, background: 'var(--ft-income)' }} />
-          <span style={{ width: `${100 - owedShare}%`, background: 'var(--ft-spend)' }} />
-        </div>
-      )}
-
-      {/* Each side doubles as its filter, so the figure and the people behind it are one click apart. */}
-      <div className="friends-summary__split">
-        <button
-          type="button"
-          className="friends-summary__stat"
-          data-active={filter === 'owed'}
-          onClick={() => setFilter(filter === 'owed' ? 'all' : 'owed')}
-        >
-          <span className="friends-summary__label"><i style={{ background: 'var(--ft-income)' }} /> Owed to you</span>
-          <Num size={16} weight={600} color="var(--ft-income)">{inr(owedToMe)}</Num>
-          <span className="friends-summary__count">{counts.owed} {counts.owed === 1 ? 'person' : 'people'}</span>
-        </button>
-        <button
-          type="button"
-          className="friends-summary__stat"
-          data-active={filter === 'owe'}
-          onClick={() => setFilter(filter === 'owe' ? 'all' : 'owe')}
-        >
-          <span className="friends-summary__label"><i style={{ background: 'var(--ft-spend)' }} /> You owe</span>
-          <Num size={16} weight={600} color="var(--ft-spend)">{inr(iOwe)}</Num>
-          <span className="friends-summary__count">{counts.owe} {counts.owe === 1 ? 'person' : 'people'}</span>
-        </button>
-      </div>
-    </Card>
-  );
+    },
+    {
+      key: 'balance',
+      label: 'Balance',
+      width: 'minmax(96px, 1fr)',
+      align: 'right',
+      render: (f) => <BalanceCell value={Number(f.summary?.netBalance || 0)} />,
+    },
+  ];
 
   const emptyCopy = (() => {
-    if (status === 'Loading…') return null;
-    if (query) {
-      return {
-        title: 'No matches',
-        sub: `Nothing found for “${query}”. Try another name.`,
-      };
-    }
-    if (filter === 'owed') return { title: 'No one owes you', sub: 'People who owe you will show up here.' };
-    if (filter === 'owe') return { title: 'You’re all clear', sub: 'Balances you owe will show up here.' };
-    if (filter === 'settled') return { title: 'No settled balances', sub: 'Friends at zero will show up here.' };
-    if (merged.length === 0) {
-      return {
-        title: 'No people yet',
-        sub: 'Add someone to start tracking shared expenses.',
-      };
-    }
-    return { title: 'No people match', sub: 'Try a different filter.' };
+    if (query) return { title: 'No matches', description: `Nothing found for “${query}”. Try another name.` };
+    if (filter === 'owed') return { title: 'No one owes you', description: 'People who owe you will show up here.' };
+    if (filter === 'owe') return { title: 'You don’t owe anyone', description: 'Balances you owe will show up here.' };
+    if (filter === 'settled') return { title: 'No settled balances', description: 'People at zero will show up here.' };
+    return { title: 'No people match', description: 'Try a different filter.' };
   })();
 
-  const list = (
-    <Card pad={0} className="friends-panel">
-      <div className="friends-toolbar">
-        <div className="friends-toolbar__row">
-          <div className="txn-search">
-            <IcSearch size={16} />
-            <input
-              type="search"
-              placeholder={counts.all > 0 && !query ? `Search ${counts.all} people` : 'Search people'}
-              value={queryInput}
-              onChange={(e) => setQueryInput(e.target.value)}
-              aria-label="Search people"
-            />
-          </div>
-          <select
-            className="friends-sort"
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            aria-label="Sort people"
-          >
-            {SORTS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-          </select>
-        </div>
-        <div className="friends-filters" role="tablist" aria-label="Balance filters">
-          {FILTERS.map((f) => (
-            <Pill
-              key={f.id}
-              active={filter === f.id}
-              onClick={() => setFilter(f.id)}
-              className="friends-filter"
-              data-active={filter === f.id}
-              role="tab"
-              aria-selected={filter === f.id}
-            >
-              {f.label}
-              <span className="friends-filter__count">{counts[f.id]}</span>
-            </Pill>
-          ))}
-        </div>
-      </div>
+  const noPeople = !loading && !error && merged.length === 0 && !query;
 
-      {status && <p className="friends-status">{status}</p>}
-
-      {!status && shownCount === 0 && emptyCopy ? (
-        <div className="friends-empty">
-          <p className="friends-empty__title">{emptyCopy.title}</p>
-          <p className="friends-empty__sub">{emptyCopy.sub}</p>
-          {merged.length === 0 && !query && (
-            <PrimaryBtn onClick={openCreate} style={{ marginTop: 8 }}>
-              <IcPlus size={14} /> Add person
-            </PrimaryBtn>
-          )}
-        </div>
-      ) : shownCount > 0 ? (
-        <div className="friends-sections">
-          {sections.map((sec) => (
-            <section key={sec.id} className={`friends-section friends-section--${sec.id}`}>
-              <div className="friends-section__head">
-                <span className="friends-section__title">
-                  <i style={{ background: sec.tone }} />
-                  {sec.title}
-                  <span className="friends-section__n">{sec.people.length}</span>
-                </span>
-                {sec.id !== 'settled' && (
-                  <Num size={12.5} weight={600} color={sec.tone}>{inr(sec.total)}</Num>
-                )}
-              </div>
-              <div className="friends-list">
-                {sec.people.map((f) => (
-                  <FriendRow
-                    key={f.id}
-                    friend={f}
-                    side={sec.id}
-                    onOpen={() => navigate(`/friends/${f.id}`)}
-                    onEdit={() => openEdit(f)}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-      ) : null}
-    </Card>
-  );
-
-  if (isMobile) {
-    return (
-      <>
-        <ConfirmDialog {...confirmState} />
-        {formSheet}
-        {header}
-        <main className="ft-mobile__content friends-layout--mobile">
-          {balanceHero}
-          <ReviewCard onOpen={(friendId) => navigate(`/friends/${friendId}?review=1`)} />
-          {list}
-        </main>
-      </>
+  let list;
+  if (error) {
+    list = (
+      <EmptyState
+        icon={Users}
+        title="Could not load people"
+        description={error}
+        action={<Button label="Try again" onClick={() => setReloadKey((k) => k + 1)} />}
+      />
+    );
+  } else if (noPeople) {
+    list = (
+      <EmptyState
+        icon={Users}
+        title="No people yet"
+        description="Add someone to start tracking shared expenses."
+        action={<Button variant="subtle" iconLeft={Plus} label="Add person" onClick={() => setCreateOpen(true)} />}
+      />
+    );
+  } else {
+    list = (
+      <ListView
+        className="people-list"
+        aria-label="People"
+        columns={columns}
+        rowHref={(f) => `/friends/${f.id}`}
+        loading={loading && merged.length === 0}
+        {...(filter === 'all' && shownCount > 0
+          ? {
+              groups: sections.map((sec) => ({
+                key: sec.id,
+                label: sec.id === 'settled' ? sec.title : <GroupLabel title={sec.title} total={sec.total} />,
+                count: sec.rows.length,
+                rows: sec.rows,
+              })),
+            }
+          : { rows: sections.flatMap((sec) => sec.rows) })}
+        emptyState={<EmptyState size="sm" title={emptyCopy.title} description={emptyCopy.description} />}
+      />
     );
   }
+
   return (
     <>
-      <ConfirmDialog {...confirmState} />
-      {formSheet}
-      {header}
-      <div className="ft-split" style={{ '--ft-split-aside': '320px' }}>
-        {list}
-        <aside className="friends-aside">
-          {balanceHero}
-          <ReviewCard onOpen={(friendId) => navigate(`/friends/${friendId}?review=1`)} />
-        </aside>
-      </div>
+      <PageHeader
+        title="People"
+        actions={<Button variant="solid" iconLeft={Plus} label="Add person" onClick={() => setCreateOpen(true)} />}
+        mobileActions={<Button variant="ghost" size="md" icon={Plus} label="Add person" onClick={() => setCreateOpen(true)} />}
+      />
+      <PageBody className="people-page">
+        <ReviewAlert />
+        <div className="people-layout">
+          <div className="people-main">
+            <div className="people-toolbar">
+              <TextInput
+                className="people-toolbar__search"
+                type="search"
+                prefix={Search}
+                placeholder={counts.all > 0 && !query ? `Search ${counts.all} people` : 'Search people'}
+                aria-label="Search people"
+                value={queryInput}
+                onChange={(e) => setQueryInput(e.target.value)}
+              />
+              <div className="people-toolbar__filters">
+                <TabButtons
+                  aria-label="Balance filter"
+                  value={filter}
+                  onChange={setFilter}
+                  options={FILTERS.map((f) => ({
+                    value: f.id,
+                    label: (
+                      <>
+                        {f.label}
+                        <span className="people-count">{counts[f.id]}</span>
+                      </>
+                    ),
+                  }))}
+                />
+              </div>
+              <Select
+                className="people-toolbar__sort"
+                aria-label="Sort people"
+                options={SORTS}
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+              />
+            </div>
+            {list}
+          </div>
+
+          <Summary
+            loading={loading && balances.length === 0}
+            net={net}
+            owedToMe={owedToMe}
+            iOwe={iOwe}
+            counts={counts}
+            filter={filter}
+            onFilter={(id) => setFilter(filter === id ? 'all' : id)}
+          />
+        </div>
+      </PageBody>
+
+      <PersonDialog open={createOpen} onClose={() => setCreateOpen(false)} onSaved={refreshFriends} />
     </>
   );
 }
 
-function FriendRow({ friend, side, onOpen, onEdit }) {
-  const bal = Number(friend.summary?.netBalance || 0);
-  const activity = fmtActivity(friend.summary?.lastTransactionDate);
+function GroupLabel({ title, total }) {
   return (
-    <div className={`friends-row friends-row--${side}`}>
-      <button type="button" className="friends-row__main" onClick={onOpen}>
-        <Avatar name={friend.name} initials={initialsOf(friend.name)} tint={friendTint(friend.id)} size={36} />
-        <div className="friends-row__body">
-          <div className="friends-row__name">{friend.name}</div>
-          <div className="friends-row__meta">
-            {activity ? `Last activity ${activity}` : 'No shared expenses yet'}
-          </div>
+    <span className="people-group-label">
+      {title}
+      <span className="people-group-label__total">
+        <Amount value={total} tone="inherit" />
+      </span>
+    </span>
+  );
+}
+
+/** "Owes you ₹2,400" / "You owe ₹800" / "Settled" — the words carry the side. */
+function BalanceCell({ value }) {
+  const side = balanceSide(value);
+  if (side === 'settled') return <span className="people-balance people-balance--settled">Settled</span>;
+  return (
+    <span className="people-balance">
+      <Amount className="people-balance__amount" value={Math.abs(value)} tone={side === 'owed' ? 'in' : 'out'} />
+      <span className="people-balance__label">{side === 'owed' ? 'Owes you' : 'You owe'}</span>
+    </span>
+  );
+}
+
+/**
+ * Net balance and each side of it, with how many people are behind each
+ * figure. Each side doubles as its filter, so the figure and the people behind
+ * it are one click apart.
+ */
+function Summary({ loading, net, owedToMe, iOwe, counts, filter, onFilter }) {
+  const square = Math.abs(net) < SETTLED_BELOW;
+  const open = counts.owed + counts.owe;
+  return (
+    <Card as="aside" className="people-summary" padding="none" aria-labelledby="people-summary-title">
+      <h2 id="people-summary-title" className="people-summary__title">Balances</h2>
+      <div className="people-summary__list" aria-busy={loading || undefined}>
+        <div className="people-summary__row">
+          <span className="people-summary__label">Net balance</span>
+          <span className="people-summary__value">
+            {loading ? <Skeleton as="span" width={88} height={16} /> : <Amount value={Math.abs(net)} tone="inherit" />}
+          </span>
+          <span className="people-summary__hint">
+            {square ? 'All square overall' : net > 0 ? 'Owed to you overall' : 'You owe overall'}
+            {' · '}
+            {open === 0 ? 'No open balances' : `${people(open)} with a balance`}
+          </span>
         </div>
-        <div className="friends-row__aside">
-          {side !== 'settled' && (
-            <span className="friends-row__amount">
-              <Num size={14} weight={600} color={side === 'owed' ? 'var(--ft-income)' : 'var(--ft-spend)'}>
-                {inr(Math.abs(bal))}
-              </Num>
-            </span>
-          )}
-          <IcChevR size={14} className="friends-row__chev" aria-hidden="true" />
-        </div>
-      </button>
-      <button
-        type="button"
-        className="friends-row__edit"
-        onClick={onEdit}
-        aria-label={`Edit ${friend.name}`}
-        title="Edit"
-      >
-        <IcEdit size={14} />
-      </button>
-    </div>
+        <SummarySide
+          id="owed"
+          label="Owed to you"
+          value={owedToMe}
+          tone="in"
+          count={counts.owed}
+          loading={loading}
+          active={filter === 'owed'}
+          onFilter={onFilter}
+        />
+        <SummarySide
+          id="owe"
+          label="You owe"
+          value={iOwe}
+          tone="out"
+          count={counts.owe}
+          loading={loading}
+          active={filter === 'owe'}
+          onFilter={onFilter}
+        />
+      </div>
+    </Card>
+  );
+}
+
+function SummarySide({ id, label, value, tone, count, loading, active, onFilter }) {
+  return (
+    <button
+      type="button"
+      className="people-summary__row people-summary__row--button"
+      aria-pressed={active}
+      onClick={() => onFilter(id)}
+    >
+      <span className="people-summary__label">{label}</span>
+      <span className="people-summary__value">
+        {loading ? <Skeleton as="span" width={72} height={16} /> : <Amount value={value} tone={value > 0 ? tone : 'inherit'} />}
+      </span>
+      <span className="people-summary__hint">{people(count)}</span>
+    </button>
   );
 }
 
 /**
  * Friends whose older settlements — saved before amounts were recorded —
- * don't match their entries. Each opens that friend's review.
+ * don't match their entries. Opens that friend's review (`?review=1`).
  */
-function ReviewCard({ onOpen }) {
+function ReviewAlert() {
   const { data } = useReviewSummary();
   const friends = (data?.friends ?? []).filter((f) => f.needingReview > 0);
   if (friends.length === 0) return null;
+  const n = data.needingReview;
+  const reviewHref = (f) => `/friends/${f.friendId}?review=1`;
+  const detail = (f) =>
+    `${f.needingReview} ${f.needingReview === 1 ? 'settlement' : 'settlements'}${f.netChange !== 0 ? ' · balance changes' : ''}`;
+
+  // One person: a straight link. Several: pick whose review to open.
+  const single = friends.length === 1;
+  const picker = single ? undefined : (
+    <Dropdown
+      placement="bottom-start"
+      options={friends.map((f) => ({ label: f.friendName, description: detail(f), to: reviewHref(f) }))}
+    >
+      <Button variant="outline" size="md" label="Review" iconRight={ChevronDown} />
+    </Dropdown>
+  );
+
   return (
-    <Card pad={16} style={{ borderColor: 'var(--ft-warn)' }}>
-      <Overline>Older settlements to review</Overline>
-      <p style={{ margin: '6px 0 10px', color: 'var(--ft-text-dim)', fontSize: 12.5, lineHeight: 1.5 }}>
-        {data.needingReview} settlement{data.needingReview === 1 ? '' : 's'} saved before amounts were
-        recorded {data.needingReview === 1 ? "doesn't" : "don't"} match {data.needingReview === 1 ? 'its' : 'their'} entries.
-      </p>
-      <div style={{ display: 'grid', gap: 6 }}>
-        {friends.map((f) => (
-          <button
-            key={f.friendId}
-            type="button"
-            onClick={() => onOpen(f.friendId)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 10,
-              border: '1px solid var(--ft-border)', background: 'var(--ft-surface-2)', color: 'var(--ft-text)',
-              cursor: 'pointer', textAlign: 'left', fontSize: 13,
-            }}
-          >
-            <span style={{ flex: 1, minWidth: 0 }}>{f.friendName}</span>
-            {f.netChange !== 0 && (
-              <span style={{ color: 'var(--ft-warn)', fontSize: 11.5 }}>balance changes</span>
-            )}
-            <span style={{ color: 'var(--ft-text-dim)', fontSize: 12 }}>{f.needingReview}</span>
-            <IcChevR size={14} style={{ color: 'var(--ft-text-faint)' }} />
-          </button>
-        ))}
-      </div>
-    </Card>
+    <Alert
+      className="people-review"
+      theme="amber"
+      title={`${n} older ${n === 1 ? 'settlement needs' : 'settlements need'} review`}
+      description={`Saved before Fintrack recorded amounts, ${n === 1 ? "it doesn't" : "they don't"} match ${
+        n === 1 ? 'its' : 'their'
+      } entries. ${friends.length === 1 ? detail(friends[0]) : `With ${friends.map((f) => f.friendName).join(', ')}`}.`}
+      primaryAction={single ? { label: `Review with ${friends[0].friendName}`, to: reviewHref(friends[0]) } : undefined}
+      actions={picker}
+    />
   );
 }

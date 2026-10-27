@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
-import Portal from './Portal.jsx';
-import { GhostBtn, PrimaryBtn, Overline } from './ui/primitives.jsx';
-import CardFace from './ui/CardFace.jsx';
-import { IcClose } from './ui/Icon.jsx';
-import { BANK_TINTS, CARD_PALETTES, NETWORKS, createCard, updateCard } from '../services/cardsApi.js';
+import { useEffect, useId, useState } from 'react';
+import {
+  Checkbox, Dialog, ErrorMessage, FormControl, FormLabel, TabButtons, toast,
+} from './ui';
+import CardMark from './cards/CardMark.jsx';
+import { BANK_OPTIONS, NETWORK_OPTIONS } from './cards/cardFormat.js';
+import { CARD_PALETTES, createCard, updateCard } from '../services/cardsApi.js';
 import { refreshImportSchedule } from '../hooks/useImportSchedule.js';
-
-const BANK_OPTIONS = Object.entries(BANK_TINTS).map(([key, v]) => ({ key, label: v.name }));
+import './cards/cards.css';
 
 const emptyForm = {
   kind: 'credit',
@@ -32,10 +32,58 @@ const emptyForm = {
   notes: '',
 };
 
-export default function CardFormModal({ initial = null, onClose, onSaved }) {
+const KIND_OPTIONS = [
+  { value: 'credit', label: 'Credit card' },
+  { value: 'debit', label: 'Debit card' },
+];
+
+const PALETTE_OPTIONS = Object.entries(CARD_PALETTES).map(([value, p]) => ({ value, label: p.label }));
+
+const isBlank = (v) => v === '' || v === null || v === undefined;
+
+function intIn(value, min, max) {
+  const n = Number(value);
+  return Number.isInteger(n) && n >= min && n <= max;
+}
+
+function nonNegative(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0;
+}
+
+/** Field errors for the form, in the same limits the API enforces. */
+function validate(form) {
+  const e = {};
+  if (!form.name.trim()) e.name = 'Enter the card name';
+  if (!/^\d{4}$/.test(form.last4.trim())) e.last4 = 'Enter the last 4 digits';
+  if (!intIn(form.expiryMonth, 1, 12)) e.expiryMonth = 'Month from 1 to 12';
+  if (!intIn(form.expiryYear, 2000, 2100)) e.expiryYear = 'Enter a 4-digit year';
+  if (form.kind === 'credit') {
+    if (!isBlank(form.creditLimit) && !nonNegative(form.creditLimit)) e.creditLimit = 'Enter an amount';
+    if (!isBlank(form.statementDay) && !intIn(form.statementDay, 1, 31)) e.statementDay = 'Day from 1 to 31';
+    if (!isBlank(form.dueDay) && !intIn(form.dueDay, 1, 31)) e.dueDay = 'Day from 1 to 31';
+    if (!isBlank(form.pointsBalance) && !(intIn(form.pointsBalance, 0, Number.MAX_SAFE_INTEGER))) {
+      e.pointsBalance = 'Enter a whole number';
+    }
+    if (!isBlank(form.pointsValue) && !nonNegative(form.pointsValue)) e.pointsValue = 'Enter an amount';
+  } else {
+    if (!isBlank(form.dailyLimit) && !nonNegative(form.dailyLimit)) e.dailyLimit = 'Enter an amount';
+    if (!isBlank(form.atmLimit) && !nonNegative(form.atmLimit)) e.atmLimit = 'Enter an amount';
+  }
+  return e;
+}
+
+const rupee = <span className="cardform__currency">₹</span>;
+
+/**
+ * Add or edit a card. Pass `initial` (a card from the API) to edit it.
+ */
+export default function CardFormModal({ initial = null, onClose, onSaved, open = true }) {
+  const formId = useId();
   const [form, setForm] = useState(() => ({ ...emptyForm, ...(initial || {}) }));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
     if (initial) {
@@ -58,23 +106,19 @@ export default function CardFormModal({ initial = null, onClose, onSaved }) {
     }
   }, [initial]);
 
-  const set = (k) => (e) => {
-    const v = e?.target ? e.target.value : e;
+  const setValue = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
+    setFieldErrors((errs) => (errs[k] ? { ...errs, [k]: undefined } : errs));
   };
-
-  const previewCard = {
-    ...form,
-    last4: form.last4 || '0000',
-    name: form.name || 'Card Name',
-    holder: form.holder || 'CARDHOLDER',
-    expiryMonth: form.expiryMonth ? Number(form.expiryMonth) : 12,
-    expiryYear: form.expiryYear ? Number(form.expiryYear) : 2030,
-    frozen: false,
-  };
+  const set = (k) => (e) => setValue(k, e?.target ? e.target.value : e);
 
   const submit = async (e) => {
     e.preventDefault();
+    const errs = validate(form);
+    if (Object.keys(errs).length) {
+      setFieldErrors(errs);
+      return;
+    }
     setSubmitting(true);
     setError('');
     try {
@@ -107,6 +151,7 @@ export default function CardFormModal({ initial = null, onClose, onSaved }) {
       const saved = initial?.id ? await updateCard(initial.id, payload) : await createCard(payload);
       // A new card or a changed statement day moves what is due for import.
       refreshImportSchedule();
+      toast.success(initial?.id ? 'Card updated' : 'Card added');
       onSaved?.(saved);
     } catch (err) {
       setError(err.message || 'Failed to save card');
@@ -115,370 +160,253 @@ export default function CardFormModal({ initial = null, onClose, onSaved }) {
     }
   };
 
+  const isCredit = form.kind === 'credit';
+  const fe = fieldErrors;
+
   return (
-    <Portal>
-      <div
-        role="dialog"
-        aria-modal="true"
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'var(--ft-scrim)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 16,
-          zIndex: 1000,
-        }}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onClose?.();
-        }}
-      >
-        <div
-          style={{
-            width: '100%',
-            maxWidth: 760,
-            maxHeight: '92dvh',
-            overflow: 'auto',
-            background: 'var(--ft-surface)',
-            border: '1px solid var(--ft-border)',
-            borderRadius: 20,
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '16px 20px',
-              borderBottom: '1px solid var(--ft-border)',
-              position: 'sticky',
-              top: 0,
-              background: 'var(--ft-surface)',
-              zIndex: 1,
-            }}
-          >
-            <div>
-              <Overline>{initial ? 'Edit card' : 'Add card'}</Overline>
-              <h2 style={{ margin: '2px 0 0', fontSize: 18, fontWeight: 600 }}>
-                {initial ? form.name || initial.name : 'New card'}
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              style={{
-                background: 'transparent',
-                border: 0,
-                color: 'var(--ft-text-dim)',
-                cursor: 'pointer',
-                padding: 6,
-              }}
-            >
-              <IcClose size={18} />
-            </button>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      size="2xl"
+      title={initial ? 'Edit card' : 'Add card'}
+      actions={[
+        { label: 'Cancel', onClick: () => onClose?.() },
+        {
+          label: initial ? 'Save changes' : 'Add card',
+          variant: 'solid',
+          type: 'submit',
+          form: formId,
+          loading: submitting,
+        },
+      ]}
+    >
+      <form id={formId} className="cardform" onSubmit={submit} noValidate>
+        <div className="cardform__section">
+          <div className="cardform__field">
+            <FormLabel as="div" label="Type" />
+            <TabButtons
+              aria-label="Card type"
+              options={KIND_OPTIONS}
+              value={form.kind}
+              onChange={(v) => setValue('kind', v)}
+            />
           </div>
 
-          <form onSubmit={submit} style={{ padding: 20, display: 'grid', gap: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <CardFace card={previewCard} width={300} height={185} privacy={false} />
+          <div className="cardform__grid">
+            <FormControl type="select" label="Bank" options={BANK_OPTIONS} value={form.bank} onChange={set('bank')} />
+            <FormControl
+              type="select"
+              label="Network"
+              options={NETWORK_OPTIONS}
+              value={form.network}
+              onChange={set('network')}
+            />
+            <FormControl
+              label="Card name"
+              required
+              value={form.name}
+              onChange={set('name')}
+              maxLength={120}
+              placeholder="Infinia Metal"
+              error={fe.name}
+              autoFocus={!initial}
+            />
+            <FormControl
+              label="Nickname"
+              value={form.nickname}
+              onChange={set('nickname')}
+              maxLength={120}
+              placeholder="HDFC Infinia"
+              description="Shown instead of the card name"
+            />
+            <FormControl
+              label="Last 4 digits"
+              required
+              value={form.last4}
+              onChange={set('last4')}
+              maxLength={4}
+              inputMode="numeric"
+              placeholder="4892"
+              error={fe.last4}
+            />
+            <FormControl
+              label="Cardholder"
+              value={form.holder}
+              onChange={set('holder')}
+              maxLength={120}
+              placeholder="Name on the card"
+            />
+          </div>
+
+          <div className="cardform__grid cardform__grid--keep">
+            <FormControl
+              type="number"
+              label="Expiry month"
+              required
+              value={form.expiryMonth}
+              onChange={set('expiryMonth')}
+              min="1"
+              max="12"
+              placeholder="MM"
+              error={fe.expiryMonth}
+            />
+            <FormControl
+              type="number"
+              label="Expiry year"
+              required
+              value={form.expiryYear}
+              onChange={set('expiryYear')}
+              min="2000"
+              max="2100"
+              placeholder="YYYY"
+              error={fe.expiryYear}
+            />
+          </div>
+
+          <div className="cardform__field">
+            <FormLabel as="div" label="Colour" labelId={`${formId}-colour`} />
+            <div className="cardform__swatches" role="radiogroup" aria-labelledby={`${formId}-colour`}>
+              {PALETTE_OPTIONS.map((p) => (
+                <button
+                  key={p.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={form.palette === p.value}
+                  aria-label={p.label}
+                  title={p.label}
+                  className="cardform__swatch"
+                  onClick={() => setValue('palette', p.value)}
+                >
+                  <CardMark palette={p.value} />
+                </button>
+              ))}
             </div>
-
-            {/* Kind toggle */}
-            <Field label="Card type">
-              <SegmentedControl
-                value={form.kind}
-                onChange={set('kind')}
-                options={[
-                  { value: 'credit', label: 'Credit' },
-                  { value: 'debit', label: 'Debit' },
-                ]}
-              />
-            </Field>
-
-            <Row>
-              <Field label="Bank">
-                <Select value={form.bank} onChange={set('bank')}>
-                  {BANK_OPTIONS.map((b) => (
-                    <option key={b.key} value={b.key}>
-                      {b.label}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label="Network">
-                <Select value={form.network} onChange={set('network')}>
-                  {NETWORKS.map((n) => (
-                    <option key={n.key} value={n.key}>
-                      {n.label}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            </Row>
-
-            <Row>
-              <Field label="Card name" required>
-                <Input value={form.name} onChange={set('name')} required maxLength={120} placeholder="Infinia Metal" />
-              </Field>
-              <Field label="Nickname (optional)">
-                <Input value={form.nickname} onChange={set('nickname')} maxLength={120} placeholder="HDFC · Infinia" />
-              </Field>
-            </Row>
-
-            <Row>
-              <Field label="Last 4 digits" required>
-                <Input
-                  value={form.last4}
-                  onChange={set('last4')}
-                  required
-                  maxLength={4}
-                  pattern="\d{4}"
-                  inputMode="numeric"
-                  placeholder="4892"
-                />
-              </Field>
-              <Field label="Cardholder name">
-                <Input value={form.holder} onChange={set('holder')} maxLength={120} placeholder="AARAV SINGH" />
-              </Field>
-            </Row>
-
-            <Row>
-              <Field label="Expiry month" required>
-                <Input
-                  value={form.expiryMonth}
-                  onChange={set('expiryMonth')}
-                  required
-                  type="number"
-                  min="1"
-                  max="12"
-                  placeholder="MM"
-                />
-              </Field>
-              <Field label="Expiry year" required>
-                <Input
-                  value={form.expiryYear}
-                  onChange={set('expiryYear')}
-                  required
-                  type="number"
-                  min="2024"
-                  max="2099"
-                  placeholder="YYYY"
-                />
-              </Field>
-            </Row>
-
-            <Field label="Theme">
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {Object.entries(CARD_PALETTES).map(([key, p]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => set('palette')(key)}
-                    aria-label={p.label}
-                    style={{
-                      width: 50,
-                      height: 32,
-                      borderRadius: 8,
-                      background: `linear-gradient(135deg, ${p.from}, ${p.to})`,
-                      border:
-                        form.palette === key
-                          ? `2px solid ${p.accent === '#0A0B0E' ? '#fff' : p.accent}`
-                          : '2px solid transparent',
-                      cursor: 'pointer',
-                      padding: 0,
-                    }}
-                  />
-                ))}
-              </div>
-            </Field>
-
-            {form.kind === 'credit' ? (
-              <>
-                <Row>
-                  <Field label="Credit limit (₹)">
-                    <Input value={form.creditLimit} onChange={set('creditLimit')} type="number" min="0" placeholder="800000" />
-                  </Field>
-                  <Field label="Statement day (1–31)">
-                    <Input value={form.statementDay} onChange={set('statementDay')} type="number" min="1" max="31" placeholder="25" />
-                  </Field>
-                </Row>
-                <Row>
-                  <Field label="Due day (1–31)">
-                    <Input value={form.dueDay} onChange={set('dueDay')} type="number" min="1" max="31" placeholder="14" />
-                  </Field>
-                  <Field label="Rewards label">
-                    <Input value={form.pointsLabel} onChange={set('pointsLabel')} maxLength={80} placeholder="Reward Points" />
-                  </Field>
-                </Row>
-                <Row>
-                  <Field label="Rewards balance">
-                    <Input value={form.pointsBalance} onChange={set('pointsBalance')} type="number" min="0" placeholder="0" />
-                  </Field>
-                  <Field label="Rewards value (₹)">
-                    <Input value={form.pointsValue} onChange={set('pointsValue')} type="number" min="0" placeholder="0" />
-                  </Field>
-                </Row>
-              </>
-            ) : (
-              <>
-                <Field label="Linked account">
-                  <Input
-                    value={form.linkedAccountNumber}
-                    onChange={set('linkedAccountNumber')}
-                    maxLength={50}
-                    placeholder="HDFC · Savings ····4221"
-                  />
-                </Field>
-                <Row>
-                  <Field label="Daily limit (₹)">
-                    <Input value={form.dailyLimit} onChange={set('dailyLimit')} type="number" min="0" placeholder="100000" />
-                  </Field>
-                  <Field label="ATM limit (₹)">
-                    <Input value={form.atmLimit} onChange={set('atmLimit')} type="number" min="0" placeholder="25000" />
-                  </Field>
-                </Row>
-              </>
-            )}
-
-            <Field label="Notes">
-              <textarea
-                value={form.notes}
-                onChange={set('notes')}
-                maxLength={2000}
-                rows={2}
-                style={{
-                  width: '100%',
-                  background: 'var(--ft-surface-2)',
-                  border: '1px solid var(--ft-border)',
-                  color: 'var(--ft-text)',
-                  borderRadius: 10,
-                  padding: '10px 12px',
-                  fontFamily: 'var(--ft-font-ui)',
-                  fontSize: 13.5,
-                  resize: 'vertical',
-                }}
-              />
-            </Field>
-
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--ft-text)', fontSize: 13.5 }}>
-              <input
-                type="checkbox"
-                checked={!!form.isPrimary}
-                onChange={(e) => setForm((f) => ({ ...f, isPrimary: e.target.checked }))}
-              />
-              Set as primary card
-            </label>
-
-            {error && (
-              <div style={{ color: 'var(--ft-spend)', fontSize: 13 }}>{error}</div>
-            )}
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
-              <GhostBtn onClick={onClose} type="button">
-                Cancel
-              </GhostBtn>
-              <PrimaryBtn type="submit" disabled={submitting}>
-                {submitting ? 'Saving…' : initial ? 'Save changes' : 'Add card'}
-              </PrimaryBtn>
-            </div>
-          </form>
+          </div>
         </div>
-      </div>
-    </Portal>
-  );
-}
 
-function Row({ children }) {
-  return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>{children}</div>;
-}
+        {isCredit ? (
+          <>
+            <div className="cardform__section">
+              <h4 className="cardform__heading">Billing</h4>
+              <div className="cardform__grid cardform__grid--3">
+                <FormControl
+                  type="number"
+                  label="Credit limit"
+                  value={form.creditLimit}
+                  onChange={set('creditLimit')}
+                  min="0"
+                  placeholder="800000"
+                  prefix={rupee}
+                  error={fe.creditLimit}
+                />
+                <FormControl
+                  type="number"
+                  label="Statement day"
+                  value={form.statementDay}
+                  onChange={set('statementDay')}
+                  min="1"
+                  max="31"
+                  placeholder="25"
+                  error={fe.statementDay}
+                />
+                <FormControl
+                  type="number"
+                  label="Due day"
+                  value={form.dueDay}
+                  onChange={set('dueDay')}
+                  min="1"
+                  max="31"
+                  placeholder="14"
+                  error={fe.dueDay}
+                />
+              </div>
+            </div>
+            <div className="cardform__section">
+              <h4 className="cardform__heading">Rewards</h4>
+              <div className="cardform__grid cardform__grid--3">
+                <FormControl
+                  label="Rewards name"
+                  value={form.pointsLabel}
+                  onChange={set('pointsLabel')}
+                  maxLength={80}
+                  placeholder="Reward points"
+                />
+                <FormControl
+                  type="number"
+                  label="Balance"
+                  value={form.pointsBalance}
+                  onChange={set('pointsBalance')}
+                  min="0"
+                  placeholder="0"
+                  error={fe.pointsBalance}
+                />
+                <FormControl
+                  type="number"
+                  label="Value"
+                  value={form.pointsValue}
+                  onChange={set('pointsValue')}
+                  min="0"
+                  placeholder="0"
+                  prefix={rupee}
+                  error={fe.pointsValue}
+                />
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="cardform__section">
+            <h4 className="cardform__heading">Account and limits</h4>
+            <FormControl
+              label="Linked account"
+              value={form.linkedAccountNumber}
+              onChange={set('linkedAccountNumber')}
+              maxLength={50}
+              placeholder="HDFC Savings ••4221"
+            />
+            <div className="cardform__grid">
+              <FormControl
+                type="number"
+                label="Daily limit"
+                value={form.dailyLimit}
+                onChange={set('dailyLimit')}
+                min="0"
+                placeholder="100000"
+                prefix={rupee}
+                error={fe.dailyLimit}
+              />
+              <FormControl
+                type="number"
+                label="ATM limit"
+                value={form.atmLimit}
+                onChange={set('atmLimit')}
+                min="0"
+                placeholder="25000"
+                prefix={rupee}
+                error={fe.atmLimit}
+              />
+            </div>
+          </div>
+        )}
 
-function Field({ label, required, children }) {
-  return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <span style={{ color: 'var(--ft-text-dim)', fontSize: 11.5, fontWeight: 500, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-        {label}
-        {required && <span style={{ color: 'var(--ft-spend)', marginLeft: 4 }}>*</span>}
-      </span>
-      {children}
-    </label>
-  );
-}
+        <div className="cardform__section">
+          <FormControl
+            type="textarea"
+            label="Notes"
+            value={form.notes}
+            onChange={set('notes')}
+            maxLength={2000}
+            rows={2}
+          />
+          <Checkbox
+            label="Primary card"
+            description="Listed first on Cards"
+            checked={!!form.isPrimary}
+            onChange={(e) => setValue('isPrimary', e.target.checked)}
+          />
+        </div>
 
-function Input(props) {
-  return (
-    <input
-      {...props}
-      style={{
-        background: 'var(--ft-surface-2)',
-        border: '1px solid var(--ft-border)',
-        color: 'var(--ft-text)',
-        borderRadius: 10,
-        padding: '10px 12px',
-        fontFamily: 'var(--ft-font-ui)',
-        fontSize: 13.5,
-        outline: 'none',
-        ...(props.style || {}),
-      }}
-    />
-  );
-}
-
-function Select({ children, ...rest }) {
-  return (
-    <select
-      {...rest}
-      style={{
-        background: 'var(--ft-surface-2)',
-        border: '1px solid var(--ft-border)',
-        color: 'var(--ft-text)',
-        borderRadius: 10,
-        padding: '10px 12px',
-        fontFamily: 'var(--ft-font-ui)',
-        fontSize: 13.5,
-        outline: 'none',
-      }}
-    >
-      {children}
-    </select>
-  );
-}
-
-function SegmentedControl({ value, onChange, options }) {
-  return (
-    <div
-      style={{
-        display: 'inline-flex',
-        background: 'var(--ft-surface-2)',
-        padding: 4,
-        borderRadius: 10,
-        gap: 2,
-      }}
-    >
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => onChange(opt.value)}
-          style={{
-            border: 0,
-            background: value === opt.value ? 'var(--ft-bg)' : 'transparent',
-            color: value === opt.value ? 'var(--ft-text)' : 'var(--ft-text-dim)',
-            padding: '7px 14px',
-            borderRadius: 8,
-            fontFamily: 'var(--ft-font-ui)',
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: 'pointer',
-          }}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
+        <ErrorMessage message={error} />
+      </form>
+    </Dialog>
   );
 }

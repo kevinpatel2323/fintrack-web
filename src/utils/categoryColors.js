@@ -36,9 +36,25 @@ export const CATEGORY_TOKENS = {
   yellow:    'var(--ink-yellow-5)',
 };
 
-// Colours the pre-redesign picker wrote. Categories saved back then still carry
-// them; they render as the matching token instead of the old neon hex.
+// Colours earlier pickers wrote. Categories saved back then still carry them;
+// they render as the nearest token instead of the old hex. '#E74C3C' is not
+// here on purpose: it was the first picker's pre-selected default, so most
+// categories have it without anyone choosing red — it reads as "no colour".
+const LEGACY_DEFAULT = '#E74C3C';
 const LEGACY_PALETTE = {
+  // First picker (flat UI)
+  '#E67E22': 'food',
+  '#F07C4A': 'food',
+  '#F1C40F': 'yellow',
+  '#2ECC71': 'grocery',
+  '#1ABC9C': 'salary',
+  '#3498DB': 'transport',
+  '#9B59B6': 'entmt',
+  '#E91E63': 'rent',
+  '#00BCD4': 'health',
+  '#795548': 'bills',
+  '#607D8B': 'transfer',
+  // Second picker (neon)
   '#FF8B6B': 'food',
   '#7DB9FF': 'transport',
   '#B79CFF': 'shopping',
@@ -77,17 +93,35 @@ export function categoryKeyForName(name) {
   return 'transfer';
 }
 
+// Hues for categories with no colour of their own, picked from the name so a
+// category keeps its colour everywhere. Gray stays reserved for transfers and
+// red for things that need attention.
+const NAME_HUES = ['food', 'transport', 'shopping', 'bills', 'grocery', 'rent', 'entmt', 'salary', 'health', 'yellow'];
+
+function hueForName(name) {
+  const key = categoryKeyForName(name);
+  if (key !== 'transfer' || /transfer|imps|neft|withdraw/i.test(name || '')) return CATEGORY_TOKENS[key];
+  // FNV-1a: spreads short, similar names ("Stocks Groww", "Stocks Zerodha")
+  // across hues far better than a plain multiply-add hash.
+  let h = 0x811c9dc5;
+  const s = String(name || '');
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return CATEGORY_TOKENS[NAME_HUES[h % NAME_HUES.length]];
+}
+
 // A category's display colour: the theme token for a palette colour (current
-// or legacy), the stored hex for a custom one, else a token picked from the
-// category's name.
+// or legacy), the stored hex for a custom one, else a hue from its name.
 export function categoryColor(category) {
   if (!category) return CATEGORY_TOKENS.transfer;
   const raw = category.color ? String(category.color).trim() : '';
   if (/^#?[0-9a-fA-F]{3,8}$/.test(raw)) {
     const hex = (raw.startsWith('#') ? raw : `#${raw}`).toUpperCase();
-    return TOKEN_FOR_HEX[hex] || hex;
+    if (hex !== LEGACY_DEFAULT) return TOKEN_FOR_HEX[hex] || hex;
   }
-  return CATEGORY_TOKENS[categoryKeyForName(category.name)] || CATEGORY_TOKENS.transfer;
+  return hueForName(category.name);
 }
 
 export function categoryKey(category) {

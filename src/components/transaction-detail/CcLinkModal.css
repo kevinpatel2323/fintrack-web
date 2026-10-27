@@ -1,0 +1,107 @@
+/* CcLinkModal — card, mode, the rows a link covers, reconciliation. */
+
+.ccl-empty {
+  margin: 0;
+  padding: 12px;
+  border: 1px dashed var(--outline-gray-2);
+  border-radius: var(--radius-4);
+  font-size: 13px;
+  color: var(--ink-gray-5);
+  text-align: center;
+}
+
+.ccl-list {
+  max-height: 280px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-4);
+}
+
+.ccl-list > li + li,
+.ccl-list > .ccl-row + .ccl-row {
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.ccl-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 12px;
+}
+
+.ccl-row--pick {
+  cursor: pointer;
+}
+
+.ccl-row--pick:hover {
+  background: var(--surface-gray-1);
+}
+
+.ccl-row--pick.is-checked {
+  background: var(--surface-gray-2);
+}
+
+.ccl-row__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ccl-row__merchant {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-gray-8);
+}
+
+.ccl-row__date {
+  font-size: 12px;
+  color: var(--ink-gray-5);
+}
+
+.ccl-row__amount {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.ccl-totals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.ccl-totals__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--ink-gray-6);
+}
+
+.ccl-totals__row dt,
+.ccl-totals__row dd {
+  margin: 0;
+}
+
+.ccl-totals__row dd {
+  font-variant-numeric: tabular-nums;
+}
+
+.ccl-totals__row.is-muted {
+  color: var(--ink-gray-5);
+}
+
+.ccl-totals__row.is-total {
+  font-weight: 600;
+  color: var(--ink-gray-9);
+}

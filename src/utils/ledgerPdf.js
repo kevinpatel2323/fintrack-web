@@ -35,8 +35,9 @@ function scaleWidthsToTotal(widths, total) {
   return widths.map((w) => (w / s) * total);
 }
 
-/** ASCII-safe for built-in PDF fonts (Helvetica). */
-function cellStr(v) {
+/** ASCII-safe for built-in PDF fonts (Helvetica). Exported so the on-screen
+ *  preview (ledger-export/LedgerPaper.jsx) prints exactly what the PDF does. */
+export function cellStr(v) {
   if (v === null || v === undefined) return '-';
   return String(v)
     .replace(/\u2014/g, '-')

@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Button, ErrorMessage, LoadingIndicator } from './ui';
+import { AllocRowView, AllocTable } from './people/AllocTable.jsx';
 import { fetchOpenDues } from '../services/friendsApi.js';
 import { friendFirstName } from '../utils/ledgerParties.js';
 import { fillGroup, groupOpenMinor } from '../utils/entryGroups.js';
@@ -11,7 +14,7 @@ import {
   rupees,
   toMinor,
 } from '../utils/settlementAllocation.js';
-import '../styles/settlement-allocator.css';
+import './people/allocation.css';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -23,6 +26,11 @@ function formatDate(value) {
 const SIDE_LABEL = {
   OWES_ME: (first) => `Open entries ${first} owes you`,
   I_OWE: (first) => `Open entries you owe ${first}`,
+};
+
+const entryName = (row) => {
+  const tx = row.transaction || {};
+  return tx.upiName || tx.narration || row.note || 'Entry';
 };
 
 /**
@@ -154,119 +162,119 @@ export default function SettlementAllocator({
     onDraftChange(next);
   }
 
-  if (loadError) return <p className="settle-alloc__error">{loadError}</p>;
-  if (!loaded) return <p className="status">Loading {first}'s open entries…</p>;
+  if (loadError) return <ErrorMessage message={loadError} />;
+  if (!loaded) return <LoadingIndicator text={`Loading ${first}'s open entries…`} />;
 
   const balance = loaded.balance;
   const settledSide = status.side === 'received' ? 'OWES_ME' : 'I_OWE';
+  const hasDraft = Object.keys(draft).length > 0;
 
   return (
-    <div className="settle-alloc">
+    <div className="alloc">
       {balance && <BalanceLine balance={balance} first={first} />}
 
       {dues.length === 0 && refundable.length === 0 && (
-        <p className="settle-alloc__empty">
+        <p className="alloc-section__note">
           Nothing is open with {first}. The whole {rupees(amountMinor)} stays on account and can
           be applied when a new entry comes up.
         </p>
       )}
 
       {groupBlocks.length > 0 && (
-        <section className="settle-alloc__group">
-          <div className="settle-alloc__group-head">
-            <span>Groups</span>
+        <section className="alloc-section">
+          <div className="alloc-section__head">
+            <h4 className="alloc-section__title">Groups</h4>
           </div>
-          {groupBlocks.map((g) => (
-            <GroupBlock
-              key={g.id}
-              group={g}
-              draft={draft}
-              status={status}
-              settledSide={settledSide}
-              first={first}
-              amountMinor={amountMinor}
-              onDraftChange={onDraftChange}
-            />
-          ))}
+          <AllocTable label="Groups">
+            {groupBlocks.map((g) => (
+              <GroupBlock
+                key={g.id}
+                group={g}
+                draft={draft}
+                status={status}
+                settledSide={settledSide}
+                first={first}
+                amountMinor={amountMinor}
+                onDraftChange={onDraftChange}
+              />
+            ))}
+          </AllocTable>
         </section>
       )}
 
       {sides.map(({ side, rows }) => (
-        <section key={side} className="settle-alloc__group">
-          <div className="settle-alloc__group-head">
-            <span>
-              {SIDE_LABEL[side](first)} ·{' '}
-              {rupees(rows.reduce((sum, d) => sum + availableMinor(d), 0))}
-            </span>
-            <span className="settle-alloc__actions">
-              <button
-                type="button"
-                className="settle-alloc__fill"
-                onClick={() => fillLoose(fillOldestFirst, side)}
-              >
-                Fill oldest first
-              </button>
+        <section key={side} className="alloc-section">
+          <div className="alloc-section__head">
+            <h4 className="alloc-section__title">
+              {SIDE_LABEL[side](first)}
+              <span className="alloc-section__total">
+                {rupees(rows.reduce((sum, d) => sum + availableMinor(d), 0))}
+              </span>
+            </h4>
+            <div className="alloc-section__actions">
+              <Button size="sm" variant="subtle" label="Fill oldest first" onClick={() => fillLoose(fillOldestFirst, side)} />
               {sides.length > 1 && (
-                <button
-                  type="button"
-                  className="settle-alloc__fill settle-alloc__fill--quiet"
-                  title={`Net all of these off and clear that much more of the other side`}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  label="Net all off"
+                  tooltip="Net all of these off and clear that much more of the other side"
                   onClick={() => fillLoose(netAllOff, side)}
-                >
-                  Net all off
-                </button>
+                />
               )}
-            </span>
+            </div>
           </div>
-          {rows.map((row) => (
-            <AllocRow
-              key={row.id}
-              row={row}
-              draft={draft}
-              rowError={status.rowErrors[String(row.id)]}
-              netted={Object.keys(draft).length > 0 && row.direction !== settledSide}
-              onToggle={() => toggle(row)}
-              onChange={(value) => onDraftChange({ ...draft, [String(row.id)]: value })}
-            />
-          ))}
+          <AllocTable label={SIDE_LABEL[side](first)}>
+            {rows.map((row) => (
+              <AllocRow
+                key={row.id}
+                row={row}
+                draft={draft}
+                rowError={status.rowErrors[String(row.id)]}
+                netted={hasDraft && row.direction !== settledSide}
+                onToggle={() => toggle(row)}
+                onChange={(value) => onDraftChange({ ...draft, [String(row.id)]: value })}
+              />
+            ))}
+          </AllocTable>
         </section>
       ))}
 
       {refundable.length > 0 && (
-        <section className="settle-alloc__group">
-          <div className="settle-alloc__group-head">
-            <span>Money on account you can refund</span>
+        <section className="alloc-section">
+          <div className="alloc-section__head">
+            <h4 className="alloc-section__title">Money on account you can refund</h4>
           </div>
-          {refundable.map((row) => (
-            <AllocRow
-              key={row.id}
-              row={row}
-              draft={draft}
-              rowError={status.rowErrors[String(row.id)]}
-              refund
-              first={first}
-              onToggle={() => toggle(row)}
-              onChange={(value) => onDraftChange({ ...draft, [String(row.id)]: value })}
-            />
-          ))}
+          <AllocTable label="Money on account" openLabel="On account" applyLabel="Refund">
+            {refundable.map((row) => (
+              <AllocRow
+                key={row.id}
+                row={row}
+                draft={draft}
+                rowError={status.rowErrors[String(row.id)]}
+                refund
+                first={first}
+                onToggle={() => toggle(row)}
+                onChange={(value) => onDraftChange({ ...draft, [String(row.id)]: value })}
+              />
+            ))}
+          </AllocTable>
         </section>
       )}
 
-      <div className="settle-alloc__foot">
+      <div className="alloc-foot">
         <span>
           Applied <strong>{rupees(status.appliedMinor)}</strong> of {rupees(amountMinor)}
         </span>
-        <span className={status.onAccountMinor > 0 ? 'settle-alloc__on-account' : ''}>
+        <span className={status.onAccountMinor > 0 ? 'alloc-foot__on-account' : undefined}>
           On account <strong>{rupees(status.onAccountMinor)}</strong>
         </span>
-        {Object.keys(draft).length > 0 && (
-          <button type="button" className="settle-alloc__clear" onClick={() => onDraftChange({})}>
-            Clear
-          </button>
+        {hasDraft && (
+          <Button className="alloc-foot__clear" size="sm" variant="ghost" label="Clear" onClick={() => onDraftChange({})} />
         )}
       </div>
-      {Object.keys(draft).length > 0 && status.valid && (
-        <p className="settle-alloc__explain">
+      {hasDraft && status.valid && (
+        <p className="alloc-explain">
           {status.nettedMinor > 0 &&
             `${rupees(status.settledMinor)} cleared, ${rupees(status.nettedMinor)} of it by netting off what ${
               status.side === 'received' ? `you owe ${first}` : `${first} owes you`
@@ -275,13 +283,7 @@ export default function SettlementAllocator({
           Reads as money {status.side === 'received' ? `${first} paid you` : `you paid ${first}`}.
         </p>
       )}
-      {status.errors
-        .filter((e) => e !== 'Fix the highlighted amounts.')
-        .map((e) => (
-          <p key={e} className="settle-alloc__error">
-            {e}
-          </p>
-        ))}
+      <ErrorMessage message={status.errors.filter((e) => e !== 'Fix the highlighted amounts.')} />
     </div>
   );
 }
@@ -335,45 +337,46 @@ function GroupBlock({ group, draft, status, settledSide, first, amountMinor, onD
   else if (after === 0) afterText = 'Cleared';
   else afterText = `${rupees(after)} left`;
 
+  const meta = (
+    <>
+      {members.length} open {members.length === 1 ? 'entry' : 'entries'} ·{' '}
+      {mainSide === 'I_OWE' ? `you owe ${first}` : `${first} owes you`}
+      {sideOpen('I_OWE') > 0 && sideOpen('OWES_ME') > 0 && ' net'}
+    </>
+  );
+
   return (
-    <div
-      className={`settle-alloc__row settle-alloc__row--group${selected ? ' settle-alloc__row--selected' : ''}${memberError || over ? ' settle-alloc__row--error' : ''}`}
-    >
-      <label className="settle-alloc__pick">
-        <input type="checkbox" checked={selected} onChange={toggle} />
-        <span className="settle-alloc__what">
-          <span className="settle-alloc__name">{group.title}</span>
-          <span className="settle-alloc__meta">
-            {members.length} open {members.length === 1 ? 'entry' : 'entries'} ·{' '}
-            {mainSide === 'I_OWE' ? `you owe ${first} ${rupees(openMinor)}` : `${first} owes you ${rupees(openMinor)}`}
-            {sideOpen('I_OWE') > 0 && sideOpen('OWES_ME') > 0 && ' net'}
+    <div className="alloc-group" role="rowgroup" aria-label={group.title}>
+      <AllocRowView
+        name={group.title}
+        meta={meta}
+        open={rupees(openMinor)}
+        selected={selected}
+        editing={selected || typed !== null}
+        onToggle={toggle}
+        value={typed ?? minorToInput(appliedMinor)}
+        onChange={changeAmount}
+        onBlur={() => setTyped(null)}
+        after={afterText}
+        tone={memberError || over ? 'error' : after === 0 ? 'done' : undefined}
+        invalid={memberError || over}
+        inputLabel={`Amount for ${group.title}`}
+        extra={
+          <span className="alloc-row__extra" role="cell">
+            <Button
+              className="alloc-group__toggle"
+              size="xs"
+              variant="ghost"
+              iconLeft={open ? ChevronDown : ChevronRight}
+              aria-expanded={open}
+              label={open ? 'Hide entries' : `Show ${members.length === 1 ? 'entry' : `${members.length} entries`}`}
+              onClick={() => setOpen(!open)}
+            />
           </span>
-        </span>
-      </label>
-      {(selected || typed !== null) && (
-        <div className="settle-alloc__apply">
-          <input
-            type="text"
-            inputMode="decimal"
-            className="settle-alloc__amount"
-            aria-label={`Amount for ${group.title}`}
-            value={typed ?? minorToInput(appliedMinor)}
-            onChange={(e) => changeAmount(e.target.value)}
-            onBlur={() => setTyped(null)}
-            placeholder="0.00"
-          />
-          <span
-            className={`settle-alloc__after${memberError || over ? ' settle-alloc__after--error' : after === 0 ? ' settle-alloc__after--full' : ''}`}
-          >
-            {afterText}
-          </span>
-        </div>
-      )}
-      <button type="button" className="settle-alloc__expand" onClick={() => setOpen(!open)} aria-expanded={open}>
-        {open ? 'Hide entries' : `Show ${members.length === 1 ? 'entry' : `${members.length} entries`}`}
-      </button>
+        }
+      />
       {open && (
-        <div className="settle-alloc__members">
+        <div className="alloc-group__members" role="presentation">
           {members.map((row) => (
             <AllocRow
               key={row.id}
@@ -405,14 +408,9 @@ function AllocRow({ row, draft, rowError, netted, refund, first, onToggle, onCha
   const tx = row.transaction || {};
   const partlyPaid = !refund && toMinor(row.amount) !== available;
 
-  let meta;
-  if (refund) {
-    meta = `${rupees(available)} on account · money ${row.settlementSide === 'paid' ? `you paid ${first}` : `${first} paid you`}`;
-  } else if (partlyPaid) {
-    meta = `${rupees(available)} of ${rupees(toMinor(row.amount))} open`;
-  } else {
-    meta = rupees(available);
-  }
+  let meta = formatDate(tx.transactionDate);
+  if (refund) meta += ` · money ${row.settlementSide === 'paid' ? `you paid ${first}` : `${first} paid you`}`;
+  else if (partlyPaid) meta += ` · ${rupees(available)} of ${rupees(toMinor(row.amount))} open`;
 
   let afterText;
   if (rowError) afterText = rowError;
@@ -421,37 +419,19 @@ function AllocRow({ row, draft, rowError, netted, refund, first, onToggle, onCha
   else afterText = `${rupees(after)} left`;
 
   return (
-    <div
-      className={`settle-alloc__row${selected ? ' settle-alloc__row--selected' : ''}${rowError ? ' settle-alloc__row--error' : ''}`}
-    >
-      <label className="settle-alloc__pick">
-        <input type="checkbox" checked={selected} onChange={onToggle} />
-        <span className="settle-alloc__what">
-          <span className="settle-alloc__name">{tx.upiName || tx.narration || row.note || 'Entry'}</span>
-          <span className="settle-alloc__meta">
-            {formatDate(tx.transactionDate)} · {meta}
-          </span>
-        </span>
-      </label>
-      {selected && (
-        <div className="settle-alloc__apply">
-          <input
-            type="text"
-            inputMode="decimal"
-            className="settle-alloc__amount"
-            aria-label={`Amount for ${tx.upiName || tx.narration || 'this entry'}`}
-            value={draft[id]}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="0.00"
-          />
-          <span
-            className={`settle-alloc__after${rowError ? ' settle-alloc__after--error' : after === 0 ? ' settle-alloc__after--full' : ''}`}
-          >
-            {afterText}
-          </span>
-        </div>
-      )}
-    </div>
+    <AllocRowView
+      name={entryName(row)}
+      meta={meta}
+      open={rupees(available)}
+      selected={selected}
+      onToggle={onToggle}
+      value={draft[id]}
+      onChange={onChange}
+      after={afterText}
+      tone={rowError ? 'error' : after === 0 ? 'done' : undefined}
+      invalid={Boolean(rowError)}
+      inputLabel={`Amount for ${tx.upiName || tx.narration || 'this entry'}`}
+    />
   );
 }
 
@@ -472,14 +452,14 @@ function BalanceLine({ balance, first }) {
   ].filter(Boolean);
 
   return (
-    <div className="settle-alloc__balance">
-      <span>
+    <div className="alloc-balance">
+      <span className="alloc-balance__net">
         Net balance:{' '}
         <strong>
           {net > 0 ? `${first} owes you ${rupees(net)}` : net < 0 ? `you owe ${first} ${rupees(-net)}` : 'all square'}
         </strong>
       </span>
-      {parts.length > 1 && <span className="settle-alloc__balance-parts">= {parts.join(' ')}</span>}
+      {parts.length > 1 && <span className="alloc-balance__parts">= {parts.join(' ')}</span>}
     </div>
   );
 }

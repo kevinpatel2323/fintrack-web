@@ -110,6 +110,7 @@ value and share in the centre.
 | `onSliceClick` | `(datum, index) => void` | — | For "Others", `datum` is `{ label: 'Others', value, items }` |
 | `legend` | `false \| true \| 'bottom' \| 'right'` | `false` | `'right'` is a vertical list with values and shares. Entries toggle slices |
 | `maxSlices` | `number` | `9` | "Others" counts as one of them |
+| `othersLabel` | `string \| (count) => string` | `'Others'` | Name of the folded slice, e.g. `(n) => \`${n} more\`` |
 | `emptyText`, `ariaLabel`, `className` | | | All-zero data draws an empty gray ring |
 
 ```jsx
