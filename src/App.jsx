@@ -19,6 +19,7 @@ import You from './pages/You.jsx';
 import Security from './pages/Security.jsx';
 import Login from './pages/Login.jsx';
 import Setup from './pages/Setup.jsx';
+import NotFound from './pages/NotFound.jsx';
 
 // Dev-only gallery of the UI kit; never part of the production bundle.
 const UiKit = import.meta.env.DEV ? lazy(() => import('./pages/dev/UiKit.jsx')) : null;
@@ -60,6 +61,7 @@ export default function App() {
               <Route path="/cards/:id" element={<CardDetail />} />
               <Route path="/you" element={<You />} />
               <Route path="/security" element={<Security />} />
+              <Route path="*" element={<NotFound />} />
               {UiKit && (
                 <Route
                   path="/ui-kit"
