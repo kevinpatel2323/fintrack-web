@@ -198,11 +198,17 @@
     width: 100%;
   }
 
+  /* Month navigator on its own row, the summary under it: side by side they
+     overflow a phone. */
   .catg-toolbar__end {
+    flex-wrap: wrap;
     justify-content: space-between;
+    gap: 4px 12px;
   }
 
   .catg-summary {
+    order: 2;
+    flex-basis: 100%;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -210,6 +216,7 @@
 
   .catg-month {
     flex-shrink: 0;
+    margin-inline: auto;
   }
 
   .catg-month__label {

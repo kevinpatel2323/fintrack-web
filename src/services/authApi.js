@@ -25,11 +25,23 @@ async function errorFrom(res, fallback) {
   return err;
 }
 
+const SESSION_RETRIES = 3;
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // App-boot check. Always resolves (the endpoint returns 200 with a flag).
+// A rate-limited check (429) is retried rather than read as "signed out", so
+// opening a few tabs at once never bounces a signed-in user to /login.
 export async function getSession() {
-  const res = await apiFetch(`${API_BASE}/auth/session`);
-  if (!res.ok) return { authenticated: false };
-  return res.json();
+  for (let attempt = 0; ; attempt++) {
+    const res = await apiFetch(`${API_BASE}/auth/session`);
+    if (res.status === 429 && attempt < SESSION_RETRIES) {
+      const retryAfter = Number(res.headers.get('Retry-After'));
+      await wait(Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter, 10) * 1000 : 1500 * (attempt + 1));
+      continue;
+    }
+    if (!res.ok) return { authenticated: false };
+    return res.json();
+  }
 }
 
 export async function logout() {

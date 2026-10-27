@@ -14,45 +14,37 @@ npm test         # Vitest
 
 | Path | Component | Notes |
 |------|-----------|-------|
-| `/` | `pages/Dashboard.jsx` | Widget dashboard |
-| `/import` | `pages/StatementImport.jsx` | Upload HDFC statement |
-| `/transactions` | `pages/Transactions.jsx` | Filterable transaction list |
-| `/calendar` | `pages/Calendar.jsx` | Subscriptions calendar (also via `?view=subscriptions`) |
-| `/friends` | `pages/Friends.jsx` | Friend ledger + balance tracking |
-| `/categories` | `pages/Categories.jsx` | Category management |
+| `/` | `pages/Dashboard.jsx` | Stats, needs-attention list, charts (`pages/dashboard/`) |
+| `/transactions` | `pages/Transactions.jsx` | Filterable list; filters live in the URL (`utils/transactionsListParams.js`) |
+| `/transactions/:id` | `pages/TransactionDetail.jsx` | Record page: summary, split, card bill, details panel |
+| `/calendar` | `pages/Calendar.jsx` | Month grid + day panel; `?view=subscriptions` for subscriptions (`pages/calendar/`) |
 | `/subscriptions` | — | Redirects to `/calendar?view=subscriptions` |
+| `/cards`, `/cards/:id` | `pages/Cards.jsx`, `pages/CardDetail.jsx` | Card list and record page (`pages/cards/`, `components/cards/`) |
+| `/friends`, `/friends/:id` | `pages/Friends.jsx`, `pages/FriendDetail.jsx` | People and the friend ledger (`pages/people/`, `components/people/`) |
+| `/categories` | `pages/Categories.jsx` | Category list, month split, create/edit (`components/categories/`) |
+| `/import` | `pages/StatementImport.jsx` | Upload → review → confirm (`pages/import/`) |
+| `/you` | `pages/You.jsx` | "More" on phones: manage links and appearance |
+| `/security` | `pages/Security.jsx` | Passkeys and sign-out (hidden when auth is disabled) |
+| `/login`, `/setup` | `pages/Login.jsx`, `pages/Setup.jsx` | Shell-less passkey screens (`pages/auth/AuthLayout.jsx`) |
+| `/ui-kit` | `pages/dev/UiKit.jsx` | Dev only: every kit component, light and dark |
 
-Mobile navigation via `MobileBottomNav` component (rendered outside `<Routes>`).
+The app shell (`components/shell/`) wraps every signed-in route: the Frappe-style sidebar on desktop (collapses to a 48px rail below 1100px, toggle remembered) and a bottom tab bar on phones (< 768px, `styles/breakpoints.js`). Destinations and their attention badges are defined once in `components/shell/nav.js`.
 
-## Dashboard widget system
+## Design system
 
-Widgets are registered in `src/config/widgetRegistry.js` via `WIDGET_REGISTRY`.  
-Each entry maps a `WidgetType` enum value to `{ component, title, size, dataKey, minWidth }`.
+Fintrack follows Frappe UI (the library behind Frappe CRM/Helpdesk). Read `src/components/ui/docs/DESIGN.md` before changing any screen.
 
-**All 8 widgets:**
-
-| WidgetType | Component | dataKey | size |
-|------------|-----------|---------|------|
-| SPENDING_OVERVIEW | SpendingOverviewWidget | `spendingOverview` | large (≥600px) |
-| CATEGORY_BREAKDOWN | CategoryBreakdownWidget | `categoryBreakdown` | medium (≥400px) |
-| FRIEND_BALANCES | FriendBalancesWidget | `friendBalances` | medium (≥350px) |
-| MONTHLY_TRENDS | MonthlyTrendsWidget | `monthlyTrends` | large (≥600px) |
-| RECENT_TRANSACTIONS | RecentTransactionsWidget | `recentTransactions` | medium (≥400px) |
-| ACCOUNT_SUMMARY | AccountSummaryWidget | `accountSummary` | medium (≥350px) |
-| TOP_CATEGORIES | TopCategoriesWidget | `topCategories` | small (≥300px) |
-| INCOME_VS_EXPENSES | IncomeVsExpensesWidget | `incomeVsExpenses` | small (≥300px) |
-
-`DEFAULT_ENABLED_WIDGETS` includes all 8. Dashboard data is fetched via `src/hooks/useDashboardData.js` calling `src/services/dashboardApi.js`.
-
-`WidgetContainer` wraps every widget with consistent header, loading, and error states. `BaseWidget` is the lower-level primitive.
+- **Tokens**: `styles/espresso.css` is generated from frappe-ui 1.0.2's tokens (surface/ink/outline scales, elevation, focus, radius; light on `:root`, dark on `[data-theme='dark']`). `styles/theme.css` adds Fintrack roles (money colours, chart and category hues, layout sizes). `styles/base.css` holds Inter, page defaults and text utilities.
+- **Kit**: `components/ui/` — React ports of frappe-ui components (Button, TextInput, Select, Combobox, DatePicker, Dialog, Sheet, Dropdown, Toast, Tabs, ListView, PageHeader, Sidebar, …). Import from `components/ui`. API docs in `components/ui/docs/`.
+- **Charts**: `components/charts/` — SVG BarChart, LineChart, DonutChart, CategoryBars, Sparkline in Frappe's chart style (README inside).
+- **Shared**: `components/common/Category.jsx` (`CategoryBadge`, `CategoryIcon`); category colours in `utils/categoryColors.js` (palette hex → theme tokens, including older stored colours).
+- Theme: `hooks/useTheme.js` (light / dark / system); `<html data-theme>` always holds the resolved theme.
 
 ## API service layer
 
-All API calls go through `src/services/dashboardApi.js`. Base URL from `import.meta.env.VITE_API_BASE_URL`.
+API calls go through `src/services/*` (`dashboardApi`, `cardsApi`, `friendsApi`, `categoriesApi`, `authApi`) on top of `services/http.js` (`apiFetch`, same-origin `/api` prefix). Base URL from `import.meta.env.VITE_API_BASE_URL`.
 
-Key functions:
-- `fetchDashboardData(startDate, endDate, accountNumber?)` — single request for all widget data
-- Individual fetchers: `fetchSpendingOverview`, `fetchCategoryBreakdown`, `fetchFriendBalances`, `fetchMonthlyTrends`, `fetchAccountSummary`, `fetchTopCategories`, `fetchIncomeVsExpenses`
+- `fetchDashboardData(startDate, endDate, accountNumber?)` — one request for everything the dashboard shows (`hooks/useDashboardData.js`).
 
 ## Split engine (`src/utils/splitEngine.ts`)
 
@@ -71,15 +63,13 @@ Serialization: `serializeSplitPayload` / `parseSplitPayload` encode `SerializedS
 
 | Component | Purpose |
 |-----------|---------|
-| `DataTable` | Sortable table used across transaction/friend views |
-| `DateRangePicker` | Date range selector used by dashboard + transactions |
-| `ConfirmDialog` | Modal confirmation dialog |
-| `TransactionFriendTagsPanel` | Side panel to tag a transaction with friends |
+| `TransactionTable` / `TransactionMobileList` | The ledger table (kit `ListView`) and its phone list, shared by Transactions, the card page and a bill payment's covered transactions |
+| `TransactionManageSheet` | Side/bottom sheet to recategorise, split or tag a transaction (Transactions, Calendar, card page) |
+| `DynamicTable` | Generic resizable table kept for older callers |
 | `SplitTransactionForm` | Form for splitting transaction amounts |
 | `FriendTagLedgerDisplay` | Shows ledger entries for a friend |
 | `FriendLedgerExportModal` | Exports friend ledger to PDF via `jspdf` |
-| `Portal` | Renders children into document.body |
-| `MobileTransactionCard` | Mobile-optimized transaction row |
+| `Portal` | Renders children into document.body (used by the kit's overlays) |
 | `StatementQueue` | "Card statements · up next" panel on the import page: next statement per card, month strip, file-name hint |
 | `SettlementAllocator` | Bill-wise settlement picker: applies one settlement across a friend's open entries (any amount each, "Fill oldest first"), nets in the other side ("Net all off"), refunds money on account; the rest stays on account. Shows the reconciled balance on top. Used by `SplitTransactionForm` and `SettlementAllocationModal` |
 | `SettlementAllocationModal` | Re-applies an existing settlement (e.g. on-account money later, or a refund); opened from `FriendTagCard` and the friend page |
@@ -88,14 +78,14 @@ Serialization: `serializeSplitPayload` / `parseSplitPayload` encode `SerializedS
 | `LegacyReviewModal` | Reviews a friend's settlements saved before amounts existed, with suggested amounts; opened from the friend page or People (`?review=1`) |
 | `EntryGroups` | Entry groups on the friend page ("Ketul's wedding"): the collapsible group row, the name/rename dialog and the "tick entries to group" bar. Groups also show as one row in `SettlementAllocator` (tick to settle the group; its smaller side is netted in), as a pick in `SplitTransactionForm`, and as one row plus "Group details" in the ledger export |
 | `UnbilledPasteModal` | "Paste unbilled" on a credit card's page: paste HDFC's Unbilled Transactions list, preview new vs already-added rows, add the new ones |
-| `ui/Dialog` | Shared modal frame for the dialogs above |
+| `ui/Dialog`, `ui/ConfirmDialog`, `ui/Sheet` | The modal frames every dialog above is built on |
 
 ## Utility modules
 
 | File | Purpose |
 |------|---------|
 | `utils/dateUtils.js` | Date formatting helpers |
-| `utils/tableSort.js` | Column sort logic for DataTable |
+| `utils/tableSort.js` | Column sort logic for the ledger tables |
 | `utils/stringUtils.js` | Text helpers |
 | `utils/ledgerParties.js` | Friend-ledger maths and **all ledger text** (`ledgerRs`, `ledgerDate`, `ledgerImpactText`, `ledgerOpenText`, `ledgerSettledEntryParts`, `ledgerSettlementCheck`, `ledgerSettlementRefLines`). The export preview (`FriendLedgerExportModal`) and the PDF must both render from these — never format ledger amounts or settlement lines locally, or the two drift apart |
 | `utils/ledgerPdf.js` | jsPDF-based ledger PDF export |
@@ -108,12 +98,11 @@ Serialization: `serializeSplitPayload` / `parseSplitPayload` encode `SerializedS
 
 ## Styling
 
-No CSS framework — raw CSS files colocated with components (`ComponentName.css`).  
-Global styles in `src/index.css`. Transaction sheet styles in `src/styles/transactionSheet.css`.
+No CSS framework. Each component or page has a CSS file next to it, using Espresso variables only (no hex values, no inline styles beyond computed values). Class names are prefixed per component (`ui-` for the kit, a page prefix such as `txn-`, `cal-`, `people-` for pages). `src/index.css` imports only the tokens, theme roles and base.
 
 ## Testing
 
 Vitest. Test files at `src/**/__tests__/`.  
-Current coverage: `CategoryBreakdownWidget`, `SpendingOverviewWidget`, `WidgetContainer`, `splitEngine`, `splitValidation`.
+Tests are `*.test.ts` (see `vitest.config.ts`) and cover the pure logic: split engine, ledger maths, settlement allocation, list/calendar params, dashboard and calendar models, chart scales and date helpers.
 
 Run `npm test` (single pass) or add `--watch` for interactive mode.

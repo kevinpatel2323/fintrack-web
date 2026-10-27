@@ -20,9 +20,11 @@ function amountOf(tag) {
   return Number(ledgerRowAmount(tag)) || 0;
 }
 
+// The payee first, as the transaction list shows it; the UPI description is
+// often just "UPI".
 function descriptionOf(tag) {
   const t = tag.transaction || {};
-  return t.upiDescription || t.narration || t.upiName || 'Transaction';
+  return t.upiName || t.upiDescription || t.narration || 'Transaction';
 }
 
 function sortTags(tags, sort) {
