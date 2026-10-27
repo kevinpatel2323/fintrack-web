@@ -13,7 +13,7 @@ import {
   IcPlus, IcChevL, IcChevR, IcClose, IcTrash, IcRepeat, IcCard, IcCheck,
 } from '../components/ui/Icon.jsx';
 import { useIsCompact } from '../styles/breakpoints.js';
-import { getCcLink } from '../services/cardsApi.js';
+import { getCcLink, listCards } from '../services/cardsApi.js';
 import { cardTxnStatus, toCardTableRow } from '../utils/cardTransactionRow.jsx';
 import TransactionListRow from '../components/TransactionListRow.jsx';
 import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
@@ -183,6 +183,9 @@ export default function Calendar() {
   const [occurrences, setOccurrences] = useState([]);
   const [subs, setSubs] = useState([]);
   const [categories, setCategories] = useState([]);
+  // Card bill chips on the grid name the card's owner, which the payment
+  // marker on a transaction does not carry — only the card id.
+  const [cardsById, setCardsById] = useState({});
   const [subLoading, setSubLoading] = useState(false);
 
   const [rightPanel, setRightPanel] = useState('day'); // 'day' | 'subs'
@@ -270,6 +273,16 @@ export default function Calendar() {
       try {
         const res = await apiFetch(`${API_BASE}/categories`);
         if (res.ok) { const d = await res.json(); setCategories(d.data || []); }
+      } catch {}
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await listCards();
+        const list = Array.isArray(res) ? res : (res?.data ?? []);
+        setCardsById(Object.fromEntries(list.map((c) => [String(c.id), c])));
       } catch {}
     })();
   }, []);
@@ -731,7 +744,7 @@ export default function Calendar() {
               <button className="ft-mobile__icon-btn" onClick={goNext} aria-label="Next"><IcChevR size={18} /></button>
             </div>
             <CalendarGrid
-              cells={cells} txByDay={txByDay} subByDay={subByDay}
+              cells={cells} txByDay={txByDay} subByDay={subByDay} cardsById={cardsById}
               ccDetailByTransaction={ccDetailByTransaction}
               todayIso={todayIso} selectedIso={selectedIso}
               onClickDay={(iso) => patchCalendar({ selectedIso: iso })} compact
@@ -855,7 +868,7 @@ export default function Calendar() {
               position back to the top on every month change. */}
           <div className={`cal-grid-wrap${txLoading ? ' cal-grid-wrap--loading' : ''}`} aria-busy={txLoading}>
             <CalendarGrid
-              cells={cells} txByDay={txByDay} subByDay={subByDay}
+              cells={cells} txByDay={txByDay} subByDay={subByDay} cardsById={cardsById}
               ccDetailByTransaction={ccDetailByTransaction}
               todayIso={todayIso} selectedIso={selectedIso}
               onClickDay={(iso) => { patchCalendar({ selectedIso: iso }); setRightPanel('day'); }}
@@ -969,7 +982,26 @@ export default function Calendar() {
 }
 
 // ── Calendar Grid ──────────────────────────────────────────────────────────────
-function CalendarGrid({ cells, txByDay, subByDay, ccDetailByTransaction = {}, todayIso, selectedIso, onClickDay, compact }) {
+/** "MINAL PATEL" → "Minal Patel"; names already in mixed case are left alone. */
+function displayName(name) {
+  const trimmed = String(name || '').trim();
+  if (!trimmed || trimmed !== trimmed.toUpperCase()) return trimmed;
+  return trimmed.toLowerCase().replace(/(^|[\s.'-])(\p{L})/gu, (m, sep, ch) => sep + ch.toUpperCase());
+}
+
+/** Who a card bill was paid for: the cardholder, else the card's nickname. */
+function ccOwnerLabel(ccBillPayment, cardsById) {
+  const card = cardsById[String(ccBillPayment.cardId)];
+  return displayName(card?.holder) || card?.nickname || 'Card bill';
+}
+
+/** Which card: its product name ("BizGrow"), else its last four digits. */
+function ccCardLabel(ccBillPayment, cardsById) {
+  const card = cardsById[String(ccBillPayment.cardId)];
+  return card?.name || (ccBillPayment.cardLast4 ? `••${ccBillPayment.cardLast4}` : 'Card');
+}
+
+function CalendarGrid({ cells, txByDay, subByDay, cardsById = {}, ccDetailByTransaction = {}, todayIso, selectedIso, onClickDay, compact }) {
   return (
     <div className={`cal-grid${compact ? ' cal-grid--compact' : ''}`}>
       {WEEKDAYS.map((wd) => (
@@ -985,6 +1017,18 @@ function CalendarGrid({ cells, txByDay, subByDay, ccDetailByTransaction = {}, to
         const hasTx = txs.length > 0;
         const hasSub = subs.length > 0;
         const catState = dayCategorizationState(txs, ccDetailByTransaction);
+        const ccBills = txs.filter((t) => t.ccBillPayment);
+        const ccTotal = ccBills.reduce((sum, t) => sum + Number(t.withdrawal || 0), 0);
+        const ccOwners = [...new Set(ccBills.map((t) => ccOwnerLabel(t.ccBillPayment, cardsById)))];
+        const ccCards = [...new Set(ccBills.map((t) => ccCardLabel(t.ccBillPayment, cardsById)))];
+        const ccTitle = ccBills
+          .map((t) => {
+            const known = Boolean(cardsById[String(t.ccBillPayment.cardId)]);
+            const last4 = known && t.ccBillPayment.cardLast4 ? ` •• ${t.ccBillPayment.cardLast4}` : '';
+            const who = known ? ` for ${ccOwnerLabel(t.ccBillPayment, cardsById)}` : '';
+            return `Card bill paid${who} · ${ccCardLabel(t.ccBillPayment, cardsById)}${last4} · ${inr(Number(t.withdrawal || 0))}`;
+          })
+          .join('\n');
 
         return (
           <button
@@ -996,6 +1040,7 @@ function CalendarGrid({ cells, txByDay, subByDay, ccDetailByTransaction = {}, to
               isToday ? 'cal-cell--today' : '',
               isSelected ? 'cal-cell--selected' : '',
               hasTx ? 'cal-cell--has-tx' : '',
+              ccBills.length > 0 ? 'cal-cell--cc-bill' : '',
               catState === 'categorized' ? 'cal-cell--categorized' : '',
               catState === 'needs-category' ? 'cal-cell--needs-category' : '',
             ].filter(Boolean).join(' ')}
@@ -1010,6 +1055,9 @@ function CalendarGrid({ cells, txByDay, subByDay, ccDetailByTransaction = {}, to
                 )}
                 {catState === 'categorized' && (
                   <IcCheck size={11} stroke={2.5} className="cal-cell__cat-ok" aria-label="All categorized" />
+                )}
+                {compact && ccBills.length > 0 && (
+                  <IcCard size={11} stroke={2.2} className="cal-cell__cc-mark" aria-label={ccTitle} />
                 )}
               </span>
             </div>
@@ -1026,6 +1074,26 @@ function CalendarGrid({ cells, txByDay, subByDay, ccDetailByTransaction = {}, to
                   </span>
                 )}
               </div>
+            )}
+            {/* A card bill paid this day — named here because it is usually
+                most of the day's "spent" and is not new spending. */}
+            {!compact && ccBills.length > 0 && (
+              <span className="cal-cell__cc" title={ccTitle}>
+                {/* Owner on top, card and amount under it. One owner keeps
+                    their name even across two of their cards. */}
+                <span className="cal-cell__cc-line">
+                  <IcCard size={11} stroke={2.2} />
+                  <span className="cal-cell__cc-label">
+                    {ccOwners.length === 1 ? ccOwners[0] : `${ccBills.length} card bills`}
+                  </span>
+                </span>
+                <span className="cal-cell__cc-line cal-cell__cc-line--sub">
+                  <span className="cal-cell__cc-label">
+                    {ccCards.length === 1 ? ccCards[0] : `${ccCards.length} cards`}
+                  </span>
+                  <span className="cal-cell__cc-amt">{inrCompact(ccTotal)}</span>
+                </span>
+              </span>
             )}
             {hasTx && compact && (
               <div className="cal-cell__dot-row">
@@ -1054,6 +1122,7 @@ function CalendarLegend() {
       <span><span className="cal-cell__cat-flag" /> Needs a category</span>
       <span><IcCheck size={11} stroke={2.5} className="cal-cell__cat-ok" /> All categorized</span>
       <span><span className="cal-cell__sub-dot" /> Bill due</span>
+      <span><IcCard size={11} stroke={2.2} className="cal-cell__cc-mark" /> Card bill paid</span>
     </div>
   );
 }

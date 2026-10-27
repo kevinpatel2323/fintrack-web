@@ -146,7 +146,8 @@
   /* Row 1 is the weekday labels; only the date rows that follow get the
      full cell height (grid-auto-rows alone also stretched the labels). */
   grid-template-rows: 22px;
-  grid-auto-rows: 88px;
+  /* 96px fits the two-line card bill chip under two amount lines. */
+  grid-auto-rows: 96px;
   gap: 5px;
 }
 .cal-grid--compact {
@@ -239,6 +240,56 @@
 .cal-cell__cat-ok {
   color: var(--ft-income);
   opacity: 0.75;
+  flex-shrink: 0;
+}
+
+/* Card bill paid — sky blue, the one hue the calendar does not already use
+   (spend/earn, needs-category amber, bill-due violet). */
+.cal-cell__cc {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  margin-top: auto;
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: var(--ft-info-soft);
+  border: 1px solid color-mix(in srgb, var(--ft-info) 28%, transparent);
+  color: var(--ft-info);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.cal-cell__cc-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.cal-cell__cc-line > svg { flex-shrink: 0; }
+.cal-cell__cc-line--sub {
+  font-weight: 500;
+  opacity: 0.85;
+}
+.cal-cell__cc-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal-cell__cc-amt {
+  margin-left: auto;
+  padding-left: 2px;
+  font-family: var(--ft-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.3px;
+}
+/* The chip takes the bottom slot, so the ratio bar sits just under it. */
+.cal-cell__cc + .cal-cell__bar { margin-top: 3px; }
+.cal-cell--cc-bill .cal-cell__amounts { flex: 0 0 auto; }
+
+.cal-cell__cc-mark {
+  color: var(--ft-info);
   flex-shrink: 0;
 }
 
