@@ -87,6 +87,7 @@ Serialization: `serializeSplitPayload` / `parseSplitPayload` encode `SerializedS
 | `WriteOffModal` | Writes off a leftover (round-off) on an entry or a settlement |
 | `LegacyReviewModal` | Reviews a friend's settlements saved before amounts existed, with suggested amounts; opened from the friend page or People (`?review=1`) |
 | `EntryGroups` | Entry groups on the friend page ("Ketul's wedding"): the collapsible group row, the name/rename dialog and the "tick entries to group" bar. Groups also show as one row in `SettlementAllocator` (tick to settle the group; its smaller side is netted in), as a pick in `SplitTransactionForm`, and as one row plus "Group details" in the ledger export |
+| `UnbilledPasteModal` | "Paste unbilled" on a credit card's page: paste HDFC's Unbilled Transactions list, preview new vs already-added rows, add the new ones |
 | `ui/Dialog` | Shared modal frame for the dialogs above |
 
 ## Utility modules

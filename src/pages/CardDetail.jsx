@@ -21,6 +21,7 @@ import {
 import CardFace from '../components/ui/CardFace.jsx';
 import CardFormModal from '../components/CardFormModal.jsx';
 import CardTransactionModal from '../components/CardTransactionModal.jsx';
+import UnbilledPasteModal from '../components/UnbilledPasteModal.jsx';
 import CardPaymentModal from '../components/CardPaymentModal.jsx';
 import CardStatementModal from '../components/CardStatementModal.jsx';
 import ConfirmDialog from '../components/ConfirmDialog.jsx';
@@ -81,6 +82,7 @@ export default function CardDetail() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [txnOpen, setTxnOpen] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [stmtOpen, setStmtOpen] = useState(false);
   const [activeBreakdown, setActiveBreakdown] = useState(null);
@@ -516,9 +518,14 @@ export default function CardDetail() {
               <>
                 <SectionTitle
                   action={
-                    <PrimaryBtn onClick={() => setTxnOpen(true)}>
-                      <IcPlus size={14} /> Add
-                    </PrimaryBtn>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {card?.kind === 'credit' && (
+                        <GhostBtn onClick={() => setPasteOpen(true)}>Paste unbilled</GhostBtn>
+                      )}
+                      <PrimaryBtn onClick={() => setTxnOpen(true)}>
+                        <IcPlus size={14} /> Add
+                      </PrimaryBtn>
+                    </div>
                   }
                 >
                   Transactions {totalSpend > 0 && `· ${inr(totalSpend)}`}
@@ -654,6 +661,17 @@ export default function CardDetail() {
           onSaved={async () => {
             setTxnOpen(false);
             await loadAll();
+          }}
+        />
+      )}
+      {pasteOpen && (
+        <UnbilledPasteModal
+          card={card}
+          onClose={() => setPasteOpen(false)}
+          onSaved={async () => {
+            setPasteOpen(false);
+            await loadAll();
+            refreshImportSchedule();
           }}
         />
       )}

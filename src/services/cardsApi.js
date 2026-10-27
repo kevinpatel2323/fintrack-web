@@ -77,6 +77,12 @@ export const updateCardTransaction = (txnId, data) =>
 export const deleteCardTransaction = (txnId) =>
   request(`/cards/transactions/${txnId}`, { method: 'DELETE' });
 
+// Unbilled spend pasted off HDFC's Unbilled Transactions page.
+export const previewUnbilledPaste = (id, text) =>
+  request(`/cards/${id}/unbilled/paste/preview`, { method: 'POST', body: JSON.stringify({ text }) });
+export const saveUnbilledPaste = (id, text) =>
+  request(`/cards/${id}/unbilled/paste`, { method: 'POST', body: JSON.stringify({ text }) });
+
 // ── Friend tags on card transactions ───────────────────────────────────
 // Mirrors /transactions/:id/friends for bank transactions.
 export const listCardTransactionFriends = (txnId) =>
