@@ -9,10 +9,8 @@
 
 /* ---------- Desktop toolbar (Frappe CRM view controls) ---------- */
 
-/* Search, filters and the summary stay in reach while the list scrolls: the
-   toolbar pins under the page header as a full-width band. The page body's
-   top padding moves inside it so nothing shows through above. */
-.txns-toolbar,
+/* The desktop toolbar is the shared ListToolbar. The phone toolbar pins the
+   same way: a full-width band under the page header. */
 .txns-mobile-toolbar {
   position: sticky;
   top: var(--header-height);
@@ -25,7 +23,6 @@
 
 /* Phone: the compact header is 52px and the page gutter 12px. */
 @media (max-width: 767.98px) {
-  .txns-toolbar,
   .txns-mobile-toolbar {
     top: 52px;
     margin: -12px -12px 0;
@@ -37,29 +34,6 @@
   .txns-mobile-toolbar {
     top: calc(52px + env(safe-area-inset-top));
   }
-}
-
-.txns-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-}
-
-.txns-toolbar__filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.txns-toolbar__meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
 }
 
 .txns-search {

@@ -41,6 +41,7 @@ import {
 } from '../utils/transactionsListParams.js';
 import { API_BASE, apiFetch } from '../services/http.js';
 import { toBankTableRow } from '../components/transactions/bankTransactionRow.jsx';
+import ListToolbar, { ListSummary } from '../components/common/ListToolbar.jsx';
 import './Transactions.css';
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -865,8 +866,23 @@ export default function Transactions() {
         )}
       />
       <PageBody className="txns-page" style={{ '--txl-sticky-offset': `${toolbarHeight}px` }}>
-        <div className="txns-toolbar" ref={toolbarRef}>
-          <div className="txns-toolbar__filters">
+        <ListToolbar
+          ref={toolbarRef}
+          meta={(
+            <>
+              {summaryContent && <ListSummary>{summaryContent}</ListSummary>}
+              <TransactionColumnsMenu columns={transactionColumnChoices()} settings={columnSettings} />
+              <Button
+                variant="ghost"
+                icon={RefreshCw}
+                label="Refresh"
+                tooltip="Refresh"
+                loading={transactionsLoading}
+                onClick={() => handleRangeFetch()}
+              />
+            </>
+          )}
+        >
             <TextInput
               ref={searchInputRef}
               className="txns-search"
@@ -907,20 +923,7 @@ export default function Transactions() {
               onChange={applyDateRange}
               monthOptions={monthOptions}
             />
-          </div>
-          <div className="txns-toolbar__meta">
-            {summaryContent && <span className="txns-summary">{summaryContent}</span>}
-            <TransactionColumnsMenu columns={transactionColumnChoices()} settings={columnSettings} />
-            <Button
-              variant="ghost"
-              icon={RefreshCw}
-              label="Refresh"
-              tooltip="Refresh"
-              loading={transactionsLoading}
-              onClick={() => handleRangeFetch()}
-            />
-          </div>
-        </div>
+        </ListToolbar>
 
         {pageErrors.length > 0 && <ErrorMessage message={pageErrors} />}
         {loadError && transactions.length > 0 && (

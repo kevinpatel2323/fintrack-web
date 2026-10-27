@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, Plus, Search, Users } from 'lucide-react';
 import {
-  Alert, Amount, Avatar, Button, Card, Dropdown, EmptyState, ListView, PageBody, PageHeader, Select, Skeleton,
-  TabButtons, TextInput,
+  Alert, Amount, Avatar, Badge, Button, Dropdown, EmptyState, ListView, PageBody, PageHeader, TabButtons, TextInput,
 } from '../components/ui';
+import ListToolbar, { ListSummary, useStickyHeight } from '../components/common/ListToolbar.jsx';
 import PersonDialog from '../components/people/PersonDialog.jsx';
+import TransactionColumnsMenu from '../components/transactions/TransactionColumnsMenu.jsx';
+import { useTransactionTableSettings } from '../components/transactions/useTransactionTableSettings.js';
+import { avatarTheme } from '../components/ui/AvatarGroup.jsx';
 import { useReviewSummary } from '../hooks/useReviewSummary.js';
 import { API_BASE, apiFetch } from '../services/http.js';
 import './Friends.css';
@@ -16,11 +19,24 @@ const FILTERS = [
   { id: 'settled', label: 'Settled' },
 ];
 
-const SORTS = [
-  { value: 'amount', label: 'Largest balance' },
-  { value: 'recent', label: 'Recent activity' },
-  { value: 'name', label: 'Name' },
+// Same column set-up as the transactions table: Name is always shown,
+// contact details are there to turn on from Columns.
+const COLUMNS = [
+  { id: 'name', label: 'Name', pinned: true },
+  { id: 'status', label: 'Status' },
+  { id: 'activity', label: 'Last activity' },
+  { id: 'email', label: 'Email', defaultHidden: true },
+  { id: 'phone', label: 'Phone', defaultHidden: true },
+  { id: 'balance', label: 'Balance' },
 ];
+const COLUMN_CHOICES = COLUMNS.filter((c) => !c.pinned).map(({ id, label }) => ({ id, label }));
+const DEFAULT_SORT = { key: 'balance', direction: 'desc' };
+const SIDE_ORDER = { owed: 0, owe: 1, settled: 2 };
+const STATUS = {
+  owed: { label: 'Owes you', theme: 'green' },
+  owe: { label: 'You owe', theme: 'amber' },
+  settled: { label: 'Settled', theme: 'gray' },
+};
 
 // Under a rupee either way reads as settled (paise left over from splits).
 const SETTLED_BELOW = 1;
@@ -45,12 +61,6 @@ function fmtActivity(iso) {
   }).format(d);
 }
 
-const SECTIONS = [
-  { id: 'owed', title: 'Owes you' },
-  { id: 'owe', title: 'You owe' },
-  { id: 'settled', title: 'Settled' },
-];
-
 const people = (n) => `${n} ${n === 1 ? 'person' : 'people'}`;
 
 export default function Friends() {
@@ -62,8 +72,13 @@ export default function Friends() {
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [filter, setFilter] = useState('all'); // all | owed | owe | settled
-  const [sort, setSort] = useState('amount'); // amount | recent | name
+  const [sort, setSort] = useState(DEFAULT_SORT);
   const [createOpen, setCreateOpen] = useState(false);
+  const columnSettings = useTransactionTableSettings('fintrack.people.columns', {
+    pinned: ['name'],
+    defaultHidden: COLUMNS.filter((c) => c.defaultHidden).map((c) => c.id),
+  });
+  const [toolbarRef, toolbarHeight] = useStickyHeight();
 
   useEffect(() => {
     const t = setTimeout(() => setQuery(queryInput.trim()), 250);
@@ -126,45 +141,53 @@ export default function Friends() {
     return c;
   }, [merged]);
 
-  // One section per side of the ledger — who owes you, whom you owe, who is
-  // square — each sorted on its own. A filter just narrows it to one section.
-  const sections = useMemo(() => {
-    const comparators = {
-      amount: (a, b) => Math.abs(b.summary.netBalance || 0) - Math.abs(a.summary.netBalance || 0),
-      recent: (a, b) => (b.summary.lastTransactionDate || '').localeCompare(a.summary.lastTransactionDate || ''),
-      name: (a, b) => (a.name || '').localeCompare(b.name || ''),
-    };
-    return SECTIONS
-      .filter((sec) => filter === 'all' || filter === sec.id)
-      .map((sec) => {
-        const rows = merged.filter((f) => balanceSide(Number(f.summary?.netBalance || 0)) === sec.id);
-        // Settled people have no balance to rank by; keep them alphabetical.
-        rows.sort(sec.id === 'settled' && sort === 'amount' ? comparators.name : comparators[sort]);
-        const total = rows.reduce((sum, f) => sum + Math.abs(Number(f.summary.netBalance || 0)), 0);
-        return { ...sec, rows, total };
-      })
-      .filter((sec) => sec.rows.length > 0);
+  // The table: narrowed by the balance filter, ordered by the header sort.
+  const rows = useMemo(() => {
+    const side = (f) => balanceSide(Number(f.summary?.netBalance || 0));
+    const value = {
+      name: (f) => (f.name || '').toLowerCase(),
+      status: (f) => SIDE_ORDER[side(f)],
+      activity: (f) => f.summary?.lastTransactionDate || '',
+      email: (f) => (f.email || '').toLowerCase(),
+      phone: (f) => f.phone || '',
+      // Largest balance either way, as "Largest balance" always meant.
+      balance: (f) => Math.abs(Number(f.summary?.netBalance || 0)),
+    }[sort.key] || (() => 0);
+    const dir = sort.direction === 'asc' ? 1 : -1;
+    return merged
+      .filter((f) => filter === 'all' || side(f) === filter)
+      .sort((a, b) => {
+        const va = value(a);
+        const vb = value(b);
+        if (va < vb) return -dir;
+        if (va > vb) return dir;
+        return (a.name || '').localeCompare(b.name || '');
+      });
   }, [merged, filter, sort]);
-  const shownCount = sections.reduce((n, sec) => n + sec.rows.length, 0);
 
   const owedToMe = balances.reduce((s, b) => s + Math.max(0, Number(b.netBalance) || 0), 0);
   const iOwe = balances.reduce((s, b) => s - Math.min(0, Number(b.netBalance) || 0), 0);
-  const net = owedToMe - iOwe;
 
+  const hidden = columnSettings.hidden;
   const columns = [
     {
       key: 'name',
       label: 'Name',
-      width: 'minmax(140px, 3fr)',
+      width: 'minmax(150px, 3fr)',
+      sortable: true,
       render: (f) => {
+        const side = balanceSide(Number(f.summary?.netBalance || 0));
         const activity = fmtActivity(f.summary?.lastTransactionDate);
         return (
-          <span className="people-row__who">
-            <Avatar label={f.name} size="xl" aria-hidden />
-            <span className="people-row__text">
-              <span className="people-row__name">{f.name}</span>
-              <span className="people-row__meta">
-                {activity ? `Last activity ${activity}` : 'No shared expenses yet'}
+          <span className="people-name">
+            <Avatar label={f.name} size="md" theme={avatarTheme(f.id)} aria-hidden />
+            <span className="people-name__text">
+              <span className="people-name__label truncate">{f.name}</span>
+              {/* Phones drop the Status and Last activity columns; the facts
+                  move under the name. */}
+              <span className="people-name__meta">
+                {STATUS[side].label}
+                {activity ? ` · ${activity}` : ''}
               </span>
             </span>
           </span>
@@ -172,13 +195,52 @@ export default function Friends() {
       },
     },
     {
+      key: 'status',
+      label: 'Status',
+      width: 120,
+      sortable: true,
+      hideBelow: 'sm',
+      render: (f) => {
+        const s = STATUS[balanceSide(Number(f.summary?.netBalance || 0))];
+        return <Badge theme={s.theme} label={s.label} />;
+      },
+    },
+    {
+      key: 'activity',
+      label: 'Last activity',
+      width: 140,
+      sortable: true,
+      hideBelow: 'sm',
+      render: (f) => {
+        const activity = fmtActivity(f.summary?.lastTransactionDate);
+        return activity ? <span className="people-cell-muted">{activity}</span> : <span className="people-cell-empty">—</span>;
+      },
+    },
+    {
+      key: 'email',
+      label: 'Email',
+      width: 'minmax(160px, 2fr)',
+      sortable: true,
+      hideBelow: 'md',
+      render: (f) => (f.email ? <span className="people-cell-muted truncate">{f.email}</span> : <span className="people-cell-empty">—</span>),
+    },
+    {
+      key: 'phone',
+      label: 'Phone',
+      width: 140,
+      sortable: true,
+      hideBelow: 'md',
+      render: (f) => (f.phone ? <span className="people-cell-muted">{f.phone}</span> : <span className="people-cell-empty">—</span>),
+    },
+    {
       key: 'balance',
       label: 'Balance',
-      width: 'minmax(96px, 1fr)',
+      width: 120,
       align: 'right',
+      sortable: true,
       render: (f) => <BalanceCell value={Number(f.summary?.netBalance || 0)} />,
     },
-  ];
+  ].filter((c) => c.key === 'name' || !hidden[c.key]);
 
   const emptyCopy = (() => {
     if (query) return { title: 'No matches', description: `Nothing found for “${query}”. Try another name.` };
@@ -215,18 +277,12 @@ export default function Friends() {
         className="people-list"
         aria-label="People"
         columns={columns}
+        rows={rows}
         rowHref={(f) => `/friends/${f.id}`}
+        sort={sort}
+        onSortChange={(next) => setSort(next ?? DEFAULT_SORT)}
+        stickyHeader
         loading={loading && merged.length === 0}
-        {...(filter === 'all' && shownCount > 0
-          ? {
-              groups: sections.map((sec) => ({
-                key: sec.id,
-                label: sec.id === 'settled' ? sec.title : <GroupLabel title={sec.title} total={sec.total} />,
-                count: sec.rows.length,
-                rows: sec.rows,
-              })),
-            }
-          : { rows: sections.flatMap((sec) => sec.rows) })}
         emptyState={<EmptyState size="sm" title={emptyCopy.title} description={emptyCopy.description} />}
       />
     );
@@ -239,57 +295,56 @@ export default function Friends() {
         actions={<Button variant="solid" iconLeft={Plus} label="Add person" onClick={() => setCreateOpen(true)} />}
         mobileActions={<Button variant="ghost" size="md" icon={Plus} label="Add person" onClick={() => setCreateOpen(true)} />}
       />
-      <PageBody className="people-page">
-        <ReviewAlert />
-        <div className="people-layout">
-          <div className="people-main">
-            <div className="people-toolbar">
-              <TextInput
-                className="people-toolbar__search"
-                type="search"
-                prefix={Search}
-                placeholder={counts.all > 0 && !query ? `Search ${counts.all} people` : 'Search people'}
-                aria-label="Search people"
-                value={queryInput}
-                onChange={(e) => setQueryInput(e.target.value)}
-              />
-              <div className="people-toolbar__filters">
-                <TabButtons
-                  aria-label="Balance filter"
-                  value={filter}
-                  onChange={setFilter}
-                  options={FILTERS.map((f) => ({
-                    value: f.id,
-                    label: (
-                      <>
-                        {f.label}
-                        <span className="people-count">{counts[f.id]}</span>
-                      </>
-                    ),
-                  }))}
-                />
-              </div>
-              <Select
-                className="people-toolbar__sort"
-                aria-label="Sort people"
-                options={SORTS}
-                value={sort}
-                onChange={(e) => setSort(e.target.value)}
-              />
-            </div>
-            {list}
-          </div>
-
-          <Summary
-            loading={loading && balances.length === 0}
-            net={net}
-            owedToMe={owedToMe}
-            iOwe={iOwe}
-            counts={counts}
-            filter={filter}
-            onFilter={(id) => setFilter(filter === id ? 'all' : id)}
+      <PageBody className="people-page" style={{ '--list-toolbar-height': `${toolbarHeight}px` }}>
+        <ListToolbar
+          ref={toolbarRef}
+          meta={(
+            <>
+              <ListSummary>
+                {people(counts.all)}
+                {owedToMe > 0 && (
+                  <>
+                    {' · '}
+                    <Amount value={owedToMe} tone="in" /> owed to you
+                  </>
+                )}
+                {iOwe > 0 && (
+                  <>
+                    {' · '}
+                    <Amount value={iOwe} tone="inherit" /> you owe
+                  </>
+                )}
+              </ListSummary>
+              <TransactionColumnsMenu columns={COLUMN_CHOICES} settings={columnSettings} />
+            </>
+          )}
+        >
+          <TextInput
+            className="people-search"
+            type="search"
+            prefix={Search}
+            placeholder={counts.all > 0 && !query ? `Search ${counts.all} people` : 'Search people'}
+            aria-label="Search people"
+            value={queryInput}
+            onChange={(e) => setQueryInput(e.target.value)}
           />
-        </div>
+          <TabButtons
+            aria-label="Balance filter"
+            value={filter}
+            onChange={setFilter}
+            options={FILTERS.map((f) => ({
+              value: f.id,
+              label: (
+                <>
+                  {f.label}
+                  <span className="people-count">{counts[f.id]}</span>
+                </>
+              ),
+            }))}
+          />
+        </ListToolbar>
+        <ReviewAlert />
+        {list}
       </PageBody>
 
       <PersonDialog open={createOpen} onClose={() => setCreateOpen(false)} onSaved={refreshFriends} />
@@ -297,92 +352,12 @@ export default function Friends() {
   );
 }
 
-function GroupLabel({ title, total }) {
-  return (
-    <span className="people-group-label">
-      {title}
-      <span className="people-group-label__total">
-        <Amount value={total} tone="inherit" />
-      </span>
-    </span>
-  );
-}
-
-/** "Owes you ₹2,400" / "You owe ₹800" / "Settled" — the words carry the side. */
+/** The open balance; its side is in the Status column (and under the name on
+ *  phones), so the figure stays a plain, sortable number. */
 function BalanceCell({ value }) {
   const side = balanceSide(value);
-  if (side === 'settled') return <span className="people-balance people-balance--settled">Settled</span>;
-  return (
-    <span className="people-balance">
-      <Amount className="people-balance__amount" value={Math.abs(value)} tone={side === 'owed' ? 'in' : 'out'} />
-      <span className="people-balance__label">{side === 'owed' ? 'Owes you' : 'You owe'}</span>
-    </span>
-  );
-}
-
-/**
- * Net balance and each side of it, with how many people are behind each
- * figure. Each side doubles as its filter, so the figure and the people behind
- * it are one click apart.
- */
-function Summary({ loading, net, owedToMe, iOwe, counts, filter, onFilter }) {
-  const square = Math.abs(net) < SETTLED_BELOW;
-  const open = counts.owed + counts.owe;
-  return (
-    <Card as="aside" className="people-summary" padding="none" aria-labelledby="people-summary-title">
-      <h2 id="people-summary-title" className="people-summary__title">Balances</h2>
-      <div className="people-summary__list" aria-busy={loading || undefined}>
-        <div className="people-summary__row">
-          <span className="people-summary__label">Net balance</span>
-          <span className="people-summary__value">
-            {loading ? <Skeleton as="span" width={88} height={16} /> : <Amount value={Math.abs(net)} tone="inherit" />}
-          </span>
-          <span className="people-summary__hint">
-            {square ? 'All square overall' : net > 0 ? 'Owed to you overall' : 'You owe overall'}
-            {' · '}
-            {open === 0 ? 'No open balances' : `${people(open)} with a balance`}
-          </span>
-        </div>
-        <SummarySide
-          id="owed"
-          label="Owed to you"
-          value={owedToMe}
-          tone="in"
-          count={counts.owed}
-          loading={loading}
-          active={filter === 'owed'}
-          onFilter={onFilter}
-        />
-        <SummarySide
-          id="owe"
-          label="You owe"
-          value={iOwe}
-          tone="out"
-          count={counts.owe}
-          loading={loading}
-          active={filter === 'owe'}
-          onFilter={onFilter}
-        />
-      </div>
-    </Card>
-  );
-}
-
-function SummarySide({ id, label, value, tone, count, loading, active, onFilter }) {
-  return (
-    <button
-      type="button"
-      className="people-summary__row people-summary__row--button"
-      aria-pressed={active}
-      onClick={() => onFilter(id)}
-    >
-      <span className="people-summary__label">{label}</span>
-      <span className="people-summary__value">
-        {loading ? <Skeleton as="span" width={72} height={16} /> : <Amount value={value} tone={value > 0 ? tone : 'inherit'} />}
-      </span>
-      <span className="people-summary__hint">{people(count)}</span>
-    </button>
-  );
+  if (side === 'settled') return <span className="people-cell-empty">—</span>;
+  return <Amount className="people-balance" value={Math.abs(value)} tone={side === 'owed' ? 'in' : 'out'} />;
 }
 
 /**

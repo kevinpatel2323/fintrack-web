@@ -101,6 +101,14 @@
   background: var(--ui-list-header-bg, var(--surface-base));
 }
 
+/* A list that scrolls sideways is its own scroll box, so a sticky header
+   would pin inside it (pushed down by the page offset) instead of to the
+   page. The header stays in place there. */
+.ui-list[data-sticky] .ui-list__scroll[data-overflow] .ui-list__head {
+  position: relative;
+  top: auto;
+}
+
 .ui-list__header,
 .ui-list__row {
   position: relative;

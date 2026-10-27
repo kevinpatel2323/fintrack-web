@@ -1,241 +1,97 @@
-/* People list (/friends): Frappe CRM contacts-list layout — toolbar, list,
- * and a balances panel on the right on wide screens. */
+/* People (/friends): the same list layout as Transactions — a pinned
+   toolbar, then a full-width table. Prefix: .people- */
 
 .people-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-}
-
-.people-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  align-items: start;
-  gap: 20px;
-}
-
-.people-main {
-  display: flex;
-  flex-direction: column;
   gap: 12px;
-  min-width: 0;
 }
 
-/* ---------- Toolbar ---------- */
-
-.people-toolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  min-width: 0;
-}
-
-.people-toolbar__search {
-  flex: 1 1 160px;
-  max-width: 280px;
-}
-
-.people-toolbar__filters {
-  min-width: 0;
+.people-search {
+  width: 240px;
   max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 
-.people-toolbar__filters::-webkit-scrollbar {
-  display: none;
-}
-
-.people-toolbar__sort {
-  margin-left: auto;
-}
-
+/* Filter counts inside the tab buttons. */
 .people-count {
   margin-left: 6px;
-  font-variant-numeric: tabular-nums;
   color: var(--ink-gray-5);
+  font-variant-numeric: tabular-nums;
 }
 
-/* ---------- List ---------- */
-
+/* The table header pins under the page header and the toolbar. */
 .people-list {
-  --ui-list-row-height: 56px;
-}
-
-.people-row__who {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.people-row__text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.people-row__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ink-gray-9);
-}
-
-.people-row__meta {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 13px;
-  color: var(--ink-gray-5);
-}
-
-.people-balance {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  white-space: nowrap;
-}
-
-.people-balance__amount {
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.people-balance__label {
-  font-size: 13px;
-  color: var(--ink-gray-5);
-}
-
-.people-balance--settled {
-  font-size: 13px;
-  color: var(--ink-gray-5);
-}
-
-.people-group-label__total {
-  margin-left: 8px;
-  font-weight: 420;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-gray-5);
-}
-
-/* ---------- Balances panel ---------- */
-
-.people-summary__title {
-  padding: 12px 16px 4px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ink-gray-9);
-}
-
-.people-summary__list {
-  display: flex;
-  flex-direction: column;
-  padding: 0 4px 4px;
-}
-
-.people-summary__row {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  padding: 10px 12px;
-  border-radius: var(--radius-4);
-  text-align: left;
-}
-
-.people-summary__row + .people-summary__row {
-  box-shadow: 0 -1px 0 var(--outline-gray-1);
-}
-
-.people-summary__row--button {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  color: inherit;
-}
-
-.people-summary__row--button[aria-pressed='true'] {
-  background: var(--surface-gray-2);
+  --ui-list-row-height: 44px;
+  --ui-list-sticky-top: calc(var(--header-height) + var(--list-toolbar-height, 0px));
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .people-summary__row--button:hover {
-    background: var(--surface-gray-1);
-  }
-  .people-summary__row--button[aria-pressed='true']:hover {
-    background: var(--surface-gray-3);
+  .people-list .ui-list__row:hover {
+    --ui-avatar-group-ring: var(--surface-gray-1);
   }
 }
 
-.people-summary__label {
-  font-size: 13px;
-  color: var(--ink-gray-5);
-}
-
-.people-summary__value {
+.people-name {
   display: flex;
-  min-height: 22px;
   align-items: center;
-  font-size: 16px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-gray-9);
+  gap: 10px;
+  min-width: 0;
 }
 
-.people-summary__hint {
-  font-size: 13px;
+.people-name__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.people-name__label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-8);
+}
+
+/* Status and activity under the name, phones only (those columns hide). */
+.people-name__meta {
+  display: none;
+  font-size: 12px;
   color: var(--ink-gray-5);
 }
 
-/* Below 1024px the panel moves above the list as a strip. */
-@media (max-width: 1023.98px) {
-  .people-layout {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
+.people-cell-muted {
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink-gray-6);
+}
+
+.people-cell-empty {
+  color: var(--ink-gray-4);
+}
+
+.people-balance {
+  font-weight: 500;
+}
+
+.people-review {
+  margin-top: 4px;
+}
+
+@media (max-width: 639.98px) {
+  .people-name__meta {
+    display: block;
   }
-  .people-summary {
-    order: -1;
-  }
-  .people-summary__title {
-    display: none;
-  }
-  .people-summary__list {
-    display: grid;
-    grid-template-columns: 1.4fr 1fr 1fr;
-    padding: 4px;
-  }
-  .people-summary__row + .people-summary__row {
-    box-shadow: -1px 0 0 var(--outline-gray-1);
+
+  .people-list {
+    --ui-list-row-height: 56px;
+    --ui-list-sticky-top: calc(52px + var(--list-toolbar-height, 0px));
   }
 }
 
 @media (max-width: 767.98px) {
-  .people-toolbar__search {
-    max-width: none;
+  .people-search {
+    width: 100%;
   }
-  .people-toolbar__sort {
-    margin-left: 0;
-  }
-  .people-toolbar__filters {
-    order: 3;
-    flex-basis: 100%;
-  }
-  .people-summary__list {
-    grid-template-columns: 1fr 1fr;
-  }
-  .people-summary__row:first-child {
-    grid-column: 1 / -1;
-  }
-  .people-summary__row:first-child + .people-summary__row {
-    box-shadow: 0 -1px 0 var(--outline-gray-1);
-  }
-  .people-summary__row:first-child + .people-summary__row + .people-summary__row {
-    box-shadow: 0 -1px 0 var(--outline-gray-1), -1px 0 0 var(--outline-gray-1);
+
+  .people-page .list-toolbar__filters {
+    width: 100%;
   }
 }

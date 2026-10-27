@@ -1,0 +1,64 @@
+/* List-page view controls, pinned under the page header as a full-width band.
+   The page body's top padding moves inside the band so nothing shows through
+   above it. */
+
+.list-toolbar {
+  position: sticky;
+  top: var(--header-height);
+  z-index: 8;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: -20px calc(-1 * var(--page-gutter)) 0;
+  padding: 12px var(--page-gutter);
+  border-bottom: 1px solid var(--outline-gray-1);
+  background: var(--surface-base);
+}
+
+.list-toolbar__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.list-toolbar__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.list-toolbar__summary {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Phone: the compact header is 52px and the page gutter 12px. */
+@media (max-width: 767.98px) {
+  .list-toolbar {
+    top: 52px;
+    margin: -12px -12px 0;
+    padding: 8px 12px;
+  }
+
+  .list-toolbar__meta {
+    margin-left: 0;
+  }
+
+  .list-toolbar__summary {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 767.98px) and (display-mode: standalone) {
+  .list-toolbar {
+    top: calc(52px + env(safe-area-inset-top));
+  }
+}
