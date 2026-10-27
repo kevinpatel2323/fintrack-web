@@ -514,7 +514,7 @@
   color: var(--ink-gray-5);
 }
 
-/* ── Side panel cards ─────────────────────────────────────────────────── */
+/* ── Side panel ───────────────────────────────────────────────────────── */
 
 .cal-section-label {
   padding: 12px 16px 4px;
@@ -524,207 +524,79 @@
   color: var(--ink-gray-5);
 }
 
-.cal-day-panel__totals {
+/* ── Selected day: the same table as Transactions ────────────────────── */
+
+.cal-dayview {
   display: flex;
-  gap: 24px;
-  margin: 0;
-  padding: 0 16px 10px;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  /* "Next day to fix" scrolls here; keep it clear of the sticky header. */
+  scroll-margin-top: calc(var(--header-height) + 12px);
 }
 
-.cal-day-panel__totals div {
+.cal-dayview__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--outline-gray-1);
+}
+
+.cal-dayview__heading {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
-.cal-day-panel__totals dt {
+.cal-dayview__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink-gray-9);
+}
+
+.cal-dayview__meta {
   font-size: 13px;
   color: var(--ink-gray-5);
 }
 
-.cal-day-panel__totals dd {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.cal-day-panel__loading {
-  display: flex;
-  justify-content: center;
-  padding: 24px;
-  color: var(--ink-gray-5);
-}
-
-.cal-day-panel__bills {
-  border-top: 1px solid var(--outline-gray-1);
-}
-
-/* ── Day transaction rows ─────────────────────────────────────────────── */
-
-.cal-txns,
-.cal-bills {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.cal-txn {
-  border-top: 1px solid var(--outline-gray-1);
-}
-
-/* "To categorise" / "Categorised" headings when a day has work left. */
-.cal-txns__heading {
-  padding: 10px 16px 6px;
-  border-top: 1px solid var(--outline-gray-1);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ink-gray-5);
-}
-
-.cal-txns__heading--todo {
+.cal-dayview__todo {
   color: var(--ink-amber-8);
-  background: var(--surface-amber-1);
+  font-weight: 500;
 }
 
-.cal-txn.is-pending {
+.cal-dayview__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Rows still to categorise: the calendar's amber marker, in the table. */
+.cal-dayview__table .ui-list__row.is-pending,
+.cal-dayview__row.is-pending {
+  --ui-avatar-group-ring: var(--surface-amber-1);
   background: var(--surface-amber-1);
   box-shadow: inset 2px 0 0 var(--ink-amber-4);
 }
 
-.cal-txns__heading--todo + .cal-txns .cal-txn:first-child {
-  border-top-color: var(--outline-amber-2);
-}
-
-/* The whole row opens the transaction; the category picker and the card
-   bill toggle sit above that hit area. */
-.cal-txn__row {
-  position: relative;
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  column-gap: 10px;
-  row-gap: 2px;
-  padding: 10px 12px 8px 16px;
-  transition: background-color 100ms;
-}
-
 @media (hover: hover) and (pointer: fine) {
-  .cal-txn__row:hover {
-    background: var(--surface-gray-1);
+  .cal-dayview__table .ui-list__row.is-pending:hover {
+    --ui-avatar-group-ring: var(--surface-amber-2);
+    background: var(--surface-amber-2);
   }
 }
 
-.cal-txn__icon {
-  grid-row: 1 / span 2;
-  align-self: start;
-  margin-top: 1px;
-}
-
-.cal-txn__open {
+.cal-dayview__rows {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  color: inherit;
-  cursor: pointer;
+  flex-direction: column;
 }
 
-.cal-txn__open::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-}
-
-.cal-txn__open:focus-visible {
-  outline: none;
-}
-
-.cal-txn__open:focus-visible::after {
-  outline: var(--focus-outline-default);
-  outline-offset: -2px;
-}
-
-.cal-txn__title {
-  flex: 1;
-  min-width: 0;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
-  color: var(--ink-gray-8);
-}
-
-.cal-txn__amount {
-  flex-shrink: 0;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.cal-txn__sub {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-/* A ghost picker's text lines up with the title above it. */
-.cal-txn__category.is-ghost {
-  margin-left: -6px;
-}
-
-.cal-txn__category,
-.cal-txn__cc-toggle {
-  position: relative;
-  z-index: 1;
-  flex-shrink: 0;
-}
-
-.cal-txn__category {
-  max-width: 55%;
-}
-
-.cal-txn__meta,
-.cal-txn__status {
-  flex: 1;
-  min-width: 0;
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--ink-gray-5);
-}
-
-.cal-txn__status.is-error {
-  color: var(--ink-red-6);
-}
-
-.cal-txn__cc-toggle {
-  margin-left: auto;
-}
-
-.cal-txn__children {
-  padding: 0 8px 8px 16px;
-}
-
-.cal-txn__note {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0 4px 38px;
-  font-size: 13px;
-  color: var(--ink-gray-5);
-}
-
-.cal-txn__remainder {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 4px 2px 38px;
-  font-size: 13px;
-  color: var(--ink-gray-5);
+.cal-dayview__bills {
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-5);
 }
 
 /* Colour dot shown before a category in the pickers. */
@@ -953,20 +825,16 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .cal-txn__row {
-    padding-left: 12px;
-  }
-
-  .cal-txn__children {
-    padding-left: 12px;
+  .cal-dayview__head {
+    align-items: center;
   }
 }
 
 /* Dark mode: Espresso's amber surfaces are deep; blend them toward the page
    so pending days read as warm, not loud. */
 [data-theme='dark'] .cal-day.has-pending,
-[data-theme='dark'] .cal-txn.is-pending,
-[data-theme='dark'] .cal-txns__heading--todo,
+[data-theme='dark'] .cal-dayview__table .ui-list__row.is-pending,
+[data-theme='dark'] .cal-dayview__row.is-pending,
 [data-theme='dark'] .cal-pending-bar {
   background: color-mix(in oklch, var(--surface-amber-1) 45%, var(--surface-base));
 }
@@ -978,16 +846,4 @@
 
 [data-theme='dark'] .cal-pending-bar {
   border-color: color-mix(in oklch, var(--outline-amber-2) 60%, var(--surface-base));
-}
-
-/* Who a transaction is split with, at the end of its second line. */
-.cal-txn__people.ui-avatar-group {
-  flex: 0 0 auto;
-  width: auto;
-  margin-left: auto;
-  padding: 0;
-}
-
-.cal-txn.is-pending {
-  --ui-avatar-group-ring: var(--surface-amber-1);
 }

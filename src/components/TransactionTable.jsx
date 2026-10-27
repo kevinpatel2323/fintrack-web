@@ -285,6 +285,12 @@ export default function TransactionTable({
   columnSettings,
   showColumnsMenu = true,
   stickyHeader = false,
+  // Columns this view never shows (e.g. Date on a single day's list).
+  omitColumns,
+  // Extra class per ledger row, e.g. to mark rows that need attention.
+  rowClassName,
+  // Off for short lists that should never page (a calendar day).
+  paginate = true,
   className,
 }) {
   const labels = useMemo(() => ({ ...DEFAULT_COLUMNS, ...(columnLabels || {}) }), [columnLabels]);
@@ -313,8 +319,10 @@ export default function TransactionTable({
   }, [pageSize, onPageSizeChange]);
 
   const { pageRows, currentPage, totalPages, pageStart, pageEnd } = useMemo(
-    () => paginateRows(rows || [], pageValue, pageSizeValue),
-    [rows, pageValue, pageSizeValue],
+    () => (paginate
+      ? paginateRows(rows || [], pageValue, pageSizeValue)
+      : { pageRows: rows || [], currentPage: 1, totalPages: 1, pageStart: 1, pageEnd: (rows || []).length }),
+    [rows, pageValue, pageSizeValue, paginate],
   );
 
   const items = useMemo(
@@ -405,7 +413,9 @@ export default function TransactionTable({
       amount: (row) => <Amount value={signedAmount(row)} sign="always" />,
     };
 
-    const cols = COLUMN_SPECS.filter((spec) => !hidden[spec.id] || spec.pinned).map((spec) => {
+    const cols = COLUMN_SPECS.filter(
+      (spec) => (!hidden[spec.id] || spec.pinned) && !omitColumns?.includes(spec.id),
+    ).map((spec) => {
       const custom = widths[spec.id];
       const width = spec.flex ? `minmax(${spec.min}px, 1fr)` : (custom ?? spec.width);
       return {
@@ -461,7 +471,7 @@ export default function TransactionTable({
     return cols;
   }, [
     hidden, widths, labels, categoryOptions, expandedIds, onToggleExpand, onAssignCategory, onOpenManage,
-    expansionHandlers, onSort, startResize, resetWidth,
+    expansionHandlers, onSort, startResize, resetWidth, omitColumns,
   ]);
 
   const sort = sortCol ? { key: sortCol, direction: sortDir === 'desc' ? 'desc' : 'asc' } : null;
@@ -500,6 +510,7 @@ export default function TransactionTable({
           item.kind && `is-${item.kind}`,
           item.last && 'is-last',
           !item.kind && expandedIds?.has(item.id) && 'is-open',
+          !item.kind && rowClassName?.(item),
         )}
         onRowClick={clickable ? handleRowClick : undefined}
         sort={sort}
@@ -508,7 +519,7 @@ export default function TransactionTable({
         skeletonRows={8}
         stickyHeader={stickyHeader}
         emptyState={emptyState ?? <EmptyState size="sm" title={emptyMessage} />}
-        footer={!loading && total > 0 ? (
+        footer={paginate && !loading && total > 0 ? (
           <TablePager
             total={total}
             currentPage={currentPage}

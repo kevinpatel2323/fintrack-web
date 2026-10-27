@@ -17,7 +17,7 @@ import {
 } from '../utils/calendarParams.js';
 import { BillsCard } from './calendar/Bills.jsx';
 import CategorySpend from './calendar/CategorySpend.jsx';
-import DayPanel from './calendar/DayPanel.jsx';
+import DayTransactions from './calendar/DayTransactions.jsx';
 import MonthGrid, { CalendarLegend } from './calendar/MonthGrid.jsx';
 import NewTransactionDialog from './calendar/NewTransactionDialog.jsx';
 import SubscriptionDialog from './calendar/SubscriptionDialog.jsx';
@@ -88,7 +88,6 @@ export default function Calendar() {
   // marker on a transaction does not carry — only the card id.
   const [cardsById, setCardsById] = useState({});
   const [friends, setFriends] = useState([]);
-  const [categoryStatusByTransaction, setCategoryStatusByTransaction] = useState({});
   // The cc-link payloads live here rather than in each row so that editing a
   // covered card transaction can write straight back into the rendered copy.
   const [ccDetailByTransaction, setCcDetailByTransaction] = useState({});
@@ -215,6 +214,7 @@ export default function Calendar() {
 
   // The side panel scrolls on its own; a new day starts at its top.
   const asideRef = useRef(null);
+  const dayRef = useRef(null);
   useEffect(() => {
     if (asideRef.current) asideRef.current.scrollTop = 0;
   }, [activeIso]);
@@ -303,7 +303,6 @@ export default function Calendar() {
   // ── Categories ─────────────────────────────────────────────────────────
   const assignCategory = useCallback(
     async (transactionId, categoryId) => {
-      setCategoryStatusByTransaction((p) => ({ ...p, [transactionId]: 'Saving…' }));
       try {
         const res = categoryId
           ? await apiFetch(`${API_BASE}/transactions/${transactionId}/category`, {
@@ -317,9 +316,8 @@ export default function Calendar() {
         setTransactions((prev) =>
           prev.map((t) => (t.id === transactionId ? { ...t, categoryId: cat ? cat.id : null, category: cat } : t)),
         );
-        setCategoryStatusByTransaction((p) => ({ ...p, [transactionId]: '' }));
       } catch {
-        setCategoryStatusByTransaction((p) => ({ ...p, [transactionId]: 'Failed to save' }));
+        toast.error('Couldn’t save the category');
       }
     },
     [categories],
@@ -423,9 +421,8 @@ export default function Calendar() {
     const next = nextPendingDay(pending.days, activeIso);
     if (!next) return;
     selectDay(next);
-    if (isMobile) {
-      requestAnimationFrame(() => asideRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-    }
+    // Bring that day's table into view, where the pickers are.
+    requestAnimationFrame(() => dayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
 
   const categorised = pending.total - pending.pending;
@@ -505,16 +502,15 @@ export default function Calendar() {
           label={monthTitle}
         />
         <CalendarLegend compact={isMobile} />
-      </div>
-      <aside className="cal-aside" ref={asideRef} aria-label="Day and month details">
-        <DayPanel
+        <DayTransactions
+          ref={dayRef}
           iso={activeIso}
           txs={selectedTxs}
           bills={selectedBills}
           loading={txLoading}
+          isMobile={isMobile}
           categories={categories}
           categoriesById={categoriesById}
-          categoryStatusByTransaction={categoryStatusByTransaction}
           onAssignCategory={assignCategory}
           onOpenDetail={openTransactionDetail}
           ccDetailByTransaction={ccDetailByTransaction}
@@ -526,6 +522,8 @@ export default function Calendar() {
           onOpenSubscription={openSubscription}
           onAddTransaction={openManual}
         />
+      </div>
+      <aside className="cal-aside" ref={asideRef} aria-label="Month details">
         <CategorySpend transactions={transactions} monthName={monthName} max={isMobile ? 5 : 6} />
         {upcomingCard}
       </aside>
