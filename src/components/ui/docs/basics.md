@@ -79,6 +79,24 @@ Next to a visible name, pass `aria-hidden` so the name isn't read twice.
 <Avatar label="Yash Patel" image={photoUrl} indicator="green" aria-hidden />
 ```
 
+## AvatarGroup
+
+People involved in something, as Jira shows assignees: overlapping initials avatars (a stable colour per person), each named on hover and linking to `to`. The group measures its own width and shows as many faces as fit, up to `max`. When not everyone fits, the last slot is a "+N" chip that opens a menu of the rest.
+
+| Prop | Type | Default | Notes |
+|---|---|---|---|
+| `people` | `[{ id, name, to? }]` | `[]` | Renders nothing when empty. |
+| `size` | `'xs' \| 'sm' \| 'md' \| 'lg' \| 'xl'` | `'md'` | 16–32px faces. |
+| `max` | number | `5` | Most faces shown even when there's room. |
+| `label` | string | `'People'` | Prefix of the group's accessible name ("Split with: Yash, Kevin"). |
+| `interactive` | bool | `true` | `false` draws plain markup (no links, hover names or menu), for use inside a button such as a list row. |
+
+The ring around each face is the page surface; set `--ui-avatar-group-ring` where the group sits on another colour (a hovered or selected row).
+
+```jsx
+<AvatarGroup people={peopleFromTags(tx.friendTags)} label="Split with" />
+```
+
 ## Spinner
 
 | Prop | Type | Default | Notes |

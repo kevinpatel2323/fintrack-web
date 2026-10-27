@@ -1,0 +1,80 @@
+/* Jira-style avatar stack: faces overlap, each ringed in the surface colour so
+   the edges stay crisp; the hovered one lifts above its neighbours. Set
+   --ui-avatar-group-ring where the group sits on a different surface. */
+
+.ui-avatar-group {
+  --ui-avatar-group-size: 24px;
+  --ui-avatar-group-overlap: 4px;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 0;
+}
+
+.ui-avatar-group--xs { --ui-avatar-group-size: 16px; --ui-avatar-group-overlap: 2px; }
+.ui-avatar-group--sm { --ui-avatar-group-size: 20px; --ui-avatar-group-overlap: 3px; }
+.ui-avatar-group--md { --ui-avatar-group-size: 24px; --ui-avatar-group-overlap: 4px; }
+.ui-avatar-group--lg { --ui-avatar-group-size: 28px; --ui-avatar-group-overlap: 5px; }
+.ui-avatar-group--xl { --ui-avatar-group-size: 32px; --ui-avatar-group-overlap: 6px; }
+
+.ui-avatar-group__item {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  box-shadow: 0 0 0 2px var(--ui-avatar-group-ring, var(--surface-base));
+  color: inherit;
+  text-decoration: none;
+  transition: transform 120ms ease;
+}
+
+.ui-avatar-group__item + .ui-avatar-group__item {
+  margin-left: calc(-1 * var(--ui-avatar-group-overlap));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ui-avatar-group__item:hover {
+    z-index: 1;
+    transform: translateY(-2px);
+  }
+}
+
+.ui-avatar-group__item:focus-visible {
+  z-index: 1;
+  outline: var(--focus-outline-default);
+  outline-offset: 1px;
+}
+
+/* "+N": same size as a face, neutral. */
+.ui-avatar-group__more {
+  display: inline-grid;
+  place-items: center;
+  width: var(--ui-avatar-group-size);
+  height: var(--ui-avatar-group-size);
+  padding: 0 2px;
+  border: 0;
+  background: var(--surface-gray-3);
+  color: var(--ink-gray-7);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.ui-avatar-group--xs .ui-avatar-group__more,
+.ui-avatar-group--sm .ui-avatar-group__more {
+  font-size: 9px;
+}
+
+.ui-avatar-group__more[data-state='open'] {
+  background: var(--surface-gray-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-avatar-group__item {
+    transition: none;
+  }
+}

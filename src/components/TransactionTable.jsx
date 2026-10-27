@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Users } from 'lucide-react';
-import { Amount, Badge, Button, Combobox, EmptyState, ListView, Select } from './ui';
+import { Amount, AvatarGroup, Badge, Button, Combobox, EmptyState, ListView, Select } from './ui';
 import { CategoryIcon } from './common/Category.jsx';
 import TransactionColumnsMenu from './transactions/TransactionColumnsMenu.jsx';
 import { flattenWithExpansion, signedAmount } from './transactions/transactionListModel.js';
@@ -30,6 +30,7 @@ export function TransactionCategoryGlyph({ category, size = 32 }) {
 export const DEFAULT_COLUMNS = {
   date: 'Date',
   description: 'Description',
+  note: 'Note',
   category: 'Category',
   method: 'Method',
   tags: 'People',
@@ -51,9 +52,10 @@ export function sortTableRows(rows, col, dir) {
     switch (col) {
       case 'date': return r.date || '';
       case 'description': return (r.title || '').toLowerCase();
+      case 'note': return (r.note || '').toLowerCase();
       case 'category': return (r.category?.name || '').toLowerCase();
       case 'method': return r.method || '';
-      case 'tags': return r.tagCount ?? -1;
+      case 'tags': return r.people ? r.people.length : (r.tagCount ?? -1);
       // Sort on the signed ledger effect so income and spend separate.
       case 'amount': return r.isIncome ? Number(r.amount) : -Number(r.amount);
       default: return 0;
@@ -75,13 +77,16 @@ export function sortTableRows(rows, col, dir) {
 const COLUMN_SPECS = [
   { id: 'date', width: 88, min: 72 },
   { id: 'description', width: 240, min: 200, flex: true, pinned: true },
+  // The UPI note / remark. Off until the user turns it on in Columns.
+  { id: 'note', width: 200, min: 120, hideBelow: 'lg', defaultHidden: true },
   { id: 'category', width: 168, min: 112 },
   { id: 'method', width: 128, min: 88, hideBelow: 'lg' },
-  { id: 'tags', width: 88, min: 72, hideBelow: 'lg' },
+  { id: 'tags', width: 132, min: 72, hideBelow: 'lg' },
   { id: 'amount', width: 120, min: 96, align: 'right' },
 ];
 
 const PINNED = COLUMN_SPECS.filter((c) => c.pinned).map((c) => c.id);
+const DEFAULT_HIDDEN = COLUMN_SPECS.filter((c) => c.defaultHidden).map((c) => c.id);
 
 /** Hideable columns as `[{ id, label }]`, for a page that renders its own Columns menu. */
 export function transactionColumnChoices(columnLabels) {
@@ -91,7 +96,7 @@ export function transactionColumnChoices(columnLabels) {
 
 /** Column preferences for a ledger; pass the result to both the table and its Columns menu. */
 export function useTransactionColumns(storageKey) {
-  return useTransactionTableSettings(storageKey, { pinned: PINNED });
+  return useTransactionTableSettings(storageKey, { pinned: PINNED, defaultHidden: DEFAULT_HIDDEN });
 }
 
 function stopRowClick(e) {
@@ -154,9 +159,6 @@ function DescriptionCell({ row, expanded, onToggleExpand }) {
           <span className="truncate" title={row.title || undefined}>{row.title || '—'}</span>
           {row.titleBadge}
         </div>
-        {row.subtitle ? (
-          <div className="txl-desc__subtitle truncate" title={row.subtitle}>{row.subtitle}</div>
-        ) : null}
       </div>
     </div>
   );
@@ -289,7 +291,10 @@ export default function TransactionTable({
 
   // The page's settings when it renders its own Columns menu; ours otherwise
   // (inert with no storage key, so the two never write over each other).
-  const ownSettings = useTransactionTableSettings(columnSettings ? null : storageKey, { pinned: PINNED });
+  const ownSettings = useTransactionTableSettings(columnSettings ? null : storageKey, {
+    pinned: PINNED,
+    defaultHidden: DEFAULT_HIDDEN,
+  });
   const settings = columnSettings || ownSettings;
   const { hidden, widths, setWidth, resetWidth } = settings;
 
@@ -389,7 +394,12 @@ export default function TransactionTable({
         <CategoryCell row={row} categoryOptions={categoryOptions} onAssignCategory={ctx.onAssignCategory} />
       ),
       method: (row) => <span className="txl-muted truncate">{row.method}</span>,
-      tags: (row) => (row.tagCount > 0 ? (
+      note: (row) => (row.note ? (
+        <span className="txl-note truncate" title={row.note}>{row.note}</span>
+      ) : null),
+      tags: (row) => (row.people ? (
+        row.people.length > 0 ? <AvatarGroup people={row.people} size="md" max={5} label="Split with" /> : null
+      ) : row.tagCount > 0 ? (
         <Badge prefix={Users} label={row.tagCount} title={`Split with ${row.tagCount} ${row.tagCount === 1 ? 'person' : 'people'}`} />
       ) : null),
       amount: (row) => <Amount value={signedAmount(row)} sign="always" />,

@@ -5,6 +5,7 @@
 export { default as Button } from './Button.jsx';
 export { default as Badge } from './Badge.jsx';
 export { default as Avatar } from './Avatar.jsx';
+export { default as AvatarGroup, avatarTheme } from './AvatarGroup.jsx';
 export { default as Spinner } from './Spinner.jsx';
 export { default as LoadingIndicator } from './LoadingIndicator.jsx';
 export { default as Skeleton } from './Skeleton.jsx';

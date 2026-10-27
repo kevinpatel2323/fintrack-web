@@ -979,3 +979,15 @@
 [data-theme='dark'] .cal-pending-bar {
   border-color: color-mix(in oklch, var(--outline-amber-2) 60%, var(--surface-base));
 }
+
+/* Who a transaction is split with, at the end of its second line. */
+.cal-txn__people.ui-avatar-group {
+  flex: 0 0 auto;
+  width: auto;
+  margin-left: auto;
+  padding: 0;
+}
+
+.cal-txn.is-pending {
+  --ui-avatar-group-ring: var(--surface-amber-1);
+}

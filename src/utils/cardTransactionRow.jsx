@@ -1,4 +1,5 @@
 import { Badge } from '../components/ui';
+import { peopleFromTags } from '../components/transactions/transactionListModel.js';
 
 /**
  * Shared mapping from a card transaction to the row shape TransactionTable and
@@ -38,10 +39,12 @@ export function toCardTableRow(row, tagsByTransaction = {}) {
     title: row.merchant || '',
     subtitle: row.notes || status,
     titleBadge: row.isRefund ? <CardRefundBadge /> : null,
+    note: row.notes || null,
     category: row.category,
     categoryId: row.categoryId,
     method: status,
     tagCount: tags === undefined ? null : tags.length,
+    people: peopleFromTags(tags),
     amount: Number(row.amount || 0),
     isIncome,
     expandable: false,

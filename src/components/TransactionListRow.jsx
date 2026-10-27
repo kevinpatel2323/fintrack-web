@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Amount, Combobox } from './ui';
+import { Amount, AvatarGroup, Combobox } from './ui';
 import { CategoryIcon } from './common/Category.jsx';
 import { categoryColor } from '../utils/categoryColors.js';
 import { formatDateShort } from './TransactionTable.jsx';
@@ -70,7 +70,12 @@ export default function TransactionListRow({
             {row.metaTrailing && <span className="txl-item__meta-trailing">{row.metaTrailing}</span>}
           </span>
         </span>
-        <Amount className="txl-item__amount" value={signedAmount(row)} sign="always" />
+        <span className="txl-item__end">
+          <Amount className="txl-item__amount" value={signedAmount(row)} sign="always" />
+          {row.people?.length > 0 && (
+            <AvatarGroup people={row.people} size="sm" max={3} interactive={false} label="Split with" className="txl-item__people" />
+          )}
+        </span>
       </button>
     </div>
   );

@@ -21,36 +21,7 @@
   margin-top: 2px;
 }
 
-/* ---------- Layout: cards + upcoming dues ---------- */
-.cards-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
-}
-
-@media (min-width: 1024px) {
-  .cards-layout--with-dues {
-    grid-template-columns: minmax(0, 1fr) 340px;
-    grid-template-areas: 'main dues';
-  }
-
-  .cards-layout--with-dues .cards-layout__main {
-    grid-area: main;
-  }
-
-  .cards-layout--with-dues .cards-layout__dues {
-    grid-area: dues;
-  }
-}
-
-.cards-layout__main {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  min-width: 0;
-}
-
+/* ---------- Card sections ---------- */
 .cards-section {
   display: flex;
   flex-direction: column;
@@ -240,78 +211,6 @@
   text-decoration: underline;
 }
 
-/* ---------- Upcoming dues ---------- */
-.cards-dues__list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.cards-dues__list > li + li {
-  border-top: 1px solid var(--outline-gray-1);
-}
-
-.cards-dues__row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 56px;
-  padding: 8px 12px 8px 16px;
-  color: var(--ink-gray-8);
-}
-
-.cards-dues__row:hover {
-  background: var(--surface-gray-1);
-}
-
-.cards-dues__row:focus-visible {
-  outline-offset: -2px;
-}
-
-.cards-dues__text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.cards-dues__name {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ink-gray-9);
-}
-
-.cards-dues__meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  font-size: 13px;
-  color: var(--ink-gray-5);
-}
-
-.cards-dues__figure {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  flex-shrink: 0;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ink-gray-9);
-}
-
-.cards-dues__min {
-  font-size: 12px;
-  font-weight: 420;
-  color: var(--ink-gray-5);
-}
-
-.cards-dues__chevron {
-  color: var(--ink-gray-4);
-}
-
 @media (max-width: 767.98px) {
   .cards-page {
     gap: 16px;
@@ -324,9 +223,5 @@
   /* An odd count: the first figure takes the full row. */
   .cards-stats > :first-child:nth-last-child(odd) {
     grid-column: 1 / -1;
-  }
-
-  .cards-dues__chevron {
-    display: none;
   }
 }

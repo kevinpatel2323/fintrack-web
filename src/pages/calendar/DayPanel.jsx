@@ -1,10 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
 import { CalendarDays, ChevronDown, ChevronRight, CreditCard, Plus } from 'lucide-react';
 import {
-  Amount, Button, Card, Combobox, EmptyState, ErrorMessage, Spinner,
+  Amount, AvatarGroup, Button, Card, Combobox, EmptyState, ErrorMessage, Spinner,
 } from '../../components/ui';
 import { CategoryIcon } from '../../components/common/Category.jsx';
 import TransactionListRow from '../../components/TransactionListRow.jsx';
+import { peopleFromTags } from '../../components/transactions/transactionListModel.js';
 import { toCardTableRow } from '../../utils/cardTransactionRow.jsx';
 import { categoryColor } from '../../utils/categoryColors.js';
 import { BillRow } from './Bills.jsx';
@@ -178,6 +179,7 @@ function DayTxRow({
     .filter(Boolean)
     .join(' · ');
   const categorized = isTransactionCategorized(tx);
+  const people = peopleFromTags(tx.friendTags);
   const saving = categoryStatus === 'Saving…';
   const failed = categoryStatus && !saving;
 
@@ -221,6 +223,9 @@ function DayTxRow({
             </span>
           ) : (
             meta && <span className="cal-txn__meta truncate">{meta}</span>
+          )}
+          {people?.length > 0 && (
+            <AvatarGroup people={people} size="sm" max={3} label="Split with" className="cal-txn__people" />
           )}
           {cc && (
             <Button

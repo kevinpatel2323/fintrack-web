@@ -223,3 +223,22 @@ export function manualFormToPayload(form) {
     upiBank: form.upiBank.trim() || undefined,
   };
 }
+
+/**
+ * The people on a transaction, from its friend tags: one entry per person
+ * (a person can hold several tags on one transaction), in tag order, each
+ * linking to their page. `null` while the tags have not loaded.
+ */
+export function peopleFromTags(tags) {
+  if (tags === undefined || tags === null) return null;
+  const seen = new Set();
+  const people = [];
+  for (const tag of tags) {
+    const friend = tag?.friend;
+    const id = friend?.id ?? tag?.friendId;
+    if (id == null || seen.has(String(id))) continue;
+    seen.add(String(id));
+    people.push({ id: String(id), name: friend?.name || 'Unknown', to: `/friends/${id}` });
+  }
+  return people;
+}

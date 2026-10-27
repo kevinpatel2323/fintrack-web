@@ -21,6 +21,7 @@ import Amount from '../../../components/ui/Amount.jsx';
 import Avatar from '../../../components/ui/Avatar.jsx';
 import Badge from '../../../components/ui/Badge.jsx';
 import Button from '../../../components/ui/Button.jsx';
+import AvatarGroup from '../../../components/ui/AvatarGroup.jsx';
 import Card from '../../../components/ui/Card.jsx';
 import Divider from '../../../components/ui/Divider.jsx';
 import EmptyState from '../../../components/ui/EmptyState.jsx';
@@ -211,6 +212,23 @@ export default function BasicsDemo() {
           {AVATAR_SIZES.map((size) => (
             <Avatar key={size} size={size} label="Swiggy" shape="square" theme="violet" />
           ))}
+        </Row>
+      </Group>
+
+      <Group title="AvatarGroup · 7 people in 56 / 96 / 140 / 240px (fits what it can, +N lists the rest)">
+        <Row>
+          {[56, 96, 140, 240].map((w) => (
+            <div key={w} style={{ width: w, border: '1px dashed var(--outline-gray-2)', padding: 4 }}>
+              <AvatarGroup
+                people={['Yash Patel', 'Kevin Patel', 'Jaimin Tank', 'Alchemy tech', 'Het Patel (Sankalp)', 'Meera Shah', 'Saral Gajjar'].map(
+                  (name, i) => ({ id: String(i + 1), name, to: `/friends/${i + 1}` }),
+                )}
+              />
+            </div>
+          ))}
+          <div style={{ width: 140, border: '1px dashed var(--outline-gray-2)', padding: 4 }}>
+            <AvatarGroup people={[{ id: '9', name: 'Yash Patel' }, { id: '8', name: 'Kevin Patel' }]} />
+          </div>
         </Row>
       </Group>
 

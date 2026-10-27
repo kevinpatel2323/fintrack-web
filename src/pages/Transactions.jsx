@@ -26,6 +26,7 @@ import {
   getCurrentMonthRange,
   getMonthOptions,
   matchMonthValue,
+  peopleFromTags,
 } from '../components/transactions/transactionListModel.js';
 import {
   Alert, Amount, Badge, Button, Combobox, ConfirmDialog, EmptyState, ErrorMessage, KeyboardShortcut,
@@ -59,10 +60,13 @@ function toTableRow(row, tagsByTransaction) {
     titleBadge: cc ? (
       <Badge size="sm" prefix={CreditCard} label={`CC bill${cc.cardLast4 ? ` · •• ${cc.cardLast4}` : ''}`} />
     ) : null,
+    // The UPI remark, else the narration when it says more than the title.
+    note: row.upiDescription || (row.narration && row.narration !== row.upiName ? row.narration : null),
     category: row.category,
     categoryId: row.categoryId,
     method: row.upiBank ? `UPI · ${row.upiBank}` : row.isManual ? 'Manual' : 'Bank',
     tagCount: tags === undefined ? null : tags.length,
+    people: peopleFromTags(tags),
     amount: isIncome ? deposit : withdrawal,
     isIncome,
     expandable: Boolean(cc),

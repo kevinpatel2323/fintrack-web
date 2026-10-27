@@ -28,8 +28,16 @@ function save(storageKey, patch) {
   }
 }
 
-export function useTransactionTableSettings(storageKey, { pinned = [] } = {}) {
-  const [hidden, setHidden] = useState(() => load(storageKey)?.hidden || {});
+/**
+ * `defaultHidden` columns start hidden until the user turns them on; a choice
+ * the user made (shown or hidden) is stored and always wins.
+ */
+export function useTransactionTableSettings(storageKey, { pinned = [], defaultHidden = [] } = {}) {
+  const [hidden, setHidden] = useState(() => {
+    const stored = load(storageKey)?.hidden || {};
+    const defaults = Object.fromEntries(defaultHidden.filter((id) => !(id in stored)).map((id) => [id, true]));
+    return { ...defaults, ...stored };
+  });
   const [widths, setWidths] = useState(() => load(storageKey)?.colWidths || {});
 
   useEffect(() => {

@@ -641,3 +641,35 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Note column: the UPI remark, muted. */
+.txl-note {
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink-gray-6);
+}
+
+/* People: the avatar rings follow the row's background so the overlaps stay
+   crisp on hover and when selected. */
+.txl-list .ui-list__row:hover {
+  --ui-avatar-group-ring: var(--surface-gray-1);
+}
+
+.txl-list .ui-list__row[data-selected] {
+  --ui-avatar-group-ring: var(--surface-gray-2);
+}
+
+/* Phone row: amount on top, who it's split with under it. */
+.txl-item__end {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.txl-item__people.ui-avatar-group {
+  justify-content: flex-end;
+  width: auto;
+  padding: 0;
+}

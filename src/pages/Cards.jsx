@@ -5,7 +5,6 @@ import {
 } from '../components/ui';
 import CardFormModal from '../components/CardFormModal.jsx';
 import CardTile, { CardTileSkeleton } from './cards/CardTile.jsx';
-import UpcomingDues from './cards/UpcomingDues.jsx';
 import { fetchDues, fetchWallet } from '../services/cardsApi.js';
 import { useImportSchedule } from '../hooks/useImportSchedule.js';
 import { inrCompact } from '../utils/inr.js';
@@ -92,6 +91,8 @@ export default function Cards() {
   const debitCards = cards.filter((c) => c.kind !== 'credit');
   const activeDues = dues.filter((d) => d.status !== 'no-due');
   const dueByCard = new Map(dues.map((d) => [d.cardId, d]));
+  // The bill to look at first: overdue before upcoming, then the nearest.
+  const urgentDue = activeDues.find((d) => d.status === 'overdue') ?? activeDues[0];
 
   // First load only: a refresh after adding a card keeps the list in place.
   const initialLoading = loading && !wallet;
@@ -134,6 +135,7 @@ export default function Cards() {
               loading={initialLoading}
               value={<Amount value={totals.totalDue} tone={activeDues.some((d) => d.status === 'overdue') ? 'due' : 'inherit'} />}
               hint={<DueSoonHint dues={activeDues} />}
+              to={urgentDue ? `/cards/${urgentDue.cardId}` : undefined}
             />
             <StatCard
               label="Available credit"
@@ -162,13 +164,9 @@ export default function Cards() {
         )}
 
         {initialLoading ? (
-          <div className="cards-layout">
-            <div className="cards-layout__main">
-              <div className="cards-grid" aria-busy="true" aria-label="Loading cards">
-                <CardTileSkeleton />
-                <CardTileSkeleton />
-              </div>
-            </div>
+          <div className="cards-grid" aria-busy="true" aria-label="Loading cards">
+            <CardTileSkeleton />
+            <CardTileSkeleton />
           </div>
         ) : cards.length === 0 ? (
           !error && (
@@ -180,23 +178,22 @@ export default function Cards() {
             />
           )
         ) : (
-          <div className={`cards-layout${hasCredit ? ' cards-layout--with-dues' : ''}`}>
-            {hasCredit && <UpcomingDues className="cards-layout__dues" dues={activeDues} />}
-            <div className="cards-layout__main">
-              <CardSection
-                title="Credit cards"
-                cards={creditCards}
-                scheduleByCard={scheduleByCard}
-                dueByCard={dueByCard}
-              />
-              <CardSection
-                title="Debit cards"
-                cards={debitCards}
-                scheduleByCard={scheduleByCard}
-                dueByCard={dueByCard}
-              />
-            </div>
-          </div>
+          // Each tile carries its own bill (due date, amount, overdue / due soon),
+          // so the cards themselves are the page.
+          <>
+            <CardSection
+              title="Credit cards"
+              cards={creditCards}
+              scheduleByCard={scheduleByCard}
+              dueByCard={dueByCard}
+            />
+            <CardSection
+              title="Debit cards"
+              cards={debitCards}
+              scheduleByCard={scheduleByCard}
+              dueByCard={dueByCard}
+            />
+          </>
         )}
       </PageBody>
 
