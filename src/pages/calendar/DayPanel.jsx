@@ -225,7 +225,7 @@ function DayTxRow({
             meta && <span className="cal-txn__meta truncate">{meta}</span>
           )}
           {people?.length > 0 && (
-            <AvatarGroup people={people} size="sm" max={3} label="Split with" className="cal-txn__people" />
+            <AvatarGroup people={people} size="md" max={3} label="Split with" className="cal-txn__people" />
           )}
           {cc && (
             <Button

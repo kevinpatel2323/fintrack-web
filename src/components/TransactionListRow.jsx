@@ -73,7 +73,7 @@ export default function TransactionListRow({
         <span className="txl-item__end">
           <Amount className="txl-item__amount" value={signedAmount(row)} sign="always" />
           {row.people?.length > 0 && (
-            <AvatarGroup people={row.people} size="sm" max={3} interactive={false} label="Split with" className="txl-item__people" />
+            <AvatarGroup people={row.people} size="md" max={3} interactive={false} label="Split with" className="txl-item__people" />
           )}
         </span>
       </button>
