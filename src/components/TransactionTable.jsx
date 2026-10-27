@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Users } from 'lucide-react';
 import { Amount, AvatarGroup, Badge, Button, Combobox, EmptyState, ListView, Select } from './ui';
-import { CategoryIcon } from './common/Category.jsx';
+import { CategoryIcon, categoryOptions as buildCategoryOptions } from './common/Category.jsx';
 import TransactionColumnsMenu from './transactions/TransactionColumnsMenu.jsx';
 import { flattenWithExpansion, signedAmount } from './transactions/transactionListModel.js';
 import { useTransactionTableSettings } from './transactions/useTransactionTableSettings.js';
@@ -15,11 +15,6 @@ export function formatDateShort(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return String(value);
   return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(d);
-}
-
-/** Kept for existing imports: the category tile is now the shared `CategoryIcon`. */
-export function TransactionCategoryGlyph({ category, size = 32 }) {
-  return <CategoryIcon category={category} size={size} />;
 }
 
 /**
@@ -36,9 +31,6 @@ export const DEFAULT_COLUMNS = {
   tags: 'People',
   amount: 'Amount',
 };
-
-/** Column count including the trailing menu cell (kept for existing imports). */
-export const TXN_TABLE_COLSPAN = 7;
 
 export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -372,14 +364,7 @@ export default function TransactionTable({
 
   // ── columns ───────────────────────────────────────────────────────────────
   const categoryOptions = useMemo(
-    () => [
-      { label: 'No category', value: NO_CATEGORY, icon: <CategoryIcon category={null} size={20} /> },
-      ...categories.map((c) => ({
-        label: c.name,
-        value: String(c.id),
-        icon: <CategoryIcon category={c} size={20} />,
-      })),
-    ],
+    () => buildCategoryOptions(categories, { label: 'No category', value: NO_CATEGORY }),
     [categories],
   );
 
@@ -427,6 +412,8 @@ export default function TransactionTable({
             onResizeReset={() => resetWidth(spec.id)}
           />
         ),
+        // Resizable headers are elements, so name the sort by the visible label.
+        sortLabel: labels[spec.id],
         width,
         align: spec.align,
         hideBelow: spec.hideBelow,

@@ -130,14 +130,6 @@
   transform: rotate(90deg);
 }
 
-.txl-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  flex-shrink: 0;
-  border-radius: 50%;
-}
-
 .txl-cell-control {
   display: flex;
   flex: 1;
@@ -565,11 +557,6 @@
 
 .txl-item--nested .txl-item__amount {
   font-size: 13px;
-}
-
-.txl-dot--empty {
-  border: 1.5px dashed var(--outline-gray-4);
-  background: transparent;
 }
 
 /* ---------- Period control ---------- */

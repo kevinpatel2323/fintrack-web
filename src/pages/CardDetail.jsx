@@ -8,6 +8,7 @@ import {
   Skeleton, StatCard, Tabs, TextInput, toast,
 } from '../components/ui';
 import CardFormModal from '../components/CardFormModal.jsx';
+import { categoryOptions as buildCategoryOptions } from '../components/common/Category.jsx';
 import CardTransactionModal from '../components/CardTransactionModal.jsx';
 import UnbilledPasteModal from '../components/UnbilledPasteModal.jsx';
 import CardPaymentModal from '../components/CardPaymentModal.jsx';
@@ -372,8 +373,7 @@ export default function CardDetail() {
   const categoryOptions = useMemo(
     () => [
       { label: 'All categories', value: '' },
-      { label: 'Uncategorised', value: '__none__' },
-      ...categories.map((c) => ({ label: c.name, value: String(c.id) })),
+      ...buildCategoryOptions(categories, { label: 'Uncategorised', value: '__none__' }),
     ],
     [categories],
   );
@@ -594,7 +594,7 @@ export default function CardDetail() {
             className="cardd-toolbar__search"
             type="search"
             prefix={Search}
-            placeholder="Search merchant, note or category"
+            placeholder="Search transactions"
             aria-label="Search transactions"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}

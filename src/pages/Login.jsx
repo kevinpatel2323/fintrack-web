@@ -54,7 +54,7 @@ export default function Login() {
         />
       ) : (
         <Alert
-          theme="yellow"
+          theme="amber"
           title="Passkeys aren’t supported in this browser"
           description="Try a recent version of Safari, Chrome or Edge."
         />

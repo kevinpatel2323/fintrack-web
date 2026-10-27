@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Button, ErrorMessage, FormControl } from '../../components/ui';
-import { categoryColor } from '../../utils/categoryColors.js';
+import { categoryOptions as buildCategoryOptions } from '../../components/common/Category.jsx';
 import FormFrame from './FormFrame.jsx';
 import { CADENCE_OPTIONS, buildRRule, parseCadence } from './cadence.js';
 import { parseExdatesText, toLocalIso } from './calendarModel.js';
@@ -82,14 +82,7 @@ export default function SubscriptionDialog({
     setFormError('');
   }, [open, subscription]);
 
-  const categoryOptions = useMemo(
-    () => categories.map((c) => ({
-      label: c.name,
-      value: String(c.id),
-      icon: <span className="cal-swatch" style={{ background: categoryColor(c) }} aria-hidden="true" />,
-    })),
-    [categories],
-  );
+  const categoryOptions = useMemo(() => buildCategoryOptions(categories), [categories]);
 
   const set = (key) => (e) => setForm((p) => ({ ...p, [key]: e.target.value }));
   const setValue = (key) => (value) => setForm((p) => ({ ...p, [key]: value ?? '' }));

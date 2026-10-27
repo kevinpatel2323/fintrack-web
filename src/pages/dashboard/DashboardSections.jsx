@@ -176,6 +176,8 @@ export function TrendCard({ trends, loading, height = 240 }) {
       })),
     [trends, months],
   );
+  // Months with nothing in them would draw bare axes; show the empty state.
+  const hasActivity = rows.some((r) => r.spent || r.earned);
 
   return (
     <Card
@@ -193,7 +195,7 @@ export function TrendCard({ trends, loading, height = 240 }) {
         </div>
       ) : (
         <BarChart
-          data={rows}
+          data={hasActivity ? rows : []}
           xKey="month"
           series={TREND_SERIES}
           height={height}

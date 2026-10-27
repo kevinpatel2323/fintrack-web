@@ -1,9 +1,11 @@
 import { useEffect, useId, useState } from 'react';
 import { Dialog, ErrorMessage, FormControl, toast } from '../ui';
-import { API_BASE, apiFetch } from '../../services/http.js';
+import { API_BASE, apiErrorMessage, apiFetch } from '../../services/http.js';
 import './people.css';
 
 const EMPTY = { name: '', email: '', phone: '', note: '' };
+// Loose on purpose: the API has the final say, this only catches typos.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Adds a person, or edits one (`person` set). Same requests as before:
@@ -14,6 +16,7 @@ export default function PersonDialog({ open, person = null, onClose, onSaved }) 
   const formId = useId();
   const [form, setForm] = useState(EMPTY);
   const [nameError, setNameError] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -25,6 +28,7 @@ export default function PersonDialog({ open, person = null, onClose, onSaved }) 
         : EMPTY,
     );
     setNameError('');
+    setEmailError('');
     setError('');
     setSaving(false);
   }, [open, person]);
@@ -33,14 +37,17 @@ export default function PersonDialog({ open, person = null, onClose, onSaved }) 
     const { value } = e.target;
     setForm((prev) => ({ ...prev, [key]: value }));
     if (key === 'name' && value.trim()) setNameError('');
+    if (key === 'email') setEmailError('');
   };
 
   async function submit(e) {
     e.preventDefault();
-    if (!form.name.trim()) {
-      setNameError('Enter a name.');
-      return;
-    }
+    const email = form.email.trim();
+    const nameMissing = !form.name.trim();
+    const emailBad = Boolean(email) && !EMAIL_RE.test(email);
+    setNameError(nameMissing ? 'Enter a name.' : '');
+    setEmailError(emailBad ? 'Enter a valid email, like name@example.com.' : '');
+    if (nameMissing || emailBad) return;
     setSaving(true);
     setError('');
     try {
@@ -50,13 +57,13 @@ export default function PersonDialog({ open, person = null, onClose, onSaved }) 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: form.name.trim(),
-          email: form.email.trim() || undefined,
+          email: email || undefined,
           phone: form.phone.trim() || undefined,
           note: form.note.trim() || undefined,
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Save failed');
+      if (!res.ok) throw new Error(apiErrorMessage(data, 'Save failed'));
       await onSaved?.(data);
       toast.success(person ? 'Changes saved' : `${form.name.trim()} added`);
       onClose();
@@ -94,7 +101,13 @@ export default function PersonDialog({ open, person = null, onClose, onSaved }) 
           error={nameError || undefined}
         />
         <div className="people-form__pair">
-          <FormControl label="Email" type="email" value={form.email} onChange={set('email')} />
+          <FormControl
+            label="Email"
+            type="email"
+            value={form.email}
+            onChange={set('email')}
+            error={emailError || undefined}
+          />
           <FormControl label="Phone" type="tel" value={form.phone} onChange={set('phone')} />
         </div>
         <FormControl label="Note" value={form.note} onChange={set('note')} />

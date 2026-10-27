@@ -1,10 +1,9 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { Checkbox, Dialog, ErrorMessage, FormControl, toast } from './ui';
-import { CategoryBadge } from './common/Category.jsx';
+import { categoryOptions as buildCategoryOptions } from './common/Category.jsx';
 import { createCardTransaction, updateCardTransaction } from '../services/cardsApi.js';
 import './cards/cards.css';
-
-const todayIso = () => new Date().toISOString().slice(0, 10);
+import { getTodayIso } from '../utils/dateUtils.js';
 
 /**
  * Add or edit a card transaction. Pass `initial` (an existing card
@@ -23,7 +22,7 @@ export default function CardTransactionModal({
   const isEdit = Boolean(initial);
   const [merchant, setMerchant] = useState(initial?.merchant ?? '');
   const [amount, setAmount] = useState(initial ? String(initial.amount ?? '') : '');
-  const [txnDate, setTxnDate] = useState(initial?.txnDate ?? todayIso());
+  const [txnDate, setTxnDate] = useState(initial?.txnDate ?? getTodayIso());
   const [categoryId, setCategoryId] = useState(
     initial?.categoryId != null ? String(initial.categoryId) : '',
   );
@@ -37,10 +36,7 @@ export default function CardTransactionModal({
     setError('');
   }, [merchant, amount, txnDate]);
 
-  const categoryOptions = useMemo(
-    () => categories.map((c) => ({ label: c.name, value: String(c.id), category: c })),
-    [categories],
-  );
+  const categoryOptions = useMemo(() => buildCategoryOptions(categories), [categories]);
 
   const clear = (k) => setFieldErrors((f) => (f[k] ? { ...f, [k]: undefined } : f));
 
@@ -141,7 +137,6 @@ export default function CardTransactionModal({
           onChange={(v) => setCategoryId(v ?? '')}
           placeholder="Uncategorised"
           searchPlaceholder="Search categories"
-          renderOption={(o) => <CategoryBadge category={o.category} />}
           clearable
         />
         <Checkbox

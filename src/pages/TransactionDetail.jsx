@@ -20,7 +20,7 @@ import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js
 import { cardTxnStatus, toCardTableRow } from '../utils/cardTransactionRow.jsx';
 import { calendarPath } from '../utils/calendarParams.js';
 import { transactionsListPath } from '../utils/transactionsListParams.js';
-import { API_BASE, apiFetch } from '../services/http.js';
+import { API_BASE, apiErrorMessage, apiFetch } from '../services/http.js';
 import './TransactionDetail.css';
 
 export default function TransactionDetail() {
@@ -210,7 +210,7 @@ export default function TransactionDetail() {
         // as "Split applied".
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          throw new Error(data.message || data.error || 'Failed to add tag');
+          throw new Error(apiErrorMessage(data, 'Failed to add tag'));
         }
       }
       await fetchTags();

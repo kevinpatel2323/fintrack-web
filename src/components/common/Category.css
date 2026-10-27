@@ -1,7 +1,7 @@
 .category-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
   max-width: 100%;
   color: var(--ink-gray-7);
@@ -10,29 +10,12 @@
 }
 
 .category-badge--sm {
-  gap: 5px;
+  gap: 6px;
   font-size: 12px;
-}
-
-.category-badge__dot {
-  width: 8px;
-  height: 8px;
-  flex-shrink: 0;
-  border-radius: 50%;
-}
-
-.category-badge--sm .category-badge__dot {
-  width: 6px;
-  height: 6px;
 }
 
 .category-badge.is-empty {
   color: var(--ink-gray-5);
-}
-
-.category-badge.is-empty .category-badge__dot {
-  border: 1.5px dashed var(--outline-gray-4);
-  background: transparent;
 }
 
 .category-icon {

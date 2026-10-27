@@ -19,7 +19,7 @@ export function formatDay(value) {
 }
 
 /**
- * Where a row stands bill-wise: an entry's pending, netted or written-off
+ * Where a row stands bill-wise: open, or an entry's pending, netted or written-off
  * amounts, or a settlement's money still on account. Empty for rows settled
  * by a link from before amounts were recorded — there is nothing to add.
  */
@@ -38,6 +38,7 @@ export function rowSettlementNotes(tag) {
   if (writtenOff > 0) notes.push({ text: `${rupees(writtenOff)} written off` });
   if (tag.settlementStatus === 'partial') notes.push({ text: `${rupees(toMinor(tag.pendingAmount))} pending`, tone: 'warn' });
   if (tag.settlementStatus === 'settled') notes.push({ text: 'Settled', tone: 'ok' });
+  if (tag.settlementStatus === 'open') notes.push({ text: 'Open' });
   return notes;
 }
 

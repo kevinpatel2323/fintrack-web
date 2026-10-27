@@ -157,6 +157,11 @@ export function useModalFocus({ active, containerRef, restoreFocus = true }) {
   // focus in the same commit, so an effect would see the wrong element.
   const prevFocusRef = useRef(null);
   const wasActiveRef = useRef(false);
+  // What had focus inside the modal when the effect last cleaned up. React's
+  // StrictMode runs a new modal's effect twice in development; the first
+  // cleanup hands focus back to the page, so the re-run puts it back here
+  // (an `autoFocus` field) instead of on the panel.
+  const insideFocusRef = useRef(null);
   if (active && !wasActiveRef.current && typeof document !== 'undefined') {
     prevFocusRef.current = document.activeElement;
   }
@@ -169,8 +174,11 @@ export function useModalFocus({ active, containerRef, restoreFocus = true }) {
     modalStack.push(token);
     setBackgroundInert(true);
 
+    const inside = insideFocusRef.current;
+    insideFocusRef.current = null;
     if (container && !container.contains(document.activeElement)) {
-      focusFirst(container, { preferTabbable: false });
+      if (inside && inside.isConnected && container.contains(inside)) inside.focus({ preventScroll: true });
+      else focusFirst(container, { preferTabbable: false });
     }
 
     const onKeyDown = (e) => {
@@ -210,6 +218,7 @@ export function useModalFocus({ active, containerRef, restoreFocus = true }) {
       const i = modalStack.indexOf(token);
       if (i !== -1) modalStack.splice(i, 1);
       setBackgroundInert(false);
+      if (container && container.contains(document.activeElement)) insideFocusRef.current = document.activeElement;
       const prev = prevFocusRef.current;
       if (!restoreFocus || !prev || typeof prev.focus !== 'function' || !prev.isConnected) return;
       const now = document.activeElement;

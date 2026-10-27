@@ -434,8 +434,8 @@ export default function FriendDetail() {
                 hint={net === 0 ? 'All settled' : undefined}
                 loading={!summary}
               />
-              <StatCard label={`${first} paid`} value={<Amount value={iOwe} tone="inherit" />} loading={!summary} />
-              <StatCard label="You paid" value={<Amount value={owedToMe} tone="inherit" />} loading={!summary} />
+              <StatCard label={`${first} paid for you`} value={<Amount value={iOwe} tone="inherit" />} loading={!summary} />
+              <StatCard label={`You paid for ${first}`} value={<Amount value={owedToMe} tone="inherit" />} loading={!summary} />
               <StatCard label="Settled" value={<Amount value={settlements} tone="inherit" />} loading={!summary} />
             </div>
 

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Amount, Card, Combobox, Spinner } from '../ui';
-import { categoryOptions } from './categoryOptions.jsx';
+import { categoryOptions } from '../common/Category.jsx';
 import { formatTxnDate } from './formatTxnDate.js';
 
 function Field({ label, children, mono = false }) {

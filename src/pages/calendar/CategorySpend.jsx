@@ -1,10 +1,13 @@
 import { useMemo } from 'react';
-import { Amount, Card } from '../../components/ui';
+import { Amount, Card, Skeleton } from '../../components/ui';
 import { CategoryBars } from '../../components/charts';
 import { buildCategorySpend } from './calendarModel.js';
 
-/** The month's withdrawals by category, from the transactions already loaded. */
-export default function CategorySpend({ transactions, monthName, max = 6 }) {
+/**
+ * The month's withdrawals by category, from the transactions already loaded.
+ * `loading` (nothing loaded yet) shows placeholder bars, not "No spending".
+ */
+export default function CategorySpend({ transactions, monthName, max = 6, loading = false }) {
   const { segments, total } = useMemo(() => buildCategorySpend(transactions), [transactions]);
   const items = useMemo(
     () => segments.map((s) => ({ key: s.key, label: s.name, value: s.amount, color: s.color })),
@@ -18,13 +21,19 @@ export default function CategorySpend({ transactions, monthName, max = 6 }) {
       actions={total > 0 ? <Amount value={total} sign="never" tone="muted" className="text-sm" /> : null}
       className="cal-card"
     >
-      <CategoryBars
-        items={items}
-        max={max}
-        showPercent
-        emptyText={`No spending in ${monthName} yet`}
-        ariaLabel={`Spending by category in ${monthName}`}
-      />
+      {loading ? (
+        <div className="cal-spend-skeleton" aria-busy="true" aria-label="Loading spending">
+          {[0, 1, 2].map((i) => <Skeleton key={i} height={28} />)}
+        </div>
+      ) : (
+        <CategoryBars
+          items={items}
+          max={max}
+          showPercent
+          emptyText={`No spending in ${monthName} yet`}
+          ariaLabel={`Spending by category in ${monthName}`}
+        />
+      )}
     </Card>
   );
 }

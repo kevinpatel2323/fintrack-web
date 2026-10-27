@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CreditCard } from 'lucide-react';
+import { CheckCircle2, CreditCard, FileText } from 'lucide-react';
 import {
   Amount, Button, Checkbox, Dialog, EmptyState, ErrorMessage, FormControl, LoadingIndicator, TabButtons, toast,
 } from './ui';
@@ -223,7 +223,12 @@ export default function CcLinkModal({ transaction, onClose, onLinked, open = tru
 
         {mode === 'statement' ? (
           statements.length === 0 ? (
-            <p className="ccl-empty">No statements on this card yet. Import one first.</p>
+            <EmptyState
+              size="sm"
+              icon={FileText}
+              title="No statements on this card yet"
+              description="Import one first, or link the payment to individual transactions."
+            />
           ) : (
             <>
               <FormControl
@@ -234,7 +239,12 @@ export default function CcLinkModal({ transaction, onClose, onLinked, open = tru
                 onChange={(e) => setStatementId(e.target.value)}
               />
               {covered.length === 0 ? (
-                <p className="ccl-empty">Every transaction on this statement is already covered.</p>
+                <EmptyState
+                  size="sm"
+                  icon={CheckCircle2}
+                  title="Nothing left to cover"
+                  description="Every transaction on this statement is already covered by a payment."
+                />
               ) : (
                 <ul className="ccl-list" aria-label="Transactions this statement covers">
                   {covered.map((t) => (
@@ -248,7 +258,7 @@ export default function CcLinkModal({ transaction, onClose, onLinked, open = tru
             </>
           )
         ) : unpaid.length === 0 ? (
-          <p className="ccl-empty">No unpaid transactions on this card.</p>
+          <EmptyState size="sm" icon={CheckCircle2} title="No unpaid transactions on this card" />
         ) : (
           <ul className="ccl-list" aria-label="Unpaid card transactions">
             {unpaid.map((t) => {

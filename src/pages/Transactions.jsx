@@ -39,7 +39,7 @@ import {
   parseTransactionsListParams,
   patchTransactionsListParams,
 } from '../utils/transactionsListParams.js';
-import { API_BASE, apiFetch } from '../services/http.js';
+import { API_BASE, apiErrorMessage, apiFetch } from '../services/http.js';
 import { toBankTableRow } from '../components/transactions/bankTransactionRow.jsx';
 import ListToolbar, { ListSummary } from '../components/common/ListToolbar.jsx';
 import './Transactions.css';
@@ -431,7 +431,7 @@ export default function Transactions() {
           }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || data.message || 'Failed to add tag');
+        if (!res.ok) throw new Error(apiErrorMessage(data, 'Failed to add tag'));
       }
       setTagsStatusByTransaction((p) => ({ ...p, [transactionId]: 'Split applied — friend tags added.' }));
       await fetchTags(transactionId);
@@ -460,7 +460,7 @@ export default function Transactions() {
     try {
       const res = await apiFetch(`${API_BASE}/transactions/${transactionId}/friends/${tagId}`, { method: 'DELETE' });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete tag');
+      if (!res.ok) throw new Error(apiErrorMessage(data, 'Failed to delete tag'));
       await fetchTags(transactionId);
     } catch (error) {
       setTagsStatusByTransaction((p) => ({ ...p, [transactionId]: error.message || 'Failed to delete tag' }));
@@ -475,7 +475,7 @@ export default function Transactions() {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to add manual transaction.');
+    if (!res.ok) throw new Error(apiErrorMessage(data, 'Failed to add manual transaction.'));
     setManualOpen(false);
     toast.success('Transaction added');
     await handleRangeFetch();

@@ -272,24 +272,6 @@ export function dayModel(txs = [], subs = [], ccDetailByTransaction = {}, cardsB
 
 // ── Transactions in the day list ──────────────────────────────────────────
 
-export function txTitle(tx) {
-  return tx.upiName || tx.narration || '—';
-}
-
-export function txDescription(tx) {
-  return tx.upiDescription || tx.narration || tx.upiBank || (tx.isManual ? 'Manual entry' : 'Bank transaction');
-}
-
-export function txMethod(tx) {
-  if (tx.upiBank) return `UPI · ${tx.upiBank}`;
-  return tx.isManual ? 'Manual' : 'Bank';
-}
-
-export function accountSuffix(accountNumber) {
-  if (!accountNumber) return null;
-  return `•• ${String(accountNumber).slice(-4)}`;
-}
-
 /** Signed amount of a bank transaction: deposits positive, withdrawals negative. */
 export function txSignedAmount(tx) {
   const deposit = Number(tx.deposit || 0);

@@ -129,25 +129,6 @@ export function categoryKey(category) {
   return categoryKeyForName(category.name);
 }
 
-// Friend tint — deterministic from id. Theme tokens, not literals, so anything
-// tinted per person re-tints with the theme.
-const FRIEND_TINTS = [
-  'var(--cat-food)', 'var(--cat-transport)', 'var(--cat-shopping)',
-  'var(--cat-bills)', 'var(--cat-grocery)', 'var(--cat-rent)',
-  'var(--cat-entmt)', 'var(--cat-health)', 'var(--cat-salary)',
-  'var(--ink-red-5)',
-];
-
-export function friendTint(idOrName) {
-  if (!idOrName) return FRIEND_TINTS[0];
-  let h = 0;
-  const s = String(idOrName);
-  for (let i = 0; i < s.length; i++) {
-    h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  }
-  return FRIEND_TINTS[h % FRIEND_TINTS.length];
-}
-
 export function initialsOf(name) {
   if (!name) return '··';
   // Initials come from words that start with a letter, ignoring anything in

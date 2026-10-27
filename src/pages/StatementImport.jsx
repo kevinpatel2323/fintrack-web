@@ -5,7 +5,7 @@ import { Button, ConfirmDialog, FileUploader, PageBody, PageHeader, toast } from
 import StatementQueue from '../components/StatementQueue.jsx';
 import { refreshImportSchedule } from '../hooks/useImportSchedule.js';
 import { useIsCompact } from '../styles/breakpoints.js';
-import { API_BASE, apiFetch } from '../services/http.js';
+import { API_BASE, apiErrorMessage, apiFetch } from '../services/http.js';
 import ImportStepper from './import/ImportStepper.jsx';
 import FileRow from './import/FileRow.jsx';
 import ReviewStep from './import/ReviewStep.jsx';
@@ -20,14 +20,6 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const STEPS = ['Upload', 'Review & map', 'Confirm & apply'];
 
 const fileKey = (f) => (f ? `${f.name}-${f.size}-${f.lastModified}` : '');
-
-/** The API's own words for a failed request (Nest puts them in `message`). */
-function apiError(data, fallback) {
-  const m = data?.message;
-  if (Array.isArray(m) && m.length) return m.join('. ');
-  if (typeof m === 'string' && m && m !== 'Internal server error') return m;
-  return data?.error || fallback;
-}
 
 export default function StatementImport() {
   const isCompact = useIsCompact();
@@ -108,7 +100,7 @@ export default function StatementImport() {
       fd.append('statement', file);
       const res = await apiFetch(`${API_BASE}/imports/hdfc/preview`, { method: 'POST', body: fd });
       const data = await res.json();
-      if (!res.ok) throw new Error(apiError(data, 'Preview failed'));
+      if (!res.ok) throw new Error(apiErrorMessage(data, 'Preview failed'));
       setUploadPreview(data);
       setConfirmedMatchKeys(new Set((data.matches || []).map(matchKey)));
       setPreviewFileKey(fileKey(file));
@@ -156,7 +148,7 @@ export default function StatementImport() {
       }
       const res = await apiFetch(`${API_BASE}/imports/hdfc`, { method: 'POST', body: fd });
       const data = await res.json();
-      if (!res.ok) throw new Error(apiError(data, 'Import failed'));
+      if (!res.ok) throw new Error(apiErrorMessage(data, 'Import failed'));
       announceImport(data);
       resetUpload();
       await refreshAfterUpload();
@@ -220,7 +212,7 @@ export default function StatementImport() {
     try {
       const res = await apiFetch(`${API_BASE}/imports/${imp.id}/revert`, { method: 'POST' });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'Revert failed');
+      if (!res.ok) throw new Error(apiErrorMessage(data, 'Revert failed'));
       setRevertOpen(false);
       toast.success(`Reverted ${plural(data.removedTransactions || 0, 'transaction', 'transactions')}`);
       await refreshAfterUpload();

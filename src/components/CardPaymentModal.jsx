@@ -2,8 +2,7 @@ import { useId, useState } from 'react';
 import { Dialog, ErrorMessage, FormControl, toast } from './ui';
 import { createCardPayment } from '../services/cardsApi.js';
 import './cards/cards.css';
-
-const todayIso = () => new Date().toISOString().slice(0, 10);
+import { getTodayIso } from '../utils/dateUtils.js';
 
 /**
  * Record a payment against a credit card. `statementId` ties it to that bill;
@@ -20,7 +19,7 @@ export default function CardPaymentModal({
 }) {
   const formId = useId();
   const [amount, setAmount] = useState(suggestedAmount ? String(suggestedAmount) : '');
-  const [paidOn, setPaidOn] = useState(todayIso());
+  const [paidOn, setPaidOn] = useState(getTodayIso());
   const [viaLabel, setViaLabel] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);

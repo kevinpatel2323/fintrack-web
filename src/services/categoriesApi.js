@@ -1,6 +1,6 @@
 // Category-related API calls. CRUD currently lives inline in pages/Categories.jsx;
 // this module holds the CSV export, which needs blob/download handling.
-import { API_BASE, apiFetch } from './http.js';
+import { API_BASE, apiErrorMessage, apiFetch } from './http.js';
 
 function filenameFromDisposition(res, fallback) {
   const cd = res.headers.get('Content-Disposition') || '';
@@ -24,7 +24,7 @@ export async function downloadCategoryCsv(categoryId, { start, end } = {}) {
     let message = 'Export failed';
     try {
       const data = await res.json();
-      message = data.message || data.error || message;
+      message = apiErrorMessage(data, message);
     } catch {
       /* non-JSON error body — keep default message */
     }

@@ -177,7 +177,6 @@ export default function NetOffModal({ friendId, friendName, onClose, onSaved }) 
           })}
           <FormControl
             label="Note"
-            description="Optional"
             value={note}
             maxLength={500}
             placeholder="e.g. Squared up over dinner"

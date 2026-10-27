@@ -18,3 +18,15 @@ export async function apiFetch(input, init) {
   }
   return response;
 }
+
+/**
+ * The API's own words for a failed request. Nest puts them in `message` (a
+ * list for validation errors); `error` only holds the status name ("Bad
+ * Request"), so it is the last resort before `fallback`.
+ */
+export function apiErrorMessage(data, fallback) {
+  const m = data?.message;
+  if (Array.isArray(m) && m.length) return m.join('. ');
+  if (typeof m === 'string' && m && m !== 'Internal server error') return m;
+  return data?.error || fallback;
+}

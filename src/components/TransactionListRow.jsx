@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { Amount, AvatarGroup, Combobox } from './ui';
-import { CategoryIcon } from './common/Category.jsx';
-import { categoryColor } from '../utils/categoryColors.js';
+import { CategoryIcon, categoryOptions as buildCategoryOptions } from './common/Category.jsx';
 import { formatDateShort } from './TransactionTable.jsx';
 import { signedAmount } from './transactions/transactionListModel.js';
 import './transactions/transactions.css';
@@ -29,14 +28,7 @@ export default function TransactionListRow({
   const secondary = row.mobileSubtitle ?? row.subtitle;
   // Same options (and look) as the category picker everywhere else.
   const categoryOptions = useMemo(
-    () => [
-      { label: 'No category', value: NO_CATEGORY },
-      ...categories.map((c) => ({
-        label: c.name,
-        value: String(c.id),
-        icon: <span className="txl-dot" style={{ background: categoryColor(c) }} aria-hidden="true" />,
-      })),
-    ],
+    () => buildCategoryOptions(categories, { label: 'No category', value: NO_CATEGORY }),
     [categories],
   );
   const categoryName = row.category?.name || 'Uncategorised';

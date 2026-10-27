@@ -92,7 +92,7 @@ export default function Setup() {
         </form>
       ) : (
         <Alert
-          theme="yellow"
+          theme="amber"
           title="Passkeys aren’t supported in this browser"
           description="Try a recent version of Safari, Chrome or Edge."
         />

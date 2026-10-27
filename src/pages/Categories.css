@@ -134,9 +134,7 @@
 }
 
 .catg-empty {
-  padding: 48px 16px;
-  border: 1px solid var(--outline-gray-1);
-  border-radius: var(--radius-5);
+  padding: 64px 16px;
 }
 
 /* ---------- Split panel ---------- */

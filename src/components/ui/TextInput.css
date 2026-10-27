@@ -38,6 +38,17 @@
   opacity: 1;
 }
 
+/* Amounts and counts are typed, not stepped: no native spin buttons. */
+.ui-input[type='number'] {
+  appearance: textfield;
+}
+
+.ui-input[type='number']::-webkit-inner-spin-button,
+.ui-input[type='number']::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
 /* subtle — filled gray, the default */
 .ui-input[data-variant='subtle'] {
   border-color: var(--surface-gray-2);

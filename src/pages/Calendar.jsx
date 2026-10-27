@@ -7,7 +7,7 @@ import {
 import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
 import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
 import { getCcLink, listCards } from '../services/cardsApi.js';
-import { API_BASE, apiFetch } from '../services/http.js';
+import { API_BASE, apiErrorMessage, apiFetch } from '../services/http.js';
 import { useIsCompact } from '../styles/breakpoints.js';
 import { cardTxnStatus } from '../utils/cardTransactionRow.jsx';
 import {
@@ -73,7 +73,8 @@ export default function Calendar() {
 
   // ── Data ───────────────────────────────────────────────────────────────
   const [transactions, setTransactions] = useState([]);
-  const [txLoading, setTxLoading] = useState(false);
+  // True until the first load lands, so nothing reads as "no spending" first.
+  const [txLoading, setTxLoading] = useState(true);
   const [txError, setTxError] = useState('');
 
   const [occurrences, setOccurrences] = useState([]);
@@ -258,7 +259,7 @@ export default function Calendar() {
       body: JSON.stringify(body),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to add manual transaction.');
+    if (!res.ok) throw new Error(apiErrorMessage(data, 'Failed to add manual transaction.'));
     setManualOpen(false);
     toast.success('Transaction added');
     await loadTransactions();
@@ -524,7 +525,12 @@ export default function Calendar() {
         />
       </div>
       <aside className="cal-aside" ref={asideRef} aria-label="Month details">
-        <CategorySpend transactions={transactions} monthName={monthName} max={isMobile ? 5 : 6} />
+        <CategorySpend
+          transactions={transactions}
+          monthName={monthName}
+          max={isMobile ? 5 : 6}
+          loading={txLoading && transactions.length === 0}
+        />
         {upcomingCard}
       </aside>
     </div>

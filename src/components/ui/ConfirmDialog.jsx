@@ -95,6 +95,7 @@ export default function ConfirmDialog({
       icon={resolvedIcon}
       theme={tone}
       size={size}
+      mobile="center"
       dismissable={!loading}
       footer={
         <div className="ui-confirm-dialog__actions">

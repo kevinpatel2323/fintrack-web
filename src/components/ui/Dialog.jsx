@@ -168,6 +168,7 @@ export default function Dialog({
   label,
   className,
   bodyClassName,
+  mobile = 'sheet',
   style: styleProp,
   ...rest
 }) {
@@ -220,7 +221,7 @@ export default function Dialog({
     <Portal>
       <div className="ui-dialog-layer" data-state={state}>
         <div className="ui-overlay-scrim ui-dialog-overlay" data-state={state} aria-hidden="true" />
-        <div className="ui-dialog-container" data-state={state}>
+        <div className="ui-dialog-container" data-state={state} data-mobile={mobile}>
           <div
             {...rest}
             ref={panelRef}
@@ -233,6 +234,7 @@ export default function Dialog({
             data-state={state}
             data-size={width == null ? sizeKey : undefined}
             data-header={showHeader ? '' : undefined}
+            data-mobile={mobile}
             className={cx('ui-dialog', className)}
             style={width != null ? { maxWidth: width, ...styleProp } : styleProp}
           >

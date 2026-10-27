@@ -8,7 +8,7 @@ import { ledgerBalanceDelta, ledgerOpenTotals } from '../utils/ledgerParties';
 import { groupIdOf } from '../utils/entryGroups.js';
 import './FriendLedgerExportModal.css';
 
-import { API_BASE, apiFetch } from '../services/http.js';
+import { API_BASE, apiErrorMessage, apiFetch } from '../services/http.js';
 
 function monthBounds(d = new Date()) {
   const y = d.getFullYear();
@@ -148,7 +148,7 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
         body: JSON.stringify({ preferences }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || data.error || 'Could not save your choices.');
+      if (!res.ok) throw new Error(apiErrorMessage(data, 'Could not save your choices.'));
       setPrefStatus('Saved for next time');
     } catch (e) {
       for (const id of ids) dirtyRef.current.add(id);
@@ -214,7 +214,7 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
         const q = `?start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`;
         const res = await apiFetch(`${API_BASE}/friends/${friend.id}/transactions${q}`);
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || data.error || 'Failed to load transactions');
+        if (!res.ok) throw new Error(apiErrorMessage(data, 'Failed to load transactions'));
         if (cancelled) return;
         const rows = data.data || [];
 

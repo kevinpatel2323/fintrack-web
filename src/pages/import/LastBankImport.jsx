@@ -1,4 +1,5 @@
-import { Alert, Card, Select } from '../../components/ui';
+import { FileSpreadsheet } from 'lucide-react';
+import { Alert, Card, EmptyState, Select } from '../../components/ui';
 import { accountLabel, fmtDate, fmtPeriod, isoDateMinusDays } from './format.js';
 
 /**
@@ -63,7 +64,12 @@ export default function LastBankImport({ lastImport, accounts, selectedAccount, 
           )}
         </div>
       ) : (
-        <p className="import-muted">No bank statements imported yet.</p>
+        <EmptyState
+          size="sm"
+          icon={FileSpreadsheet}
+          title="No bank statements imported yet"
+          description="Once you import one, its period and the next download date show here."
+        />
       )}
     </Card>
   );

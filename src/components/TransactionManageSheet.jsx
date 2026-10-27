@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import SplitTransactionForm from './SplitTransactionForm.jsx';
 import { FriendTagCard } from './FriendTagLedgerDisplay.jsx';
 import { Amount, Button, FormControl, LoadingIndicator, Sheet } from './ui';
-import { categoryOptions } from './transaction-detail/categoryOptions.jsx';
+import { categoryOptions } from './common/Category.jsx';
 import { formatTxnDate } from './transaction-detail/formatTxnDate.js';
 import { isProgressStatus, useStatusToasts } from './transaction-detail/useStatusToasts.js';
 import './transaction-detail/TransactionManageSheet.css';

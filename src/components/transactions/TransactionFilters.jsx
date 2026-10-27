@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, DateRangePicker, FormControl, FormLabel, Select, Sheet, TabButtons } from '../ui';
-import { categoryColor } from '../../utils/categoryColors.js';
+import { categoryOptions } from '../common/Category.jsx';
 import { getLast30DayRange } from '../../utils/dateUtils.js';
 import { getCurrentMonthRange, matchMonthValue } from './transactionListModel.js';
 import './transactions.css';
@@ -16,21 +16,12 @@ export function accountOptions(accounts) {
   return [{ label: 'All accounts', value: '' }, ...(accounts || []).map((a) => ({ label: a, value: a }))];
 }
 
-/** Category filter choices: Uncategorised first, then each category with its colour dot. */
+/** Category filter choices: Uncategorised first, then each category with its tile. */
 export function useCategoryFilterOptions(categories) {
-  return useMemo(() => [
-    {
-      label: 'Uncategorised',
-      value: '__none__',
-      icon: <span className="txl-dot txl-dot--empty" aria-hidden="true" />,
-    },
-    ...(categories || []).map((c) => ({
-      label: c.name,
-      value: String(c.id),
-      // Category colour is per-record data, so it is set inline.
-      icon: <span className="txl-dot" style={{ background: categoryColor(c) }} aria-hidden="true" />,
-    })),
-  ], [categories]);
+  return useMemo(
+    () => categoryOptions(categories || [], { label: 'Uncategorised', value: '__none__' }),
+    [categories],
+  );
 }
 
 /**

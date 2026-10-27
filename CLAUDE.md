@@ -66,7 +66,6 @@ Serialization: `serializeSplitPayload` / `parseSplitPayload` encode `SerializedS
 |-----------|---------|
 | `TransactionTable` / `TransactionMobileList` | The ledger table (kit `ListView`) and its phone list, shared by Transactions, the card page and a bill payment's covered transactions |
 | `TransactionManageSheet` | Side/bottom sheet to recategorise, split or tag a transaction (Transactions, Calendar, card page) |
-| `DynamicTable` | Generic resizable table kept for older callers |
 | `SplitTransactionForm` | Form for splitting transaction amounts |
 | `FriendTagLedgerDisplay` | Shows ledger entries for a friend |
 | `FriendLedgerExportModal` | Exports friend ledger to PDF via `jspdf` |
@@ -86,8 +85,6 @@ Serialization: `serializeSplitPayload` / `parseSplitPayload` encode `SerializedS
 | File | Purpose |
 |------|---------|
 | `utils/dateUtils.js` | Date formatting helpers |
-| `utils/tableSort.js` | Column sort logic for the ledger tables |
-| `utils/stringUtils.js` | Text helpers |
 | `utils/ledgerParties.js` | Friend-ledger maths and **all ledger text** (`ledgerRs`, `ledgerDate`, `ledgerImpactText`, `ledgerOpenText`, `ledgerSettledEntryParts`, `ledgerSettlementCheck`, `ledgerSettlementRefLines`). The export preview (`FriendLedgerExportModal`) and the PDF must both render from these — never format ledger amounts or settlement lines locally, or the two drift apart |
 | `utils/ledgerPdf.js` | jsPDF-based ledger PDF export |
 | `utils/entryGroups.js` | Entry groups: collapsing a group into one row (`groupLedgerRows`), its totals from its entries (`groupTotals`, same sums as the API's `groupFigures`), settling it as one (`fillGroup`), and `ledgerStatement` — the numbered rows the export preview and PDF both print, with settlement links to grouped entries pointing at the group's row |

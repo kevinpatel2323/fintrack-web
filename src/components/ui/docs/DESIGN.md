@@ -24,10 +24,11 @@ The pre-redesign layer (`primitives.jsx`, `Icon.jsx`, the `--ft-*` variables and
   - Base surface (`--surface-base`) and hairline borders (`--outline-gray-1` for dividers, `--outline-gray-2` for control borders).
   - Shadows only on things that float: menus, dialogs, toasts.
   - No gradients, glows, neon, glass, blurred backdrops, or decorative illustrations.
+  - One deliberate exception: the credit card picture (`components/cards/CardFace.jsx`) is drawn as a physical card — its own palette with a soft gradient, chip, network mark and the small uppercase labels printed on real cards. It is the card's visual identity, not decoration; nothing else borrows its styling.
 - **Neutral by default.**
   - Black solid button (`variant="solid"`, gray theme) for the one primary action on a screen; subtle or outline gray for the rest.
   - Blue only for links and focus. Green for money coming in. Red only for destructive actions and money that's overdue or owed.
-  - Category colour appears as a small dot, bar or slice, never as a filled card.
+  - Category colour appears in the category tile (`CategoryIcon`: the category's icon or emoji on a gray square, tinted in its colour), a bar or a chart slice — never as a filled card. Every category picker and table cell shows the tile and the name (`CategoryBadge`, `categoryOptions` in `components/common/Category.jsx`).
 - **Type.**
   - Inter. Body 14px (`text-base`), secondary 13px (`text-sm`) in `--ink-gray-5`.
   - Titles live in the PageHeader (16px semibold). Section headings are `text-base font-medium` (`--ink-gray-9`).
@@ -44,6 +45,8 @@ The pre-redesign layer (`primitives.jsx`, `Icon.jsx`, the `--ft-*` variables and
 ## Layout patterns
 
 **One table for every list of records.** Anything that lists records — transactions, people, a person's ledger, categories, imports, statements — is a table in the same look: the kit `ListView` (transactions use `components/TransactionTable.jsx`, which wraps it). Same header row, row height, hover, sortable headers, a Columns menu where columns are optional, avatars for people, and on phones the less important columns fold into a second line under the title. Don't build a card list or a custom row list for records. List pages put their search, filters and summary in `components/common/ListToolbar.jsx`, which pins under the page header.
+
+Deliberate exceptions, each a short list rather than a page of records: the Cards page's grid of card pictures, the dashboard's short lists, a day's "Bills due" under the Calendar table, the passkeys on Security, and pick lists inside a dialog (choosing entries for a settlement, a statement to link, rows for an export).
 
 **List page** (Transactions, People, Categories):
 1. `PageHeader`: title on the left; primary action ("New transaction") as a solid button on the right, with secondary actions as subtle buttons or a `…` Dropdown.
@@ -70,7 +73,7 @@ The pre-redesign layer (`primitives.jsx`, `Icon.jsx`, the `--ft-*` variables and
 **Phone (<768px):**
 - `PageHeader` switches to the compact centred title on its own. Pass `back` on detail pages and `mobileActions` for one or two icon buttons.
 - Lists become simple stacked rows: primary text plus muted secondary line on the left, amount on the right. Hide non-essential `ListView` columns with `hideBelow` or render a row list.
-- Forms open as bottom sheets (`Sheet side="auto"`).
+- Forms open as bottom sheets. A `Dialog` docks to the bottom edge on its own; a `Sheet` does with `side="auto"`. Confirmations (`ConfirmDialog`) stay a centred card.
 - No horizontal page scrolling, ever.
 
 ## Writing

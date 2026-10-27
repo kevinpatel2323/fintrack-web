@@ -72,7 +72,7 @@ An action menu (frappe-ui Dropdown + Menu): 28px rows, gray-6 icons, group label
 
 ## Dialog
 
-A modal dialog (frappe-ui Dialog). It has a black-overlay scrim and a rounded-7 card. The title is 18px semibold, with an optional icon badge in a tone. The body scrolls between a fixed header and a fixed action row, and a hairline marks the edge when content is scrolled out of view. On phones the card spans the width minus 16px on each side.
+A modal dialog (frappe-ui Dialog). It has a black-overlay scrim and a rounded-7 card. The title is 18px semibold, with an optional icon badge in a tone. The body scrolls between a fixed header and a fixed action row, and a hairline marks the edge when content is scrolled out of view. On phones (< 640px) the dialog docks to the bottom edge like a bottom Sheet: full width, 36px top corners, at most 90% of the screen high, sliding up. Pass `mobile="center"` to keep the centred card instead (ConfirmDialog does).
 
 | Prop | Type | Default | Notes |
 |---|---|---|---|
@@ -92,6 +92,7 @@ A modal dialog (frappe-ui Dialog). It has a black-overlay scrim and a rounded-7 
 | `maxWidth` | number or CSS length | | *Legacy.* Overrides `size`. |
 | `label` | string | | *Legacy.* `aria-label`. Used when there is no title or you want a different name. |
 | `bodyClassName` | string | | Class on the scrolling body. |
+| `mobile` | `'sheet' \| 'center'` | `'sheet'` | Phone presentation: docked to the bottom edge, or the centred card. |
 
 Focus moves to an `[autofocus]`/`data-autofocus` element (React's `autoFocus` also works), or else to the dialog itself. Tab cycles inside the dialog, and focus returns to the opener on close.
 

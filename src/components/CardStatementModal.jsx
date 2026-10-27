@@ -2,15 +2,14 @@ import { useId, useState } from 'react';
 import { Dialog, ErrorMessage, FormControl, toast } from './ui';
 import { createCardStatement } from '../services/cardsApi.js';
 import './cards/cards.css';
-
-const todayIso = () => new Date().toISOString().slice(0, 10);
+import { getTodayIso } from '../utils/dateUtils.js';
 
 /** Add a statement (billing cycle) to a credit card by hand. */
 export default function CardStatementModal({ cardId, defaults = {}, onClose, onSaved, open = true }) {
   const formId = useId();
-  const [cycleStart, setCycleStart] = useState(defaults.cycleStart || todayIso());
-  const [cycleEnd, setCycleEnd] = useState(defaults.cycleEnd || todayIso());
-  const [dueDate, setDueDate] = useState(defaults.dueDate || todayIso());
+  const [cycleStart, setCycleStart] = useState(defaults.cycleStart || getTodayIso());
+  const [cycleEnd, setCycleEnd] = useState(defaults.cycleEnd || getTodayIso());
+  const [dueDate, setDueDate] = useState(defaults.dueDate || getTodayIso());
   const [minDue, setMinDue] = useState(defaults.minDue ? String(defaults.minDue) : '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');

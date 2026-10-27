@@ -12,7 +12,7 @@ import CategoryFormDialog from '../components/categories/CategoryFormDialog.jsx'
 import CategorySplitCard from '../components/categories/CategorySplitCard.jsx';
 import { categoryColor } from '../utils/categoryColors.js';
 import { fetchCategoryBreakdown } from '../services/dashboardApi.js';
-import { API_BASE, apiFetch } from '../services/http.js';
+import { API_BASE, apiErrorMessage, apiFetch } from '../services/http.js';
 import './Categories.css';
 
 /** First and last day of the month `offset` months from now, as ISO dates. */
@@ -120,7 +120,7 @@ export default function Categories() {
       }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.message || data.error || 'Save failed');
+    if (!res.ok) throw new Error(apiErrorMessage(data, 'Save failed'));
     setFormOpen(false);
     toast.success(editId ? 'Category saved' : `Added ${name}`);
     await fetchCategories();
@@ -287,17 +287,7 @@ export default function Categories() {
   const showList = !(loadError && !categories.length);
 
   let list = null;
-  if (noCategories) {
-    list = (
-      <EmptyState
-        className="catg-empty"
-        icon={Tags}
-        title="No categories yet"
-        description="Add categories to sort your spending, like Food or Rent."
-        action={<Button iconLeft={Plus} label="Add category" onClick={openCreate} />}
-      />
-    );
-  } else if (showList) {
+  if (showList && !noCategories) {
     list = (
       <ListView
         className="catg-list"
@@ -343,64 +333,75 @@ export default function Categories() {
         }
       />
       <PageBody className="catg-page">
-        <div className="catg-layout">
-          <div className="catg-main">
-            <div className="catg-toolbar">
-              <TextInput
-                className="catg-search"
-                type="search"
-                prefix={Search}
-                placeholder="Search categories"
-                aria-label="Search categories"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              <div className="catg-toolbar__end">
-                <span className="catg-summary text-sm">{summary}</span>
-                <div className="catg-month" role="group" aria-label="Month">
-                  <Button variant="ghost" icon={ChevronLeft} label="Previous month" onClick={() => setMonthOffset((o) => o - 1)} />
-                  <span className="catg-month__label" aria-live="polite">{month.label}</span>
-                  <Button
-                    variant="ghost"
-                    icon={ChevronRight}
-                    label="Next month"
-                    disabled={monthOffset >= 0}
-                    onClick={() => setMonthOffset((o) => o + 1)}
-                  />
+        {noCategories ? (
+          // Nothing to search, page through or split yet: just the way in.
+          <EmptyState
+            className="catg-empty"
+            icon={Tags}
+            title="No categories yet"
+            description="Add categories to sort your spending, like Food or Rent."
+            action={<Button iconLeft={Plus} label="Add category" onClick={openCreate} />}
+          />
+        ) : (
+          <div className="catg-layout">
+            <div className="catg-main">
+              <div className="catg-toolbar">
+                <TextInput
+                  className="catg-search"
+                  type="search"
+                  prefix={Search}
+                  placeholder="Search categories"
+                  aria-label="Search categories"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                <div className="catg-toolbar__end">
+                  <span className="catg-summary text-sm">{summary}</span>
+                  <div className="catg-month" role="group" aria-label="Month">
+                    <Button variant="ghost" icon={ChevronLeft} label="Previous month" onClick={() => setMonthOffset((o) => o - 1)} />
+                    <span className="catg-month__label" aria-live="polite">{month.label}</span>
+                    <Button
+                      variant="ghost"
+                      icon={ChevronRight}
+                      label="Next month"
+                      disabled={monthOffset >= 0}
+                      onClick={() => setMonthOffset((o) => o + 1)}
+                    />
+                  </div>
                 </div>
               </div>
+
+              {loadError && (
+                <Alert
+                  theme="red"
+                  title="Couldn't load categories"
+                  description={loadError}
+                  primaryAction={{ label: 'Try again', onClick: fetchCategories }}
+                />
+              )}
+              {breakdownError && !loadError && (
+                <Alert
+                  theme="amber"
+                  title={`Couldn't load spending for ${month.label}`}
+                  primaryAction={{ label: 'Try again', onClick: () => setBreakdownKey((k) => k + 1) }}
+                />
+              )}
+
+              {list}
             </div>
 
-            {loadError && (
-              <Alert
-                theme="red"
-                title="Couldn't load categories"
-                description={loadError}
-                primaryAction={{ label: 'Try again', onClick: fetchCategories }}
+            <aside className="catg-aside" aria-label="Spending split">
+              <CategorySplitCard
+                month={month}
+                items={splitItems}
+                total={breakdown?.totalSpent || splitTotal}
+                loading={breakdownLoading || (loading && categories.length === 0)}
+                error={breakdownError}
+                onRetry={() => setBreakdownKey((k) => k + 1)}
               />
-            )}
-            {breakdownError && !loadError && (
-              <Alert
-                theme="amber"
-                title={`Couldn't load spending for ${month.label}`}
-                primaryAction={{ label: 'Try again', onClick: () => setBreakdownKey((k) => k + 1) }}
-              />
-            )}
-
-            {list}
+            </aside>
           </div>
-
-          <aside className="catg-aside" aria-label="Spending split">
-            <CategorySplitCard
-              month={month}
-              items={splitItems}
-              total={breakdown?.totalSpent || splitTotal}
-              loading={breakdownLoading || (loading && categories.length === 0)}
-              error={breakdownError}
-              onRetry={() => setBreakdownKey((k) => k + 1)}
-            />
-          </aside>
-        </div>
+        )}
       </PageBody>
 
       <CategoryFormDialog

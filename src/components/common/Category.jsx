@@ -25,30 +25,37 @@ export function categoryIcon(category) {
 }
 
 /**
- * Category as a coloured dot and its name — how a category reads inside
- * tables, rows and pickers. `null` renders "Uncategorised" with a hollow dot.
+ * Category as its tile and name — how a category reads in a table or list
+ * row, the same as the Transactions table's category cell. `null` renders
+ * "Uncategorised" in gray.
  */
 export function CategoryBadge({ category, label, size = 'md', className = '', ...rest }) {
-  const name = label ?? category?.name;
-  if (!category && !label) {
-    return (
-      <span className={`category-badge category-badge--${size} is-empty ${className}`.trim()} {...rest}>
-        <span className="category-badge__dot" aria-hidden />
-        <span className="category-badge__name truncate">Uncategorised</span>
-      </span>
-    );
-  }
+  const empty = !category && !label;
   return (
-    <span className={`category-badge category-badge--${size} ${className}`.trim()} {...rest}>
-      <span className="category-badge__dot" style={{ background: categoryColor(category) }} aria-hidden />
-      <span className="category-badge__name truncate">{name}</span>
+    <span className={`category-badge category-badge--${size}${empty ? ' is-empty' : ''} ${className}`.trim()} {...rest}>
+      <CategoryIcon category={category} size={size === 'sm' ? 18 : 22} />
+      <span className="category-badge__name truncate">{empty ? 'Uncategorised' : label ?? category.name}</span>
     </span>
   );
 }
 
 /**
+ * Category choices for every category picker (Combobox or Select): the
+ * category tile, then its name. `none` ({ label, value }) adds a first choice
+ * for "no category" or "Uncategorised".
+ */
+export function categoryOptions(categories = [], none = null) {
+  const list = categories.map((c) => ({
+    label: c.name,
+    value: String(c.id),
+    icon: <CategoryIcon category={c} size={20} />,
+  }));
+  return none ? [{ ...none, icon: <CategoryIcon category={null} size={20} /> }, ...list] : list;
+}
+
+/**
  * Square category tile: the user's emoji if they set one, else the lucide
- * icon in the category colour. For category lists and pickers, not tables.
+ * icon in the category colour. Used wherever a category is shown.
  */
 export function CategoryIcon({ category, size = 28, className = '' }) {
   const emoji = category?.icon?.trim();
