@@ -12,6 +12,12 @@ import './Combobox.css';
 // Enter picks, Escape closes, Tab leaves; typing on the closed trigger opens
 // it with that text. `onChange(value)` gets the option's value (null when
 // cleared).
+//
+// `searchable={false}` drops the search box (Select uses this for short
+// lists): the listbox itself takes focus, and typing jumps to the next option
+// starting with the typed text. `renderTrigger({ selected, open })` replaces
+// the select-style trigger's content and chrome with your own (e.g. a
+// category tile), keeping the same panel and list.
 
 const SIZES = new Set(['xs', 'sm', 'md', 'lg', 'xl']);
 const VARIANTS = new Set(['subtle', 'outline', 'ghost']);
@@ -131,6 +137,9 @@ const Combobox = forwardRef(function Combobox(
     onCreate,
     createLabel,
     clearable = false,
+    searchable = true,
+    renderTrigger,
+    triggerClassName,
     prefix,
     id: idProp,
     className,
@@ -154,12 +163,17 @@ const Combobox = forwardRef(function Combobox(
 
   const rootRef = useRef(null);
   const searchRef = useRef(null);
+  const listboxRef = useRef(null);
+  const typeahead = useRef({ text: '', timer: null });
+  // Option to highlight when the menu opens from a typed key (no search box).
+  const pendingIndex = useRef(-1);
   const viewportRef = useRef(null);
   const { anchorRef: triggerRef, floatingRef, style: floatingStyle } = useFloating({
     open,
     placement: 'bottom-start',
     offset: 4,
-    matchWidth: true,
+    // A custom trigger (an icon tile) is far narrower than its list.
+    matchWidth: !renderTrigger,
   });
 
   const setTriggerRef = useCallback(
@@ -221,7 +235,10 @@ const Combobox = forwardRef(function Combobox(
   // selected option.
   useEffect(() => {
     if (!open) return;
-    if (q) {
+    if (pendingIndex.current >= 0) {
+      setActiveIndex(pendingIndex.current);
+      pendingIndex.current = -1;
+    } else if (q) {
       setActiveIndex(firstEnabled(flat));
     } else {
       const sel = selected ? flat.indexOf(selected) : -1;
@@ -231,10 +248,14 @@ const Combobox = forwardRef(function Combobox(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, open]);
 
-  // The search input takes focus as the popover opens.
+  // The search input (or, without search, the listbox) takes focus as the
+  // popover opens.
   useEffect(() => {
-    if (open) searchRef.current?.focus({ preventScroll: true });
-  }, [open]);
+    if (!open) return;
+    (searchable ? searchRef.current : listboxRef.current)?.focus({ preventScroll: true });
+  }, [open, searchable]);
+
+  useEffect(() => () => clearTimeout(typeahead.current.timer), []);
 
   // Keep the active option in view (scrolls the list only, never the page).
   useEffect(() => {
@@ -283,14 +304,69 @@ const Combobox = forwardRef(function Combobox(
       !event.metaKey &&
       !event.altKey
     ) {
-      // Typeahead: start searching with the typed character.
+      // Typeahead: start searching with the typed character (or, without a
+      // search box, open on the first option that starts with it).
       event.preventDefault();
-      openMenu(event.key);
+      if (searchable) openMenu(event.key);
+      else {
+        const sel = selected ? allOptions.indexOf(selected) : -1;
+        pendingIndex.current = typeaheadIndex(event.key, sel);
+        openMenu();
+      }
     }
   };
 
+  // Without a search box: jump to the next option whose label starts with what
+  // was typed in the last half second. A fresh key starts after the current
+  // option, so pressing it again cycles; a longer prefix re-checks the current.
+  function typeaheadIndex(char, from) {
+    const t = typeahead.current;
+    clearTimeout(t.timer);
+    t.text = (t.text + char).toLowerCase();
+    t.timer = setTimeout(() => {
+      t.text = '';
+    }, 500);
+    const n = flat.length;
+    const begin = t.text.length > 1 ? Math.max(from, 0) : from + 1;
+    for (let k = 0; k < n; k += 1) {
+      const i = (((begin + k) % n) + n) % n;
+      if (!flat[i].disabled && flat[i].label.toLowerCase().startsWith(t.text)) return i;
+    }
+    return -1;
+  }
+
+  function jumpTo(char) {
+    const i = typeaheadIndex(char, activeIndex);
+    if (i >= 0) setActiveIndex(i);
+  }
+
+  const onListKeyDown = (event) => {
+    if (event.key === ' ' || event.key === 'Spacebar') {
+      event.preventDefault();
+      if (typeahead.current.text) jumpTo(' ');
+      else choose(flat[activeIndex]);
+      return;
+    }
+    if (event.key === 'Home') {
+      event.preventDefault();
+      setActiveIndex(firstEnabled(flat));
+      return;
+    }
+    if (event.key === 'End') {
+      event.preventDefault();
+      setActiveIndex(firstEnabled(flat, flat.length - 1, -1));
+      return;
+    }
+    if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      event.preventDefault();
+      jumpTo(event.key);
+      return;
+    }
+    onSearchKeyDown(event);
+  };
+
   const onSearchKeyDown = (event) => {
-    if (event.nativeEvent.isComposing) return;
+    if (event.nativeEvent?.isComposing) return;
     switch (event.key) {
       case 'ArrowDown':
         event.preventDefault();
@@ -398,7 +474,7 @@ const Combobox = forwardRef(function Combobox(
         data-variant={v}
         data-size={s}
         data-state={open ? 'open' : 'closed'}
-        className="ui-select__trigger ui-combobox__trigger"
+        className={renderTrigger ? cx('ui-combobox__custom-trigger', triggerClassName) : cx('ui-select__trigger ui-combobox__trigger', triggerClassName)}
         onClick={(e) => {
           onClick?.(e);
           if (e.defaultPrevented) return;
@@ -408,6 +484,8 @@ const Combobox = forwardRef(function Combobox(
         onKeyDown={onTriggerKeyDown}
         {...rest}
       >
+        {renderTrigger ? renderTrigger({ selected: selected?.raw ?? null, open }) : (
+        <>
         {selected?.icon ? (
           <OptionIcon icon={selected.icon} />
         ) : (
@@ -422,6 +500,8 @@ const Combobox = forwardRef(function Combobox(
         <span className={cx('ui-combobox__value', !hasValue && 'is-placeholder')}>{displayLabel}</span>
         {showClear && <span className="ui-combobox__clear-space" aria-hidden="true" />}
         <ChevronDown className="ui-combobox__chevron" size={16} strokeWidth={1.5} aria-hidden="true" />
+        </>
+        )}
       </button>
       {showClear && (
         <button
@@ -442,7 +522,7 @@ const Combobox = forwardRef(function Combobox(
         <Portal>
           <div
             ref={floatingRef}
-            className="ui-combobox__panel"
+            className={cx('ui-combobox__panel', renderTrigger && 'ui-combobox__panel--free')}
             data-size={s}
             style={floatingStyle}
             onMouseDown={(e) => {
@@ -450,6 +530,7 @@ const Combobox = forwardRef(function Combobox(
               if (e.target !== searchRef.current) e.preventDefault();
             }}
           >
+            {searchable && (
             <div className="ui-combobox__search">
               <input
                 ref={searchRef}
@@ -469,13 +550,23 @@ const Combobox = forwardRef(function Combobox(
                 onKeyDown={onSearchKeyDown}
               />
             </div>
+            )}
             <div ref={viewportRef} className="ui-combobox__viewport">
               {flat.length === 0 && (
                 <div className="ui-combobox__empty" role="status">
                   {emptyText}
                 </div>
               )}
-              <div id={listboxId} role="listbox" aria-label={placeholder} className="ui-combobox__listbox">
+              <div
+                ref={listboxRef}
+                id={listboxId}
+                role="listbox"
+                aria-label={rest['aria-label'] || placeholder}
+                className="ui-combobox__listbox"
+                {...(searchable
+                  ? {}
+                  : { tabIndex: -1, 'aria-activedescendant': activeId, onKeyDown: onListKeyDown })}
+              >
                   {visibleGroups.map((group) =>
                     group.label ? (
                       <div

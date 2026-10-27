@@ -21,7 +21,8 @@
 
 .txl-list {
   --ui-list-row-height: 44px;
-  --ui-list-sticky-top: var(--header-height);
+  /* Pages with a pinned toolbar add its height (--txl-sticky-offset). */
+  --ui-list-sticky-top: calc(var(--header-height) + var(--txl-sticky-offset, 0px));
 }
 
 /* The table always hands ListView an EmptyState, which brings its own padding. */
@@ -139,19 +140,81 @@
 
 .txl-cell-control {
   display: flex;
+  flex: 1;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
 }
 
-/* The ghost picker's own padding would push its text off the column edge. */
-.txl-category-picker {
-  min-width: 0;
-  max-width: 100%;
-  margin-left: -8px;
+/* Category cell: icon + name; the whole cell is the picker's trigger. It
+   sits flush with the column (negative margin eats the hover padding). */
+/* The whole cell is the trigger, so a click anywhere in it opens the picker
+   (never the row behind it). */
+.txl-cell-control .ui-combobox {
+  flex: 1;
+  width: 100%;
 }
 
-.txl-category-picker .ui-combobox__value.is-placeholder {
+.txl-cat-trigger {
+  display: flex;
+  width: calc(100% + 6px);
+  min-width: 0;
+  margin-left: -6px;
+  padding: 3px 6px;
+  transition: background-color 120ms;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .txl-cat-trigger:hover {
+    background: var(--surface-gray-2);
+  }
+}
+
+.txl-cat-trigger[data-state='open'] {
+  background: var(--surface-gray-3);
+}
+
+.txl-cat {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--ink-gray-7);
+  font-size: 13px;
+}
+
+.txl-cat.is-empty {
   color: var(--ink-gray-5);
+}
+
+.txl-cat__name {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.txl-cat__chevron {
+  margin-left: auto;
+}
+
+.txl-cat__chevron {
+  flex-shrink: 0;
+  color: var(--ink-gray-5);
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+.txl-cat-trigger:hover .txl-cat__chevron,
+.txl-cat-trigger:focus-visible .txl-cat__chevron,
+.txl-cat-trigger[data-state='open'] .txl-cat__chevron,
+.txl-cat.is-empty .txl-cat__chevron {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .txl-cat__chevron {
+    opacity: 1;
+  }
 }
 
 /* Manage button: shown on row hover or focus, always on touch screens. */
@@ -305,14 +368,14 @@
 /* ---------- Phone list: day groups ---------- */
 
 .txl-days {
-  --txl-sticky-top: 52px;
+  --txl-sticky-top: calc(52px + var(--txl-sticky-offset, 0px));
   display: flex;
   flex-direction: column;
 }
 
 @media (display-mode: standalone) {
   .txl-days {
-    --txl-sticky-top: calc(52px + env(safe-area-inset-top));
+    --txl-sticky-top: calc(52px + env(safe-area-inset-top) + var(--txl-sticky-offset, 0px));
   }
 }
 
@@ -364,33 +427,16 @@
   border-radius: var(--radius-4);
 }
 
-label.txl-item__category {
+/* The tile opens the shared category picker (Combobox renderTrigger). */
+.txl-item__category.ui-combobox__custom-trigger {
   cursor: pointer;
-}
-
-.txl-item__category-select {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  opacity: 0;
-  font-size: 16px; /* iOS zooms into anything smaller */
-  cursor: pointer;
-}
-
-label.txl-item__category:focus-within {
-  outline: var(--focus-outline-default);
-  outline-offset: 1px;
 }
 
 @media (pointer: coarse) {
-  .txl-item__category-select {
+  .txl-item__category.ui-combobox__custom-trigger::after {
+    content: '';
+    position: absolute;
     inset: -6px;
-    width: auto;
-    height: auto;
   }
 }
 

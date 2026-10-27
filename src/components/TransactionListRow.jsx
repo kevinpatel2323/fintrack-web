@@ -1,5 +1,7 @@
-import { Amount } from './ui';
+import { useMemo } from 'react';
+import { Amount, Combobox } from './ui';
 import { CategoryIcon } from './common/Category.jsx';
+import { categoryColor } from '../utils/categoryColors.js';
 import { formatDateShort } from './TransactionTable.jsx';
 import { signedAmount } from './transactions/transactionListModel.js';
 import './transactions/transactions.css';
@@ -13,6 +15,8 @@ import './transactions/transactions.css';
  * a bill payment covers). `showDate` puts the row's own date in the second
  * line, which the day-grouped list does not need but nested rows do.
  */
+const NO_CATEGORY = '__none__';
+
 export default function TransactionListRow({
   row,
   categories = [],
@@ -23,27 +27,33 @@ export default function TransactionListRow({
   showDate = false,
 }) {
   const secondary = row.mobileSubtitle ?? row.subtitle;
-  const categoryName = row.category?.name || 'Uncategorized';
+  // Same options (and look) as the category picker everywhere else.
+  const categoryOptions = useMemo(
+    () => [
+      { label: 'No category', value: NO_CATEGORY },
+      ...categories.map((c) => ({
+        label: c.name,
+        value: String(c.id),
+        icon: <span className="txl-dot" style={{ background: categoryColor(c) }} aria-hidden="true" />,
+      })),
+    ],
+    [categories],
+  );
+  const categoryName = row.category?.name || 'Uncategorised';
 
   return (
     <div className={['txl-item', nested && 'txl-item--nested', nested && nestedLast && 'is-last'].filter(Boolean).join(' ')}>
       {onAssignCategory ? (
-        // The tile is a native select laid over the category icon: a phone
-        // opens its own picker, which beats any custom menu at this size.
-        <label className="txl-item__category" title="Change category">
-          <CategoryIcon category={row.category} size={nested ? 28 : 32} />
-          <select
-            className="txl-item__category-select"
-            value={row.categoryId || ''}
-            aria-label={`Category: ${categoryName}. Change category`}
-            onChange={(e) => onAssignCategory(row.id, e.target.value)}
-          >
-            <option value="">No category</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </label>
+        <Combobox
+          options={categoryOptions}
+          value={row.categoryId ? String(row.categoryId) : NO_CATEGORY}
+          onChange={(value) => onAssignCategory(row.id, value === NO_CATEGORY || value == null ? '' : value)}
+          searchPlaceholder="Search categories"
+          aria-label={`Category: ${categoryName}. Change category`}
+          title="Change category"
+          triggerClassName="txl-item__category"
+          renderTrigger={() => <CategoryIcon category={row.category} size={nested ? 28 : 32} />}
+        />
       ) : (
         <span className="txl-item__category">
           <CategoryIcon category={row.category} size={nested ? 28 : 32} />

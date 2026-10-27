@@ -96,6 +96,16 @@ export default function Transactions() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsCompact();
+  // The toolbar pins under the page header; the table header pins under it.
+  const toolbarRef = useRef(null);
+  const [toolbarHeight, setToolbarHeight] = useState(0);
+  useEffect(() => {
+    const el = toolbarRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => setToolbarHeight(Math.round(el.getBoundingClientRect().height)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isMobile]);
 
   const monthRange = useMemo(() => getCurrentMonthRange(), []);
   const { rangeStart, rangeEnd, filterTab, search, categoryFilter } = useMemo(
@@ -792,8 +802,8 @@ export default function Transactions() {
           title="Activity"
           mobileActions={<Button variant="ghost" size="md" icon={Plus} label="New transaction" onClick={newTransaction} />}
         />
-        <PageBody className="txns-page">
-          <div className="txns-mobile-toolbar">
+        <PageBody className="txns-page" style={{ '--txl-sticky-offset': `${toolbarHeight}px` }}>
+          <div className="txns-mobile-toolbar" ref={toolbarRef}>
             <TextInput
               className="txns-search"
               type="search"
@@ -883,8 +893,8 @@ export default function Transactions() {
           </>
         )}
       />
-      <PageBody className="txns-page">
-        <div className="txns-toolbar">
+      <PageBody className="txns-page" style={{ '--txl-sticky-offset': `${toolbarHeight}px` }}>
+        <div className="txns-toolbar" ref={toolbarRef}>
           <div className="txns-toolbar__filters">
             <TextInput
               ref={searchInputRef}

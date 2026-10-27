@@ -1,11 +1,10 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, MoreHorizontal, Users } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Users } from 'lucide-react';
 import { Amount, Badge, Button, Combobox, EmptyState, ListView, Select } from './ui';
-import { CategoryBadge, CategoryIcon } from './common/Category.jsx';
+import { CategoryIcon } from './common/Category.jsx';
 import TransactionColumnsMenu from './transactions/TransactionColumnsMenu.jsx';
 import { flattenWithExpansion, signedAmount } from './transactions/transactionListModel.js';
 import { useTransactionTableSettings } from './transactions/useTransactionTableSettings.js';
-import { categoryColor } from '../utils/categoryColors.js';
 import { getPaginationItems, paginateRows } from '../utils/tableModel.js';
 import './transactions/transactions.css';
 
@@ -99,22 +98,38 @@ function stopRowClick(e) {
   e.stopPropagation();
 }
 
-/** Uncategorised rows get an inline picker; a set category reads as a badge. */
+const NO_CATEGORY = '__none__';
+
+/**
+ * Category, editable in place on every row: the category's icon and name, a
+ * chevron on hover, and the shared category picker on click. Read-only
+ * ledgers (no `onAssignCategory`) show the same icon and name.
+ */
 function CategoryCell({ row, categoryOptions, onAssignCategory }) {
-  if (row.category || !onAssignCategory) return <CategoryBadge category={row.category} />;
+  const name = row.category?.name;
+  const face = (
+    <span className={`txl-cat${name ? '' : ' is-empty'}`}>
+      <CategoryIcon category={row.category} size={22} />
+      <span className="txl-cat__name truncate">{name || 'Set category'}</span>
+      {onAssignCategory && <ChevronDown className="txl-cat__chevron" size={14} strokeWidth={1.5} aria-hidden="true" />}
+    </span>
+  );
+  if (!onAssignCategory) return face;
   return (
     // Options render in a portal, but React still bubbles their clicks
     // through here: stop them before they reach the row and open it.
     <div className="txl-cell-control" data-row-click-ignore onClick={stopRowClick}>
       <Combobox
-        variant="ghost"
         options={categoryOptions}
-        value={row.categoryId ? String(row.categoryId) : null}
-        onChange={(value) => value && onAssignCategory(row.id, value)}
-        placeholder="Set category"
+        value={row.categoryId ? String(row.categoryId) : NO_CATEGORY}
+        onChange={(value) => {
+          const next = value === NO_CATEGORY || value == null ? '' : value;
+          if (next !== (row.categoryId ? String(row.categoryId) : '')) onAssignCategory(row.id, next);
+        }}
         searchPlaceholder="Search categories"
-        aria-label="Set category"
-        className="txl-category-picker"
+        aria-label={name ? `Category: ${name}. Change category` : 'Set category'}
+        triggerClassName="txl-cat-trigger"
+        renderTrigger={() => face}
       />
     </div>
   );
@@ -344,12 +359,14 @@ export default function TransactionTable({
 
   // ── columns ───────────────────────────────────────────────────────────────
   const categoryOptions = useMemo(
-    () => categories.map((c) => ({
-      label: c.name,
-      value: String(c.id),
-      // Category colour is per-record data, so it is set inline.
-      icon: <span className="txl-dot" style={{ background: categoryColor(c) }} aria-hidden="true" />,
-    })),
+    () => [
+      { label: 'No category', value: NO_CATEGORY, icon: <CategoryIcon category={null} size={20} /> },
+      ...categories.map((c) => ({
+        label: c.name,
+        value: String(c.id),
+        icon: <CategoryIcon category={c} size={20} />,
+      })),
+    ],
     [categories],
   );
 

@@ -323,3 +323,32 @@
     transition-duration: 0ms;
   }
 }
+
+/* ---------- Custom trigger (renderTrigger) ---------- */
+
+.ui-combobox__custom-trigger {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-4);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  appearance: none;
+}
+
+.ui-combobox__custom-trigger:disabled {
+  cursor: default;
+}
+
+.ui-combobox__panel--free {
+  min-width: 240px;
+}
+
+/* Without a search box the listbox holds focus; the highlight shows where. */
+.ui-combobox__listbox:focus,
+.ui-combobox__listbox:focus-visible {
+  outline: none;
+}

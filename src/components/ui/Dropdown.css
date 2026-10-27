@@ -182,3 +182,9 @@
     background: var(--surface-gray-4);
   }
 }
+
+.ui-menu__check {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--ink-gray-7);
+}

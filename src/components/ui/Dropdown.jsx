@@ -1,5 +1,6 @@
 import { cloneElement, isValidElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Check } from 'lucide-react';
 import Portal from '../Portal.jsx';
 import { useDismiss, useFloating, useStableId } from './internal/floating.js';
 import { cx, useControllableState, useMergedRef } from './internal/dialogUtils.js';
@@ -298,6 +299,8 @@ export default function Dropdown({
                     {item.shortcut}
                   </kbd>
                 )}
+                {/* Same check as a picked option in Select / Combobox. */}
+                {item.selected && <Check className="ui-menu__check" size={16} strokeWidth={1.5} aria-hidden="true" />}
               </>
             );
             const key = item.key ?? item.label ?? i;
