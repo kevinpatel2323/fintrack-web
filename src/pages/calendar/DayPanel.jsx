@@ -9,7 +9,7 @@ import { toCardTableRow } from '../../utils/cardTransactionRow.jsx';
 import { categoryColor } from '../../utils/categoryColors.js';
 import { BillRow } from './Bills.jsx';
 import {
-  accountSuffix, formatDayLong, isTransactionCategorized, sumSpent, sumEarned,
+  accountSuffix, dayUncategorizedCount, formatDayLong, isTransactionCategorized, sumSpent, sumEarned,
   txDescription, txMethod, txSignedAmount, txTitle,
 } from './calendarModel.js';
 
@@ -98,9 +98,13 @@ export default function DayPanel({
         )
       ) : (
         <>
-          {txs.length > 0 && (
-            <ul className="cal-txns" aria-label="Transactions">
-              {txs.map((t) => (
+          {txs.length > 0 && (() => {
+            // What still needs a category comes first, under its own heading,
+            // so a day reached from "Next day to fix" opens on the work.
+            const isPending = (t) => dayUncategorizedCount([t], ccDetailByTransaction) > 0;
+            const todo = txs.filter(isPending);
+            const rest = todo.length ? txs.filter((t) => !isPending(t)) : txs;
+            const renderRows = (list) => list.map((t) => (
                 <DayTxRow
                   key={t.id}
                   tx={t}
@@ -114,10 +118,26 @@ export default function DayPanel({
                   cardTags={cardTags}
                   onAssignCardCategory={onAssignCardCategory}
                   onOpenCardManage={onOpenCardManage}
+                  pending={todo.length > 0 && isPending(t)}
                 />
-              ))}
-            </ul>
-          )}
+              ));
+            return (
+              <>
+                {todo.length > 0 && (
+                  <>
+                    <h4 className="cal-txns__heading cal-txns__heading--todo">To categorise · {todo.length}</h4>
+                    <ul className="cal-txns" aria-label="Transactions to categorise">{renderRows(todo)}</ul>
+                    {rest.length > 0 && <h4 className="cal-txns__heading">Categorised · {rest.length}</h4>}
+                  </>
+                )}
+                {rest.length > 0 && (
+                  <ul className="cal-txns" aria-label={todo.length ? 'Categorised transactions' : 'Transactions'}>
+                    {renderRows(rest)}
+                  </ul>
+                )}
+              </>
+            );
+          })()}
           {bills.length > 0 && (
             <div className="cal-day-panel__bills">
               <h3 className="cal-section-label">Bills due</h3>
@@ -148,7 +168,7 @@ export default function DayPanel({
 // the row; the fetched detail is cached by the page.
 function DayTxRow({
   tx, categoryOptions, categories, categoryStatus, onAssignCategory, onOpenDetail,
-  ccDetail, onLoadCcDetail, cardTags, onAssignCardCategory, onOpenCardManage,
+  ccDetail, onLoadCcDetail, cardTags, onAssignCardCategory, onOpenCardManage, pending = false,
 }) {
   const cc = tx.ccBillPayment;
   const [expanded, setExpanded] = useState(false);
@@ -175,7 +195,7 @@ function DayTxRow({
   }
 
   return (
-    <li className={cx('cal-txn', expanded && 'is-expanded')}>
+    <li className={cx('cal-txn', expanded && 'is-expanded', pending && 'is-pending')}>
       <div className="cal-txn__row">
         <CategoryIcon category={tx.category} size={28} className="cal-txn__icon" />
         <button type="button" className="cal-txn__open" onClick={onOpenDetail}>

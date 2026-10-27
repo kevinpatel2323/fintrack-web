@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, Plus, Tag } from 'lucide-react';
 import {
-  Alert, Amount, Button, ConfirmDialog, PageBody, PageHeader, Spinner, TabButtons, toast,
+  Alert, Amount, Button, ConfirmDialog, PageBody, PageHeader, Spinner, Switch, TabButtons, toast,
 } from '../components/ui';
 import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
 import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
@@ -24,7 +24,7 @@ import SubscriptionDialog from './calendar/SubscriptionDialog.jsx';
 import SubscriptionsView from './calendar/SubscriptionsView.jsx';
 import {
   addDaysIso, buildCells, defaultDayForMonth, formatMonthName, formatMonthTitle,
-  groupOccurrencesByDay, groupTransactionsByDay, isInMonth, monthBounds,
+  groupOccurrencesByDay, groupTransactionsByDay, isInMonth, monthBounds, monthPending, nextPendingDay,
   nextDateBySubscription, sumAmounts, sumEarned, sumSpent, toLocalIso, upcomingOccurrences,
 } from './calendar/calendarModel.js';
 import './Calendar.css';
@@ -189,6 +189,16 @@ export default function Calendar() {
   const txByDay = useMemo(() => groupTransactionsByDay(transactions), [transactions]);
   const subByDay = useMemo(() => groupOccurrencesByDay(occurrences), [occurrences]);
   const cells = useMemo(() => buildCells(viewYear, viewMonth), [viewYear, viewMonth]);
+  // The month's categorising to-do, for the bar above the grid.
+  const pending = useMemo(
+    () => monthPending(cells.filter((c) => c.inMonth).map((c) => c.iso), txByDay, ccDetailByTransaction),
+    [cells, txByDay, ccDetailByTransaction],
+  );
+  const [focusPending, setFocusPending] = useState(false);
+  // Nothing left to find: leave focus mode on its own.
+  useEffect(() => {
+    if (pending.pending === 0) setFocusPending(false);
+  }, [pending.pending]);
   const monthSpent = useMemo(() => sumSpent(transactions), [transactions]);
   const monthEarned = useMemo(() => sumEarned(transactions), [transactions]);
   const monthBillsTotal = useMemo(() => sumAmounts(occurrences), [occurrences]);
@@ -407,6 +417,54 @@ export default function Calendar() {
     />
   );
 
+  // Jump to the next day with something to categorise; its day panel lists
+  // those transactions with a category picker on each.
+  const goToNextPending = () => {
+    const next = nextPendingDay(pending.days, activeIso);
+    if (!next) return;
+    selectDay(next);
+    if (isMobile) {
+      requestAnimationFrame(() => asideRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
+  };
+
+  const categorised = pending.total - pending.pending;
+  const pendingBar = txLoading && pending.total === 0 ? null : pending.pending > 0 ? (
+    <div className="cal-pending-bar" role="status">
+      <span className="cal-pending-bar__icon" aria-hidden="true">
+        <Tag size={16} strokeWidth={1.5} />
+      </span>
+      <div className="cal-pending-bar__body">
+        <p className="cal-pending-bar__title">
+          <strong>
+            {pending.pending} transaction{pending.pending === 1 ? '' : 's'}
+          </strong>{' '}
+          on {pending.days.length} day{pending.days.length === 1 ? '' : 's'} need{pending.pending === 1 ? 's' : ''} a category
+        </p>
+        <div className="cal-pending-bar__track" aria-hidden="true">
+          <div
+            className="cal-pending-bar__fill"
+            style={{ width: `${pending.total ? Math.round((Math.max(categorised, 0) / pending.total) * 100) : 0}%` }}
+          />
+        </div>
+        <span className="cal-pending-bar__meta">
+          {Math.max(categorised, 0)} of {pending.total} categorised in {monthName}
+        </span>
+      </div>
+      <div className="cal-pending-bar__actions">
+        <Switch size="sm" label="Focus" checked={focusPending} onChange={setFocusPending} />
+        <Button label="Next day to fix" iconRight={ArrowRight} onClick={goToNextPending} />
+      </div>
+    </div>
+  ) : pending.total > 0 ? (
+    <div className="cal-pending-bar is-done" role="status">
+      <span className="cal-pending-bar__icon" aria-hidden="true">
+        <CheckCircle2 size={16} strokeWidth={1.5} />
+      </span>
+      <p className="cal-pending-bar__title">Every transaction in {monthName} has a category</p>
+    </div>
+  ) : null;
+
   const transactionsView = (
     <div className="cal-layout">
       <div className="cal-main">
@@ -428,6 +486,7 @@ export default function Calendar() {
             primaryAction={{ label: 'Try again', onClick: loadTransactions }}
           />
         )}
+        {pendingBar}
         {/* The grid stays mounted while a month loads: swapping it for a
             loading line collapsed the page and threw the scroll position
             back to the top on every month change. */}
@@ -442,6 +501,7 @@ export default function Calendar() {
           onSelect={selectDay}
           compact={isMobile}
           loading={txLoading}
+          focusPending={focusPending}
           label={monthTitle}
         />
         <CalendarLegend compact={isMobile} />

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { CreditCard } from 'lucide-react';
+import { Check, CreditCard, Tag } from 'lucide-react';
 import { Amount } from '../../components/ui';
 import { inr } from '../../utils/inr.js';
 import { WEEKDAYS, addDaysIso, dayModel, formatDayLong } from './calendarModel.js';
@@ -12,18 +12,32 @@ function dayLabel(iso, day, isToday) {
   if (isToday) parts.push('today');
   if (day.spent > 0) parts.push(`${inr(day.spent)} spent`);
   if (day.earned > 0) parts.push(`${inr(day.earned)} earned`);
-  if (day.catState === 'needs-category') parts.push('needs a category');
+  if (day.pendingCount > 0) {
+    parts.push(`${day.pendingCount} transaction${day.pendingCount === 1 ? '' : 's'} need${day.pendingCount === 1 ? 's' : ''} a category`);
+  }
   if (day.catState === 'categorized') parts.push('all categorised');
   if (day.billCount > 0) parts.push(`${day.billCount} bill${day.billCount > 1 ? 's' : ''} due`);
   if (day.cardBills) parts.push(`card bill paid for ${day.cardBills.owner}`);
   return parts.join(', ');
 }
 
+/**
+ * What a day needs, at a glance. A day with transactions to categorise gets a
+ * count pill (and the whole cell is tinted, see .has-pending); a finished day
+ * a quiet check; bills due and card bills paid stay small.
+ */
 function Marks({ day, compact }) {
   return (
     <span className="cal-day__marks" aria-hidden="true">
-      {day.catState === 'needs-category' && <span className="cal-dot cal-dot--needs" />}
-      {day.catState === 'categorized' && <span className="cal-dot cal-dot--done" />}
+      {day.pendingCount > 0 && (
+        <span className="cal-pending-pill">
+          {!compact && <Tag size={11} strokeWidth={2} />}
+          {day.pendingCount}
+        </span>
+      )}
+      {day.catState === 'categorized' && !compact && (
+        <Check className="cal-day__done" size={13} strokeWidth={2} />
+      )}
       {day.billCount > 0 && <span className="cal-dot cal-dot--bill" />}
       {compact && day.cardBills && <span className="cal-dot cal-dot--card" />}
     </span>
@@ -32,9 +46,11 @@ function Marks({ day, compact }) {
 
 /**
  * The month as a Frappe-style grid: hairline cells, the day number top-left
- * (today in a filled circle), status dots top-right, and on desktop the day's
- * spent / earned and any card bill paid that day. Phones get the compact
- * variant: day number and dots only.
+ * (today in a filled circle), status marks top-right, and on desktop the day's
+ * spent / earned and any card bill paid that day. Days with transactions to
+ * categorise are tinted and carry a count, so they stand out from across the
+ * month; `focusPending` fades every other day. Phones get the compact variant:
+ * day number and marks only.
  *
  * Days are buttons with a roving tab stop; the arrow keys move the selection.
  */
@@ -49,6 +65,7 @@ export default function MonthGrid({
   onSelect,
   compact = false,
   loading = false,
+  focusPending = false,
   label,
 }) {
   const buttons = useRef(new Map());
@@ -79,7 +96,7 @@ export default function MonthGrid({
 
   return (
     <div
-      className={cx('cal-grid', compact && 'cal-grid--compact', loading && 'is-loading')}
+      className={cx('cal-grid', compact && 'cal-grid--compact', focusPending && 'cal-grid--focus', loading && 'is-loading')}
       role="group"
       aria-label={label}
       aria-busy={loading || undefined}
@@ -116,7 +133,12 @@ export default function MonthGrid({
                 else buttons.current.delete(cell.iso);
               }}
               type="button"
-              className={cx('cal-day', isToday && 'is-today', isSelected && 'is-selected')}
+              className={cx(
+                'cal-day',
+                isToday && 'is-today',
+                isSelected && 'is-selected',
+                day.pendingCount > 0 && 'has-pending',
+              )}
               aria-pressed={isSelected}
               aria-label={dayLabel(cell.iso, day, isToday)}
               tabIndex={cell.iso === tabStop ? 0 : -1}
@@ -162,8 +184,15 @@ export default function MonthGrid({
 export function CalendarLegend({ compact = false }) {
   return (
     <ul className="cal-legend" aria-label="Legend">
-      <li><span className="cal-dot cal-dot--needs" aria-hidden="true" />Needs a category</li>
-      <li><span className="cal-dot cal-dot--done" aria-hidden="true" />All categorised</li>
+      <li>
+        <span className="cal-legend__pending" aria-hidden="true">
+          <span className="cal-pending-pill">{!compact && <Tag size={11} strokeWidth={2} />}2</span>
+        </span>
+        Transactions to categorise
+      </li>
+      {!compact && (
+        <li><Check className="cal-day__done" size={13} strokeWidth={2} aria-hidden="true" />All categorised</li>
+      )}
       <li><span className="cal-dot cal-dot--bill" aria-hidden="true" />Bill due</li>
       <li>
         {compact ? (

@@ -15,6 +15,9 @@ import {
   subscriptionStatus,
   txSignedAmount,
   upcomingOccurrences,
+  dayUncategorizedCount,
+  monthPending,
+  nextPendingDay,
 } from '../calendarModel.js';
 
 describe('month cells', () => {
@@ -152,5 +155,36 @@ describe('subscriptions', () => {
   it('reads exception dates from lines, commas or spaces', () => {
     expect(parseExdatesText('2026-06-15\n2026-07-15, bad 2026-08-15')).toEqual(['2026-06-15', '2026-07-15', '2026-08-15']);
     expect(parseExdatesText('')).toEqual([]);
+  });
+});
+
+describe('pending categorisation', () => {
+  const tx = (id, categoryId, extra = {}) => ({ id, categoryId, ...extra });
+
+  it('counts uncategorised transactions on a day', () => {
+    expect(dayUncategorizedCount([tx(1, 3), tx(2, null), tx(3, '')])).toBe(2);
+    expect(dayUncategorizedCount([])).toBe(0);
+  });
+
+  it("counts a card bill payment's uncategorised covered transactions when loaded", () => {
+    const bill = tx(9, 5, { ccBillPayment: { allCoveredCategorized: false } });
+    const detail = { 9: { coveredTransactions: [tx(20, null), tx(21, 4), tx(22, null)] } };
+    expect(dayUncategorizedCount([bill], detail)).toBe(2);
+    // Not loaded yet: the payload flag counts as one.
+    expect(dayUncategorizedCount([bill])).toBe(1);
+    expect(dayUncategorizedCount([tx(9, 5, { ccBillPayment: { allCoveredCategorized: true } })])).toBe(0);
+  });
+
+  it('summarises the month and finds the next pending day, wrapping', () => {
+    const byDay = new Map([
+      ['2026-10-02', [tx(1, null)]],
+      ['2026-10-05', [tx(2, 1), tx(3, 2)]],
+      ['2026-10-09', [tx(4, null), tx(5, null)]],
+    ]);
+    const days = ['2026-10-01', '2026-10-02', '2026-10-05', '2026-10-09'];
+    expect(monthPending(days, byDay)).toEqual({ days: ['2026-10-02', '2026-10-09'], pending: 3, total: 5 });
+    expect(nextPendingDay(['2026-10-02', '2026-10-09'], '2026-10-02')).toBe('2026-10-09');
+    expect(nextPendingDay(['2026-10-02', '2026-10-09'], '2026-10-09')).toBe('2026-10-02');
+    expect(nextPendingDay([], '2026-10-01')).toBe(null);
   });
 });

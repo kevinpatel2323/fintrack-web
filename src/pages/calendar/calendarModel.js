@@ -131,6 +131,52 @@ export function dayCategorizationState(txs, ccDetailByTransaction = {}) {
 }
 
 /**
+ * How many transactions on a day still need a category. A card bill payment
+ * counts its uncategorised covered card transactions when they are loaded,
+ * else one when the range payload says some are missing.
+ */
+export function dayUncategorizedCount(txs, ccDetailByTransaction = {}) {
+  let count = 0;
+  for (const tx of txs) {
+    if (!isTransactionCategorized(tx)) count += 1;
+    if (!tx.ccBillPayment) continue;
+    const detail = ccDetailByTransaction[tx.id];
+    if (detail && !detail.loading && !detail.error && Array.isArray(detail.coveredTransactions)) {
+      count += detail.coveredTransactions.filter((t) => !isTransactionCategorized(t)).length;
+    } else if (tx.ccBillPayment.allCoveredCategorized === false) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+/**
+ * The month's categorising to-do: the days with something to categorise (in
+ * date order), how many transactions that is, and how many the month has.
+ */
+export function monthPending(isoDays, txByDay, ccDetailByTransaction = {}) {
+  const days = [];
+  let pending = 0;
+  let total = 0;
+  for (const iso of isoDays) {
+    const txs = txByDay.get(iso) || [];
+    total += txs.length;
+    const n = dayUncategorizedCount(txs, ccDetailByTransaction);
+    if (n > 0) {
+      days.push(iso);
+      pending += n;
+    }
+  }
+  return { days, pending, total };
+}
+
+/** The first pending day after `fromIso`, wrapping to the month's first. */
+export function nextPendingDay(pendingDays, fromIso) {
+  if (!pendingDays.length) return null;
+  return pendingDays.find((iso) => iso > fromIso) ?? pendingDays[0];
+}
+
+/**
  * Aggregate the month's withdrawals into category-wise slices.
  * Uses the already-loaded transactions, so the total matches the month's
  * "spent". Every category is kept, sorted largest-first, no "Other" bucket.
@@ -219,6 +265,7 @@ export function dayModel(txs = [], subs = [], ccDetailByTransaction = {}, cardsB
     txCount: txs.length,
     billCount: subs.length,
     catState: dayCategorizationState(txs, ccDetailByTransaction),
+    pendingCount: dayUncategorizedCount(txs, ccDetailByTransaction),
     cardBills: dayCardBills(txs, cardsById),
   };
 }
