@@ -37,6 +37,7 @@ Fintrack follows Frappe UI (the library behind Frappe CRM/Helpdesk). Read `src/c
 - **Tokens**: `styles/espresso.css` is generated from frappe-ui 1.0.2's tokens (surface/ink/outline scales, elevation, focus, radius; light on `:root`, dark on `[data-theme='dark']`). `styles/theme.css` adds Fintrack roles (money colours, chart and category hues, layout sizes). `styles/base.css` holds Inter, page defaults and text utilities.
 - **Kit**: `components/ui/` — React ports of frappe-ui components (Button, TextInput, Select, Combobox, DatePicker, Dialog, Sheet, Dropdown, Toast, Tabs, ListView, PageHeader, Sidebar, …). Import from `components/ui`. API docs in `components/ui/docs/`.
 - **Charts**: `components/charts/` — SVG BarChart, LineChart, DonutChart, CategoryBars, Sparkline in Frappe's chart style (README inside).
+- **Lists**: every list of records is a `ListView` table (transactions through `components/TransactionTable.jsx`); list pages use `components/common/ListToolbar.jsx` for the pinned search/filters/summary band. People show as `AvatarGroup` stacks.
 - **Shared**: `components/common/Category.jsx` (`CategoryBadge`, `CategoryIcon`); category colours in `utils/categoryColors.js` (palette hex → theme tokens, including older stored colours).
 - Theme: `hooks/useTheme.js` (light / dark / system); `<html data-theme>` always holds the resolved theme.
 
@@ -76,7 +77,7 @@ Serialization: `serializeSplitPayload` / `parseSplitPayload` encode `SerializedS
 | `NetOffModal` | Nets what a friend owes against what the user owes them, no money moving |
 | `WriteOffModal` | Writes off a leftover (round-off) on an entry or a settlement |
 | `LegacyReviewModal` | Reviews a friend's settlements saved before amounts existed, with suggested amounts; opened from the friend page or People (`?review=1`) |
-| `EntryGroups` | Entry groups on the friend page ("Ketul's wedding"): the collapsible group row, the name/rename dialog and the "tick entries to group" bar. Groups also show as one row in `SettlementAllocator` (tick to settle the group; its smaller side is netted in), as a pick in `SplitTransactionForm`, and as one row plus "Group details" in the ledger export |
+| `EntryGroups` | Entry groups on the friend page ("Ketul's wedding"): the name/rename dialog and the "tick entries to group" bar (the group itself is a row in `pages/people/PersonLedgerTable.jsx` that expands to its entries). Groups also show as one row in `SettlementAllocator` (tick to settle the group; its smaller side is netted in), as a pick in `SplitTransactionForm`, and as one row plus "Group details" in the ledger export |
 | `UnbilledPasteModal` | "Paste unbilled" on a credit card's page: paste HDFC's Unbilled Transactions list, preview new vs already-added rows, add the new ones |
 | `ui/Dialog`, `ui/ConfirmDialog`, `ui/Sheet` | The modal frames every dialog above is built on |
 

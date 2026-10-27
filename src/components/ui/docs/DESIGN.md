@@ -43,6 +43,8 @@ The pre-redesign layer (`primitives.jsx`, `Icon.jsx`, the `--ft-*` variables and
 
 ## Layout patterns
 
+**One table for every list of records.** Anything that lists records — transactions, people, a person's ledger, categories, imports, statements — is a table in the same look: the kit `ListView` (transactions use `components/TransactionTable.jsx`, which wraps it). Same header row, row height, hover, sortable headers, a Columns menu where columns are optional, avatars for people, and on phones the less important columns fold into a second line under the title. Don't build a card list or a custom row list for records. List pages put their search, filters and summary in `components/common/ListToolbar.jsx`, which pins under the page header.
+
 **List page** (Transactions, People, Categories):
 1. `PageHeader`: title on the left; primary action ("New transaction") as a solid button on the right, with secondary actions as subtle buttons or a `…` Dropdown.
 2. Toolbar row under the header, in the style of Frappe CRM's view controls. On the left: a search `TextInput` with a `Search` prefix and filter controls (`Select`, `Combobox`, `DateRangePicker`, or a "Filter" `Dropdown`/`Popover` that shows active filters as removable chips). On the right: sort, columns, view switches (`TabButtons`), and a summary ("87 transactions · ₹1.27L spent").

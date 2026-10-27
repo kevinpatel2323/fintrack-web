@@ -12,9 +12,10 @@ import SettlementAllocationModal from '../components/SettlementAllocationModal.j
 import NetOffModal, { canNetOff } from '../components/NetOffModal.jsx';
 import WriteOffModal from '../components/WriteOffModal.jsx';
 import LegacyReviewModal from '../components/LegacyReviewModal.jsx';
-import { GroupRow, GroupSelectionBar, GroupTitleDialog } from '../components/EntryGroups.jsx';
+import { GroupSelectionBar, GroupTitleDialog } from '../components/EntryGroups.jsx';
 import PersonDialog from '../components/people/PersonDialog.jsx';
-import LedgerRow, { formatDay, isGroupable } from './people/LedgerRow.jsx';
+import { formatDay, isGroupable } from './people/ledgerEntry.js';
+import PersonLedgerTable from './people/PersonLedgerTable.jsx';
 import BalanceChart from './people/BalanceChart.jsx';
 import {
   createGroup, deleteGroup, deleteOffset, deleteWriteOff, fetchOffsets, updateGroup,
@@ -283,19 +284,11 @@ export default function FriendDetail() {
   const balanceLabel = net > 0 ? `${first} owes you` : net < 0 ? `You owe ${first}` : 'Balance';
 
   // ---------- Activity ----------
-  const ledgerRow = (t, extra = {}) => (
-    <LedgerRow
-      key={t.id}
-      tag={t}
-      friendName={f.name}
-      picking={Boolean(picking)}
-      onAllocate={setAllocatingTag}
-      onWriteOff={setWriteOffTag}
-      onUndoWriteOff={(writeOffId) => undo(() => deleteWriteOff(id, writeOffId), 'Write-off undone')}
-      pick={picking && isGroupable(t) ? { checked: picked.has(String(t.id)), onToggle: () => togglePicked(t.id) } : null}
-      {...extra}
-    />
-  );
+  // A bank entry opens its transaction; card entries have no page of their own.
+  const openEntryTransaction = (tag) => {
+    if (!tag.transactionId) return;
+    navigate(`/transactions/${tag.transactionId}`, { state: tag.transaction ? { tx: tag.transaction } : undefined });
+  };
 
   const activityEmpty = tags.length === 0
     ? { title: 'No shared expenses yet', description: `Split a transaction with ${first} and it shows up here.` }
@@ -321,27 +314,25 @@ export default function FriendDetail() {
       {filtered.length === 0 ? (
         <EmptyState size="sm" title={activityEmpty.title} description={activityEmpty.description} />
       ) : (
-        <div className="ledger-list" data-picking={picking ? '' : undefined} aria-label="Ledger entries">
-          {rows.map((r) => (r.kind === 'group' ? (
-            <GroupRow
-              key={`group-${r.group.id}`}
-              group={r.group}
-              members={r.members}
-              friendName={f.name}
-              picking={Boolean(picking)}
-              onRename={() => setGroupDialog({ mode: 'rename', group: r.group, members: r.members })}
-              onAddEntries={() => startPicking(r.group)}
-              onUngroup={() => setUngrouping(r.group)}
-              renderEntry={(t) => ledgerRow(t, {
-                onRemoveFromGroup: () =>
-                  groupAction(
-                    () => updateGroup(id, r.group.id, { removeTagIds: [Number(t.id)] }),
-                    `Taken out of “${r.group.title}”`,
-                  ),
-              })}
-            />
-          ) : ledgerRow(r.tag)))}
-        </div>
+        <PersonLedgerTable
+          rows={rows}
+          friendName={f.name}
+          picking={Boolean(picking)}
+          picked={picked}
+          onTogglePick={togglePicked}
+          onOpenTransaction={openEntryTransaction}
+          onAllocate={setAllocatingTag}
+          onWriteOff={setWriteOffTag}
+          onUndoWriteOff={(writeOffId) => undo(() => deleteWriteOff(id, writeOffId), 'Write-off undone')}
+          onRemoveFromGroup={(group, t) =>
+            groupAction(
+              () => updateGroup(id, group.id, { removeTagIds: [Number(t.id)] }),
+              `Taken out of “${group.title}”`,
+            )}
+          onRenameGroup={(group, members) => setGroupDialog({ mode: 'rename', group, members })}
+          onAddToGroup={(group) => startPicking(group)}
+          onUngroup={(group) => setUngrouping(group)}
+        />
       )}
       {picking && (
         <GroupSelectionBar count={picked.size} target={picking.target} onConfirm={confirmPicked} onCancel={stopPicking} />

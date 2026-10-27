@@ -1,6 +1,5 @@
 import { useId, useState } from 'react';
-import { ChevronDown, ChevronRight, FolderMinus, ListPlus, MoreHorizontal, Pencil } from 'lucide-react';
-import { Amount, Button, Dialog, Dropdown, ErrorMessage, FormControl } from './ui';
+import { Button, Dialog, ErrorMessage, FormControl } from './ui';
 import { groupTotals } from '../utils/entryGroups.js';
 import { friendFirstName } from '../utils/ledgerParties.js';
 import { rupees, toMinor } from '../utils/settlementAllocation.js';
@@ -9,16 +8,10 @@ import './people/ledger.css';
 
 /**
  * Entry groups on the friend page: several entries bundled under one title
- * ("Ketul's wedding"), shown as one row with the entries' net total. The
- * entries stay as they are underneath — expand the row to see or change them.
+ * ("Ketul's wedding"), shown in the ledger table as one row with the entries'
+ * net total (see pages/people/PersonLedgerTable.jsx). This file holds the
+ * naming dialog and the "tick entries to group" bar.
  */
-
-function formatDay(value) {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-}
 
 /** "You owe Yash ₹6,511" / "Yash owes you ₹2,289" / "Nothing owed". */
 export function groupNetPhrase(amount, friendName) {
@@ -27,90 +20,6 @@ export function groupNetPhrase(amount, friendName) {
   if (minor > 0) return `${first} owes you ${rupees(minor)}`;
   if (minor < 0) return `You owe ${first} ${rupees(-minor)}`;
   return 'Nothing owed';
-}
-
-const STATUS_TEXT = { open: 'Open', partial: 'Partly settled', settled: 'Settled' };
-
-/**
- * One group as a ledger row. `renderEntry(tag, index)` draws each entry when
- * the row is expanded, so entries keep every action they have on their own.
- * `picking` reserves the checkbox column while entries are being ticked
- * (groups themselves can't be picked). `first` is accepted for older callers.
- */
-export function GroupRow({
-  group,
-  members,
-  friendName,
-  first: _first,
-  onRename,
-  onAddEntries,
-  onUngroup,
-  renderEntry,
-  picking = false,
-}) {
-  const [open, setOpen] = useState(false);
-  const membersId = useId();
-  const totals = groupTotals(members);
-  const Chevron = open ? ChevronDown : ChevronRight;
-  const range = totals.dateFrom === totals.dateTo
-    ? formatDay(totals.dateFrom)
-    : `${formatDay(totals.dateFrom)} – ${formatDay(totals.dateTo)}`;
-  const net = toMinor(totals.totalAmount);
-  const name = friendFirstName(friendName);
-  // The amount column carries the figure; the words say which way it runs.
-  const netWords = net > 0 ? `${name} owes you` : net < 0 ? `You owe ${name}` : 'Nets to nothing';
-  // What is open can run the other way from the group's total.
-  const status = totals.status === 'partial'
-    ? `Open: ${groupNetPhrase(totals.pendingNet, friendName)}`
-    : STATUS_TEXT[totals.status];
-
-  return (
-    <div className="ledger-group" data-open={open ? '' : undefined}>
-      <div className="ledger-row ledger-row--group">
-        {picking && <span className="ledger-row__check" aria-hidden />}
-        <span className="ledger-row__date">{formatDay(totals.dateFrom)}</span>
-        <div className="ledger-row__main">
-          <button
-            type="button"
-            className="ledger-group__toggle"
-            aria-expanded={open}
-            aria-controls={membersId}
-            onClick={() => setOpen(!open)}
-          >
-            <Chevron size={16} strokeWidth={1.5} aria-hidden />
-            <span className="truncate">{group.title}</span>
-          </button>
-          <span className="ledger-row__meta">
-            {totals.count} {totals.count === 1 ? 'entry' : 'entries'} · {range} ·{' '}
-            {netWords} ·{' '}
-            <span className="ledger-note" data-tone={totals.status === 'partial' ? 'warn' : undefined}>
-              {status}
-            </span>
-          </span>
-        </div>
-        <span className="ledger-row__amount">
-          <Amount value={totals.totalAmount} sign="always" decimals={net % 100 ? 2 : 0} />
-        </span>
-        <span className="ledger-row__menu">
-          <Dropdown
-            placement="bottom-end"
-            options={[
-              { label: 'Rename', icon: Pencil, onClick: onRename },
-              { label: 'Add entries', icon: ListPlus, onClick: onAddEntries },
-              { label: 'Ungroup', icon: FolderMinus, onClick: onUngroup },
-            ]}
-          >
-            <Button variant="ghost" icon={MoreHorizontal} label={`Actions for ${group.title}`} />
-          </Dropdown>
-        </span>
-      </div>
-      {open && (
-        <div id={membersId} className="ledger-group__members">
-          {members.map((tag, i) => renderEntry(tag, i))}
-        </div>
-      )}
-    </div>
-  );
 }
 
 /**
