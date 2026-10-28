@@ -54,6 +54,8 @@ function Marks({ day, compact }) {
  * (phones only) changes month on a sideways swipe, sliding the new month in.
  *
  * Days are buttons with a roving tab stop; the arrow keys move the selection.
+ * With `onOpen` (desktop), clicking a day (or Enter/Space) opens it instead
+ * of only selecting it; the arrow keys still just move the selection.
  */
 export default function MonthGrid({
   cells,
@@ -64,6 +66,7 @@ export default function MonthGrid({
   todayIso,
   selectedIso,
   onSelect,
+  onOpen,
   compact = false,
   loading = false,
   focusPending = false,
@@ -184,10 +187,12 @@ export default function MonthGrid({
                 isSelected && 'is-selected',
                 day.pendingCount > 0 && 'has-pending',
               )}
-              aria-pressed={isSelected}
+              aria-pressed={onOpen ? undefined : isSelected}
+              aria-current={onOpen && isSelected ? 'date' : undefined}
+              aria-haspopup={onOpen ? 'dialog' : undefined}
               aria-label={dayLabel(cell.iso, day, isToday)}
               tabIndex={cell.iso === tabStop ? 0 : -1}
-              onClick={() => onSelect(cell.iso)}
+              onClick={() => (onOpen ? onOpen(cell.iso) : onSelect(cell.iso))}
               onKeyDown={(e) => onKeyDown(e, cell.iso)}
             >
               <span className="cal-day__head">

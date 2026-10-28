@@ -16,7 +16,8 @@ import './Sheet.css';
 
 /**
  * Side panel / drawer. `side="right"` is a full-height panel that slides in
- * from the right (Frappe CRM side panel look); `side="bottom"` is frappe-ui's
+ * from the right (Frappe CRM side panel look), with optional header
+ * `actions` before the close button; `side="bottom"` is frappe-ui's
  * BottomSheet (36px top radius, grab handle, centred title, 90dvh cap, swipe
  * down to dismiss). `auto` (default) is right from 768px up, bottom below.
  *
@@ -31,6 +32,7 @@ export default function Sheet({
   onClose,
   title,
   description,
+  actions,
   side = 'auto',
   width = 480,
   footer,
@@ -117,7 +119,7 @@ export default function Sheet({
               )}
             </div>
           ) : (
-            (title || description != null || dismissable) && (
+            (title || description != null || actions || dismissable) && (
               <div className="ui-sheet__header">
                 <div className="ui-sheet__titles">
                   {title && (
@@ -131,6 +133,7 @@ export default function Sheet({
                     </p>
                   )}
                 </div>
+                {actions && <div className="ui-sheet__actions">{actions}</div>}
                 {dismissable && <DialogCloseButton onClick={close} />}
               </div>
             )

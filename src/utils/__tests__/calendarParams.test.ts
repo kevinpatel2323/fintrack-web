@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   calendarPath,
+  parseCalendarDayOpen,
   parseCalendarParams,
   parseCalendarView,
   parseMonthParam,
@@ -72,5 +73,24 @@ describe('calendar view param', () => {
   it('leaves the view alone when the patch does not mention it', () => {
     const next = patchCalendarParams(new URLSearchParams('view=subscriptions'), { selectedIso: '2026-10-01' });
     expect(next.get('view')).toBe('subscriptions');
+  });
+});
+
+describe('day drawer param', () => {
+  it('reads panel=day only', () => {
+    expect(parseCalendarDayOpen(new URLSearchParams('day=2026-10-15&panel=day'))).toBe(true);
+    expect(parseCalendarDayOpen(new URLSearchParams('panel=other'))).toBe(false);
+    expect(parseCalendarDayOpen(new URLSearchParams(''))).toBe(false);
+  });
+
+  it('opens a day and closes the drawer while keeping month and day', () => {
+    const opened = patchCalendarParams(new URLSearchParams('month=2026-10'), { selectedIso: '2026-10-15', dayOpen: true });
+    expect(opened.toString()).toBe('month=2026-10&day=2026-10-15&panel=day');
+    expect(patchCalendarParams(opened, { dayOpen: false }).toString()).toBe('month=2026-10&day=2026-10-15');
+  });
+
+  it('leaves the drawer alone when the patch does not mention it', () => {
+    const next = patchCalendarParams(new URLSearchParams('panel=day'), { selectedIso: '2026-10-16' });
+    expect(next.get('panel')).toBe('day');
   });
 });

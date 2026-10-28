@@ -465,42 +465,18 @@
   color: var(--ink-gray-5);
 }
 
-/* ── Selected day: the same table as Transactions ────────────────────── */
+/* ── Day drawer: the same table as Transactions ───────────────────────── */
 
-.cal-dayview {
+/* Body inset so the table's row text lines up with the drawer title (8px
+   here + the list's own 12px row inset = the header's 20px). */
+.ui-sheet.cal-dayview[data-side='right'] .cal-dayview__body {
+  padding: 8px 8px 20px;
+}
+
+.cal-dayview__content {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 12px;
-  /* "Next day to fix" scrolls here; keep it clear of the sticky header. */
-  scroll-margin-top: calc(var(--header-height) + 12px);
-}
-
-.cal-dayview__head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--outline-gray-1);
-}
-
-.cal-dayview__heading {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.cal-dayview__title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--ink-gray-9);
-}
-
-.cal-dayview__meta {
-  font-size: 13px;
-  color: var(--ink-gray-5);
+  gap: 16px;
 }
 
 .cal-dayview__todo {
@@ -508,11 +484,11 @@
   font-weight: 500;
 }
 
-.cal-dayview__actions {
+/* Columns on the left of the footer, the actions on the right. */
+.cal-dayview__footer-start {
   display: flex;
-  flex-shrink: 0;
   align-items: center;
-  gap: 8px;
+  margin-right: auto;
 }
 
 /* Rows still to categorise: the calendar's amber marker, in the table. */

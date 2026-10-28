@@ -17,7 +17,7 @@ npm test         # Vitest
 | `/` | `pages/Dashboard.jsx` | Stats, needs-attention list, charts (`pages/dashboard/`) |
 | `/transactions` | `pages/Transactions.jsx` | Filterable list; filters live in the URL (`utils/transactionsListParams.js`) |
 | `/transactions/:id` | `pages/TransactionDetail.jsx` | Record page: summary, split, card bill, details panel |
-| `/calendar` | `pages/Calendar.jsx` | Month grid + day panel; `?view=subscriptions` for subscriptions (`pages/calendar/`) |
+| `/calendar` | `pages/Calendar.jsx` | Month grid; a clicked day opens in a side drawer (`?panel=day`, phones list it under the grid); `?view=subscriptions` for subscriptions (`pages/calendar/`) |
 | `/subscriptions` | — | Redirects to `/calendar?view=subscriptions` |
 | `/cards`, `/cards/:id` | `pages/Cards.jsx`, `pages/CardDetail.jsx` | Card list and record page (`pages/cards/`, `components/cards/`) |
 | `/friends`, `/friends/:id` | `pages/Friends.jsx`, `pages/FriendDetail.jsx` | People and the friend ledger (`pages/people/`, `components/people/`) |

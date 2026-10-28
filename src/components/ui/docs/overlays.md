@@ -152,6 +152,7 @@ A side panel or drawer. `right` is a full-height panel that slides in from the r
 |---|---|---|---|
 | `open`, `onClose` | | `false` | |
 | `title`, `description` | node | | |
+| `actions` | node | | Right side only: ghost icon buttons in the header, before × (e.g. previous/next record). |
 | `side` | `'right' \| 'bottom' \| 'auto'` | `'auto'` | `auto` is right from 768px up and bottom below. |
 | `width` | number or CSS length | `480` | Right side only. Capped at the viewport width. |
 | `footer` | node | | Right-aligned row. |

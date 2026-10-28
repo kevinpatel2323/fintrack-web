@@ -79,6 +79,13 @@
   padding-top: 2px;
 }
 
+.ui-sheet__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+}
+
 .ui-sheet[data-side='right'] .ui-sheet__title {
   margin: 0;
   font-size: 18px;

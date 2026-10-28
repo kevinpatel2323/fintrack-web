@@ -11,6 +11,7 @@ import { API_BASE, apiErrorMessage, apiFetch } from '../services/http.js';
 import { useIsCompact } from '../styles/breakpoints.js';
 import { cardTxnStatus } from '../utils/cardTransactionRow.jsx';
 import {
+  parseCalendarDayOpen,
   parseCalendarParams,
   parseCalendarView,
   patchCalendarParams,
@@ -44,10 +45,10 @@ function errorMessage(data, fallback) {
 }
 
 /**
- * Calendar (`/calendar`): the month's transactions on a grid with the
- * selected day beside it, and (`?view=subscriptions`) the recurring bills.
- * `month`, `day` and `view` live in the URL so the transaction page can
- * send you back to the same place. Phones get their own layout (one column:
+ * Calendar (`/calendar`): the month's transactions on a grid, a clicked day
+ * in a side drawer over it, and (`?view=subscriptions`) the recurring bills.
+ * `month`, `day`, `panel` (the drawer) and `view` live in the URL so the
+ * transaction page can send you back to the same place. Phones get their own layout (one column:
  * view segment, month bar, the categorising strip, a swipeable grid, the
  * selected day, then the month's spending and bills) over the same state.
  */
@@ -66,6 +67,7 @@ export default function Calendar() {
     [searchParams, calendarDefaults],
   );
   const view = parseCalendarView(searchParams);
+  const dayOpen = parseCalendarDayOpen(searchParams);
   // The day panel only ever describes a day the grid is showing.
   const activeIso = isInMonth(selectedIso, viewYear, viewMonth)
     ? selectedIso
@@ -217,12 +219,8 @@ export default function Calendar() {
   );
   const nextById = useMemo(() => nextDateBySubscription(aheadOccurrences, todayIso), [aheadOccurrences, todayIso]);
 
-  // The side panel scrolls on its own; a new day starts at its top.
-  const asideRef = useRef(null);
+  // Phones: the selected day's list under the grid, for "Next day to fix".
   const dayRef = useRef(null);
-  useEffect(() => {
-    if (asideRef.current) asideRef.current.scrollTop = 0;
-  }, [activeIso]);
 
   // ── Navigation ─────────────────────────────────────────────────────────
   function goToMonth(year, month) {
@@ -241,6 +239,15 @@ export default function Calendar() {
     patchCalendar({ viewYear: t.getFullYear(), viewMonth: t.getMonth(), selectedIso: todayIso });
   }
   const selectDay = useCallback((iso) => patchCalendar({ selectedIso: iso }), [patchCalendar]);
+  // Desktop: a clicked day opens in the drawer.
+  const openDay = useCallback((iso) => patchCalendar({ selectedIso: iso, dayOpen: true }), [patchCalendar]);
+  const closeDay = useCallback(() => patchCalendar({ dayOpen: false }), [patchCalendar]);
+  // The drawer's previous/next day, into the next month when it runs out.
+  const stepDay = useCallback((step) => {
+    const iso = addDaysIso(activeIso, step);
+    const d = new Date(`${iso}T12:00:00`);
+    patchCalendar({ viewYear: d.getFullYear(), viewMonth: d.getMonth(), selectedIso: iso });
+  }, [activeIso, patchCalendar]);
   const setView = useCallback((v) => patchCalendar({ view: v }), [patchCalendar]);
 
   const openTransactionDetail = useCallback((tx) => {
@@ -421,15 +428,21 @@ export default function Calendar() {
     />
   );
 
-  // Jump to the next day with something to categorise; its day panel lists
-  // those transactions with a category picker on each.
+  // Jump to the next day with something to categorise; its day lists those
+  // transactions first, with a category picker on each.
   const goToNextPending = () => {
     const next = nextPendingDay(pending.days, activeIso);
     if (!next) return;
+    if (!isMobile) {
+      openDay(next);
+      return;
+    }
     selectDay(next);
-    // Bring that day's table into view, where the pickers are.
+    // Bring that day's list into view, where the pickers are.
     requestAnimationFrame(() => dayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
+  // From the drawer, only while another day still has something to fix.
+  const hasOtherPendingDay = pending.days.some((iso) => iso !== activeIso);
 
   const categorised = pending.total - pending.pending;
   const pendingBar = txLoading && pending.total === 0 ? null : pending.pending > 0 ? (
@@ -539,14 +552,21 @@ export default function Calendar() {
           todayIso={todayIso}
           selectedIso={activeIso}
           onSelect={selectDay}
+          onOpen={openDay}
           loading={txLoading}
           focusPending={focusPending}
           label={monthTitle}
         />
         <CalendarLegend />
-        <DayTransactions ref={dayRef} {...dayProps} />
+        <DayTransactions
+          {...dayProps}
+          open={dayOpen}
+          onClose={closeDay}
+          onStepDay={stepDay}
+          onNextPending={hasOtherPendingDay ? goToNextPending : null}
+        />
       </div>
-      <aside className="cal-aside" ref={asideRef} aria-label="Month details">
+      <aside className="cal-aside" aria-label="Month details">
         <CategorySpend
           transactions={transactions}
           monthName={monthName}

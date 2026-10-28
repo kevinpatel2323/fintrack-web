@@ -45,6 +45,15 @@ export function parseCalendarView(searchParams) {
   return searchParams.get('view') === 'subscriptions' ? 'subscriptions' : 'transactions';
 }
 
+/**
+ * Whether the selected day is open in the day drawer (`?panel=day`), so
+ * coming back from a transaction reopens it.
+ * @param {URLSearchParams} searchParams
+ */
+export function parseCalendarDayOpen(searchParams) {
+  return searchParams.get('panel') === 'day';
+}
+
 /** @param {URLSearchParams} prev */
 export function patchCalendarParams(prev, patch) {
   const next = new URLSearchParams(prev);
@@ -68,6 +77,11 @@ export function patchCalendarParams(prev, patch) {
   if ('view' in patch) {
     if (patch.view === 'subscriptions') next.set('view', 'subscriptions');
     else next.delete('view');
+  }
+
+  if ('dayOpen' in patch) {
+    if (patch.dayOpen) next.set('panel', 'day');
+    else next.delete('panel');
   }
 
   return next;
