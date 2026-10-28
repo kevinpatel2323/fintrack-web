@@ -123,12 +123,6 @@
   color: var(--ink-gray-5);
 }
 
-@media (max-width: 639.98px) {
-  .cardd-cell__sub {
-    display: block;
-  }
-}
-
 /* ---------- Side panel (and the Details tab) ---------- */
 .cardd-side {
   display: flex;
@@ -308,84 +302,10 @@
   color: var(--ink-gray-5);
 }
 
-.cardd-breakdown__list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  overflow: hidden;
-  border: 1px solid var(--outline-gray-1);
-  border-radius: var(--radius-5);
-}
-
-.cardd-breakdown__row {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  min-height: 36px;
-  padding: 6px 12px;
-  font-size: 13px;
-  color: var(--ink-gray-8);
-}
-
-.cardd-breakdown__row + .cardd-breakdown__row {
-  border-top: 1px solid var(--outline-gray-1);
-}
-
-.cardd-breakdown__date {
-  color: var(--ink-gray-5);
-  font-variant-numeric: tabular-nums;
-}
-
-.cardd-breakdown__amount {
-  text-align: right;
-}
-
 /* ---------- Narrow: one column, details move into a tab ---------- */
 @media (max-width: 1023.98px) {
   .cardd {
     grid-template-columns: minmax(0, 1fr);
     min-height: 0;
-  }
-}
-
-@media (max-width: 767.98px) {
-  .cardd__main {
-    gap: 16px;
-    padding: 12px 12px 24px;
-  }
-
-  .cardd-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .cardd-summary > :first-child:nth-last-child(odd) {
-    grid-column: 1 / -1;
-  }
-
-  .cardd-toolbar__search {
-    flex-basis: 100%;
-    max-width: none;
-  }
-
-  .cardd-toolbar__filter {
-    flex: 1 1 0;
-    width: auto;
-    min-width: 0;
-  }
-
-  .cardd-toolbar__summary {
-    flex-basis: 100%;
-    margin-left: 0;
-    white-space: normal;
-  }
-
-  .cardd-toolbar__summary--start {
-    flex-basis: auto;
-    flex: 1;
-  }
-
-  .cardd-facts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

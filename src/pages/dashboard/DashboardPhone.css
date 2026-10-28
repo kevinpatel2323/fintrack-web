@@ -1,0 +1,164 @@
+/* Home on phones (DashboardPhone.jsx). Phone-only markup, prefix `home-`.
+ *
+ * frappe-ui AccountingMobile: one column inside a 16px gutter; figure tiles
+ * (kit StatCard, compact on phones) and the chart are the only boxes; lists
+ * run edge to edge (MobileList); sections are MobileSection, 28px apart. */
+
+.home-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+}
+
+.home-body {
+  min-width: 0;
+  transition: opacity 150ms;
+}
+
+/* A new range is loading: keep the old figures in view, quietly. */
+.home-body.is-refreshing {
+  opacity: 0.6;
+}
+
+/* ---------- Period ---------- */
+
+.home-period {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.home-period__button {
+  flex-shrink: 0;
+}
+
+.home-period__dates {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Figures ---------- */
+
+.home-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.home-figures__caption {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+}
+
+/* ---------- Rows ---------- */
+
+.home-icon-tile {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-4);
+  background: var(--surface-gray-2);
+  color: var(--ink-gray-6);
+}
+
+.home-due {
+  color: var(--ink-money-due);
+}
+
+/* The segment sits between the section title and its rows. */
+.home-segment {
+  margin-bottom: 4px;
+}
+
+/* ---------- Skeleton rows (MobileList-shaped) ---------- */
+
+.home-skel {
+  margin-inline: calc(-1 * var(--page-gutter));
+}
+
+.home-skel__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px var(--page-gutter);
+}
+
+.home-skel__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* ---------- Spending by category ---------- */
+
+/* CategoryBars at phone size: 15px names and figures, 13px hints, a 6px
+   track, and 44px tap rows when a row opens its transactions. */
+.home-catbars .ui-chart-catbars-list {
+  gap: 4px;
+}
+
+.home-catbars .ui-chart-catbar {
+  gap: 8px;
+  padding-block: 8px;
+}
+
+.home-catbars .ui-chart-catbar-head {
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
+.home-catbars .ui-chart-catbar-label {
+  color: var(--ink-gray-8);
+}
+
+.home-catbars .ui-chart-catbar-hint,
+.home-catbars .ui-chart-catbar-pct {
+  font-size: 13px;
+}
+
+.home-catbars .ui-chart-catbar-track {
+  height: 6px;
+  border-radius: 3px;
+}
+
+.home-catbars .ui-chart-empty {
+  height: 72px;
+  font-size: 15px;
+}
+
+/* ---------- Chart ---------- */
+
+/* AccountingMobile's chart box: hairline, rounded-6, p-3. Not clipped, so
+   the tooltip can cross the edge. */
+.home-chart {
+  min-width: 0;
+  padding: 12px 12px 8px;
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-6);
+  background: var(--surface-base);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-body {
+    transition: none;
+  }
+}
+
+/* The shared error card stacks its message over Retry. */
+.home-page .dash-error__body {
+  flex-direction: column;
+  align-items: stretch;
+}

@@ -1,7 +1,9 @@
 import { CalendarClock } from 'lucide-react';
-import { Amount, Badge, Card, EmptyState } from '../../components/ui';
+import {
+  Amount, Badge, Card, EmptyState, MobileList, MobileListItem, MobileSection,
+} from '../../components/ui';
 import { CategoryIcon } from '../../components/common/Category.jsx';
-import { formatDayShort } from './calendarModel.js';
+import { formatDayMedium, formatDayShort } from './calendarModel.js';
 
 const cx = (...parts) => parts.filter(Boolean).join(' ');
 
@@ -80,5 +82,79 @@ export function BillsCard({
         !loading && <EmptyState size="sm" icon={CalendarClock} title={emptyTitle} description={emptyDescription} />
       )}
     </Card>
+  );
+}
+
+/**
+ * Phone: subscription bills as a list of rows (category tile, name, date and
+ * merchant, amount). `showDate` adds the bill's date to the second line, for
+ * lists that span several days. Bills before `todayIso` read as past.
+ */
+export function PhoneBillList({ items, todayIso, subsById, categoriesById, onOpenSubscription, showDate = true, label }) {
+  return (
+    <MobileList aria-label={label} className="cal-pbills">
+      {items.map((o) => {
+        const sub = subsById.get(String(o.subscriptionId));
+        const past = todayIso ? o.date < todayIso : false;
+        const meta = [showDate ? formatDayMedium(o.date) : null, o.merchantLabel || (showDate ? null : 'Subscription')];
+        if (o.trialEndsOn) meta.push(`Trial ends ${formatDayShort(o.trialEndsOn)}`);
+        return (
+          <MobileListItem
+            key={`${o.subscriptionId}-${o.date}`}
+            className={cx('cal-pbill', past && 'is-past')}
+            leading={<CategoryIcon category={categoriesById.get(String(o.categoryId))} size={32} />}
+            title={o.name}
+            subtitle={meta.filter(Boolean).join(' · ')}
+            value={<Amount value={Number(o.amount || 0)} sign="never" tone={past ? 'muted' : 'out'} />}
+            valueSub={o.isTrial ? 'Trial' : undefined}
+            onClick={sub ? () => onOpenSubscription(sub) : undefined}
+          />
+        );
+      })}
+    </MobileList>
+  );
+}
+
+/**
+ * Phone counterpart of BillsCard: a titled section (not a boxed card) with
+ * the bills as rows, or a short empty state.
+ */
+export function BillsSection({
+  title,
+  description,
+  action,
+  items,
+  todayIso,
+  subsById,
+  categoriesById,
+  onOpenSubscription,
+  emptyTitle,
+  emptyDescription,
+  loading = false,
+  className,
+}) {
+  return (
+    <MobileSection title={title} description={description} action={action} className={cx('cal-psection', className)}>
+      {items.length > 0 ? (
+        <PhoneBillList
+          items={items}
+          todayIso={todayIso}
+          subsById={subsById}
+          categoriesById={categoriesById}
+          onOpenSubscription={onOpenSubscription}
+          label={title}
+        />
+      ) : (
+        !loading && (
+          <EmptyState
+            size="sm"
+            icon={CalendarClock}
+            title={emptyTitle}
+            description={emptyDescription}
+            className="cal-pempty"
+          />
+        )
+      )}
+    </MobileSection>
   );
 }

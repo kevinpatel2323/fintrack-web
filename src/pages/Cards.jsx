@@ -5,8 +5,10 @@ import {
 } from '../components/ui';
 import CardFormModal from '../components/CardFormModal.jsx';
 import CardTile, { CardTileSkeleton } from './cards/CardTile.jsx';
+import CardsPhone from './cards/CardsPhone.jsx';
 import { fetchDues, fetchWallet } from '../services/cardsApi.js';
 import { useImportSchedule } from '../hooks/useImportSchedule.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import { inrCompact } from '../utils/inr.js';
 import { dayLabel, formatPct } from '../components/cards/cardFormat.js';
 import './cards/cards-page.css';
@@ -59,6 +61,7 @@ function CardSection({ title, cards, scheduleByCard, dueByCard }) {
 }
 
 export default function Cards() {
+  const isMobile = useIsCompact();
   const [wallet, setWallet] = useState(null);
   const [dues, setDues] = useState([]);
   const [error, setError] = useState('');
@@ -112,90 +115,108 @@ export default function Cards() {
         actions={<Button variant="solid" iconLeft={Plus} label="Add card" onClick={openForm} />}
         mobileActions={<Button variant="ghost" size="md" icon={Plus} label="Add card" onClick={openForm} />}
       />
-      <PageBody className="cards-page">
-        {error && (
-          <Alert
-            theme="red"
-            title="Couldn't load your cards"
-            description={error}
-            primaryAction={{ label: 'Try again', onClick: () => load() }}
-          />
-        )}
+      {isMobile ? (
+        <CardsPhone
+          error={error}
+          onRetry={() => load()}
+          initialLoading={initialLoading}
+          hasCredit={hasCredit}
+          totals={totals}
+          activeDues={activeDues}
+          urgentDue={urgentDue}
+          cards={cards}
+          creditCards={creditCards}
+          debitCards={debitCards}
+          scheduleByCard={scheduleByCard}
+          dueByCard={dueByCard}
+          onAdd={openForm}
+        />
+      ) : (
+        <PageBody className="cards-page">
+          {error && (
+            <Alert
+              theme="red"
+              title="Couldn't load your cards"
+              description={error}
+              primaryAction={{ label: 'Try again', onClick: () => load() }}
+            />
+          )}
 
-        {(initialLoading || hasCredit) && (
-          <div className="cards-stats">
-            <StatCard
-              label="Total outstanding"
-              loading={initialLoading}
-              value={<Amount value={totals.totalOutstanding} tone="inherit" />}
-              hint={`Across ${totals.creditCount} credit card${totals.creditCount === 1 ? '' : 's'}`}
-            />
-            <StatCard
-              label="Due soon"
-              loading={initialLoading}
-              value={<Amount value={totals.totalDue} tone={activeDues.some((d) => d.status === 'overdue') ? 'due' : 'inherit'} />}
-              hint={<DueSoonHint dues={activeDues} />}
-              to={urgentDue ? `/cards/${urgentDue.cardId}` : undefined}
-            />
-            <StatCard
-              label="Available credit"
-              loading={initialLoading}
-              value={<Amount value={totals.totalAvailable} tone="inherit" />}
-              hint={
-                totals.totalLimit > 0 ? (
-                  <Progress
-                    className="cards-stat__progress"
-                    value={totals.utilizationPct}
-                    label={`${formatPct(totals.utilizationPct)} of ${inrCompact(totals.totalLimit)} used`}
-                  />
-                ) : (
-                  'No credit limits set'
-                )
-              }
-            />
-            {totals.totalPointsValue > 0 && (
+          {(initialLoading || hasCredit) && (
+            <div className="cards-stats">
               <StatCard
-                label="Rewards value"
-                value={<Amount value={totals.totalPointsValue} tone="inherit" />}
-                hint="Points across your credit cards"
+                label="Total outstanding"
+                loading={initialLoading}
+                value={<Amount value={totals.totalOutstanding} tone="inherit" />}
+                hint={`Across ${totals.creditCount} credit card${totals.creditCount === 1 ? '' : 's'}`}
               />
-            )}
-          </div>
-        )}
+              <StatCard
+                label="Due soon"
+                loading={initialLoading}
+                value={<Amount value={totals.totalDue} tone={activeDues.some((d) => d.status === 'overdue') ? 'due' : 'inherit'} />}
+                hint={<DueSoonHint dues={activeDues} />}
+                to={urgentDue ? `/cards/${urgentDue.cardId}` : undefined}
+              />
+              <StatCard
+                label="Available credit"
+                loading={initialLoading}
+                value={<Amount value={totals.totalAvailable} tone="inherit" />}
+                hint={
+                  totals.totalLimit > 0 ? (
+                    <Progress
+                      className="cards-stat__progress"
+                      value={totals.utilizationPct}
+                      label={`${formatPct(totals.utilizationPct)} of ${inrCompact(totals.totalLimit)} used`}
+                    />
+                  ) : (
+                    'No credit limits set'
+                  )
+                }
+              />
+              {totals.totalPointsValue > 0 && (
+                <StatCard
+                  label="Rewards value"
+                  value={<Amount value={totals.totalPointsValue} tone="inherit" />}
+                  hint="Points across your credit cards"
+                />
+              )}
+            </div>
+          )}
 
-        {initialLoading ? (
-          <div className="cards-grid" aria-busy="true" aria-label="Loading cards">
-            <CardTileSkeleton />
-            <CardTileSkeleton />
-          </div>
-        ) : cards.length === 0 ? (
-          !error && (
-            <EmptyState
-              icon={CreditCard}
-              title="No cards yet"
-              description="Add a card to track its spends, statements and bills."
-              action={<Button iconLeft={Plus} label="Add card" onClick={openForm} />}
-            />
-          )
-        ) : (
-          // Each tile carries its own bill (due date, amount, overdue / due soon),
-          // so the cards themselves are the page.
-          <>
-            <CardSection
-              title="Credit cards"
-              cards={creditCards}
-              scheduleByCard={scheduleByCard}
-              dueByCard={dueByCard}
-            />
-            <CardSection
-              title="Debit cards"
-              cards={debitCards}
-              scheduleByCard={scheduleByCard}
-              dueByCard={dueByCard}
-            />
-          </>
-        )}
-      </PageBody>
+          {initialLoading ? (
+            <div className="cards-grid" aria-busy="true" aria-label="Loading cards">
+              <CardTileSkeleton />
+              <CardTileSkeleton />
+            </div>
+          ) : cards.length === 0 ? (
+            !error && (
+              <EmptyState
+                icon={CreditCard}
+                title="No cards yet"
+                description="Add a card to track its spends, statements and bills."
+                action={<Button iconLeft={Plus} label="Add card" onClick={openForm} />}
+              />
+            )
+          ) : (
+            // Each tile carries its own bill (due date, amount, overdue / due soon),
+            // so the cards themselves are the page.
+            <>
+              <CardSection
+                title="Credit cards"
+                cards={creditCards}
+                scheduleByCard={scheduleByCard}
+                dueByCard={dueByCard}
+              />
+              <CardSection
+                title="Debit cards"
+                cards={debitCards}
+                scheduleByCard={scheduleByCard}
+                dueByCard={dueByCard}
+              />
+            </>
+          )}
+        </PageBody>
+      )}
 
       {formOpen && <CardFormModal onClose={() => setFormOpen(false)} onSaved={onCreated} />}
     </>

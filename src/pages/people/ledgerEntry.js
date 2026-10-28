@@ -84,3 +84,32 @@ export function entryFacts(tag, friendName) {
     applyInline: isSettlement && tag.settlementLegacy === false && toMinor(tag.unallocatedAmount) > 0,
   };
 }
+
+/** "28 Oct" this year, "28 Oct 2025" before — the phone ledger's shorter date. */
+export function formatDayShort(value) {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) });
+}
+
+/**
+ * How a person's balance splits up entry by entry: what is open on each
+ * side and money on account (`parts`), and whatever only older amount-less
+ * settlements explain (`legacyMinor`, in paise), so the pieces add back up
+ * to the balance. Shared by the desktop line and the phone hero.
+ */
+export function openDuesParts({ first, openOwesMe, openIOwe, onAccountReceived, onAccountPaid, legacyDifference }) {
+  const parts = [
+    openOwesMe > 0 ? `${first} has ${rupees(toMinor(openOwesMe))} open` : null,
+    openIOwe > 0 ? `you have ${rupees(toMinor(openIOwe))} open` : null,
+    onAccountReceived > 0 ? `${rupees(toMinor(onAccountReceived))} of ${first}'s money on account` : null,
+    onAccountPaid > 0 ? `${rupees(toMinor(onAccountPaid))} of your money on account` : null,
+  ].filter(Boolean);
+  return { parts, legacyMinor: toMinor(legacyDifference) };
+}
+
+/** The legacy remainder in words, for the line above (amber where shown). */
+export const legacyDuesText = (legacyMinor) =>
+  `${rupees(Math.abs(legacyMinor))} from older settlements that don't match their entries`;

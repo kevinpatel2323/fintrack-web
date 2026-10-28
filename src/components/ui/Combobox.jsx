@@ -1,7 +1,11 @@
 import { forwardRef, isValidElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, Plus, X } from 'lucide-react';
+import { Check, ChevronDown, Plus, Search, X } from 'lucide-react';
 import Portal from '../Portal.jsx';
+import Sheet from './Sheet.jsx';
 import { useDismiss, useFloating, useStableId } from './internal/floating.js';
+import { usePresence } from './internal/dialogUtils.js';
+import { fieldName } from './internal/fieldName.js';
+import { useIsCompact } from '../../styles/breakpoints.js';
 import './Select.css';
 import './Combobox.css';
 
@@ -18,6 +22,12 @@ import './Combobox.css';
 // starting with the typed text. `renderTrigger({ selected, open })` replaces
 // the select-style trigger's content and chrome with your own (e.g. a
 // category tile), keeping the same panel and list.
+//
+// Phones (< 768px): the options open in a bottom sheet instead of a popover
+// (frappe-ui BottomSheet): grab handle, a title (`sheetTitle`, else the
+// field's label, aria-label or placeholder), the search box pinned on top,
+// 48px rows. The sheet takes focus, not the search box, so the keyboard only
+// comes up when the search box is tapped.
 
 const SIZES = new Set(['xs', 'sm', 'md', 'lg', 'xl']);
 const VARIANTS = new Set(['subtle', 'outline', 'ghost']);
@@ -140,6 +150,7 @@ const Combobox = forwardRef(function Combobox(
     searchable = true,
     renderTrigger,
     triggerClassName,
+    sheetTitle,
     prefix,
     id: idProp,
     className,
@@ -160,6 +171,13 @@ const Combobox = forwardRef(function Combobox(
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(-1);
+  // Phones: a bottom sheet instead of the floating panel.
+  const asSheet = useIsCompact();
+  const floatingOpen = open && !asSheet;
+  const sheet = usePresence(open && asSheet, 200);
+  const [sheetLabel, setSheetLabel] = useState('');
+  // The sheet paints the keyboard highlight only once the keys are in use.
+  const [keyboardNav, setKeyboardNav] = useState(false);
 
   const rootRef = useRef(null);
   const searchRef = useRef(null);
@@ -169,7 +187,7 @@ const Combobox = forwardRef(function Combobox(
   const pendingIndex = useRef(-1);
   const viewportRef = useRef(null);
   const { anchorRef: triggerRef, floatingRef, style: floatingStyle } = useFloating({
-    open,
+    open: floatingOpen,
     placement: 'bottom-start',
     offset: 4,
     // A custom trigger (an icon tile) is far narrower than its list.
@@ -213,6 +231,19 @@ const Combobox = forwardRef(function Combobox(
       const sel = selected ? allOptions.indexOf(selected) : -1;
       setActiveIndex(sel >= 0 && !allOptions[sel].disabled ? sel : firstEnabled(allOptions));
     }
+    if (asSheet) {
+      setKeyboardNav(false);
+      setSheetLabel(
+        fieldName(triggerRef.current, {
+          title: sheetTitle,
+          ariaLabel: rest['aria-label'],
+          ariaLabelledBy: rest['aria-labelledby'],
+          titleAttr: rest.title,
+          placeholder,
+          fallback: 'Select an option',
+        }),
+      );
+    }
     setOpen(true);
   };
 
@@ -226,7 +257,7 @@ const Combobox = forwardRef(function Combobox(
   );
 
   useDismiss({
-    active: open,
+    active: floatingOpen,
     refs: [rootRef, floatingRef],
     onDismiss: (event) => closeMenu(event?.type === 'keydown'),
   });
@@ -249,11 +280,11 @@ const Combobox = forwardRef(function Combobox(
   }, [q, open]);
 
   // The search input (or, without search, the listbox) takes focus as the
-  // popover opens.
+  // popover opens. The phone sheet focuses itself instead (no keyboard).
   useEffect(() => {
-    if (!open) return;
+    if (!open || asSheet) return;
     (searchable ? searchRef.current : listboxRef.current)?.focus({ preventScroll: true });
-  }, [open, searchable]);
+  }, [open, searchable, asSheet]);
 
   useEffect(() => () => clearTimeout(typeahead.current.timer), []);
 
@@ -281,6 +312,7 @@ const Combobox = forwardRef(function Combobox(
 
   const move = (dir) => {
     if (!flat.length) return;
+    setKeyboardNav(true);
     let next;
     if (activeIndex < 0) next = dir > 0 ? firstEnabled(flat) : firstEnabled(flat, flat.length - 1, -1);
     else next = firstEnabled(flat, activeIndex + dir, dir);
@@ -456,6 +488,91 @@ const Combobox = forwardRef(function Combobox(
     );
   };
 
+  // Built only while a panel or sheet is on screen (a closed picker in every
+  // table row shouldn't render its whole list).
+  const showResults = floatingOpen || (asSheet && sheet.present);
+  const searchInput = showResults && searchable ? (
+    <input
+      ref={searchRef}
+      type="text"
+      role="combobox"
+      aria-expanded="true"
+      aria-controls={listboxId}
+      aria-activedescendant={activeId}
+      aria-autocomplete="list"
+      aria-label={searchPlaceholder || 'Search options'}
+      autoComplete="off"
+      spellCheck={false}
+      placeholder={searchPlaceholder}
+      className="ui-combobox__search-input"
+      value={query}
+      onChange={(e) => setQuery(e.target.value)}
+      onKeyDown={onSearchKeyDown}
+    />
+  ) : null;
+
+  const results = showResults && (
+    <div ref={viewportRef} className={cx('ui-combobox__viewport', asSheet && 'ui-combobox-sheet__viewport')}>
+      {flat.length === 0 && (
+        <div className="ui-combobox__empty" role="status">
+          {emptyText}
+        </div>
+      )}
+      <div
+        ref={listboxRef}
+        id={listboxId}
+        role="listbox"
+        aria-label={rest['aria-label'] || placeholder}
+        className="ui-combobox__listbox"
+        {...(searchable
+          ? {}
+          : { tabIndex: -1, 'aria-activedescendant': activeId, onKeyDown: onListKeyDown })}
+      >
+          {visibleGroups.map((group) =>
+            group.label ? (
+              <div
+                key={group.key}
+                role="group"
+                aria-labelledby={`${listboxId}-${group.key}`}
+                className="ui-combobox__group"
+              >
+                <div
+                  id={`${listboxId}-${group.key}`}
+                  role="presentation"
+                  className="ui-combobox__group-label"
+                >
+                  {group.label}
+                </div>
+                {group.items.map(renderItem)}
+              </div>
+            ) : (
+              <div key={group.key} role="presentation" className="ui-combobox__group">
+                {group.items.map(renderItem)}
+              </div>
+            ),
+          )}
+          {createItem && renderItem(createItem)}
+      </div>
+    </div>
+  );
+
+  // The phone sheet holds focus itself (so no keyboard pops up); keys pressed
+  // there drive the list as they would from the search box.
+  const onSheetKeyDown = (event) => {
+    // Only keys pressed on the sheet itself: the search box and the listbox
+    // handle their own, and the sheet's buttons keep theirs.
+    if (event.defaultPrevented || event.target !== event.currentTarget) return;
+    const printable = event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey;
+    if (printable && searchable) {
+      // Hand the key to the search box: focus moves before the character lands.
+      searchRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    if (event.key === 'Tab') return;
+    if (event.key === 'Home' || event.key === 'End' || event.key === ' ' || printable) setKeyboardNav(true);
+    onListKeyDown(event);
+  };
+
   return (
     <div
       ref={rootRef}
@@ -518,7 +635,7 @@ const Combobox = forwardRef(function Combobox(
         </button>
       )}
 
-      {open && (
+      {floatingOpen && (
         <Portal>
           <div
             ref={floatingRef}
@@ -532,69 +649,38 @@ const Combobox = forwardRef(function Combobox(
           >
             {searchable && (
             <div className="ui-combobox__search">
-              <input
-                ref={searchRef}
-                type="text"
-                role="combobox"
-                aria-expanded="true"
-                aria-controls={listboxId}
-                aria-activedescendant={activeId}
-                aria-autocomplete="list"
-                aria-label={searchPlaceholder || 'Search options'}
-                autoComplete="off"
-                spellCheck={false}
-                placeholder={searchPlaceholder}
-                className="ui-combobox__search-input"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={onSearchKeyDown}
-              />
+              {searchInput}
             </div>
             )}
-            <div ref={viewportRef} className="ui-combobox__viewport">
-              {flat.length === 0 && (
-                <div className="ui-combobox__empty" role="status">
-                  {emptyText}
-                </div>
-              )}
-              <div
-                ref={listboxRef}
-                id={listboxId}
-                role="listbox"
-                aria-label={rest['aria-label'] || placeholder}
-                className="ui-combobox__listbox"
-                {...(searchable
-                  ? {}
-                  : { tabIndex: -1, 'aria-activedescendant': activeId, onKeyDown: onListKeyDown })}
-              >
-                  {visibleGroups.map((group) =>
-                    group.label ? (
-                      <div
-                        key={group.key}
-                        role="group"
-                        aria-labelledby={`${listboxId}-${group.key}`}
-                        className="ui-combobox__group"
-                      >
-                        <div
-                          id={`${listboxId}-${group.key}`}
-                          role="presentation"
-                          className="ui-combobox__group-label"
-                        >
-                          {group.label}
-                        </div>
-                        {group.items.map(renderItem)}
-                      </div>
-                    ) : (
-                      <div key={group.key} role="presentation" className="ui-combobox__group">
-                        {group.items.map(renderItem)}
-                      </div>
-                    ),
-                  )}
-                  {createItem && renderItem(createItem)}
-              </div>
-            </div>
+            {results}
           </div>
         </Portal>
+      )}
+
+      {asSheet && sheet.present && (
+        <Sheet
+          open={open}
+          onClose={() => closeMenu(true)}
+          side="bottom"
+          title={sheetLabel}
+          className="ui-combobox-sheet"
+          bodyClassName="ui-combobox-sheet__body"
+          data-keyboard={keyboardNav ? '' : undefined}
+          onKeyDown={onSheetKeyDown}
+        >
+          {searchable && (
+            <div
+              className="ui-combobox-sheet__search"
+              onMouseDown={(e) => {
+                if (e.target !== searchRef.current) e.preventDefault();
+              }}
+            >
+              <Search className="ui-combobox-sheet__search-icon" size={16} strokeWidth={1.5} aria-hidden="true" />
+              {searchInput}
+            </div>
+          )}
+          {results}
+        </Sheet>
       )}
     </div>
   );

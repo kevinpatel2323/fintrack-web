@@ -221,6 +221,35 @@
   padding: 8px 16px calc(16px + env(safe-area-inset-bottom, 0px));
 }
 
+/* Phones: sheet titles read like the header and dialog titles (17px), and
+   footer buttons share the width at 44px as a docked Dialog's actions do:
+   kit Buttons placed straight in the footer, or in one wrapper row. Any
+   other footer content (a status line) takes its own row above them. */
+@media (max-width: 767.98px) {
+  .ui-sheet[data-side='bottom'] .ui-sheet__title {
+    font-size: 17px;
+    line-height: 1.3;
+  }
+
+  /* :where() keeps these easy for a page to adjust (e.g. a wider main
+     button). */
+  :where(.ui-sheet[data-side='bottom']) .ui-sheet__footer > :not(.ui-button):not(.ui-dialog-btn) {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  :where(.ui-sheet[data-side='bottom']) .ui-sheet__footer > :empty:not(.ui-button):not(.ui-dialog-btn) {
+    display: none;
+  }
+  :where(.ui-sheet[data-side='bottom']) .ui-sheet__footer > .ui-button:not(.ui-button--icon),
+  :where(.ui-sheet[data-side='bottom']) .ui-sheet__footer > div > .ui-button:not(.ui-button--icon),
+  :where(.ui-sheet[data-side='bottom']) .ui-sheet__footer > .ui-dialog-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 44px;
+    font-size: 16px;
+  }
+}
+
 /* ---------- Motion ---------- */
 
 @keyframes ui-sheet-in-right {

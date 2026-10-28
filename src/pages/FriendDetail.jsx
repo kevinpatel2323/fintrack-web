@@ -14,9 +14,10 @@ import WriteOffModal from '../components/WriteOffModal.jsx';
 import LegacyReviewModal from '../components/LegacyReviewModal.jsx';
 import { GroupSelectionBar, GroupTitleDialog } from '../components/EntryGroups.jsx';
 import PersonDialog from '../components/people/PersonDialog.jsx';
-import { formatDay, isGroupable } from './people/ledgerEntry.js';
+import { formatDay, isGroupable, openDuesParts } from './people/ledgerEntry.js';
 import PersonLedgerTable from './people/PersonLedgerTable.jsx';
 import BalanceChart from './people/BalanceChart.jsx';
+import PersonPhone, { PersonPhoneLoading } from './people/PersonPhone.jsx';
 import {
   createGroup, deleteGroup, deleteOffset, deleteWriteOff, fetchOffsets, updateGroup,
 } from '../services/friendsApi.js';
@@ -25,6 +26,7 @@ import { rupees, toMinor } from '../utils/settlementAllocation.js';
 import { groupIdOf, groupLedgerRows } from '../utils/entryGroups.js';
 import { friendFirstName } from '../utils/ledgerParties.js';
 import { API_BASE, apiFetch } from '../services/http.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import './FriendDetail.css';
 
 const FILTERS = [
@@ -63,6 +65,7 @@ export default function FriendDetail() {
   const [picked, setPicked] = useState(() => new Set());
   const [groupDialog, setGroupDialog] = useState(null);
   const [ungrouping, setUngrouping] = useState(null);
+  const isMobile = useIsCompact();
 
   async function load() {
     try {
@@ -244,6 +247,8 @@ export default function FriendDetail() {
               description={status === 'missing' ? 'They may have been deleted.' : status}
               action={<Button label="Back to People" to="/friends" />}
             />
+          ) : isMobile ? (
+            <PersonPhoneLoading />
           ) : (
             <div className="person-loading" aria-busy="true">
               <div className="person-head">
@@ -299,6 +304,26 @@ export default function FriendDetail() {
         settled: { title: 'No settlements yet', description: 'Payments between you show up here.' },
       }[filter] || { title: 'No entries', description: '' };
 
+  // What the ledger table does with a row, on desktop and phone alike.
+  const ledgerHandlers = {
+    friendName: f.name,
+    picking: Boolean(picking),
+    picked,
+    onTogglePick: togglePicked,
+    onOpenTransaction: openEntryTransaction,
+    onAllocate: setAllocatingTag,
+    onWriteOff: setWriteOffTag,
+    onUndoWriteOff: (writeOffId) => undo(() => deleteWriteOff(id, writeOffId), 'Write-off undone'),
+    onRemoveFromGroup: (group, t) =>
+      groupAction(
+        () => updateGroup(id, group.id, { removeTagIds: [Number(t.id)] }),
+        `Taken out of “${group.title}”`,
+      ),
+    onRenameGroup: (group, members) => setGroupDialog({ mode: 'rename', group, members }),
+    onAddToGroup: (group) => startPicking(group),
+    onUngroup: (group) => setUngrouping(group),
+  };
+
   const activityPanel = (
     <div role="tabpanel" id="person-panel-activity" aria-labelledby="person-tab-activity" className="person-panel">
       <div className="person-panel__toolbar">
@@ -314,25 +339,7 @@ export default function FriendDetail() {
       {filtered.length === 0 ? (
         <EmptyState size="sm" title={activityEmpty.title} description={activityEmpty.description} />
       ) : (
-        <PersonLedgerTable
-          rows={rows}
-          friendName={f.name}
-          picking={Boolean(picking)}
-          picked={picked}
-          onTogglePick={togglePicked}
-          onOpenTransaction={openEntryTransaction}
-          onAllocate={setAllocatingTag}
-          onWriteOff={setWriteOffTag}
-          onUndoWriteOff={(writeOffId) => undo(() => deleteWriteOff(id, writeOffId), 'Write-off undone')}
-          onRemoveFromGroup={(group, t) =>
-            groupAction(
-              () => updateGroup(id, group.id, { removeTagIds: [Number(t.id)] }),
-              `Taken out of “${group.title}”`,
-            )}
-          onRenameGroup={(group, members) => setGroupDialog({ mode: 'rename', group, members })}
-          onAddToGroup={(group) => startPicking(group)}
-          onUngroup={(group) => setUngrouping(group)}
-        />
+        <PersonLedgerTable rows={rows} {...ledgerHandlers} />
       )}
       {picking && (
         <GroupSelectionBar count={picked.size} target={picking.target} onConfirm={confirmPicked} onCancel={stopPicking} />
@@ -378,6 +385,102 @@ export default function FriendDetail() {
     { label: 'Phone', value: f.phone, href: f.phone ? `tel:${f.phone}` : null },
     { label: 'Note', value: f.note },
   ];
+
+  const dialogs = (
+    <>
+      <FriendLedgerExportModal friend={f} open={exportOpen} onClose={() => setExportOpen(false)} />
+      {allocatingTag && (
+        <SettlementAllocationModal
+          tag={allocatingTag}
+          friendName={f.name}
+          onClose={() => setAllocatingTag(null)}
+          onSaved={reload}
+        />
+      )}
+      {writeOffTag && (
+        <WriteOffModal friendId={id} tag={writeOffTag} onClose={() => setWriteOffTag(null)} onSaved={reload} />
+      )}
+      {netOffOpen && (
+        <NetOffModal friendId={id} friendName={f.name} onClose={() => setNetOffOpen(false)} onSaved={reload} />
+      )}
+      {reviewOpen && (
+        <LegacyReviewModal friendId={id} friendName={f.name} onClose={() => setReviewOpen(false)} onSaved={reload} />
+      )}
+      {groupDialog && (
+        <GroupTitleDialog
+          mode={groupDialog.mode}
+          initialTitle={groupDialog.group?.title}
+          members={groupDialog.members}
+          friendName={f.name}
+          onClose={() => setGroupDialog(null)}
+          onSubmit={saveGroupTitle}
+        />
+      )}
+      <PersonDialog open={editOpen} person={f} onClose={() => setEditOpen(false)} onSaved={load} />
+      <ConfirmDialog
+        open={Boolean(ungrouping)}
+        title={`Ungroup “${ungrouping?.title}”?`}
+        message="Its entries go back to being listed one by one. Nothing about the balance changes."
+        confirmLabel="Ungroup"
+        theme="gray"
+        onConfirm={() => {
+          const group = ungrouping;
+          setUngrouping(null);
+          groupAction(() => deleteGroup(id, group.id), `Ungrouped “${group.title}”`);
+        }}
+        onCancel={() => setUngrouping(null)}
+      />
+      <ConfirmDialog
+        open={deleteOpen}
+        title={`Delete ${f.name}?`}
+        message="This removes the person and unlinks any tagged transactions."
+        confirmLabel="Delete"
+        onConfirm={deletePerson}
+        onCancel={() => setDeleteOpen(false)}
+      />
+    </>
+  );
+
+  // Phones: a pushed page of its own (hero balance, ledger, chart, details,
+  // an action bar), on the same state and handlers.
+  if (isMobile) {
+    return (
+      <>
+        <PersonPhone
+          friend={f}
+          first={first}
+          summaryLoaded={Boolean(summary)}
+          figures={{ net, iOwe, owedToMe, settlements }}
+          dues={openDuesParts({ first, openOwesMe, openIOwe, onAccountReceived, onAccountPaid, legacyDifference })}
+          needingReview={needingReview}
+          tags={tags}
+          rows={rows}
+          filtered={filtered}
+          filter={filter}
+          onFilterChange={setFilter}
+          filters={FILTERS}
+          view={view}
+          onViewChange={setView}
+          offsets={offsets}
+          activityEmpty={activityEmpty}
+          ledgerHandlers={ledgerHandlers}
+          picking={picking}
+          pickedCount={picked.size}
+          onConfirmPicked={confirmPicked}
+          onStopPicking={stopPicking}
+          moreActions={moreActions}
+          netOffReady={netOffReady}
+          contactRows={contactRows}
+          onExport={() => setExportOpen(true)}
+          onEdit={() => setEditOpen(true)}
+          onReview={() => setReviewOpen(true)}
+          onNetOff={() => setNetOffOpen(true)}
+          onUndoOffset={(o) => undo(() => deleteOffset(id, o.id), 'Net off undone')}
+        />
+        {dialogs}
+      </>
+    );
+  }
 
   return (
     <>
@@ -492,56 +595,7 @@ export default function FriendDetail() {
         </div>
       </PageBody>
 
-      <FriendLedgerExportModal friend={f} open={exportOpen} onClose={() => setExportOpen(false)} />
-      {allocatingTag && (
-        <SettlementAllocationModal
-          tag={allocatingTag}
-          friendName={f.name}
-          onClose={() => setAllocatingTag(null)}
-          onSaved={reload}
-        />
-      )}
-      {writeOffTag && (
-        <WriteOffModal friendId={id} tag={writeOffTag} onClose={() => setWriteOffTag(null)} onSaved={reload} />
-      )}
-      {netOffOpen && (
-        <NetOffModal friendId={id} friendName={f.name} onClose={() => setNetOffOpen(false)} onSaved={reload} />
-      )}
-      {reviewOpen && (
-        <LegacyReviewModal friendId={id} friendName={f.name} onClose={() => setReviewOpen(false)} onSaved={reload} />
-      )}
-      {groupDialog && (
-        <GroupTitleDialog
-          mode={groupDialog.mode}
-          initialTitle={groupDialog.group?.title}
-          members={groupDialog.members}
-          friendName={f.name}
-          onClose={() => setGroupDialog(null)}
-          onSubmit={saveGroupTitle}
-        />
-      )}
-      <PersonDialog open={editOpen} person={f} onClose={() => setEditOpen(false)} onSaved={load} />
-      <ConfirmDialog
-        open={Boolean(ungrouping)}
-        title={`Ungroup “${ungrouping?.title}”?`}
-        message="Its entries go back to being listed one by one. Nothing about the balance changes."
-        confirmLabel="Ungroup"
-        theme="gray"
-        onConfirm={() => {
-          const group = ungrouping;
-          setUngrouping(null);
-          groupAction(() => deleteGroup(id, group.id), `Ungrouped “${group.title}”`);
-        }}
-        onCancel={() => setUngrouping(null)}
-      />
-      <ConfirmDialog
-        open={deleteOpen}
-        title={`Delete ${f.name}?`}
-        message="This removes the person and unlinks any tagged transactions."
-        confirmLabel="Delete"
-        onConfirm={deletePerson}
-        onCancel={() => setDeleteOpen(false)}
-      />
+      {dialogs}
     </>
   );
 }
@@ -555,13 +609,9 @@ export default function FriendDetail() {
 function OpenDuesLine({
   first, openOwesMe, openIOwe, onAccountReceived, onAccountPaid, legacyDifference, onReview, onNetOff,
 }) {
-  const parts = [
-    openOwesMe > 0 ? `${first} has ${rupees(toMinor(openOwesMe))} open` : null,
-    openIOwe > 0 ? `you have ${rupees(toMinor(openIOwe))} open` : null,
-    onAccountReceived > 0 ? `${rupees(toMinor(onAccountReceived))} of ${first}'s money on account` : null,
-    onAccountPaid > 0 ? `${rupees(toMinor(onAccountPaid))} of your money on account` : null,
-  ].filter(Boolean);
-  const legacy = toMinor(legacyDifference);
+  const { parts, legacyMinor: legacy } = openDuesParts({
+    first, openOwesMe, openIOwe, onAccountReceived, onAccountPaid, legacyDifference,
+  });
   if (parts.length === 0 && legacy === 0) return null;
   return (
     <div className="person-dues">

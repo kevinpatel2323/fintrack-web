@@ -9,33 +9,7 @@
 
 /* ---------- Desktop toolbar (Frappe CRM view controls) ---------- */
 
-/* The desktop toolbar is the shared ListToolbar. The phone toolbar pins the
-   same way: a full-width band under the page header. */
-.txns-mobile-toolbar {
-  position: sticky;
-  top: var(--header-height);
-  z-index: 8;
-  margin: -20px calc(-1 * var(--page-gutter)) 0;
-  padding: 12px var(--page-gutter);
-  border-bottom: 1px solid var(--outline-gray-1);
-  background: var(--surface-base);
-}
-
-/* Phone: the compact header is 52px and the page gutter 12px. */
-@media (max-width: 767.98px) {
-  .txns-mobile-toolbar {
-    top: 52px;
-    margin: -12px -12px 0;
-    padding: 8px 12px;
-  }
-}
-
-@media (max-width: 767.98px) and (display-mode: standalone) {
-  .txns-mobile-toolbar {
-    top: calc(52px + env(safe-area-inset-top));
-  }
-}
-
+/* The desktop toolbar is the shared ListToolbar. */
 .txns-search {
   width: 240px;
   max-width: 100%;
@@ -45,69 +19,211 @@
   width: 168px;
 }
 
-.txns-summary {
-  font-size: 13px;
-  line-height: 1.35;
-  color: var(--ink-gray-5);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
 /* The list's rows carry their own 12px inset; pull it into the gutter so row
    text lines up with the toolbar and the hover surface reaches the edge. */
 .txns-table {
   margin-inline: -12px;
 }
 
-/* ---------- Phone ---------- */
+/* ---------- Phone (TransactionsPhone) ---------- */
 
-.txns-mobile-toolbar {
+/* Phone-only markup, so these need no media query. */
+.txns-phone {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The shared ListToolbar pins at the top of the scroll area: search and the
+   Filter button on one line, the active-filter chips under them. */
+.txns-phone-toolbar .list-toolbar__filters {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+}
+
+.txns-phone-toolbar__row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.txns-mobile-toolbar .txns-search {
+.txns-phone-search {
   flex: 1;
-  width: auto;
   min-width: 0;
 }
 
-.txns-summary--mobile {
-  margin: 0;
-  white-space: normal;
+/* iOS zooms into a focused field under 16px. */
+.txns-phone-search .ui-text-input__control {
+  font-size: 16px;
 }
 
-.txns-skeleton {
+/* One line of chips that scrolls sideways when it overflows. */
+.txns-phone-chips {
+  display: flex;
+  gap: 8px;
+  margin-inline: calc(-1 * var(--page-gutter));
+  padding-inline: var(--page-gutter);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.txns-phone-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.txns-phone-chip {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+  height: 32px;
+  padding: 0 8px 0 12px;
+  border: 1px solid var(--outline-gray-2);
+  border-radius: var(--radius-full);
+  background: var(--surface-base);
+  color: var(--ink-gray-8);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.txns-phone-chip:has(> .category-icon, > .txns-phone-chip__icon) {
+  padding-left: 7px;
+}
+
+.txns-phone-chip:active {
+  background: var(--surface-gray-2);
+}
+
+.txns-phone-chip:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: 1px;
+}
+
+.txns-phone-chip .category-icon,
+.txns-phone-chip__icon {
+  flex-shrink: 0;
+}
+
+.txns-phone-chip__icon,
+.txns-phone-chip__x {
+  flex-shrink: 0;
+  color: var(--ink-gray-5);
+}
+
+.txns-phone-chip__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Period, month steps and totals. */
+.txns-phone-summary {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
 }
 
-.txns-skeleton__row {
+.txns-phone-summary__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.txns-phone-summary__title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ink-gray-9);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.txns-phone-summary__step {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+  margin-right: -8px;
+}
+
+.txns-phone-summary__reset {
+  flex-shrink: 0;
+  margin-right: -8px;
+}
+
+.txns-phone-summary__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.3em;
+  min-height: 18px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+  font-variant-numeric: tabular-nums;
+}
+
+.txns-phone-list {
+  margin-top: 4px;
+}
+
+/* "50 of 120 · Show 50 more" (ListView's phone footer). */
+.txns-phone-more {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 0 4px;
+}
+
+.txns-phone-more__count {
+  font-size: 13px;
+  color: var(--ink-gray-5);
+  font-variant-numeric: tabular-nums;
+}
+
+.txns-phone-empty {
+  padding: 24px 0;
+}
+
+/* Loading: a day header and rows the shape of the real ones. */
+.txns-phone-skeleton {
+  display: flex;
+  flex-direction: column;
+  margin: 4px calc(-1 * var(--page-gutter)) 0;
+}
+
+.txns-phone-skeleton__head {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 var(--page-gutter);
+  border-bottom: 1px solid var(--outline-gray-1);
+}
+
+.txns-phone-skeleton__row {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 56px;
+  min-height: 60px;
+  padding: 10px var(--page-gutter);
 }
 
-.txns-skeleton__text {
+.txns-phone-skeleton__text {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: 6px;
   min-width: 0;
-}
-
-@media (max-width: 767.98px) {
-  /* iOS zooms into a focused field under 16px. */
-  .txns-search .ui-text-input__control {
-    font-size: 16px;
-  }
-}
-
-@media (pointer: coarse) {
-  .txns-mobile-toolbar .ui-button,
-  .txns-mobile-toolbar .ui-text-input__control {
-    min-height: 40px;
-  }
 }

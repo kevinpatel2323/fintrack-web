@@ -314,6 +314,16 @@ export function subscriptionStatus(sub) {
   return STATUS[status] || { label: status, theme: 'gray' };
 }
 
+/**
+ * Which way a horizontal swipe on the month grid moves: `1` (next month,
+ * finger moved left), `-1` (previous) or `0` when it was too short, too
+ * slow to be deliberate, or more vertical than sideways (a scroll).
+ */
+export function swipeDirection(dx, dy, { min = 48, ratio = 1.5 } = {}) {
+  if (Math.abs(dx) < min || Math.abs(dx) < Math.abs(dy) * ratio) return 0;
+  return dx < 0 ? 1 : -1;
+}
+
 // ── Dates for display ─────────────────────────────────────────────────────
 
 function isoToDate(iso) {
@@ -323,6 +333,11 @@ function isoToDate(iso) {
 /** "Wednesday, 28 October" */
 export function formatDayLong(iso) {
   return isoToDate(iso).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+/** "Wed, 28 Oct" (the phone's day heading) */
+export function formatDayMedium(iso) {
+  return isoToDate(iso).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
 /** "28 Oct" */

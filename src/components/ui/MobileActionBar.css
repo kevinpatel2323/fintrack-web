@@ -18,3 +18,10 @@
   flex: 1;
   min-width: 0;
 }
+
+/* A secondary button that keeps its natural width while the main one takes
+   the rest: <Button data-shrink … /> (or the class). */
+.ui-mactionbar > [data-shrink],
+.ui-mactionbar > .ui-mactionbar__secondary {
+  flex: 0 0 auto;
+}

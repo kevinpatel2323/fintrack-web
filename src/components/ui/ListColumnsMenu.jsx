@@ -24,6 +24,8 @@ export default function ListColumnsMenu({ columns, settings, variant = 'subtle',
     <Popover
       placement="bottom-end"
       className={className}
+      sheetTitle="Columns"
+      sheetClassName="ui-list-colmenu-sheet"
       trigger={
         <Button
           variant={variant}

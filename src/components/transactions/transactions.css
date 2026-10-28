@@ -224,16 +224,20 @@
 
 /* ---------- Phone list: day groups ---------- */
 
+/* Phone-only markup (TransactionMobileList, TransactionListRow). Rows pad
+   their content by --txl-pad: nothing inside a container, the page gutter
+   when the list runs edge to edge (`bleed`). Date headers pin at the top of
+   the phone shell's scroll area, under a page's sticky toolbar. */
 .txl-days {
-  --txl-sticky-top: calc(52px + var(--list-toolbar-height, 0px));
+  --txl-pad: 0px;
+  --txl-sticky-top: calc(var(--header-height, 0px) + var(--list-toolbar-height, 0px));
   display: flex;
   flex-direction: column;
 }
 
-@media (display-mode: standalone) {
-  .txl-days {
-    --txl-sticky-top: calc(52px + env(safe-area-inset-top) + var(--list-toolbar-height, 0px));
-  }
+.txl-days--bleed {
+  --txl-pad: var(--page-gutter);
+  margin-inline: calc(-1 * var(--page-gutter));
 }
 
 .txl-day__head {
@@ -244,8 +248,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  height: 32px;
+  height: 36px;
   margin: 0;
+  padding: 0 var(--txl-pad);
   border-bottom: 1px solid var(--outline-gray-1);
   background: var(--surface-base);
   font-size: 13px;
@@ -259,42 +264,68 @@
 }
 
 .txl-day + .txl-day {
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
-/* ---------- List row ---------- */
+/* ---------- List row (phones) ---------- */
 
 .txl-item {
+  --txl-tile: 32px;
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
-  min-height: 56px;
-  padding: 8px 0;
+  min-height: 60px;
+  padding: 10px var(--txl-pad, 0px);
 }
 
-.txl-item + .txl-item {
+/* Hairline between rows, inset to where the text starts. */
+.txl-item + .txl-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: calc(var(--txl-pad, 0px) + var(--txl-tile) + 12px);
+  right: 0;
   border-top: 1px solid var(--outline-gray-1);
+  pointer-events: none;
 }
 
+/* A pressed state and no hover; nothing stays highlighted. */
+.txl-item:has(> .txl-item__body:active) {
+  --ui-avatar-group-ring: var(--surface-gray-2);
+  background: var(--surface-gray-2);
+}
+
+.txl-item:has(> .txl-item__body:focus-visible) {
+  outline: var(--focus-outline-default);
+  outline-offset: -2px;
+}
+
+/* The tile opens the shared category picker (Combobox renderTrigger). It sits
+   above the row's stretched open target, with a 44px hit area. */
 .txl-item__category {
   position: relative;
+  z-index: 1;
   display: inline-flex;
   flex-shrink: 0;
   border-radius: var(--radius-4);
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* The tile opens the shared category picker (Combobox renderTrigger). */
 .txl-item__category.ui-combobox__custom-trigger {
   cursor: pointer;
 }
 
-@media (pointer: coarse) {
-  .txl-item__category.ui-combobox__custom-trigger::after {
-    content: '';
-    position: absolute;
-    inset: -6px;
-  }
+.txl-item__category.ui-combobox__custom-trigger::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+.txl-item__category.ui-combobox__custom-trigger:active,
+.txl-item__category[data-state='open'] {
+  opacity: 0.7;
 }
 
 .txl-item__body {
@@ -306,7 +337,6 @@
   min-width: 0;
   padding: 0;
   border: 0;
-  border-radius: var(--radius-4);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -315,9 +345,15 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* The whole row opens the transaction, padding included. */
+.txl-item__body::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
 .txl-item__body:focus-visible {
-  outline: var(--focus-outline-default);
-  outline-offset: 2px;
+  outline: none;
 }
 
 .txl-item__text {
@@ -329,19 +365,12 @@
 }
 
 .txl-item__title {
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
+  overflow: hidden;
+  font-size: 16px;
+  line-height: 1.3;
   color: var(--ink-gray-8);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .txl-item__body:hover .txl-item__title {
-    color: var(--ink-gray-9);
-    text-decoration: underline;
-    text-decoration-color: var(--outline-gray-3);
-    text-underline-offset: 3px;
-  }
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .txl-item__meta {
@@ -349,79 +378,101 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  overflow: hidden;
   font-size: 13px;
-  line-height: 18px;
+  line-height: 1.35;
   color: var(--ink-gray-5);
 }
 
-.txl-item__meta > .ui-badge,
-.txl-item__meta-date,
-.txl-item__meta-trailing {
+.txl-item__badge {
+  display: inline-flex;
   flex-shrink: 0;
 }
 
-.txl-item__meta-date,
-.txl-item__meta-trailing {
+/* "27 Oct · …": the date leads the line in lists without day headers. */
+.txl-item__meta-date {
+  flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
 
-.txl-item__meta-trailing {
-  color: var(--ink-gray-4);
+.txl-item__meta-date::after {
+  content: '·';
+  margin-left: 6px;
 }
 
 .txl-item__meta-copy {
-  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Still to categorise: the calendar's "to categorise" amber, muted. */
+.txl-item__cat.is-empty {
+  color: var(--ink-amber-7);
+}
+
+/* Amount on top, who it's split with under it. */
+.txl-item__end {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-items: flex-end;
+  gap: 4px;
+  max-width: 45%;
 }
 
 .txl-item__amount {
-  flex-shrink: 0;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-/* Nested (card transactions under a bill payment): tree rule down the left. */
+.txl-item__people.ui-avatar-group {
+  justify-content: flex-end;
+  width: auto;
+  padding: 0;
+}
+
+/* Nested (card transactions under a bill payment): tree rule down the left,
+   in place of the hairline. */
 .txl-item--nested {
-  position: relative;
+  --txl-tile: 28px;
   min-height: 48px;
-  padding: 6px 0 6px 16px;
+  padding: 6px var(--txl-pad, 0px) 6px calc(var(--txl-pad, 0px) + 16px);
 }
 
-.txl-item--nested + .txl-item--nested {
-  border-top: 0;
-}
-
-.txl-item--nested::before,
-.txl-item--nested::after {
+.txl-item.txl-item--nested::before {
   content: '';
   position: absolute;
-  left: 0;
+  top: 0;
+  bottom: 0;
+  left: var(--txl-pad, 0px);
+  right: auto;
+  width: 1px;
+  border-top: 0;
   background: var(--outline-gray-2);
 }
 
-.txl-item--nested::before {
-  top: 0;
-  bottom: 0;
-  width: 1px;
-}
-
-.txl-item--nested.is-last::before {
+.txl-item.txl-item--nested.is-last::before {
   bottom: 50%;
 }
 
 .txl-item--nested::after {
+  content: '';
+  position: absolute;
   top: 50%;
+  left: var(--txl-pad, 0px);
   width: 8px;
   height: 1px;
+  background: var(--outline-gray-2);
 }
 
-.txl-item--nested .txl-item__title {
-  font-size: 13px;
-  font-weight: 420;
-}
-
+.txl-item--nested .txl-item__title,
 .txl-item--nested .txl-item__amount {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 /* ---------- Period control ---------- */
@@ -449,14 +500,28 @@
 .txl-filters {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding-bottom: 4px;
+  gap: 20px;
+  padding: 4px 0 8px;
 }
 
 .txl-filters__field {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* Clear and "Show N results" share the width, the main one last. */
+.txl-filter-sheet .ui-sheet__footer {
+  flex-wrap: nowrap;
+}
+
+.txl-filter-sheet .ui-sheet__footer > .ui-button {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.txl-filter-sheet .ui-sheet__footer > .ui-button:last-child {
+  flex-grow: 2;
 }
 
 /* ---------- Manual transaction form ---------- */
@@ -491,7 +556,26 @@
 @media (max-width: 767.98px) {
   .txl-form {
     grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
   }
+
+  /* 16px text in every field, so iOS never zooms the page. */
+  .txl-form .ui-text-input__control,
+  .txl-form .ui-select__trigger,
+  .txl-form__currency {
+    font-size: 16px;
+  }
+
+  .txl-form__more {
+    justify-self: start;
+  }
+}
+
+/* Phones: Type (and a settlement's direction) as a segment. */
+.txl-form__segment {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 /* Note column: the UPI remark, muted. */
@@ -509,19 +593,4 @@
 
 .txl-list .ui-list__row[data-selected] {
   --ui-avatar-group-ring: var(--surface-gray-2);
-}
-
-/* Phone row: amount on top, who it's split with under it. */
-.txl-item__end {
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  align-items: flex-end;
-  gap: 4px;
-}
-
-.txl-item__people.ui-avatar-group {
-  justify-content: flex-end;
-  width: auto;
-  padding: 0;
 }

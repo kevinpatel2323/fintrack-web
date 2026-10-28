@@ -5,6 +5,8 @@ import { MANAGE_NAV, useNavBadges } from '../components/shell/nav.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useImportSchedule } from '../hooks/useImportSchedule.js';
 import { useTheme } from '../hooks/useTheme.js';
+import { useIsCompact } from '../styles/breakpoints.js';
+import YouPhone from './you/YouPhone.jsx';
 import './You.css';
 
 const DESCRIPTIONS = {
@@ -19,7 +21,8 @@ const THEMES = [
   { label: 'System', value: 'system' },
 ];
 
-// "More" on phones: everything that isn't a tab, plus appearance.
+// Everything that isn't a main destination, plus appearance. Phones render
+// YouPhone (the hub behind the header's You button).
 export default function You() {
   const { authDisabled } = useAuth();
   const { mode, setMode } = useTheme();
@@ -28,6 +31,21 @@ export default function You() {
   // Name the oldest waiting statement, so the row says what to go and get.
   const nextUp = schedule?.cards?.find((c) => c.status === 'ready');
   const rows = MANAGE_NAV.filter((r) => !(r.authOnly && authDisabled));
+  const isMobile = useIsCompact();
+
+  // Phones: the hub behind the header's You button, as its own layout.
+  if (isMobile) {
+    return (
+      <YouPhone
+        rows={rows}
+        badges={badges}
+        descriptions={DESCRIPTIONS}
+        nextUp={nextUp}
+        mode={mode}
+        setMode={setMode}
+      />
+    );
+  }
 
   return (
     <>

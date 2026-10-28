@@ -149,3 +149,39 @@
     transition: none;
   }
 }
+
+/* Phones: 44px tabs with 15px labels, scrolling sideways when they overflow
+   (no scrollbar; the selected tab is kept in view). With `.phone-bleed` the
+   list runs edge to edge and its first and last tabs keep the page gutter. */
+@media (max-width: 767.98px) {
+  .ui-tabs__list {
+    gap: 20px;
+  }
+
+  .ui-tabs__pill,
+  .ui-tabs[data-size='md'] .ui-tabs__pill {
+    height: 44px;
+    gap: 6px;
+    font-size: 15px;
+    letter-spacing: 0.01em;
+  }
+
+  .ui-tabs__tab {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .ui-tabs__count {
+    height: 18px;
+    min-width: 18px;
+    padding: 0 6px;
+  }
+
+  .ui-tabs.phone-bleed {
+    max-width: none;
+    scroll-padding-inline: var(--page-gutter);
+  }
+
+  .ui-tabs.phone-bleed .ui-tabs__list {
+    padding-inline: var(--page-gutter);
+  }
+}

@@ -2,7 +2,7 @@ import { Pencil } from 'lucide-react';
 import { Amount, Badge, Button, Progress } from '../../components/ui';
 import CardFace from '../../components/cards/CardFace.jsx';
 import {
-  bankName, cardTitle, dayLabel, formatPct, networkName, ordinal,
+  bankName, cardTitle, dayLabel, formatPct, networkName, nextStatementText, ordinal,
 } from '../../components/cards/cardFormat.js';
 
 function Field({ label, children }) {
@@ -23,15 +23,6 @@ function Section({ title, children }) {
       <dl className="cardd-side__fields">{children}</dl>
     </section>
   );
-}
-
-/** "Nov 2026 · in 20 days", or the statement waiting to be imported. */
-function nextStatementText(schedule) {
-  if (!schedule?.next) return null;
-  const { status, next } = schedule;
-  if (status === 'ready') return `${next.label} · ready to import`;
-  const days = Number(next.daysAway);
-  return `${next.label} · ${days <= 0 ? 'today' : `in ${days} day${days === 1 ? '' : 's'}`}`;
 }
 
 /**

@@ -29,7 +29,9 @@ export function useCategoryFilterOptions(categories) {
  * "Custom range" is picked or the URL holds a range that is not one month.
  * Writes through `onChange(startIso, endIso)`.
  */
-export function TransactionPeriodFilter({ rangeStart, rangeEnd, onChange, monthOptions, stacked = false }) {
+export function TransactionPeriodFilter({ rangeStart, rangeEnd, onChange, monthOptions, stacked = false, size }) {
+  // Only the phone sheet passes a size; the desktop toolbar keeps the default.
+  const sizeProps = size ? { size } : {};
   const selectedMonth = matchMonthValue(rangeStart, rangeEnd, monthOptions);
   const [custom, setCustom] = useState(false);
 
@@ -55,6 +57,7 @@ export function TransactionPeriodFilter({ rangeStart, rangeEnd, onChange, monthO
   return (
     <div className={stacked ? 'txl-period txl-period--stacked' : 'txl-period'}>
       <Select
+        {...sizeProps}
         aria-label="Month"
         className="txl-period__month"
         options={[
@@ -78,6 +81,7 @@ export function TransactionPeriodFilter({ rangeStart, rangeEnd, onChange, monthO
       />
       {showRange && (
         <DateRangePicker
+          {...sizeProps}
           aria-label="Date range"
           className="txl-period__range"
           value={{ start: rangeStart, end: rangeEnd }}
@@ -92,8 +96,10 @@ export function TransactionPeriodFilter({ rangeStart, rangeEnd, onChange, monthO
 }
 
 /**
- * Phone filters in a bottom sheet. Every control applies at once (the list
- * updates behind the sheet); Reset puts all of them back, period included.
+ * Phone filters in a bottom sheet (HRMS / frappe-ui mobile): every filter the
+ * desktop toolbar has, one per row. Each control applies at once, so the list
+ * behind the sheet and the "Show N results" count follow along; Clear puts
+ * them all back, period included. Search stays on the page.
  */
 export function TransactionFilterSheet({
   open,
@@ -112,44 +118,53 @@ export function TransactionFilterSheet({
   categoryOptions,
   category,
   onCategoryChange,
+  resultCount,
+  loading = false,
 }) {
+  const showLabel = loading || resultCount == null
+    ? 'Show results'
+    : `Show ${resultCount} result${resultCount === 1 ? '' : 's'}`;
+
   return (
     <Sheet
       open={open}
       onClose={onClose}
       side="bottom"
       title="Filters"
+      className="txl-filter-sheet"
       footer={(
         <>
-          <Button label="Reset" disabled={!activeCount} onClick={onReset} />
-          <Button variant="solid" label="Done" onClick={onClose} />
+          <Button size="lg" label="Clear" disabled={!activeCount} onClick={onReset} />
+          <Button size="lg" variant="solid" label={showLabel} loading={loading} onClick={onClose} />
         </>
       )}
     >
       <div className="txl-filters">
         <div className="txl-filters__field">
-          <FormLabel as="div" label="Type" />
-          <TabButtons fluid aria-label="Type" options={TYPE_OPTIONS} value={filterTab} onChange={onFilterTabChange} />
-        </div>
-        <div className="txl-filters__field">
           <FormLabel as="div" label="Period" />
           <TransactionPeriodFilter
             stacked
+            size="lg"
             rangeStart={rangeStart}
             rangeEnd={rangeEnd}
             onChange={onRangeChange}
             monthOptions={monthOptions}
           />
         </div>
-        <FormControl
-          type="select"
-          label="Account"
-          options={accountOptions(accounts)}
-          value={account}
-          onChange={(e) => onAccountChange(e.target.value)}
-        />
+        <div className="txl-filters__field">
+          <FormLabel as="div" label="Type" />
+          <TabButtons
+            fluid
+            size="md"
+            aria-label="Type"
+            options={TYPE_OPTIONS}
+            value={filterTab}
+            onChange={onFilterTabChange}
+          />
+        </div>
         <FormControl
           type="combobox"
+          size="lg"
           label="Category"
           options={categoryOptions}
           value={category || null}
@@ -157,6 +172,14 @@ export function TransactionFilterSheet({
           placeholder="All categories"
           searchPlaceholder="Search categories"
           clearable
+        />
+        <FormControl
+          type="select"
+          size="lg"
+          label="Account"
+          options={accountOptions(accounts)}
+          value={account}
+          onChange={(e) => onAccountChange(e.target.value)}
         />
       </div>
     </Sheet>

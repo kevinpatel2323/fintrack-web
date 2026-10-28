@@ -88,9 +88,40 @@
   color: var(--ink-gray-5);
 }
 
-@media (max-width: 767.98px) {
-  .security-section__head {
-    flex-direction: column;
-    align-items: stretch;
-  }
+/* ---------- Phone (security/SecurityPhone.jsx) ---------- */
+
+.security-m-page {
+  padding-top: 20px;
+}
+
+.security-m-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-4);
+  background: var(--surface-base);
+  color: var(--ink-gray-7);
+}
+
+.security-m-skeleton {
+  overflow: hidden;
+  border-radius: var(--radius-7);
+  background: var(--surface-gray-1);
+}
+
+.security-m-skeleton__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 8px 16px;
+}
+
+.security-m-skeleton__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }

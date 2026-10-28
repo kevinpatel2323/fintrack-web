@@ -18,6 +18,7 @@ import {
   dayUncategorizedCount,
   monthPending,
   nextPendingDay,
+  swipeDirection,
 } from '../calendarModel.js';
 
 describe('month cells', () => {
@@ -186,5 +187,18 @@ describe('pending categorisation', () => {
     expect(nextPendingDay(['2026-10-02', '2026-10-09'], '2026-10-02')).toBe('2026-10-09');
     expect(nextPendingDay(['2026-10-02', '2026-10-09'], '2026-10-09')).toBe('2026-10-02');
     expect(nextPendingDay([], '2026-10-01')).toBe(null);
+  });
+});
+
+describe('month swipe', () => {
+  it('moves a month on a deliberate sideways swipe', () => {
+    expect(swipeDirection(-80, 10)).toBe(1);
+    expect(swipeDirection(90, -12)).toBe(-1);
+  });
+
+  it('ignores short swipes and vertical scrolls', () => {
+    expect(swipeDirection(-30, 0)).toBe(0);
+    expect(swipeDirection(-80, 70)).toBe(0);
+    expect(swipeDirection(0, 200)).toBe(0);
   });
 });

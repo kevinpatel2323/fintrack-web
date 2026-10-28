@@ -267,6 +267,8 @@ Display only. It does not bind the key.
 />
 ```
 
+**On phones** the md state uses body-size text (16px title, 15px description) with 48px of air above and below, at most 320px wide; `sm` keeps a 15px title and 13px description.
+
 ## Card
 
 The panel for dashboard widgets and detail-page sections: base surface, 1px `--outline-gray-1`, 10px corners, no shadow.
@@ -317,6 +319,8 @@ One figure on the Card surface, like frappe-ui's NumberCard (the Insights number
   to="/transactions?month=2026-10"
 />
 ```
+
+**On phones** a StatCard is a compact tile: 12px padding, 13px label, 20px semibold value, 13px muted lines under it, so two fit side by side at 375px (`grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px`). A long hint or caption truncates.
 
 ## Amount
 

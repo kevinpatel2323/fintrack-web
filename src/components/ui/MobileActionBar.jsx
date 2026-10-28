@@ -17,7 +17,9 @@ import './MobileActionBar.css';
  *   )}
  *
  * Renders into the phone shell's footer slot (in place otherwise), above the
- * home indicator.
+ * home indicator. A secondary button can keep its natural width while the
+ * main one takes the rest: give it `data-shrink` (or the class
+ * `ui-mactionbar__secondary`).
  */
 export default function MobileActionBar({ children, className }) {
   const { footerNode } = usePhoneChrome();

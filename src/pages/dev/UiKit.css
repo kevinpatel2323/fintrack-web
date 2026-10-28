@@ -38,3 +38,70 @@
   align-items: center;
   gap: 8px;
 }
+
+/* ---------- Phone section (kit/PhoneDemo.jsx, phones only) ---------- */
+
+.uikit-phone {
+  gap: 0;
+}
+
+.uikit-phone > h2 {
+  margin-bottom: 20px;
+}
+
+.uikit-phone__tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.uikit-phone__tile {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-5);
+  background: var(--surface-gray-2);
+  color: var(--ink-gray-6);
+}
+
+.uikit-phone__count {
+  margin-left: 6px;
+  color: var(--ink-gray-5);
+  font-variant-numeric: tabular-nums;
+}
+
+.uikit-phone .ui-tab-buttons--fluid {
+  margin-bottom: 8px;
+}
+
+.uikit-phone__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.uikit-phone__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.uikit-phone__filters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.uikit-phone__filters > .ui-button {
+  margin-top: 8px;
+}
+
+.uikit-phone__note {
+  max-width: 260px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-gray-7);
+}

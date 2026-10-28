@@ -3,6 +3,7 @@ import { Dialog, ErrorMessage, FormControl, toast } from './ui';
 import { createCardPayment } from '../services/cardsApi.js';
 import './cards/cards.css';
 import { getTodayIso } from '../utils/dateUtils.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 
 /**
  * Record a payment against a credit card. `statementId` ties it to that bill;
@@ -18,6 +19,8 @@ export default function CardPaymentModal({
   open = true,
 }) {
   const formId = useId();
+  // No autofocus on phones: the keyboard would cover the sheet as it opens.
+  const isMobile = useIsCompact();
   const [amount, setAmount] = useState(suggestedAmount ? String(suggestedAmount) : '');
   const [paidOn, setPaidOn] = useState(getTodayIso());
   const [viaLabel, setViaLabel] = useState('');
@@ -84,7 +87,7 @@ export default function CardPaymentModal({
             placeholder="48420"
             prefix={<span className="cardform__currency">₹</span>}
             error={fieldErrors.amount}
-            autoFocus
+            autoFocus={!isMobile}
           />
           <FormControl
             type="date"

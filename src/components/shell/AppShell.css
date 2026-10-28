@@ -56,6 +56,16 @@
   flex-shrink: 0;
 }
 
+/* Installed to the home screen, the page runs under the status bar. The
+   phone PageHeader pads it (PageHeader.css); a screen without one still
+   keeps its content clear of the clock and the Dynamic Island. */
+@media (display-mode: standalone) {
+  .mobile-shell__header:empty {
+    height: env(safe-area-inset-top, 0px);
+    background: var(--surface-base);
+  }
+}
+
 .mobile-shell__scroll {
   --header-height: 0px;
   flex: 1;

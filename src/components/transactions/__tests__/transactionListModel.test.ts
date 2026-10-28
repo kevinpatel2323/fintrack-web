@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  accountHint,
+  adjacentMonths,
   ccExpansionItems,
   countActiveFilters,
   emptyManualForm,
   flattenWithExpansion,
   formatDayLabel,
+  formatMonthLong,
   formatRangeLabel,
   getCurrentMonthRange,
   getMonthOptions,
@@ -12,6 +15,7 @@ import {
   manualFormToPayload,
   matchMonthValue,
   signedAmount,
+  sliceWholeDays,
   validateManualForm,
 } from '../transactionListModel.js';
 
@@ -36,6 +40,22 @@ describe('periods', () => {
     expect(formatRangeLabel('2025-12-20', '2026-01-05')).toBe('20 Dec 2025 – 5 Jan 2026');
     expect(formatRangeLabel('', '2026-01-05')).toBe('');
   });
+
+  it('names a month in full', () => {
+    expect(formatMonthLong('2026-10')).toBe('October 2026');
+    expect(formatMonthLong('')).toBe('');
+  });
+
+  it('steps to the month before and after, within the options', () => {
+    const months = getMonthOptions(3, NOW);
+    expect(adjacentMonths('2026-09', months)).toMatchObject({
+      older: { value: '2026-08' },
+      newer: { value: '2026-10' },
+    });
+    expect(adjacentMonths('2026-10', months).newer).toBeNull();
+    expect(adjacentMonths('2026-08', months).older).toBeNull();
+    expect(adjacentMonths('', months)).toEqual({ older: null, newer: null });
+  });
 });
 
 describe('day groups', () => {
@@ -52,6 +72,28 @@ describe('day groups', () => {
     const oct27 = groups.find((g) => g.key === '2026-10-27');
     expect(oct27.rows.map((r) => r.id)).toEqual([1, 3]);
     expect(oct27.net).toBe(-70);
+  });
+
+  it('can put the oldest day first', () => {
+    expect(groupRowsByDay(rows, 'asc').map((g) => g.key)).toEqual(['2026-10-27', '2026-10-28', 'unknown']);
+  });
+
+  it('shows whole days when a long list is cut', () => {
+    const list = [
+      { id: 1, date: '2026-10-28' },
+      { id: 2, date: '2026-10-27' },
+      { id: 3, date: '2026-10-27' },
+      { id: 4, date: '2026-10-26' },
+    ];
+    expect(sliceWholeDays(list, 2).map((r) => r.id)).toEqual([1, 2, 3]);
+    expect(sliceWholeDays(list, 1).map((r) => r.id)).toEqual([1]);
+    expect(sliceWholeDays(list, 10)).toBe(list);
+  });
+
+  it('shortens account numbers and keeps named accounts', () => {
+    expect(accountHint('99990000006001')).toBe('••6001');
+    expect(accountHint('Wallet')).toBe('Wallet');
+    expect(accountHint(null)).toBe('');
   });
 
   it('signs amounts by direction', () => {

@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Amount, Badge, Dialog, ErrorMessage, FormControl, ListView, toast } from './ui';
 import { cardLabel, dayLabel } from './cards/cardFormat.js';
 import { previewUnbilledPaste, saveUnbilledPaste } from '../services/cardsApi.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import './cards/cards.css';
 
 const STATUS = {
@@ -85,6 +86,8 @@ const PLACEHOLDER = 'Total Spent\n₹22,074.00\n…\n25 Oct 2026\nUpi-four Coffe
  * Two steps in one dialog: paste → preview (new vs already added) → add.
  */
 export default function UnbilledPasteModal({ card, onClose, onSaved, open = true }) {
+  // No autofocus on phones: the keyboard would cover the sheet as it opens.
+  const isMobile = useIsCompact();
   const [text, setText] = useState('');
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -169,7 +172,7 @@ export default function UnbilledPasteModal({ card, onClose, onSaved, open = true
             rows={10}
             placeholder={PLACEHOLDER}
             controlClassName="unbilled__textarea"
-            autoFocus
+            autoFocus={!isMobile}
           />
         </>
       ) : (

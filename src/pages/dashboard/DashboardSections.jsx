@@ -15,7 +15,7 @@ import {
 } from './dashboardModel.js';
 
 const MINUS = '−';
-const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+export const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /** Ghost "View all" for a card footer, its label lined up with the rows above. */
 function ViewAll({ to, label = 'View all' }) {
@@ -43,7 +43,7 @@ function RowsSkeleton({ rows = 4, lead = 'none', twoLine = false }) {
 
 /* ── Stats ──────────────────────────────────────────────────────────────── */
 
-function rateText(rate) {
+export function rateText(rate) {
   if (rate === null || rate === undefined) return null;
   const r = Math.round(rate);
   return `${r < 0 ? MINUS : ''}${Math.abs(r)}%`;
@@ -97,7 +97,7 @@ export function StatGrid({ stats, range, loading, compact = false }) {
 
 /* ── Needs attention ────────────────────────────────────────────────────── */
 
-const ATTENTION_ICONS = {
+export const ATTENTION_ICONS = {
   bill: CreditCard,
   import: Upload,
   review: Scale,
@@ -152,21 +152,23 @@ export function AttentionCard({ items }) {
 
 /* ── Income vs expenses ─────────────────────────────────────────────────── */
 
-const TREND_OPTIONS = [
+export const TREND_OPTIONS = [
   { label: '3M', value: 3 },
   { label: '6M', value: 6 },
   { label: '1Y', value: 12 },
 ];
-const TREND_DESCRIPTION = { 3: 'Last 3 months', 6: 'Last 6 months', 12: 'Last 12 months' };
+export const TREND_DESCRIPTION = { 3: 'Last 3 months', 6: 'Last 6 months', 12: 'Last 12 months' };
 const TREND_SERIES = [
   { key: 'spent', label: 'Spent', color: 'var(--chart-out)' },
   { key: 'earned', label: 'Earned', color: 'var(--chart-in)' },
 ];
 
-/** Monthly spent vs earned. A bar opens that month's transactions. */
-export function TrendCard({ trends, loading, height = 240 }) {
+/**
+ * The monthly spent vs earned bars for the last `months` months; a bar opens
+ * that month's transactions. Shared by the desktop card and the phone section.
+ */
+export function TrendChart({ trends, months, loading, height = 240 }) {
   const navigate = useNavigate();
-  const [months, setMonths] = useState(6);
   const rows = useMemo(
     () =>
       (trends ?? []).slice(-months).map((t) => ({
@@ -179,6 +181,30 @@ export function TrendCard({ trends, loading, height = 240 }) {
   // Months with nothing in them would draw bare axes; show the empty state.
   const hasActivity = rows.some((r) => r.spent || r.earned);
 
+  return loading ? (
+    <div aria-busy="true">
+      <Skeleton height={height} />
+    </div>
+  ) : (
+    <BarChart
+      data={hasActivity ? rows : []}
+      xKey="month"
+      series={TREND_SERIES}
+      height={height}
+      formatXLabel={monthShort}
+      emptyText="No transactions in these months"
+      ariaLabel={`Spent and earned per month, ${TREND_DESCRIPTION[months].toLowerCase()}`}
+      onBarClick={(row, key) =>
+        navigate(transactionsLink(monthBounds(row.month), { tab: key === 'earned' ? 'earned' : 'spent' }))
+      }
+    />
+  );
+}
+
+/** Monthly spent vs earned. A bar opens that month's transactions. */
+export function TrendCard({ trends, loading, height = 240 }) {
+  const [months, setMonths] = useState(6);
+
   return (
     <Card
       as="section"
@@ -189,34 +215,28 @@ export function TrendCard({ trends, loading, height = 240 }) {
         <TabButtons options={TREND_OPTIONS} value={months} onChange={setMonths} aria-label="Months shown" />
       }
     >
-      {loading ? (
-        <div aria-busy="true">
-          <Skeleton height={height} />
-        </div>
-      ) : (
-        <BarChart
-          data={hasActivity ? rows : []}
-          xKey="month"
-          series={TREND_SERIES}
-          height={height}
-          formatXLabel={monthShort}
-          emptyText="No transactions in these months"
-          ariaLabel={`Spent and earned per month, ${TREND_DESCRIPTION[months].toLowerCase()}`}
-          onBarClick={(row, key) =>
-            navigate(transactionsLink(monthBounds(row.month), { tab: key === 'earned' ? 'earned' : 'spent' }))
-          }
-        />
-      )}
+      <TrendChart trends={trends} months={months} loading={loading} height={height} />
     </Card>
   );
 }
 
 /* ── Spending by category ───────────────────────────────────────────────── */
 
-function rowColor(row) {
+export function rowColor(row) {
   if (row.key === UNCATEGORISED_KEY) return 'var(--ink-gray-5)';
   if (row.key === OTHERS_KEY) return 'var(--ink-gray-4)';
   return categoryColor(row.category);
+}
+
+/** CategoryBars items for `categoryRows` output. */
+export function categoryItems(rows) {
+  return rows.map((r) => ({
+    key: r.key,
+    label: r.label,
+    value: r.value,
+    color: rowColor(r),
+    hint: plural(r.count, 'txn'),
+  }));
 }
 
 /** Ranked category spend for the range; the tail folds into one row so shares add up. */
@@ -234,13 +254,7 @@ export function CategoryCard({ breakdown, range, loading, limit = 5 }) {
         <RowsSkeleton rows={limit} />
       ) : (
         <CategoryBars
-          items={rows.map((r) => ({
-            key: r.key,
-            label: r.label,
-            value: r.value,
-            color: rowColor(r),
-            hint: plural(r.count, 'txn'),
-          }))}
+          items={categoryItems(rows)}
           sorted={false}
           showPercent
           emptyText="No spending in this range"
@@ -253,13 +267,13 @@ export function CategoryCard({ breakdown, range, loading, limit = 5 }) {
 
 /* ── Recent activity ────────────────────────────────────────────────────── */
 
-const ACTIVITY_OPTIONS = [
+export const ACTIVITY_OPTIONS = [
   { label: 'All', value: 'all' },
   { label: 'Spent', value: 'spent' },
   { label: 'Earned', value: 'earned' },
 ];
 
-function RecentEmpty({ filter, total }) {
+export function RecentEmpty({ filter, total }) {
   if (filter === 'all' || total === 0) {
     return (
       <EmptyState

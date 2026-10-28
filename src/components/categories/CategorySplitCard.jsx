@@ -13,6 +13,18 @@ const moreLabel = (count) => `${count} more`;
  * positive value (money spent).
  */
 export default function CategorySplitCard({ month, items, total, loading, error, onRetry, className = '' }) {
+  return (
+    <Card as="section" className={`catg-split ${className}`.trim()} title="Spending by category" description={month.label}>
+      <CategorySplitBody month={month} items={items} total={total} loading={loading} error={error} onRetry={onRetry} />
+    </Card>
+  );
+}
+
+/**
+ * The card's content without its frame: the phone page puts it in its own
+ * box under a section title. `size` is the donut's diameter.
+ */
+export function CategorySplitBody({ month, items, total, loading, error, onRetry, size = 160 }) {
   const data = items;
 
   let body;
@@ -26,7 +38,7 @@ export default function CategorySplitCard({ month, items, total, loading, error,
   } else if (loading) {
     body = (
       <div className="catg-split__loading" aria-busy="true">
-        <Skeleton circle width={160} height={160} />
+        <Skeleton circle width={size} height={size} />
         <Skeleton height={12} width="80%" />
         <Skeleton height={12} width="64%" />
         <Skeleton height={12} width="72%" />
@@ -45,7 +57,7 @@ export default function CategorySplitCard({ month, items, total, loading, error,
       <DonutChart
         className="catg-split__chart"
         data={data}
-        size={160}
+        size={size}
         centerLabel="Spent"
         centerValue={inrCompact(total)}
         legend="right"
@@ -56,9 +68,5 @@ export default function CategorySplitCard({ month, items, total, loading, error,
     );
   }
 
-  return (
-    <Card as="section" className={`catg-split ${className}`.trim()} title="Spending by category" description={month.label}>
-      {body}
-    </Card>
-  );
+  return body;
 }

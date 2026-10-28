@@ -6,6 +6,8 @@ import {
 } from '../components/ui';
 import { useAuth } from '../context/AuthContext.jsx';
 import { deleteCredential, listCredentials } from '../services/authApi.js';
+import { useIsCompact } from '../styles/breakpoints.js';
+import SecurityPhone from './security/SecurityPhone.jsx';
 import './Security.css';
 
 function fmtDate(value) {
@@ -20,6 +22,7 @@ function fmtDate(value) {
 export default function Security() {
   const navigate = useNavigate();
   const { logout, authDisabled } = useAuth();
+  const isMobile = useIsCompact();
 
   const [credentials, setCredentials] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +68,36 @@ export default function Security() {
   }
 
   const onlyOne = credentials.length <= 1;
+
+  const confirm = (
+    <ConfirmDialog
+      open={Boolean(removing)}
+      title="Remove this passkey?"
+      message="This device will no longer be able to sign in, and its active session ends immediately."
+      confirmLabel="Remove"
+      onConfirm={confirmRemove}
+      onCancel={() => setRemoving(null)}
+    />
+  );
+
+  // Phones: a pushed page under You, as its own layout (security/SecurityPhone.jsx).
+  if (isMobile) {
+    return (
+      <>
+        <PageHeader title="Security" />
+        <SecurityPhone
+          credentials={credentials}
+          loading={loading}
+          error={error}
+          fmtDate={fmtDate}
+          onAdd={() => navigate('/setup')}
+          onRemove={setRemoving}
+          onSignOut={signOut}
+        />
+        {confirm}
+      </>
+    );
+  }
 
   return (
     <>
@@ -147,14 +180,7 @@ export default function Security() {
         </section>
       </PageBody>
 
-      <ConfirmDialog
-        open={Boolean(removing)}
-        title="Remove this passkey?"
-        message="This device will no longer be able to sign in, and its active session ends immediately."
-        confirmLabel="Remove"
-        onConfirm={confirmRemove}
-        onCancel={() => setRemoving(null)}
-      />
+      {confirm}
     </>
   );
 }

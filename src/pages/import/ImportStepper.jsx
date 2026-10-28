@@ -30,3 +30,29 @@ export default function ImportStepper({ steps, current }) {
     </ol>
   );
 }
+
+/**
+ * Phones: one line ("Step 2 of 3 · Review & map") over a thin three-part
+ * progress bar, instead of the list of steps. `note` sits at the end of the
+ * line (e.g. when the last import was).
+ */
+export function ImportStepperPhone({ steps, current, note }) {
+  return (
+    <div className="import-ph-steps">
+      <div className="import-ph-steps__line">
+        <p className="import-ph-steps__label" aria-live="polite">
+          <span className="import-ph-steps__count">
+            Step {current} of {steps.length} ·{' '}
+          </span>
+          <span className="import-ph-steps__name">{steps[current - 1]}</span>
+        </p>
+        {note && <span className="import-ph-steps__note">{note}</span>}
+      </div>
+      <div className="import-ph-steps__bar" aria-hidden>
+        {steps.map((label, i) => (
+          <span key={label} className="import-ph-steps__seg" data-done={i < current ? '' : undefined} />
+        ))}
+      </div>
+    </div>
+  );
+}

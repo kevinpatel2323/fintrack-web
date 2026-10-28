@@ -1,10 +1,14 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import SplitTransactionForm from './SplitTransactionForm.jsx';
 import { FriendTagCard } from './FriendTagLedgerDisplay.jsx';
-import { Amount, Button, FormControl, LoadingIndicator, Sheet } from './ui';
+import {
+  Amount, Button, FormControl, LoadingIndicator, MobileList, MobileSection, Sheet,
+} from './ui';
 import { categoryOptions } from './common/Category.jsx';
+import { CategoryRow } from './transaction-detail/CategoryRow.jsx';
 import { formatTxnDate } from './transaction-detail/formatTxnDate.js';
 import { isProgressStatus, useStatusToasts } from './transaction-detail/useStatusToasts.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import './transaction-detail/TransactionManageSheet.css';
 
 const formatDate = (value) => (value ? formatTxnDate(value) : '');
@@ -54,6 +58,7 @@ export default function TransactionManageSheet({
 
   const formRef = useRef(null);
   const uid = useId();
+  const isMobile = useIsCompact();
   const [formState, setFormState] = useState({ canApply: false });
   // The form unmounts with the sheet; don't let its last state outlive it.
   useEffect(() => {
@@ -77,6 +82,39 @@ export default function TransactionManageSheet({
 
   const net = inAmount - outAmount;
   const netDecimals = Math.round(Math.abs(net) * 100) % 100 !== 0 ? 2 : 0;
+
+  if (isMobile) {
+    return (
+      <PhoneManageSheet
+        open={open}
+        onClose={onClose}
+        heading={heading}
+        description={description}
+        net={net}
+        netDecimals={netDecimals}
+        outAmount={outAmount}
+        splitTotal={splitTotal}
+        showCategory={showCategory}
+        categories={categories}
+        categoryId={categoryId}
+        categoryBusy={categoryBusy}
+        onAssignCategory={onAssignCategory}
+        actions={actions}
+        tags={tags}
+        tagsBusy={tagsBusy}
+        transaction={transaction}
+        onDeleteTag={onDeleteTag}
+        onTagsChanged={onTagsChanged}
+        formRef={formRef}
+        formState={formState}
+        setFormState={setFormState}
+        participants={participants}
+        taggedFriendIds={taggedFriendIds}
+        splitApplying={splitApplying}
+        onApplySplit={onApplySplit}
+      />
+    );
+  }
 
   const footer = splitTotal > 0 ? (
     <>
@@ -171,6 +209,135 @@ export default function TransactionManageSheet({
               onApplySplit={onApplySplit}
             />
           </section>
+        ) : null}
+      </div>
+    </Sheet>
+  );
+}
+
+/**
+ * The same sheet on a phone (a bottom sheet): the amount as the figure under
+ * the title, Category as a row that opens the picker sheet, who it's split
+ * with as list rows, then the split form. Cancel and Add split share the
+ * pinned footer at full size. Same props and handlers as the desktop panel.
+ */
+function PhoneManageSheet({
+  open,
+  onClose,
+  heading,
+  description,
+  net,
+  netDecimals,
+  outAmount,
+  splitTotal,
+  showCategory,
+  categories,
+  categoryId,
+  categoryBusy,
+  onAssignCategory,
+  actions,
+  tags,
+  tagsBusy,
+  transaction,
+  onDeleteTag,
+  onTagsChanged,
+  formRef,
+  formState,
+  setFormState,
+  participants,
+  taggedFriendIds,
+  splitApplying,
+  onApplySplit,
+}) {
+  const splitLine = tags.length > 0
+    ? `Split with ${tags.length} ${tags.length === 1 ? 'person' : 'people'}`
+    : 'Not split yet';
+
+  const footer = splitTotal > 0 ? (
+    <>
+      <Button size="lg" label="Cancel" onClick={onClose} />
+      <Button
+        size="lg"
+        variant="solid"
+        label="Add split"
+        loading={splitApplying}
+        loadingText="Adding…"
+        disabled={!formState.canApply}
+        onClick={() => formRef.current?.apply()}
+      />
+    </>
+  ) : (
+    <Button size="lg" label="Close" onClick={onClose} />
+  );
+
+  return (
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={heading}
+      description={description || undefined}
+      footer={footer}
+      className="txm-sheet"
+    >
+      <div className="txm-m">
+        <div className="txm-m-hero">
+          <Amount className="txm-m-hero__amount" value={net} sign="always" decimals={netDecimals} />
+          <span className="txm-m-hero__meta">
+            {outAmount > 0 ? 'Money out' : 'Money in'} · {splitLine}
+          </span>
+        </div>
+
+        {(showCategory || actions) && (
+          <div className="txm-m-group">
+            {showCategory && (
+              <MobileList variant="inset" aria-label="Category">
+                <CategoryRow
+                  categories={categories}
+                  value={categoryId}
+                  onChange={(value) => onAssignCategory?.(value)}
+                  saving={categoryBusy}
+                />
+              </MobileList>
+            )}
+            {actions ? <div className="txm-m-actions">{actions}</div> : null}
+          </div>
+        )}
+
+        <MobileSection title="Split with">
+          {tagsBusy ? <LoadingIndicator text={tagsBusy} /> : null}
+          {tags.length === 0 ? (
+            !tagsBusy && <p className="txm-m-muted">Not split with anyone yet.</p>
+          ) : (
+            <div className="txm-m-tags" role="list" aria-label="People on this transaction">
+              {tags.map((tag) => (
+                <FriendTagCard
+                  key={tag.id}
+                  tag={tag}
+                  transaction={transaction}
+                  friendName={tag.friend?.name || String(tag.friendId)}
+                  onRemove={onDeleteTag ? () => onDeleteTag(tag.id) : undefined}
+                  onAllocationChanged={onTagsChanged}
+                />
+              ))}
+            </div>
+          )}
+        </MobileSection>
+
+        {splitTotal > 0 ? (
+          <MobileSection title="Split transaction">
+            <SplitTransactionForm
+              key={`split-${transaction?.id}`}
+              ref={formRef}
+              hideApplyButton
+              onStateChange={setFormState}
+              totalAmount={splitTotal}
+              participants={participants}
+              taggedFriendIds={taggedFriendIds}
+              defaultDirection="OWES_ME"
+              applying={splitApplying}
+              onApplySplit={onApplySplit}
+            />
+          </MobileSection>
         ) : null}
       </div>
     </Sheet>

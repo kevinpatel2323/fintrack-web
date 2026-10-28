@@ -133,13 +133,15 @@ Phones (< 768px, designed on an iPhone 17 at 402×874 and checked at 375px) get 
   - One quick segment row may sit under the search.
 - **Sizes.**
   - Kit controls are one size up on phones: sm 32px, md 36, lg 44.
-  - Text fields use 16px text, so iOS never zooms the page.
+  - Text fields and picker triggers use 16px text, so iOS never zooms the page.
 - **Menus.** A `Dropdown` opens as an action sheet on its own. A row's actions go in a `…` on the row (`MobileListItem actions`) or on its record page.
 
 **Overlays:**
 - **Forms.** A `Dialog` docks as a bottom sheet: grab handle, centred title, 44px full-width buttons. A `Sheet` does too with `side="auto"`.
 - **Confirmations.** `ConfirmDialog` stays a centred card.
-- **Toasts** sit above the tab bar.
+- Sheets and docked dialogs swipe down to dismiss from the grab handle and title.
+- **Pickers.** Select, Combobox, DatePicker and DateRangePicker open as bottom sheets on their own; so does a `Popover` (pass `mobile="popover"` for a small floating hint).
+- **Toasts** sit above the tab bar, a `MobileActionBar` or the home indicator, full width inside the gutter.
 
 **Type on phones:**
 - Header and section titles: 17px semibold.

@@ -85,9 +85,130 @@ export default function NewTransactionDialog({ open, defaultDate, compact, onClo
 
   const footer = (
     <div className="cal-form__footer">
-      <Button label="Cancel" onClick={onClose} disabled={saving} />
-      <Button variant="solid" type="submit" form={FORM_ID} label="Add transaction" loading={saving} loadingText="Adding…" />
+      <Button size={compact ? 'lg' : undefined} label="Cancel" onClick={onClose} disabled={saving} />
+      <Button
+        size={compact ? 'lg' : undefined}
+        variant="solid"
+        type="submit"
+        form={FORM_ID}
+        label="Add transaction"
+        loading={saving}
+        loadingText="Adding…"
+      />
     </div>
+  );
+
+  const narrationField = (
+    <FormControl
+      className="cal-form__full"
+      label="Narration"
+      required
+      // Phones open the sheet without the keyboard (frappe-ui BottomSheet).
+      autoFocus={!compact}
+      placeholder="What was this for?"
+      value={form.narration}
+      onChange={set('narration')}
+      error={errors.narration}
+    />
+  );
+  const amountField = (
+    <FormControl
+      label="Amount"
+      type="number"
+      required
+      min="0"
+      step="0.01"
+      placeholder="0.00"
+      prefix={<span className="text-ink-gray-5">₹</span>}
+      inputMode={compact ? 'decimal' : undefined}
+      value={form.amount}
+      onChange={set('amount')}
+      error={errors.amount}
+    />
+  );
+  const dateField = (
+    <FormControl
+      label="Date"
+      type="date"
+      required
+      value={form.transactionDate}
+      onChange={(value) => setForm((p) => ({ ...p, transactionDate: value }))}
+      error={errors.transactionDate}
+    />
+  );
+  const typeField = (
+    <FormControl label="Type" type="select" options={TYPE_OPTIONS} value={form.type} onChange={set('type')} />
+  );
+  const directionField = form.type === 'SETTLEMENT' && (
+    <FormControl
+      label={compact ? 'Direction' : 'Settlement direction'}
+      type="select"
+      options={DIRECTION_OPTIONS}
+      value={form.settlementDirection}
+      onChange={set('settlementDirection')}
+      error={errors.settlementDirection}
+    />
+  );
+  const balanceField = (
+    <FormControl
+      className={form.type === 'SETTLEMENT' || compact ? 'cal-form__full' : undefined}
+      label="Balance"
+      type="number"
+      min="0"
+      step="0.01"
+      placeholder="Optional"
+      prefix={<span className="text-ink-gray-5">₹</span>}
+      inputMode={compact ? 'decimal' : undefined}
+      value={form.balance}
+      onChange={set('balance')}
+      error={errors.balance}
+    />
+  );
+  const upiNameField = <FormControl label="UPI name" placeholder="Optional" value={form.upiName} onChange={set('upiName')} />;
+  const upiBankField = <FormControl label="UPI bank" placeholder="Optional" value={form.upiBank} onChange={set('upiBank')} />;
+  const upiDescriptionField = (
+    <FormControl
+      className="cal-form__full"
+      label="UPI description"
+      placeholder="Optional"
+      value={form.upiDescription}
+      onChange={set('upiDescription')}
+    />
+  );
+  const errorField = formError && <ErrorMessage className="cal-form__full" message={formError} />;
+
+  // Phone: one column, what and how much first; amount and date side by side,
+  // and the optional fields (UPI details, balance) last.
+  const fields = compact ? (
+    <>
+      {narrationField}
+      <div className="cal-form__pair">
+        {amountField}
+        {dateField}
+      </div>
+      <div className="cal-form__pair">
+        {typeField}
+        {directionField}
+      </div>
+      {upiNameField}
+      {upiBankField}
+      {upiDescriptionField}
+      {balanceField}
+      {errorField}
+    </>
+  ) : (
+    <>
+      {narrationField}
+      {amountField}
+      {dateField}
+      {typeField}
+      {directionField}
+      {balanceField}
+      {upiNameField}
+      {upiBankField}
+      {upiDescriptionField}
+      {errorField}
+    </>
   );
 
   return (
@@ -101,69 +222,7 @@ export default function NewTransactionDialog({ open, defaultDate, compact, onClo
       footer={footer}
     >
       <form id={FORM_ID} className="cal-form" onSubmit={submit} noValidate>
-        <FormControl
-          className="cal-form__full"
-          label="Narration"
-          required
-          autoFocus
-          placeholder="What was this for?"
-          value={form.narration}
-          onChange={set('narration')}
-          error={errors.narration}
-        />
-        <FormControl
-          label="Amount"
-          type="number"
-          required
-          min="0"
-          step="0.01"
-          placeholder="0.00"
-          prefix={<span className="text-ink-gray-5">₹</span>}
-          value={form.amount}
-          onChange={set('amount')}
-          error={errors.amount}
-        />
-        <FormControl
-          label="Date"
-          type="date"
-          required
-          value={form.transactionDate}
-          onChange={(value) => setForm((p) => ({ ...p, transactionDate: value }))}
-          error={errors.transactionDate}
-        />
-        <FormControl label="Type" type="select" options={TYPE_OPTIONS} value={form.type} onChange={set('type')} />
-        {form.type === 'SETTLEMENT' && (
-          <FormControl
-            label="Settlement direction"
-            type="select"
-            options={DIRECTION_OPTIONS}
-            value={form.settlementDirection}
-            onChange={set('settlementDirection')}
-            error={errors.settlementDirection}
-          />
-        )}
-        <FormControl
-          className={form.type === 'SETTLEMENT' ? 'cal-form__full' : undefined}
-          label="Balance"
-          type="number"
-          min="0"
-          step="0.01"
-          placeholder="Optional"
-          prefix={<span className="text-ink-gray-5">₹</span>}
-          value={form.balance}
-          onChange={set('balance')}
-          error={errors.balance}
-        />
-        <FormControl label="UPI name" placeholder="Optional" value={form.upiName} onChange={set('upiName')} />
-        <FormControl label="UPI bank" placeholder="Optional" value={form.upiBank} onChange={set('upiBank')} />
-        <FormControl
-          className="cal-form__full"
-          label="UPI description"
-          placeholder="Optional"
-          value={form.upiDescription}
-          onChange={set('upiDescription')}
-        />
-        {formError && <ErrorMessage className="cal-form__full" message={formError} />}
+        {fields}
       </form>
     </FormFrame>
   );

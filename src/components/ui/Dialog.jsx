@@ -3,6 +3,8 @@ import { X } from 'lucide-react';
 import Portal from '../Portal.jsx';
 import { useDismiss, useStableId } from './internal/floating.js';
 import { cx, keepOpenLayersRef, useModalFocus, usePresence, useScrollLock } from './internal/dialogUtils.js';
+import { useSheetDrag } from './internal/sheetDrag.js';
+import { useIsCompact } from '../../styles/breakpoints.js';
 import './Dialog.css';
 
 /**
@@ -197,6 +199,23 @@ export default function Dialog({
   const hasBody = description != null || (children != null && children !== false);
   const edges = useScrollEdges(bodyRef, present && hasBody);
 
+  // Phones: docked as a bottom sheet, it swipes down to dismiss from the
+  // grab handle and the header (not from a button in it).
+  const isCompact = useIsCompact();
+  const asSheet = isCompact && mobile === 'sheet';
+  const dragHandlers = useSheetDrag({
+    panelRef,
+    open,
+    enabled: asSheet && dismissable,
+    onDismiss: close,
+    upward: false,
+    shouldStart: (e) => {
+      if (e.target.closest?.('button, a, input, select, textarea, [role="button"]')) return false;
+      if (e.target.closest?.('.ui-dialog__header')) return true;
+      return Boolean(e.target.closest?.('.ui-dialog__grab'));
+    },
+  });
+
   if (!present) return null;
 
   const sizeKey = SIZES.has(size) ? size : 'lg';
@@ -239,7 +258,9 @@ export default function Dialog({
             data-mobile={mobile}
             className={cx('ui-dialog', className)}
             style={width != null ? { maxWidth: width, ...styleProp } : styleProp}
+            {...(asSheet ? dragHandlers : null)}
           >
+            {asSheet && <div className="ui-dialog__grab" aria-hidden="true" />}
             {showHeader && (
               <div className="ui-dialog__header" data-overline={overline != null ? '' : undefined}>
                 <div className="ui-dialog__heading">

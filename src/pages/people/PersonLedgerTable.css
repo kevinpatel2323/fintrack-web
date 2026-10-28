@@ -129,3 +129,35 @@
     transition: none;
   }
 }
+
+/* Phones (ListView's row layout): a 16px entry over a 13px line of date,
+   direction and status that may wrap once; the amount at 16px. */
+@media (max-width: 767.98px) {
+  .pledger[data-phone] {
+    --ui-list-row-height: 60px;
+  }
+
+  .pledger[data-phone] .pledger-entry__text {
+    gap: 2px;
+    padding: 8px 0;
+  }
+
+  .pledger[data-phone] .pledger-entry__title {
+    font-size: 16px;
+    line-height: 1.3;
+  }
+
+  .pledger[data-phone] .pledger-entry__meta {
+    display: -webkit-box;
+    font-size: 13px;
+    line-height: 1.35;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .pledger[data-phone] [data-align='right'] > .ui-amount {
+    font-size: 16px;
+    font-weight: 500;
+  }
+}

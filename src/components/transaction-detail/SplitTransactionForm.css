@@ -168,3 +168,149 @@
     width: 88px;
   }
 }
+
+/* ---------- Phone (SplitFormPhone) ----------
+ * Phone-only markup, so no media query. 36px fields with 16px text, person
+ * rows as a list (avatar, name over a 13px line, the amount or its input,
+ * remove), and the running total pinned at the bottom of the sheet's scroll
+ * area, just above the sheet's buttons. */
+
+.txs-m {
+  gap: 20px;
+}
+
+.txs-m .txs-label {
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.txs-m .txs-muted {
+  font-size: 13px;
+}
+
+/* Five segments in a phone's width: tighter pills so "Percent" fits at
+   375px. */
+.txs-m-methods .ui-tab-buttons__pill {
+  padding-inline: 4px;
+}
+
+.txs-m-people {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.txs-m-person {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto 36px;
+  align-items: center;
+  column-gap: 12px;
+  min-height: 56px;
+  padding: 8px 0;
+}
+
+.txs-m-person + .txs-m-person::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 44px;
+  right: 0;
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.txs-m-person__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.txs-m-person__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  line-height: 1.3;
+  color: var(--ink-gray-8);
+}
+
+.txs-m-person__sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+  font-variant-numeric: tabular-nums;
+}
+
+.txs-m-person__amount {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink-gray-8);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.txs-m-person .txs-person__input {
+  width: 112px;
+}
+
+.txs-m-person__remove {
+  grid-column: 4;
+  justify-self: end;
+  margin-right: -6px;
+}
+
+.txs-m .txs-add {
+  width: 100%;
+}
+
+.txs-m-settle {
+  padding-top: 8px;
+}
+
+.txs-m-settle .txs-settle__name {
+  font-size: 15px;
+}
+
+.txs-m-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The running total, pinned to the bottom of the sheet body. It bleeds over
+   the body's side padding so the band and its hairline run edge to edge.
+   The sticky edge is the body's content box, so -8px (the body's bottom
+   padding above a footer) sits it flush on the sheet's buttons; as the
+   form's last child (the host owns the apply button) it fills that padding
+   at the end of the scroll too. */
+.txs-m-check {
+  position: sticky;
+  bottom: -8px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 -16px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--outline-gray-1);
+  background: var(--surface-base);
+}
+
+.txs-m-check:last-child {
+  margin-bottom: -8px;
+}
+
+.txs-m-check .txs-summary {
+  font-size: 15px;
+  color: var(--ink-gray-7);
+}
+
+.txs-m-check .txs-summary.is-off {
+  color: var(--ink-red-6);
+}

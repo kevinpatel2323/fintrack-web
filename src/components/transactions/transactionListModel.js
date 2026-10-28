@@ -38,6 +38,24 @@ export function getTodayIso(now = new Date()) {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
+/** "October 2026" for a `YYYY-MM` month value; '' when it isn't one. */
+export function formatMonthLong(value) {
+  const [y, m] = String(value || '').split('-').map(Number);
+  if (!y || !m) return '';
+  return new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(y, m - 1, 1)));
+}
+
+/**
+ * The months either side of `value` in `options` (newest first, as
+ * getMonthOptions builds them): `older` and `newer`, null past either end.
+ */
+export function adjacentMonths(value, options) {
+  const i = value ? options.findIndex((m) => m.value === value) : -1;
+  if (i < 0) return { older: null, newer: null };
+  return { older: options[i + 1] || null, newer: i > 0 ? options[i - 1] : null };
+}
+
 /** "1 Oct – 15 Oct 2026" for a custom period; the year shows once when shared. */
 export function formatRangeLabel(startIso, endIso) {
   const parse = (iso) => {
@@ -68,10 +86,10 @@ export function signedAmount(row) {
 }
 
 /**
- * Rows grouped by day, newest day first, each with its net (in minus out).
- * Row order inside a day is kept as given.
+ * Rows grouped by day, newest day first (`order: 'asc'` for oldest first),
+ * each with its net (in minus out). Row order inside a day is kept as given.
  */
-export function groupRowsByDay(rows) {
+export function groupRowsByDay(rows, order = 'desc') {
   const map = new Map();
   for (const r of rows || []) {
     const key = dayKeyOf(r.date);
@@ -79,12 +97,36 @@ export function groupRowsByDay(rows) {
     map.get(key).push(r);
   }
   return Array.from(map.entries())
-    .sort(([a], [b]) => b.localeCompare(a))
+    .sort(([a], [b]) => (order === 'asc' ? a.localeCompare(b) : b.localeCompare(a)))
     .map(([key, items]) => ({
       key,
       rows: items,
       net: items.reduce((s, r) => s + signedAmount(r), 0),
     }));
+}
+
+/**
+ * The first `limit` rows of a date-ordered list, carried on to the end of the
+ * last day they reach, so a day is never cut in two (its header shows the
+ * whole day's net). The phone list grows by "Show more" this way.
+ */
+export function sliceWholeDays(rows, limit) {
+  const list = rows || [];
+  if (list.length <= limit) return list;
+  const lastDay = dayKeyOf(list[limit - 1].date);
+  let end = limit;
+  while (end < list.length && dayKeyOf(list[end].date) === lastDay) end += 1;
+  return list.slice(0, end);
+}
+
+/**
+ * Short account hint for a phone row: "••6001" for an account number, the
+ * name itself for a named account ("Wallet").
+ */
+export function accountHint(accountNumber) {
+  const value = String(accountNumber ?? '').trim();
+  if (!value) return '';
+  return value.length > 4 && /\d{4}$/.test(value) ? `••${value.slice(-4)}` : value;
 }
 
 /** "Today", "Yesterday", "Wed, 21 Oct", or "Mon, 3 Nov 2025" outside this year. */

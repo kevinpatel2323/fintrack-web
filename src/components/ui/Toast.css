@@ -167,19 +167,41 @@
   }
 }
 
-/* Phones: full width with 16px insets (sonner's mobile offset), clear of the
- * bottom tab bar. */
+/* Phones: full width inside the page gutter, 12px above whatever the phone
+ * shell has at the bottom — the tab bar, a MobileActionBar, or just the home
+ * indicator. The shell publishes that height as --phone-chrome-bottom
+ * (components/shell/AppShell.jsx). */
 @media (max-width: 767.98px) {
   .ui-toaster {
-    bottom: calc(16px + var(--mobile-nav-height, 0px) + env(safe-area-inset-bottom, 0px));
-  }
-}
-
-@media (max-width: 600px) {
-  .ui-toaster {
-    left: 16px;
-    right: 16px;
+    left: var(--page-gutter, 16px);
+    right: var(--page-gutter, 16px);
+    bottom: calc(12px + max(var(--phone-chrome-bottom, 0px), env(safe-area-inset-bottom, 0px)));
     width: auto;
+  }
+
+  .ui-toast__row {
+    min-height: 48px;
+    padding: 10px 12px 10px 16px;
+  }
+
+  .ui-toast__title,
+  .ui-toast__description {
+    font-size: 15px;
+    letter-spacing: 0.01em;
+  }
+
+  .ui-toast__action {
+    height: 36px;
+    padding: 0 10px;
+    font-size: 15px;
+  }
+
+  /* A 32px target for the close glyph. */
+  .ui-toast__close {
+    width: 32px;
+    height: 32px;
+    margin-right: -6px;
+    border-radius: var(--radius-4);
   }
 }
 

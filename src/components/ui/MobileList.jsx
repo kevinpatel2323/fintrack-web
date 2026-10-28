@@ -55,7 +55,14 @@ export function MobileListItem({
   className,
   children,
   'aria-label': ariaLabel,
+  ...rest
 }) {
+  // `role` and other ARIA props (aria-current, aria-checked, …) go to the
+  // row's interactive element, so a list of rows can act as a picker.
+  const a11y = {};
+  Object.keys(rest).forEach((k) => {
+    if (k === 'role' || k.startsWith('aria-')) a11y[k] = rest[k];
+  });
   const body = (
     <span className="ui-mrow__inner">
       {leading && <span className="ui-mrow__leading">{leading}</span>}
@@ -77,24 +84,24 @@ export function MobileListItem({
   let main;
   if (to && !disabled) {
     main = (
-      <Link className="ui-mrow__main" to={to} state={state} replace={replace} aria-label={ariaLabel} onClick={onClick}>
+      <Link {...a11y} className="ui-mrow__main" to={to} state={state} replace={replace} aria-label={ariaLabel} onClick={onClick}>
         {body}
       </Link>
     );
   } else if (href && !disabled) {
     main = (
-      <a className="ui-mrow__main" href={href} aria-label={ariaLabel} onClick={onClick}>
+      <a {...a11y} className="ui-mrow__main" href={href} aria-label={ariaLabel} onClick={onClick}>
         {body}
       </a>
     );
   } else if (onClick) {
     main = (
-      <button type="button" className="ui-mrow__main" aria-label={ariaLabel} onClick={onClick} disabled={disabled}>
+      <button {...a11y} type="button" className="ui-mrow__main" aria-label={ariaLabel} onClick={onClick} disabled={disabled}>
         {body}
       </button>
     );
   } else {
-    main = <div className="ui-mrow__main">{body}</div>;
+    main = <div {...a11y} className="ui-mrow__main">{body}</div>;
   }
 
   return (

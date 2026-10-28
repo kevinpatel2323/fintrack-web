@@ -1,0 +1,77 @@
+/* CategoryRow: the phone category row (TransactionDetailPhone, the manage
+   sheet). Phone-only markup, so no media query. A label/value row with the
+   same metrics as the MobileField rows it sits with, plus a chevron; the kit
+   Combobox around it opens the picker as a bottom sheet. */
+
+.txd-m-catrow__combo {
+  display: flex;
+  width: 100%;
+}
+
+.txd-m-catrow__combo .txd-m-catrow__btn {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px 8px 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  border-radius: 0;
+  font-size: 15px;
+  line-height: 1.4;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.txd-m-catrow__combo .txd-m-catrow__btn:active:not(:disabled) {
+  background: var(--surface-gray-3);
+}
+
+.txd-m-catrow__combo .txd-m-catrow__btn:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: -2px;
+}
+
+.txd-m-catrow__label {
+  flex-shrink: 0;
+  color: var(--ink-gray-5);
+}
+
+.txd-m-catrow__value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--ink-gray-9);
+}
+
+.txd-m-catrow__value.is-empty {
+  color: var(--ink-gray-5);
+}
+
+.txd-m-catrow__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.txd-m-catrow__chevron {
+  flex-shrink: 0;
+  color: var(--ink-gray-4);
+}
+
+/* The kit draws hairlines between fields; draw the one under Category. */
+.ui-mlist .txd-m-catrow + .ui-mfield::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  border-top: 1px solid var(--outline-gray-1);
+}

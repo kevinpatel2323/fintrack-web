@@ -7,6 +7,7 @@ import CardFace from './cards/CardFace.jsx';
 import { BANK_OPTIONS, NETWORK_OPTIONS } from './cards/cardFormat.js';
 import { CARD_PALETTES, createCard, updateCard } from '../services/cardsApi.js';
 import { refreshImportSchedule } from '../hooks/useImportSchedule.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import './cards/cards.css';
 
 const emptyForm = {
@@ -76,35 +77,42 @@ function validate(form) {
 
 const rupee = <span className="cardform__currency">₹</span>;
 
+/** The form's values for a card from the API (blank fields as ''), or a new card's. */
+function toForm(initial) {
+  if (!initial) return { ...emptyForm };
+  return {
+    ...emptyForm,
+    ...initial,
+    creditLimit: initial.creditLimit ?? '',
+    statementDay: initial.statementDay ?? '',
+    dueDay: initial.dueDay ?? '',
+    dailyLimit: initial.dailyLimit ?? '',
+    atmLimit: initial.atmLimit ?? '',
+    pointsBalance: initial.pointsBalance ?? '',
+    pointsValue: initial.pointsValue ?? '',
+    nickname: initial.nickname ?? '',
+    holder: initial.holder ?? '',
+    linkedAccountNumber: initial.linkedAccountNumber ?? '',
+    pointsLabel: initial.pointsLabel ?? '',
+    notes: initial.notes ?? '',
+  };
+}
+
 /**
  * Add or edit a card. Pass `initial` (a card from the API) to edit it.
  */
 export default function CardFormModal({ initial = null, onClose, onSaved, open = true }) {
   const formId = useId();
-  const [form, setForm] = useState(() => ({ ...emptyForm, ...(initial || {}) }));
+  // Phones: one column with short fields paired, and no autofocus (the
+  // keyboard would cover the sheet as it opens).
+  const isMobile = useIsCompact();
+  const [form, setForm] = useState(() => toForm(initial));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
-    if (initial) {
-      setForm({
-        ...emptyForm,
-        ...initial,
-        creditLimit: initial.creditLimit ?? '',
-        statementDay: initial.statementDay ?? '',
-        dueDay: initial.dueDay ?? '',
-        dailyLimit: initial.dailyLimit ?? '',
-        atmLimit: initial.atmLimit ?? '',
-        pointsBalance: initial.pointsBalance ?? '',
-        pointsValue: initial.pointsValue ?? '',
-        nickname: initial.nickname ?? '',
-        holder: initial.holder ?? '',
-        linkedAccountNumber: initial.linkedAccountNumber ?? '',
-        pointsLabel: initial.pointsLabel ?? '',
-        notes: initial.notes ?? '',
-      });
-    }
+    if (initial) setForm(toForm(initial));
   }, [initial]);
 
   const setValue = (k, v) => {
@@ -164,6 +172,299 @@ export default function CardFormModal({ initial = null, onClose, onSaved, open =
   const isCredit = form.kind === 'credit';
   const fe = fieldErrors;
 
+  // Each field once; the desktop and phone layouts below place them.
+  const f = {
+    bank: <FormControl type="select" label="Bank" options={BANK_OPTIONS} value={form.bank} onChange={set('bank')} />,
+    network: (
+      <FormControl
+        type="select"
+        label="Network"
+        options={NETWORK_OPTIONS}
+        value={form.network}
+        onChange={set('network')}
+      />
+    ),
+    name: (
+      <FormControl
+        label="Card name"
+        required
+        value={form.name}
+        onChange={set('name')}
+        maxLength={120}
+        placeholder="Infinia Metal"
+        error={fe.name}
+        autoFocus={!initial && !isMobile}
+      />
+    ),
+    nickname: (
+      <FormControl
+        label="Nickname"
+        value={form.nickname}
+        onChange={set('nickname')}
+        maxLength={120}
+        placeholder="HDFC Infinia"
+        description="Shown instead of the card name"
+      />
+    ),
+    last4: (
+      <FormControl
+        label="Last 4 digits"
+        required
+        value={form.last4}
+        onChange={set('last4')}
+        maxLength={4}
+        inputMode="numeric"
+        placeholder="4892"
+        error={fe.last4}
+      />
+    ),
+    holder: (
+      <FormControl
+        label="Cardholder"
+        value={form.holder}
+        onChange={set('holder')}
+        maxLength={120}
+        placeholder="Name on the card"
+      />
+    ),
+    expiryMonth: (
+      <FormControl
+        type="number"
+        label="Expiry month"
+        required
+        value={form.expiryMonth}
+        onChange={set('expiryMonth')}
+        min="1"
+        max="12"
+        placeholder="MM"
+        error={fe.expiryMonth}
+      />
+    ),
+    expiryYear: (
+      <FormControl
+        type="number"
+        label="Expiry year"
+        required
+        value={form.expiryYear}
+        onChange={set('expiryYear')}
+        min="2000"
+        max="2100"
+        placeholder="YYYY"
+        error={fe.expiryYear}
+      />
+    ),
+    creditLimit: (
+      <FormControl
+        type="number"
+        label="Credit limit"
+        value={form.creditLimit}
+        onChange={set('creditLimit')}
+        min="0"
+        placeholder="800000"
+        prefix={rupee}
+        error={fe.creditLimit}
+      />
+    ),
+    statementDay: (
+      <FormControl
+        type="number"
+        label="Statement day"
+        value={form.statementDay}
+        onChange={set('statementDay')}
+        min="1"
+        max="31"
+        placeholder="25"
+        error={fe.statementDay}
+      />
+    ),
+    dueDay: (
+      <FormControl
+        type="number"
+        label="Due day"
+        value={form.dueDay}
+        onChange={set('dueDay')}
+        min="1"
+        max="31"
+        placeholder="14"
+        error={fe.dueDay}
+      />
+    ),
+    pointsLabel: (
+      <FormControl
+        label="Rewards name"
+        value={form.pointsLabel}
+        onChange={set('pointsLabel')}
+        maxLength={80}
+        placeholder="Reward points"
+      />
+    ),
+    pointsBalance: (
+      <FormControl
+        type="number"
+        label="Balance"
+        value={form.pointsBalance}
+        onChange={set('pointsBalance')}
+        min="0"
+        placeholder="0"
+        error={fe.pointsBalance}
+      />
+    ),
+    pointsValue: (
+      <FormControl
+        type="number"
+        label="Value"
+        value={form.pointsValue}
+        onChange={set('pointsValue')}
+        min="0"
+        placeholder="0"
+        prefix={rupee}
+        error={fe.pointsValue}
+      />
+    ),
+    linkedAccount: (
+      <FormControl
+        label="Linked account"
+        value={form.linkedAccountNumber}
+        onChange={set('linkedAccountNumber')}
+        maxLength={50}
+        placeholder="HDFC Savings ••4221"
+      />
+    ),
+    dailyLimit: (
+      <FormControl
+        type="number"
+        label="Daily limit"
+        value={form.dailyLimit}
+        onChange={set('dailyLimit')}
+        min="0"
+        placeholder="100000"
+        prefix={rupee}
+        error={fe.dailyLimit}
+      />
+    ),
+    atmLimit: (
+      <FormControl
+        type="number"
+        label="ATM limit"
+        value={form.atmLimit}
+        onChange={set('atmLimit')}
+        min="0"
+        placeholder="25000"
+        prefix={rupee}
+        error={fe.atmLimit}
+      />
+    ),
+  };
+
+  const kindField = (
+    <div className="cardform__field">
+      <FormLabel as="div" label="Type" />
+      <TabButtons
+        aria-label="Card type"
+        options={KIND_OPTIONS}
+        value={form.kind}
+        onChange={(v) => setValue('kind', v)}
+        fluid={isMobile || undefined}
+      />
+    </div>
+  );
+
+  const colourField = (
+    <div className="cardform__field">
+      <FormLabel as="div" label="Colour" labelId={`${formId}-colour`} />
+      <div className="cardform__swatches" role="radiogroup" aria-labelledby={`${formId}-colour`}>
+        {PALETTE_OPTIONS.map((p) => (
+          <button
+            key={p.value}
+            type="button"
+            role="radio"
+            aria-checked={form.palette === p.value}
+            aria-label={p.label}
+            title={p.label}
+            className="cardform__swatch"
+            onClick={() => setValue('palette', p.value)}
+          >
+            <CardMark palette={p.value} />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const notesSection = (
+    <div className="cardform__section">
+      <FormControl
+        type="textarea"
+        label="Notes"
+        value={form.notes}
+        onChange={set('notes')}
+        maxLength={2000}
+        rows={2}
+      />
+      <Checkbox
+        label="Primary card"
+        description="Listed first on Cards"
+        checked={!!form.isPrimary}
+        onChange={(e) => setValue('isPrimary', e.target.checked)}
+      />
+    </div>
+  );
+
+  // Phones: what the card says first (name, bank, number, expiry), short
+  // fields paired, the long ones on their own row.
+  const phoneFields = (
+    <>
+      <div className="cardform__section">
+        {kindField}
+        {f.name}
+        {f.nickname}
+        <div className="cardform__grid cardform__grid--keep">
+          {f.bank}
+          {f.network}
+        </div>
+        <div className="cardform__grid cardform__grid--phone3">
+          {f.last4}
+          {f.expiryMonth}
+          {f.expiryYear}
+        </div>
+        {f.holder}
+        {colourField}
+      </div>
+
+      {isCredit ? (
+        <>
+          <div className="cardform__section">
+            <h4 className="cardform__heading">Billing</h4>
+            {f.creditLimit}
+            <div className="cardform__grid cardform__grid--keep">
+              {f.statementDay}
+              {f.dueDay}
+            </div>
+          </div>
+          <div className="cardform__section">
+            <h4 className="cardform__heading">Rewards</h4>
+            {f.pointsLabel}
+            <div className="cardform__grid cardform__grid--keep">
+              {f.pointsBalance}
+              {f.pointsValue}
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="cardform__section">
+          <h4 className="cardform__heading">Account and limits</h4>
+          {f.linkedAccount}
+          <div className="cardform__grid cardform__grid--keep">
+            {f.dailyLimit}
+            {f.atmLimit}
+          </div>
+        </div>
+      )}
+
+      {notesSection}
+    </>
+  );
+
   return (
     <Dialog
       open={open}
@@ -194,229 +495,61 @@ export default function CardFormModal({ initial = null, onClose, onSaved, open =
             }}
           />
         </div>
-        <div className="cardform__section">
-          <div className="cardform__field">
-            <FormLabel as="div" label="Type" />
-            <TabButtons
-              aria-label="Card type"
-              options={KIND_OPTIONS}
-              value={form.kind}
-              onChange={(v) => setValue('kind', v)}
-            />
-          </div>
-
-          <div className="cardform__grid">
-            <FormControl type="select" label="Bank" options={BANK_OPTIONS} value={form.bank} onChange={set('bank')} />
-            <FormControl
-              type="select"
-              label="Network"
-              options={NETWORK_OPTIONS}
-              value={form.network}
-              onChange={set('network')}
-            />
-            <FormControl
-              label="Card name"
-              required
-              value={form.name}
-              onChange={set('name')}
-              maxLength={120}
-              placeholder="Infinia Metal"
-              error={fe.name}
-              autoFocus={!initial}
-            />
-            <FormControl
-              label="Nickname"
-              value={form.nickname}
-              onChange={set('nickname')}
-              maxLength={120}
-              placeholder="HDFC Infinia"
-              description="Shown instead of the card name"
-            />
-            <FormControl
-              label="Last 4 digits"
-              required
-              value={form.last4}
-              onChange={set('last4')}
-              maxLength={4}
-              inputMode="numeric"
-              placeholder="4892"
-              error={fe.last4}
-            />
-            <FormControl
-              label="Cardholder"
-              value={form.holder}
-              onChange={set('holder')}
-              maxLength={120}
-              placeholder="Name on the card"
-            />
-          </div>
-
-          <div className="cardform__grid cardform__grid--keep">
-            <FormControl
-              type="number"
-              label="Expiry month"
-              required
-              value={form.expiryMonth}
-              onChange={set('expiryMonth')}
-              min="1"
-              max="12"
-              placeholder="MM"
-              error={fe.expiryMonth}
-            />
-            <FormControl
-              type="number"
-              label="Expiry year"
-              required
-              value={form.expiryYear}
-              onChange={set('expiryYear')}
-              min="2000"
-              max="2100"
-              placeholder="YYYY"
-              error={fe.expiryYear}
-            />
-          </div>
-
-          <div className="cardform__field">
-            <FormLabel as="div" label="Colour" labelId={`${formId}-colour`} />
-            <div className="cardform__swatches" role="radiogroup" aria-labelledby={`${formId}-colour`}>
-              {PALETTE_OPTIONS.map((p) => (
-                <button
-                  key={p.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={form.palette === p.value}
-                  aria-label={p.label}
-                  title={p.label}
-                  className="cardform__swatch"
-                  onClick={() => setValue('palette', p.value)}
-                >
-                  <CardMark palette={p.value} />
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {isCredit ? (
+        {isMobile ? phoneFields : (
           <>
             <div className="cardform__section">
-              <h4 className="cardform__heading">Billing</h4>
-              <div className="cardform__grid cardform__grid--3">
-                <FormControl
-                  type="number"
-                  label="Credit limit"
-                  value={form.creditLimit}
-                  onChange={set('creditLimit')}
-                  min="0"
-                  placeholder="800000"
-                  prefix={rupee}
-                  error={fe.creditLimit}
-                />
-                <FormControl
-                  type="number"
-                  label="Statement day"
-                  value={form.statementDay}
-                  onChange={set('statementDay')}
-                  min="1"
-                  max="31"
-                  placeholder="25"
-                  error={fe.statementDay}
-                />
-                <FormControl
-                  type="number"
-                  label="Due day"
-                  value={form.dueDay}
-                  onChange={set('dueDay')}
-                  min="1"
-                  max="31"
-                  placeholder="14"
-                  error={fe.dueDay}
-                />
-              </div>
-            </div>
-            <div className="cardform__section">
-              <h4 className="cardform__heading">Rewards</h4>
-              <div className="cardform__grid cardform__grid--3">
-                <FormControl
-                  label="Rewards name"
-                  value={form.pointsLabel}
-                  onChange={set('pointsLabel')}
-                  maxLength={80}
-                  placeholder="Reward points"
-                />
-                <FormControl
-                  type="number"
-                  label="Balance"
-                  value={form.pointsBalance}
-                  onChange={set('pointsBalance')}
-                  min="0"
-                  placeholder="0"
-                  error={fe.pointsBalance}
-                />
-                <FormControl
-                  type="number"
-                  label="Value"
-                  value={form.pointsValue}
-                  onChange={set('pointsValue')}
-                  min="0"
-                  placeholder="0"
-                  prefix={rupee}
-                  error={fe.pointsValue}
-                />
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="cardform__section">
-            <h4 className="cardform__heading">Account and limits</h4>
-            <FormControl
-              label="Linked account"
-              value={form.linkedAccountNumber}
-              onChange={set('linkedAccountNumber')}
-              maxLength={50}
-              placeholder="HDFC Savings ••4221"
-            />
-            <div className="cardform__grid">
-              <FormControl
-                type="number"
-                label="Daily limit"
-                value={form.dailyLimit}
-                onChange={set('dailyLimit')}
-                min="0"
-                placeholder="100000"
-                prefix={rupee}
-                error={fe.dailyLimit}
-              />
-              <FormControl
-                type="number"
-                label="ATM limit"
-                value={form.atmLimit}
-                onChange={set('atmLimit')}
-                min="0"
-                placeholder="25000"
-                prefix={rupee}
-                error={fe.atmLimit}
-              />
-            </div>
-          </div>
-        )}
+              {kindField}
 
-        <div className="cardform__section">
-          <FormControl
-            type="textarea"
-            label="Notes"
-            value={form.notes}
-            onChange={set('notes')}
-            maxLength={2000}
-            rows={2}
-          />
-          <Checkbox
-            label="Primary card"
-            description="Listed first on Cards"
-            checked={!!form.isPrimary}
-            onChange={(e) => setValue('isPrimary', e.target.checked)}
-          />
-        </div>
+              <div className="cardform__grid">
+                {f.bank}
+                {f.network}
+                {f.name}
+                {f.nickname}
+                {f.last4}
+                {f.holder}
+              </div>
+
+              <div className="cardform__grid cardform__grid--keep">
+                {f.expiryMonth}
+                {f.expiryYear}
+              </div>
+
+              {colourField}
+            </div>
+
+            {isCredit ? (
+              <>
+                <div className="cardform__section">
+                  <h4 className="cardform__heading">Billing</h4>
+                  <div className="cardform__grid cardform__grid--3">
+                    {f.creditLimit}
+                    {f.statementDay}
+                    {f.dueDay}
+                  </div>
+                </div>
+                <div className="cardform__section">
+                  <h4 className="cardform__heading">Rewards</h4>
+                  <div className="cardform__grid cardform__grid--3">
+                    {f.pointsLabel}
+                    {f.pointsBalance}
+                    {f.pointsValue}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="cardform__section">
+                <h4 className="cardform__heading">Account and limits</h4>
+                {f.linkedAccount}
+                <div className="cardform__grid">
+                  {f.dailyLimit}
+                  {f.atmLimit}
+                </div>
+              </div>
+            )}
+
+            {notesSection}
+          </>
+        )}
 
         <ErrorMessage message={error} />
       </form>

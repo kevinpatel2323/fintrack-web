@@ -4,6 +4,7 @@ import { Alert, Button, ErrorMessage, FormControl } from '../components/ui';
 import AuthLayout from './auth/AuthLayout.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { browserSupportsWebAuthn, registerPasskey } from '../services/authApi.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 
 // First-time enrollment requires the SETUP_TOKEN break-glass. The same page is
 // reused (without a token) by an authenticated user adding another device.
@@ -17,6 +18,9 @@ export default function Setup() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const supported = browserSupportsWebAuthn();
+  // Phones: 44px fields and button, the button pinned near the bottom (AuthLayout.css).
+  const isMobile = useIsCompact();
+  const fieldSize = isMobile ? 'lg' : undefined;
 
   useEffect(() => {
     if (authDisabled) navigate('/', { replace: true });
@@ -62,6 +66,7 @@ export default function Setup() {
         <form className="auth-page__form" onSubmit={enroll}>
           {!authed && (
             <FormControl
+              size={fieldSize}
               label="Setup token"
               type="password"
               value={token}
@@ -72,6 +77,7 @@ export default function Setup() {
             />
           )}
           <FormControl
+            size={fieldSize}
             label="Device name"
             description="Optional. Helps you tell your passkeys apart."
             type="text"
@@ -83,7 +89,7 @@ export default function Setup() {
           <Button
             type="submit"
             variant="solid"
-            size="md"
+            size={isMobile ? 'lg' : 'md'}
             className="auth-page__full"
             label={busy ? 'Creating passkey…' : 'Create passkey'}
             loading={busy}

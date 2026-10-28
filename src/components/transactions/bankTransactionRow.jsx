@@ -1,6 +1,6 @@
 import { CreditCard } from 'lucide-react';
 import { Badge } from '../ui';
-import { peopleFromTags } from './transactionListModel.js';
+import { accountHint, peopleFromTags } from './transactionListModel.js';
 
 /** Maps a bank transaction into the shape TransactionTable renders. */
 export function toBankTableRow(row, tagsByTransaction = {}) {
@@ -29,8 +29,13 @@ export function toBankTableRow(row, tagsByTransaction = {}) {
     amount: isIncome ? deposit : withdrawal,
     isIncome,
     expandable: Boolean(cc),
-    // Phone-only extras.
-    mobileSubtitle: row.upiDescription || row.upiBank || 'Manual',
-    metaTrailing: row.accountNumber ? `•• ${row.accountNumber.slice(-4)}` : null,
+    // Phone-only extras (TransactionListRow): the row's subtitle reads
+    // "Category · ••6001", and a card bill payment carries a compact marker.
+    // The UPI remark and narration stay on the transaction page.
+    mobileSubtitle: accountHint(row.accountNumber) || (row.isManual ? 'Manual' : null),
+    mobileBadge: cc ? (
+      <Badge size="sm" prefix={CreditCard} label={cc.cardLast4 ? `Bill ••${cc.cardLast4}` : 'Card bill'} title="Card bill payment" />
+    ) : null,
+    metaTrailing: null,
   };
 }

@@ -9,6 +9,9 @@ import { sortTableRows } from '../components/TransactionTable.jsx';
 import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
 import CardBillCard, { COVERED_ORDER } from '../components/transaction-detail/CardBillCard.jsx';
 import DetailsPanel from '../components/transaction-detail/DetailsPanel.jsx';
+import TransactionDetailPhone, {
+  TransactionDetailPhoneStatus,
+} from '../components/transaction-detail/TransactionDetailPhone.jsx';
 import { formatTxnDate } from '../components/transaction-detail/formatTxnDate.js';
 import { CategoryIcon } from '../components/common/Category.jsx';
 import {
@@ -251,6 +254,16 @@ export default function TransactionDetail() {
   // ---------- Loading / not found ----------
 
   if (txLoading || !tx) {
+    if (isMobile) {
+      return (
+        <TransactionDetailPhoneStatus
+          loading={txLoading}
+          error={txError}
+          onBack={backFromDetail}
+          backLabel={parentCrumb.label}
+        />
+      );
+    }
     return (
       <>
         <PageHeader
@@ -320,16 +333,6 @@ export default function TransactionDetail() {
     ? [{ label: 'Unlink card bill', icon: Unlink, theme: 'red', onClick: askUnlink }]
     : [];
 
-  const mobileOptions = [
-    {
-      items: [
-        canSplit && { label: splitLabel, icon: Users, onClick: openSplit },
-        canLinkCc && { label: 'Link to card bill', icon: Link2, onClick: openCcLink },
-      ].filter(Boolean),
-    },
-    { items: moreOptions },
-  ].filter((g) => g.items.length > 0);
-
   const headerActions = (
     <>
       {moreOptions.length > 0 && (
@@ -342,118 +345,9 @@ export default function TransactionDetail() {
     </>
   );
 
-  const mobileActions = mobileOptions.length > 0 ? (
-    <Dropdown options={mobileOptions} placement="bottom-end">
-      <Button variant="ghost" size="md" icon={MoreHorizontal} label="Actions" />
-    </Dropdown>
-  ) : null;
-
-  return (
+  // Sheets and dialogs, the same on both layouts.
+  const overlays = (
     <>
-      <PageHeader
-        // Phones show this centred; the summary below already names the merchant.
-        title="Transaction"
-        breadcrumbs={[parentCrumb, { label: title }]}
-        back={backFromDetail}
-        actions={headerActions}
-        mobileActions={mobileActions}
-      />
-
-      <PageBody className="txd-page">
-        <div className="txd-layout">
-          <section className="txd-layout__summary txd-summary" aria-label="Summary">
-            <CategoryIcon category={tx.category} size={40} />
-            <div className="txd-summary__text">
-              <h2 className="txd-summary__title">{title}</h2>
-              <p className="txd-summary__meta">
-                {verb} · {formatTxnDate(tx.transactionDate)}
-              </p>
-              {(hasTags || linked || tx.isManual) && (
-                <div className="txd-summary__badges">
-                  {hasTags && (
-                    <Badge
-                      prefix={Users}
-                      label={`Split with ${tags.length} ${tags.length === 1 ? 'person' : 'people'}`}
-                    />
-                  )}
-                  {linked && <Badge theme="blue" prefix={Link2} label="Card bill payment" />}
-                  {tx.isManual && <Badge label="Manual" />}
-                </div>
-              )}
-            </div>
-            <Amount className="txd-summary__amount" value={signed} sign="always" />
-            {isMobile && canSplit && (
-              <Button
-                className="txd-summary__primary"
-                variant="solid"
-                size="md"
-                iconLeft={Users}
-                label={splitLabel}
-                onClick={openSplit}
-              />
-            )}
-          </section>
-
-          <div className="txd-layout__side">
-            <DetailsPanel
-              tx={tx}
-              title={title}
-              categories={categories}
-              onAssignCategory={assignCategory}
-              categorySaving={categorySaving}
-            />
-          </div>
-
-          <div className="txd-layout__main">
-            <Card
-              as="section"
-              title="Split with people"
-              description={hasTags ? `${tags.length} ${tags.length === 1 ? 'friend tag' : 'friend tags'}` : undefined}
-            >
-              {tagsLoading && !hasTags ? (
-                <div aria-busy="true" className="txd-skeleton-rows">
-                  <Skeleton height={40} />
-                </div>
-              ) : hasTags ? (
-                <div className="txd-tags">
-                  {tags.map((tag) => (
-                    <FriendTagCard
-                      key={tag.id}
-                      tag={tag}
-                      transaction={tx}
-                      friendName={tag.friend?.name || `Friend #${tag.friendId}`}
-                      onRemove={() => askRemoveTag(tag.id)}
-                      onAllocationChanged={fetchTags}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState
-                  size="sm"
-                  icon={Users}
-                  title="No friend tags yet"
-                  description="Split it to track who owes whom."
-                  action={splitTotal > 0
-                    ? <Button iconLeft={Users} label="Split with people" onClick={openSplit} />
-                    : null}
-                />
-              )}
-            </Card>
-
-            {linked && (
-              <CardBillCard
-                ccLink={ccLink}
-                rows={coveredRows}
-                isMobile={isMobile}
-                categories={categories}
-                onAssignCategory={cardManager.assignCategory}
-                onOpenManage={cardManager.openManage}
-              />
-            )}
-          </div>
-        </div>
-      </PageBody>
-
       <TransactionManageSheet
         open={splitSheetOpen}
         title={title}
@@ -509,6 +403,136 @@ export default function TransactionDetail() {
         onConfirm={unlinkCc}
         onCancel={() => setConfirm(null)}
       />
+    </>
+  );
+
+  // Phones get their own layout of the same record: one column, the main
+  // action pinned at the bottom, the rest in the header's menu.
+  if (isMobile) {
+    return (
+      <>
+        <TransactionDetailPhone
+          tx={tx}
+          title={title}
+          onBack={backFromDetail}
+          categories={categories}
+          onAssignCategory={assignCategory}
+          categorySaving={categorySaving}
+          tags={tags}
+          tagsLoading={tagsLoading}
+          ccLink={ccLink}
+          coveredRows={coveredRows}
+          cardManager={cardManager}
+          canSplit={canSplit}
+          splitLabel={splitLabel}
+          splitTotal={splitTotal}
+          canLinkCc={canLinkCc}
+          onSplit={openSplit}
+          onLinkCc={openCcLink}
+          onUnlinkCc={askUnlink}
+          onRemoveTag={askRemoveTag}
+          onTagsChanged={fetchTags}
+        />
+        {overlays}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PageHeader
+        title="Transaction"
+        breadcrumbs={[parentCrumb, { label: title }]}
+        back={backFromDetail}
+        actions={headerActions}
+      />
+
+      <PageBody className="txd-page">
+        <div className="txd-layout">
+          <section className="txd-layout__summary txd-summary" aria-label="Summary">
+            <CategoryIcon category={tx.category} size={40} />
+            <div className="txd-summary__text">
+              <h2 className="txd-summary__title">{title}</h2>
+              <p className="txd-summary__meta">
+                {verb} · {formatTxnDate(tx.transactionDate)}
+              </p>
+              {(hasTags || linked || tx.isManual) && (
+                <div className="txd-summary__badges">
+                  {hasTags && (
+                    <Badge
+                      prefix={Users}
+                      label={`Split with ${tags.length} ${tags.length === 1 ? 'person' : 'people'}`}
+                    />
+                  )}
+                  {linked && <Badge theme="blue" prefix={Link2} label="Card bill payment" />}
+                  {tx.isManual && <Badge label="Manual" />}
+                </div>
+              )}
+            </div>
+            <Amount className="txd-summary__amount" value={signed} sign="always" />
+          </section>
+
+          <div className="txd-layout__side">
+            <DetailsPanel
+              tx={tx}
+              title={title}
+              categories={categories}
+              onAssignCategory={assignCategory}
+              categorySaving={categorySaving}
+            />
+          </div>
+
+          <div className="txd-layout__main">
+            <Card
+              as="section"
+              title="Split with people"
+              description={hasTags ? `${tags.length} ${tags.length === 1 ? 'friend tag' : 'friend tags'}` : undefined}
+            >
+              {tagsLoading && !hasTags ? (
+                <div aria-busy="true" className="txd-skeleton-rows">
+                  <Skeleton height={40} />
+                </div>
+              ) : hasTags ? (
+                <div className="txd-tags">
+                  {tags.map((tag) => (
+                    <FriendTagCard
+                      key={tag.id}
+                      tag={tag}
+                      transaction={tx}
+                      friendName={tag.friend?.name || `Friend #${tag.friendId}`}
+                      onRemove={() => askRemoveTag(tag.id)}
+                      onAllocationChanged={fetchTags}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  size="sm"
+                  icon={Users}
+                  title="No friend tags yet"
+                  description="Split it to track who owes whom."
+                  action={splitTotal > 0
+                    ? <Button iconLeft={Users} label="Split with people" onClick={openSplit} />
+                    : null}
+                />
+              )}
+            </Card>
+
+            {linked && (
+              <CardBillCard
+                ccLink={ccLink}
+                rows={coveredRows}
+                isMobile={false}
+                categories={categories}
+                onAssignCategory={cardManager.assignCategory}
+                onOpenManage={cardManager.openManage}
+              />
+            )}
+          </div>
+        </div>
+      </PageBody>
+
+      {overlays}
     </>
   );
 }

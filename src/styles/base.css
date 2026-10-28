@@ -168,9 +168,10 @@ svg {
   transition: none !important;
 }
 
-/* iOS zooms the page when a focused field's text is under 16px. On phones,
-   text entry gets 16px so tapping a field never rescales the layout. */
-@media (max-width: 767.98px) and (pointer: coarse) {
+/* iOS zooms the page when a focused field's text is under 16px. On phone
+   widths, text entry gets 16px so tapping a field never rescales the layout
+   (a desktop window is never this narrow, so no pointer check). */
+@media (max-width: 767.98px) {
   input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
   select,
   textarea {
@@ -183,6 +184,7 @@ svg {
 @media (max-width: 767.98px) {
   .phone-bleed {
     --list-row-padding-x: var(--page-gutter);
+    max-width: none;
     margin-inline: calc(-1 * var(--page-gutter));
   }
 }

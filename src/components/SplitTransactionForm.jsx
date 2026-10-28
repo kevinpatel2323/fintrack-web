@@ -27,6 +27,7 @@ import {
   validateShares,
   validateSplitTotal,
 } from '../utils/splitValidation.ts';
+import { useIsCompact } from '../styles/breakpoints.js';
 import './transaction-detail/SplitTransactionForm.css';
 
 const METHODS = [
@@ -89,6 +90,7 @@ const SplitTransactionForm = forwardRef(function SplitTransactionForm({
   hideApplyButton = false,
   onStateChange,
 }, ref) {
+  const isMobile = useIsCompact();
   const [method, setMethod] = useState('EQUAL');
   const [selectedIds, setSelectedIds] = useState([]);
   const [splitDirection, setSplitDirection] = useState(defaultDirection);
@@ -408,13 +410,14 @@ const SplitTransactionForm = forwardRef(function SplitTransactionForm({
     [participants, selectedIds, taggedSet],
   );
 
-  function amountInput(id, name) {
+  function amountInput(id, name, size) {
     if (!tracksAmounts) return null;
     if (method === 'EXACT') {
       const raw = exactById[id] ?? '';
       return (
         <TextInput
           className="txs-person__input"
+          size={size}
           inputMode="decimal"
           prefix={<span className="txs-affix">₹</span>}
           placeholder="0.00"
@@ -430,6 +433,7 @@ const SplitTransactionForm = forwardRef(function SplitTransactionForm({
       return (
         <TextInput
           className="txs-person__input"
+          size={size}
           inputMode="decimal"
           suffix={<span className="txs-affix">%</span>}
           placeholder="0"
@@ -445,6 +449,7 @@ const SplitTransactionForm = forwardRef(function SplitTransactionForm({
       return (
         <TextInput
           className="txs-person__input"
+          size={size}
           inputMode="decimal"
           placeholder="1"
           aria-label={`${name} shares`}
@@ -459,6 +464,7 @@ const SplitTransactionForm = forwardRef(function SplitTransactionForm({
       return (
         <TextInput
           className="txs-person__input"
+          size={size}
           inputMode="decimal"
           prefix={<span className="txs-affix">₹</span>}
           placeholder="Auto"
@@ -504,6 +510,44 @@ const SplitTransactionForm = forwardRef(function SplitTransactionForm({
     );
   }
   const summaryOff = tracksAmounts && hasPeople && totalMinor != null && !balanced;
+
+  if (isMobile) {
+    return (
+      <SplitFormPhone
+        directions={DIRECTIONS}
+        methods={METHODS}
+        splitDirection={splitDirection}
+        setSplitDirection={setSplitDirection}
+        tracksAmounts={tracksAmounts}
+        method={method}
+        setMethod={setMethod}
+        orderedSelected={orderedSelected}
+        nameOf={nameOf}
+        results={results}
+        amountInput={amountInput}
+        minorPerMajor={minorPerMajor}
+        toggleFriend={toggleFriend}
+        participants={participants}
+        addOptions={addOptions}
+        allocationDrafts={allocationDrafts}
+        setAllocationDrafts={setAllocationDrafts}
+        setAllocationStatuses={setAllocationStatuses}
+        groupPickIds={groupPickIds}
+        groupsByFriend={groupsByFriend}
+        groupByParticipant={groupByParticipant}
+        setGroupByParticipant={setGroupByParticipant}
+        splitNote={splitNote}
+        setSplitNote={setSplitNote}
+        summary={summary}
+        summaryOff={summaryOff}
+        errors={hasPeople ? validation.shown : []}
+        hideApplyButton={hideApplyButton}
+        applying={applying}
+        canApply={canApply}
+        onApply={() => void handleApply()}
+      />
+    );
+  }
 
   return (
     <div className="txs-form">
@@ -670,5 +714,216 @@ const SplitTransactionForm = forwardRef(function SplitTransactionForm({
     </div>
   );
 });
+
+/**
+ * The form on a phone. Same state and checks as the desktop form (passed in);
+ * only the layout differs: 36px fields with 16px text, a compact segmented
+ * method switch, person rows with the amount input at the right, and the
+ * running total pinned at the bottom of the sheet, right above its buttons.
+ */
+function SplitFormPhone({
+  directions,
+  methods,
+  splitDirection,
+  setSplitDirection,
+  tracksAmounts,
+  method,
+  setMethod,
+  orderedSelected,
+  nameOf,
+  results,
+  amountInput,
+  minorPerMajor,
+  toggleFriend,
+  participants,
+  addOptions,
+  allocationDrafts,
+  setAllocationDrafts,
+  setAllocationStatuses,
+  groupPickIds,
+  groupsByFriend,
+  groupByParticipant,
+  setGroupByParticipant,
+  splitNote,
+  setSplitNote,
+  summary,
+  summaryOff,
+  errors,
+  hideApplyButton,
+  applying,
+  canApply,
+  onApply,
+}) {
+  const hasPeople = orderedSelected.length > 0;
+  return (
+    <div className="txs-form txs-m">
+      <FormControl
+        type="select"
+        size="md"
+        label="Who owes whom"
+        options={directions}
+        value={splitDirection}
+        onChange={(e) => setSplitDirection(e.target.value)}
+      />
+
+      {tracksAmounts && (
+        <div className="txs-field">
+          <span className="txs-label">Split method</span>
+          <TabButtons
+            fluid
+            className="txs-m-methods"
+            aria-label="Split method"
+            options={methods}
+            value={method}
+            onChange={setMethod}
+          />
+        </div>
+      )}
+
+      <div className="txs-field">
+        <span className="txs-label">People</span>
+        {hasPeople && (
+          <ul className="txs-m-people" aria-label="Selected participants">
+            {orderedSelected.map((id) => {
+              const name = nameOf(id);
+              const amountMinor = results.find((r) => r.participantId === id)?.amountMinor;
+              const input = method !== 'EQUAL' ? amountInput(id, name, 'md') : null;
+              const computed = tracksAmounts && method !== 'EXACT' && amountMinor != null
+                ? <Money minor={amountMinor} minorPerMajor={minorPerMajor} />
+                : null;
+              const phrase = ledgerDirectionPhrase(splitDirection, name);
+              return (
+                <li key={id} className="txs-m-person">
+                  <Avatar label={name} size="xl" aria-hidden />
+                  <span className="txs-m-person__text">
+                    <span className="txs-m-person__name">{name}</span>
+                    <span className="txs-m-person__sub">
+                      {/* With an input on the right, its result reads here. */}
+                      {input && computed ? <>{computed} · </> : null}
+                      {phrase}
+                    </span>
+                  </span>
+                  {input ?? (computed ? <span className="txs-m-person__amount">{computed}</span> : null)}
+                  <Button
+                    variant="ghost"
+                    size="md"
+                    icon={X}
+                    label={`Remove ${name}`}
+                    className="txs-m-person__remove"
+                    onClick={() => toggleFriend(id)}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {participants.length === 0 ? (
+          <p className="txs-muted">No friends yet.</p>
+        ) : (
+          <Combobox
+            className="txs-add"
+            size="md"
+            options={addOptions}
+            value={null}
+            onChange={(value) => value != null && toggleFriend(String(value))}
+            placeholder="Add person"
+            prefix={Plus}
+            searchPlaceholder="Search by name…"
+            emptyText="No friends match"
+          />
+        )}
+      </div>
+
+      {splitDirection === 'SETTLEMENT' && hasPeople && (
+        <div className="txs-field">
+          <span className="txs-label">Apply to their entries</span>
+          <p className="txs-muted">Optional. Anything not applied stays on account.</p>
+          {orderedSelected.map((id) => {
+            const name = nameOf(id);
+            const amountMinor = results.find((r) => r.participantId === id)?.amountMinor ?? 0;
+            return (
+              <div key={id} className="txs-settle txs-m-settle">
+                <p className="txs-settle__name">
+                  {name}
+                  {' · '}
+                  <Money minor={amountMinor} minorPerMajor={minorPerMajor} />
+                </p>
+                {amountMinor > 0 ? (
+                  <SettlementAllocator
+                    friendId={id}
+                    friendName={name}
+                    amountMinor={amountMinor}
+                    draft={allocationDrafts[id] || {}}
+                    onDraftChange={(draft) =>
+                      setAllocationDrafts((prev) => ({ ...prev, [id]: draft }))
+                    }
+                    onStatusChange={(status) =>
+                      setAllocationStatuses((prev) => ({ ...prev, [id]: status }))
+                    }
+                  />
+                ) : (
+                  <p className="txs-muted">Give {name || 'them'} an amount in the split first.</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {groupPickIds.length > 0 && (
+        <div className="txs-field">
+          <span className="txs-label">Add to a group</span>
+          <p className="txs-muted">Optional.</p>
+          <div className="txs-m-groups">
+            {groupPickIds.map((id) => (
+              <FormControl
+                key={id}
+                type="select"
+                size="md"
+                label={nameOf(id)}
+                options={[
+                  { label: 'Not in a group', value: '' },
+                  ...groupsByFriend[id].map((g) => ({ label: g.title, value: String(g.id) })),
+                ]}
+                value={groupByParticipant[id] || ''}
+                onChange={(e) => setGroupByParticipant((prev) => ({ ...prev, [id]: e.target.value }))}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <FormControl
+        type="textarea"
+        label={<>Note <span className="txs-optional">(optional)</span></>}
+        rows={2}
+        maxLength={SPLIT_NOTE_MAX_LEN}
+        placeholder="Same note on each tag created by this split"
+        value={splitNote}
+        onChange={(e) => setSplitNote(e.target.value)}
+        description={`${splitNote.length}/${SPLIT_NOTE_MAX_LEN}`}
+      />
+
+      <div className="txs-m-check">
+        <p className={`txs-summary${summaryOff ? ' is-off' : ''}`} aria-live="polite">
+          {summary}
+        </p>
+        {errors.length > 0 && <ErrorMessage message={errors} />}
+      </div>
+
+      {!hideApplyButton && (
+        <Button
+          size="lg"
+          variant="solid"
+          label="Add split"
+          loading={applying}
+          loadingText="Adding…"
+          disabled={!canApply}
+          onClick={onApply}
+        />
+      )}
+    </div>
+  );
+}
 
 export default SplitTransactionForm;

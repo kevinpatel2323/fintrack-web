@@ -6,7 +6,8 @@ import { Amount, Badge, Button, Checkbox, Dropdown, ListView } from '../../compo
 import { groupTotals } from '../../utils/entryGroups.js';
 import { friendFirstName } from '../../utils/ledgerParties.js';
 import { rupees, toMinor } from '../../utils/settlementAllocation.js';
-import { entryFacts, formatDay, hasPaise, isGroupable } from './ledgerEntry.js';
+import { useIsCompact } from '../../styles/breakpoints.js';
+import { entryFacts, formatDay, formatDayShort, hasPaise, isGroupable } from './ledgerEntry.js';
 import './PersonLedgerTable.css';
 
 const GROUP_STATUS = { open: 'Open', partial: 'Partly settled', settled: 'Settled' };
@@ -74,6 +75,10 @@ export default function PersonLedgerTable({
   const [expanded, setExpanded] = useState(() => new Set());
   const items = useMemo(() => toItems(rows, expanded), [rows, expanded]);
   const first = friendFirstName(friendName);
+  // Phones (ListView's row layout): Date, Direction and Status fold into a
+  // line under the entry, and a settlement's "Apply" moves to its … menu.
+  const phone = useIsCompact();
+  const foldBelow = phone ? 'md' : 'sm';
 
   const toggleGroup = (id) => setExpanded((prev) => {
     const next = new Set(prev);
@@ -85,7 +90,7 @@ export default function PersonLedgerTable({
   const entryMenu = (item, facts) => {
     const { tag } = item;
     return [
-      facts.isSettlement && onAllocate && !facts.applyInline
+      facts.isSettlement && onAllocate && (!facts.applyInline || phone)
         ? { label: facts.applyLabel, icon: ListChecks, onClick: () => onAllocate(tag) }
         : null,
       facts.leftover > 0 && onWriteOff
@@ -124,7 +129,7 @@ export default function PersonLedgerTable({
       label: 'Date',
       width: 112,
       minWidth: 88,
-      hideBelow: 'sm',
+      hideBelow: foldBelow,
       sortable: true,
       sortFirst: 'desc',
       sortValue: (item) => (item.kind === 'group'
@@ -156,6 +161,7 @@ export default function PersonLedgerTable({
                   <span className="truncate">{item.group.title}</span>
                   <Badge size="sm" label={`${totals.count} ${totals.count === 1 ? 'entry' : 'entries'}`} />
                 </span>
+                {phone && <span className="pledger-entry__meta">{groupMeta(totals)}</span>}
               </span>
             </span>
           );
@@ -169,7 +175,11 @@ export default function PersonLedgerTable({
               </span>
               {/* Phones drop Date, Direction and Status; they move here. */}
               <span className="pledger-entry__meta">
-                {[facts.date, facts.words, ...facts.notes.map((n) => n.text)].join(' · ')}
+                {(phone
+                  // Status before direction: the signed amount already says which way.
+                  ? [formatDayShort(item.tag.transaction?.transactionDate), ...facts.notes.map((n) => n.text), facts.words]
+                  : [facts.date, facts.words, ...facts.notes.map((n) => n.text)]
+                ).join(' · ')}
               </span>
             </span>
           </span>
@@ -180,7 +190,7 @@ export default function PersonLedgerTable({
       key: 'direction',
       label: 'Direction',
       width: 180,
-      hideBelow: 'sm',
+      hideBelow: foldBelow,
       sortable: true,
       sortValue: (item) => {
         if (item.kind !== 'group') return entryFacts(item.tag, friendName).words;
@@ -229,7 +239,8 @@ export default function PersonLedgerTable({
     {
       key: 'amount',
       label: 'Amount',
-      width: 112,
+      // Phones: as wide as the figure, so the entry keeps the room.
+      width: phone ? 'auto' : 112,
       minWidth: 96,
       align: 'right',
       sortable: true,
@@ -264,7 +275,8 @@ export default function PersonLedgerTable({
         const name = item.kind === 'group' ? item.group.title : entryFacts(item.tag, friendName).title;
         return (
           <span className="pledger-menu" onClick={stop}>
-            <Dropdown placement="bottom-end" options={options}>
+            {/* On phones the menu is an action sheet, titled with the row. */}
+            <Dropdown placement="bottom-end" options={options} label={phone ? name : undefined}>
               <Button variant="ghost" icon={MoreHorizontal} label={`Actions for ${name}`} />
             </Dropdown>
           </span>
@@ -272,6 +284,18 @@ export default function PersonLedgerTable({
       },
     },
   ].filter(Boolean);
+
+  // The group's dates, which way it nets and where it stands, for its phone line.
+  function groupMeta(totals) {
+    const net = toMinor(totals.totalAmount);
+    const from = formatDayShort(totals.dateFrom);
+    const to = formatDayShort(totals.dateTo);
+    return [
+      totals.dateFrom && totals.dateTo && from !== to ? `${from} – ${to}` : from,
+      GROUP_STATUS[totals.status],
+      net > 0 ? `${first} owes you` : net < 0 ? `You owe ${first}` : 'Nets to nothing',
+    ].join(' · ');
+  }
 
   const onRowClick = (item) => {
     if (item.kind === 'group') {
@@ -287,7 +311,7 @@ export default function PersonLedgerTable({
 
   return (
     <ListView
-      className={cx('pledger', picking && 'is-picking')}
+      className={cx('pledger', picking && 'is-picking', phone && 'phone-bleed')}
       aria-label="Ledger entries"
       columns={columns}
       rows={items}

@@ -87,3 +87,53 @@
   justify-content: space-between;
   gap: 12px;
 }
+
+/* ---------- Phone (you/YouPhone.jsx) ---------- */
+
+/* Gameplan MobileMoreMenu: groups of inset rows under small muted labels. */
+.you-m-page {
+  padding-top: 20px;
+}
+
+.you-m-group {
+  gap: 6px;
+}
+
+.you-m-group .ui-msection__head {
+  min-height: 0;
+  padding-inline: 16px;
+}
+
+.you-m-group .ui-msection__title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-gray-5);
+}
+
+.you-m-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-4);
+  background: var(--surface-base);
+  color: var(--ink-gray-7);
+}
+
+.you-m-nudge {
+  color: var(--ink-amber-7);
+}
+
+.you-m-footnote {
+  margin: 0;
+  padding-inline: 16px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+}
+
+/* The import nudge names the card; let it take a second line rather than
+   cut the card number off. */
+.ui-mrow__subtitle:has(> .you-m-nudge) {
+  white-space: normal;
+}

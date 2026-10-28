@@ -100,6 +100,26 @@ export function relativeDays(daysAway) {
   return `${-n} days ago`;
 }
 
+/**
+ * The next bill on a credit card: the /cards/dues entry when there is one,
+ * else the card's own current due. `null` when nothing is owed.
+ */
+export function nextBill(card, due) {
+  const owed = due ? (due.status === 'no-due' ? 0 : due.amount) : Number(card?.currentDue || 0);
+  const date = due?.dueDate || card?.currentDueDate;
+  if (!owed || !date) return null;
+  return { amount: Number(owed), date };
+}
+
+/** "Nov 2026 · in 20 days", or the statement waiting to be imported. */
+export function nextStatementText(schedule) {
+  if (!schedule?.next) return null;
+  const { status, next } = schedule;
+  if (status === 'ready') return `${next.label} · ready to import`;
+  const days = Number(next.daysAway);
+  return `${next.label} · ${days <= 0 ? 'today' : `in ${days} day${days === 1 ? '' : 's'}`}`;
+}
+
 export const STATEMENT_STATUS = {
   open: { label: 'Open', theme: 'gray' },
   closed: { label: 'Closed', theme: 'amber' },

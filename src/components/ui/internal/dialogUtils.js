@@ -5,6 +5,7 @@
 // body scroll lock. Everything here is ref-counted so nested modals stack.
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { QUERY_COMPACT } from '../../../styles/breakpoints.js';
 
 /** `cx('a', cond && 'b', undefined)` → `'a b'`. */
 export function cx(...parts) {
@@ -143,11 +144,25 @@ function setBackgroundInert(on) {
 
 const modalStack = [];
 
+/** A field that brings up the on-screen keyboard when focused. */
+function isTextEntry(el) {
+  if (!el || el.nodeType !== 1) return false;
+  if (el.isContentEditable || el.tagName === 'TEXTAREA') return true;
+  if (el.tagName !== 'INPUT' || el.readOnly) return false;
+  return !/^(button|checkbox|color|file|hidden|image|radio|range|reset|submit)$/i.test(el.type);
+}
+
+function isCompactViewport() {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(QUERY_COMPACT).matches;
+}
+
 /**
  * Focus management for a modal surface while `active`:
  *  - moves focus inside on open (an `[autofocus]` element, else the container
  *    itself — which needs `tabIndex={-1}`), unless something inside already
- *    took it (React's `autoFocus`);
+ *    took it (React's `autoFocus`). On phones (< 768px) a text field never
+ *    gets it, so the keyboard doesn't come up over a sheet: the container
+ *    takes focus instead (frappe-ui BottomSheet focuses the sheet itself);
  *  - cycles Tab / Shift+Tab inside the container (top-most modal only);
  *  - makes the page behind inert;
  *  - returns focus to whatever was focused before, on close.
@@ -179,6 +194,9 @@ export function useModalFocus({ active, containerRef, restoreFocus = true }) {
     if (container && !container.contains(document.activeElement)) {
       if (inside && inside.isConnected && container.contains(inside)) inside.focus({ preventScroll: true });
       else focusFirst(container, { preferTabbable: false });
+    }
+    if (container && isCompactViewport() && isTextEntry(document.activeElement) && container.contains(document.activeElement)) {
+      container.focus({ preventScroll: true });
     }
 
     const onKeyDown = (e) => {

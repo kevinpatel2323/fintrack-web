@@ -12,6 +12,7 @@ import ReviewStep from './import/ReviewStep.jsx';
 import ConfirmStep from './import/ConfirmStep.jsx';
 import RecentImports from './import/RecentImports.jsx';
 import LastBankImport from './import/LastBankImport.jsx';
+import ImportPhone from './import/ImportPhone.jsx';
 import { accountLabel, fmtDate, fmtPeriod, fmtShortDate, matchKey, plural } from './import/format.js';
 import './StatementImport.css';
 
@@ -205,6 +206,15 @@ export default function StatementImport() {
     handlePreview(f);
   }
 
+  function rejectFile() {
+    setFileError('Choose an XLSX or XLS file exported from HDFC.');
+  }
+
+  function askRevert(imp) {
+    setRevertTarget(imp);
+    setRevertOpen(true);
+  }
+
   // Revert: the dialog shows a failure inline and stays open; success closes
   // it and says so in a toast.
   async function runRevert(imp) {
@@ -264,135 +274,167 @@ export default function StatementImport() {
           latest ? <span className="import-header-note">Last import {fmtDate(latest.uploadedAt)}</span> : null
         }
       />
-      <PageBody className="import-page">
-        {isCompact && latest && <p className="import-header-note">Last import {fmtDate(latest.uploadedAt)}</p>}
+      {isCompact ? (
+        <ImportPhone
+          steps={STEPS}
+          step={step}
+          latest={latest}
+          accept={ACCEPT}
+          uploadFile={uploadFile}
+          fileError={fileError}
+          previewing={previewing}
+          previewError={previewError}
+          onFiles={handleFiles}
+          onRejectFile={rejectFile}
+          onRetryPreview={() => handlePreview()}
+          onReset={resetUpload}
+          fileDetail={fileDetail}
+          preview={uploadPreview}
+          previewRows={previewRows}
+          confirmedMatchKeys={confirmedMatchKeys}
+          onToggleMatch={toggleMatch}
+          destination={destination}
+          period={period}
+          debits={debits}
+          credits={credits}
+          net={net}
+          willInsert={willInsert}
+          onContinue={() => setConfirming(true)}
+          onBack={() => setConfirming(false)}
+          onImport={handleUpload}
+          isUploading={isUploading}
+          imports={imports}
+          importsLoading={importsLoading}
+          importsError={importsError}
+          revertingId={revertingImportId}
+          onRevert={askRevert}
+          onRefreshImports={loadHistory}
+          lastImport={lastImport}
+          accounts={accounts}
+          selectedAccount={selectedAccount}
+          onAccountChange={setSelectedAccount}
+        />
+      ) : (
+        <PageBody className="import-page">
+          <div className="import-layout">
+            <div className="import-main">
+              <section className="import-flow" aria-label="Import a statement">
+                <div className="import-flow__steps">
+                  <ImportStepper steps={STEPS} current={step} />
+                </div>
 
-        <div className="import-layout">
-          <div className="import-main">
-            <section className="import-flow" aria-label="Import a statement">
-              <div className="import-flow__steps">
-                <ImportStepper steps={STEPS} current={step} />
-              </div>
-
-              <div className="import-flow__body">
-                {step === 1 && !uploadFile && (
-                  <FileUploader
-                    className="import-drop"
-                    accept={ACCEPT}
-                    onFiles={handleFiles}
-                    onReject={() => setFileError('Choose an XLSX or XLS file exported from HDFC.')}
-                    icon={FileUp}
-                    title={isCompact ? 'Tap to choose a statement' : 'Drop your HDFC statement here'}
-                    description={
-                      isCompact ? (
-                        'XLSX or XLS, up to 10 MB'
-                      ) : (
+                <div className="import-flow__body">
+                  {step === 1 && !uploadFile && (
+                    <FileUploader
+                      className="import-drop"
+                      accept={ACCEPT}
+                      onFiles={handleFiles}
+                      onReject={rejectFile}
+                      icon={FileUp}
+                      title="Drop your HDFC statement here"
+                      description={
                         <>
                           Bank account or credit card: we work out which and skip rows you've already added
                           <br />
                           XLSX or XLS, up to 10 MB
                         </>
-                      )
-                    }
-                    error={fileError || undefined}
-                  />
-                )}
+                      }
+                      error={fileError || undefined}
+                    />
+                  )}
 
-                {step === 1 && uploadFile && (
-                  <FileRow
-                    file={uploadFile}
-                    reading={previewing}
-                    error={previewError}
-                    onRetry={() => handlePreview()}
-                    onRemove={resetUpload}
-                  />
-                )}
+                  {step === 1 && uploadFile && (
+                    <FileRow
+                      file={uploadFile}
+                      reading={previewing}
+                      error={previewError}
+                      onRetry={() => handlePreview()}
+                      onRemove={resetUpload}
+                    />
+                  )}
 
-                {step >= 2 && (
-                  <FileRow file={uploadFile} detail={fileDetail} />
-                )}
+                  {step >= 2 && (
+                    <FileRow file={uploadFile} detail={fileDetail} />
+                  )}
+
+                  {step === 2 && (
+                    <ReviewStep
+                      preview={uploadPreview}
+                      previewRows={previewRows}
+                      confirmedMatchKeys={confirmedMatchKeys}
+                      onToggleMatch={toggleMatch}
+                    />
+                  )}
+
+                  {step === 3 && (
+                    <ConfirmStep
+                      preview={uploadPreview}
+                      destination={destination}
+                      period={period}
+                      debits={debits}
+                      credits={credits}
+                      net={net}
+                    />
+                  )}
+                </div>
 
                 {step === 2 && (
-                  <ReviewStep
-                    preview={uploadPreview}
-                    previewRows={previewRows}
-                    confirmedMatchKeys={confirmedMatchKeys}
-                    onToggleMatch={toggleMatch}
-                    isCompact={isCompact}
-                  />
+                  <div className="import-flow__footer">
+                    <Button variant="ghost" label="Choose another file" onClick={resetUpload} />
+                    <Button
+                      variant="solid"
+                      label="Continue"
+                      iconRight={ArrowRight}
+                      disabled={willInsert === 0}
+                      onClick={() => setConfirming(true)}
+                    />
+                  </div>
                 )}
 
                 {step === 3 && (
-                  <ConfirmStep
-                    preview={uploadPreview}
-                    destination={destination}
-                    period={period}
-                    debits={debits}
-                    credits={credits}
-                    net={net}
-                  />
+                  <div className="import-flow__footer">
+                    <Button
+                      variant="ghost"
+                      iconLeft={ArrowLeft}
+                      label="Back"
+                      disabled={isUploading}
+                      onClick={() => setConfirming(false)}
+                    />
+                    <Button
+                      variant="solid"
+                      label={`Import ${plural(willInsert, 'transaction', 'transactions')}`}
+                      loading={isUploading}
+                      loadingText="Importing…"
+                      disabled={willInsert === 0}
+                      onClick={handleUpload}
+                    />
+                  </div>
                 )}
-              </div>
+              </section>
 
-              {step === 2 && (
-                <div className="import-flow__footer">
-                  <Button variant="ghost" label="Choose another file" onClick={resetUpload} />
-                  <Button
-                    variant="solid"
-                    label="Continue"
-                    iconRight={ArrowRight}
-                    disabled={willInsert === 0}
-                    onClick={() => setConfirming(true)}
-                  />
-                </div>
-              )}
+              <RecentImports
+                className="import-main__history"
+                imports={imports}
+                loading={importsLoading}
+                error={importsError}
+                revertingId={revertingImportId}
+                onRevert={askRevert}
+                onRefresh={loadHistory}
+              />
+            </div>
 
-              {step === 3 && (
-                <div className="import-flow__footer">
-                  <Button
-                    variant="ghost"
-                    iconLeft={ArrowLeft}
-                    label="Back"
-                    disabled={isUploading}
-                    onClick={() => setConfirming(false)}
-                  />
-                  <Button
-                    variant="solid"
-                    label={`Import ${plural(willInsert, 'transaction', 'transactions')}`}
-                    loading={isUploading}
-                    loadingText="Importing…"
-                    disabled={willInsert === 0}
-                    onClick={handleUpload}
-                  />
-                </div>
-              )}
-            </section>
-
-            <RecentImports
-              className="import-main__history"
-              imports={imports}
-              loading={importsLoading}
-              error={importsError}
-              revertingId={revertingImportId}
-              onRevert={(imp) => {
-                setRevertTarget(imp);
-                setRevertOpen(true);
-              }}
-              onRefresh={loadHistory}
-            />
+            <aside className="import-aside" aria-label="Statement status">
+              <StatementQueue />
+              <LastBankImport
+                lastImport={lastImport}
+                accounts={accounts}
+                selectedAccount={selectedAccount}
+                onAccountChange={setSelectedAccount}
+              />
+            </aside>
           </div>
-
-          <aside className="import-aside" aria-label="Statement status">
-            <StatementQueue />
-            <LastBankImport
-              lastImport={lastImport}
-              accounts={accounts}
-              selectedAccount={selectedAccount}
-              onAccountChange={setSelectedAccount}
-            />
-          </aside>
-        </div>
-      </PageBody>
+        </PageBody>
+      )}
 
       <ConfirmDialog
         open={revertOpen}

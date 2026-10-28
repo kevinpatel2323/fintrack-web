@@ -1,0 +1,361 @@
+/* Card page on phones (/cards/:id, pages/cards/CardDetailPhone.jsx and
+   CardDetailsPhone.jsx), and the statement breakdown sheet. Prefix: .carddm-
+   Phone-only markup, so no width media queries. */
+
+.carddm {
+  /* The tab row pins at the top of the scroll area (44px tabs + the rail). */
+  --carddm-tabs-height: 45px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.carddm-muted {
+  color: var(--ink-gray-5);
+}
+
+/* ---------- Hero: the card, the outstanding, then the cycle and the bill ---------- */
+.carddm-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.carddm-hero__face {
+  width: 62%;
+  max-width: 260px;
+}
+
+.carddm-hero__figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  text-align: center;
+}
+
+.carddm-hero__label,
+.carddm-hero__line {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+}
+
+.carddm-hero__amount {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--ink-gray-9);
+}
+
+.carddm-tiles {
+  display: grid;
+  align-self: stretch;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.carddm-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-6);
+}
+
+.carddm-tile__label {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-6);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.carddm-tile__value {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink-gray-9);
+  white-space: nowrap;
+}
+
+.carddm-tile__hint {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.carddm-tile__due {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---------- Tabs: pinned, edge to edge, 44px targets ---------- */
+.carddm-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: 4px calc(-1 * var(--page-gutter)) -16px;
+  padding-inline: var(--page-gutter);
+  background: var(--surface-base);
+}
+
+/* Three or four tabs share the width; two keep their natural spacing. */
+.carddm-tabs[data-spread] .ui-tabs__list {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.carddm-tabs .ui-tabs__pill {
+  height: 44px;
+  font-size: 15px;
+}
+
+.carddm-panel {
+  /* The transaction list's day headers pin under the tab row. */
+  --list-toolbar-height: var(--carddm-tabs-height);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 12px;
+}
+
+/* ---------- Transactions: search, summary + Filter ---------- */
+.carddm-search .ui-text-input {
+  width: 100%;
+}
+
+.carddm-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+  min-width: 0;
+}
+
+.carddm-bar__summary {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+  font-variant-numeric: tabular-nums;
+}
+
+.carddm-bar > .ui-button {
+  flex-shrink: 0;
+}
+
+.carddm-bar__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: var(--surface-gray-7);
+  color: var(--ink-white);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.carddm-filter-sheet .ui-sheet__footer {
+  flex-wrap: nowrap;
+  padding-top: 16px;
+}
+
+.carddm-filter-sheet .ui-sheet__footer > .ui-button {
+  flex: 1;
+  min-width: 0;
+}
+
+.carddm-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.carddm-filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.carddm-empty {
+  padding-block: 32px;
+}
+
+/* ---------- Statements and payments: two-line ListView rows ---------- */
+.carddm-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.carddm-cell--end {
+  align-items: flex-end;
+}
+
+.carddm-cell__title {
+  overflow: hidden;
+  font-size: 16px;
+  line-height: 1.3;
+  color: var(--ink-gray-8);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.carddm-cell__sub {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.carddm-cell__amount {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.carddm-panel .ui-list {
+  --ui-list-row-height: 60px;
+}
+
+/* .phone-bleed pulls the list into the gutters, but the list's own
+   max-width: 100% keeps it at the column's width; let it span the screen. */
+.carddm-panel .ui-list.phone-bleed {
+  max-width: none;
+}
+
+/* ---------- Details tab ---------- */
+.carddm-details {
+  display: flex;
+  flex-direction: column;
+  padding-top: 8px;
+}
+
+.carddm-details__name {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 8px;
+}
+
+.carddm-details__notes {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink-gray-8);
+}
+
+/* ---------- First load ---------- */
+.carddm-skeleton__face {
+  height: auto;
+  aspect-ratio: 85.6 / 54;
+  border-radius: 12px;
+}
+
+.carddm-skeleton__figure {
+  gap: 8px;
+}
+
+.carddm-skeleton__tile {
+  height: 84px;
+  border-radius: var(--radius-6);
+}
+
+.carddm-skeleton__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 24px;
+}
+
+/* ---------- Statement breakdown (StatementBreakdownDialog on phones) ---------- */
+.carddm-bd {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-top: 4px;
+}
+
+.carddm-bd__hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.carddm-bd__total {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.carddm-bd__label,
+.carddm-bd__line {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+}
+
+.carddm-bd__amount {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--ink-gray-9);
+}
+
+.carddm-bd__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.carddm-bd__heading {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink-gray-9);
+}
+
+.carddm-bd__count {
+  margin-left: 4px;
+  font-weight: 400;
+  color: var(--ink-gray-5);
+}
+
+.carddm-bd__empty {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink-gray-5);
+}
+
+/* Short phones (iPhone SE): a smaller card so the tabs show on the first screen. */
+@media (max-height: 700px) {
+  .carddm-hero__face {
+    width: 50%;
+  }
+}

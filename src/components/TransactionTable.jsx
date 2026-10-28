@@ -73,6 +73,15 @@ export function transactionColumnChoices(columnLabels) {
   return COLUMN_SPECS.filter((c) => !c.pinned).map((c) => ({ id: c.key, label: labels[c.key] }));
 }
 
+/**
+ * The columns a ledger sorts by, as `[{ key, label, sortFirst }]` — for a
+ * phone list, which has no header row to click.
+ */
+export function transactionSortChoices(columnLabels) {
+  const labels = { ...DEFAULT_COLUMNS, ...(columnLabels || {}) };
+  return COLUMN_SPECS.map((c) => ({ key: c.key, label: labels[c.key], sortFirst: c.sortFirst || 'asc' }));
+}
+
 /** Column preferences for a ledger; pass the result to both the table and its Columns menu. */
 export function useTransactionColumns(storageKey) {
   return useListSettings(storageKey, { pinned: PINNED, defaultHidden: DEFAULT_HIDDEN });

@@ -175,4 +175,16 @@
     width: 30px;
     padding-inline: 5px;
   }
+
+  /* A fluid row splits the width evenly; tighter insets leave room for a
+     label plus a count at 375px. */
+  .ui-tab-buttons--fluid .ui-tab-buttons__pill,
+  .ui-tab-buttons--fluid[data-size='md'] .ui-tab-buttons__pill {
+    gap: 6px;
+    padding-inline: 8px;
+  }
+
+  .ui-tab-buttons__button {
+    -webkit-tap-highlight-color: transparent;
+  }
 }

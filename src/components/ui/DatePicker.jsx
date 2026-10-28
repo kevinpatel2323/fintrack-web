@@ -10,8 +10,12 @@ import {
 } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import Portal from '../Portal.jsx';
+import Sheet from './Sheet.jsx';
 import { useDismiss, useFloating, useStableId } from './internal/floating.js';
+import { usePresence } from './internal/dialogUtils.js';
+import { fieldName } from './internal/fieldName.js';
 import TextInput from './TextInput.jsx';
+import { useIsCompact } from '../../styles/breakpoints.js';
 import './DatePicker.css';
 
 // Port of frappe-ui 1.0.2 DatePicker.vue + CalendarPanel.vue: a typeable
@@ -22,6 +26,10 @@ import './DatePicker.css';
 //
 // This module also exports the pure date helpers and the CalendarPanel that
 // DateRangePicker builds on.
+//
+// Phones (< 768px): the calendar opens in a bottom sheet titled after the
+// field, with 44px day cells; the field is read-only there (no keyboard), so
+// a tap only opens the calendar.
 
 function cx(...parts) {
   return parts.filter(Boolean).join(' ');
@@ -687,13 +695,18 @@ export const CalendarPanel = forwardRef(function CalendarPanel(
  * focused while the panel is clicked, and lets Tab leave the panel through
  * the input. Exported for DateRangePicker.
  */
-export function usePickerPopover({ disabled, onCommit }) {
+export function usePickerPopover({ disabled, onCommit, sheetTitle, sheetFallback }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const calendarRef = useRef(null);
   const wantGridFocus = useRef(false);
   const panelPointer = useRef(false);
-  const { anchorRef, floatingRef, style } = useFloating({ open, placement: 'bottom-start', offset: 4 });
+  // Phones: a bottom sheet instead of the floating panel.
+  const asSheet = useIsCompact();
+  const floatingOpen = open && !asSheet;
+  const sheet = usePresence(open && asSheet, 200);
+  const [title, setTitle] = useState('');
+  const { anchorRef, floatingRef, style } = useFloating({ open: floatingOpen, placement: 'bottom-start', offset: 4 });
 
   const close = useCallback(
     (refocus) => {
@@ -704,7 +717,7 @@ export function usePickerPopover({ disabled, onCommit }) {
   );
 
   useDismiss({
-    active: open,
+    active: floatingOpen,
     refs: [rootRef, floatingRef],
     onDismiss: (event) => {
       onCommit?.();
@@ -727,9 +740,21 @@ export function usePickerPopover({ disabled, onCommit }) {
         return;
       }
       wantGridFocus.current = focusGrid;
+      if (asSheet) {
+        const input = anchorRef.current;
+        setTitle(
+          fieldName(input, {
+            title: sheetTitle,
+            ariaLabel: input?.getAttribute('aria-label'),
+            titleAttr: input?.getAttribute('title'),
+            placeholder: input?.getAttribute('placeholder'),
+            fallback: sheetFallback,
+          }),
+        );
+      }
       setOpen(true);
     },
-    [disabled, open],
+    [disabled, open, asSheet, anchorRef, sheetTitle, sheetFallback],
   );
 
   const panelProps = {
@@ -767,7 +792,8 @@ export function usePickerPopover({ disabled, onCommit }) {
 
   /** Blur from the input: commit and close unless focus went into the panel. */
   const handleInputBlur = (event) => {
-    if (panelPointer.current) return;
+    // The phone sheet takes focus as it opens; that is not a blur of the field.
+    if (asSheet || panelPointer.current) return;
     const next = event.relatedTarget;
     if (next && floatingRef.current?.contains(next)) return;
     onCommit?.();
@@ -779,6 +805,10 @@ export function usePickerPopover({ disabled, onCommit }) {
     setOpen,
     openPanel,
     close,
+    asSheet,
+    floatingOpen,
+    sheetPresent: asSheet && sheet.present,
+    sheetTitle: title,
     rootRef,
     anchorRef,
     calendarRef,
@@ -835,6 +865,7 @@ const DatePicker = forwardRef(function DatePicker(
     isDateUnavailable,
     disabled = false,
     invalid = false,
+    sheetTitle,
     id: idProp,
     className,
     style,
@@ -870,7 +901,7 @@ const DatePicker = forwardRef(function DatePicker(
     if (parsed && !unavailable(parsed) && parsed !== iso) onChange?.(parsed);
   };
 
-  const picker = usePickerPopover({ disabled, onCommit: commit });
+  const picker = usePickerPopover({ disabled, onCommit: commit, sheetTitle, sheetFallback: 'Choose date' });
   const { open, openPanel, close, rootRef, anchorRef, calendarRef, panelProps } = picker;
 
   const setInputRef = useCallback(
@@ -891,6 +922,22 @@ const DatePicker = forwardRef(function DatePicker(
   const getCellState = useCallback((d) => (d === iso ? { selected: true } : null), [iso]);
 
   const showClear = clearable && !disabled && Boolean(iso);
+
+  const calendar = (
+    <CalendarPanel
+      ref={calendarRef}
+      className="ui-datepicker__calendar"
+      anchor={iso}
+      getCellState={getCellState}
+      isUnavailable={unavailable}
+      min={min}
+      max={max}
+      onSelect={selectDate}
+      onToday={(today) => {
+        if (!unavailable(today)) selectDate(today);
+      }}
+    />
+  );
 
   return (
     <div
@@ -913,6 +960,7 @@ const DatePicker = forwardRef(function DatePicker(
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         aria-autocomplete="none"
+        readOnly={picker.asSheet || undefined}
         value={draft ?? (iso ? formatDate(iso, format) : '')}
         onChange={(e) => setDraft(e.target.value)}
         onClick={(e) => {
@@ -956,7 +1004,7 @@ const DatePicker = forwardRef(function DatePicker(
         }
         {...rest}
       />
-      {open && (
+      {picker.floatingOpen && (
         <Portal>
           <div
             {...panelProps}
@@ -965,21 +1013,21 @@ const DatePicker = forwardRef(function DatePicker(
             aria-label="Choose date"
             className="ui-datepicker__panel"
           >
-            <CalendarPanel
-              ref={calendarRef}
-              className="ui-datepicker__calendar"
-              anchor={iso}
-              getCellState={getCellState}
-              isUnavailable={unavailable}
-              min={min}
-              max={max}
-              onSelect={selectDate}
-              onToday={(today) => {
-                if (!unavailable(today)) selectDate(today);
-              }}
-            />
+            {calendar}
           </div>
         </Portal>
+      )}
+      {picker.sheetPresent && (
+        <Sheet
+          open={open}
+          onClose={() => close(true)}
+          side="bottom"
+          id={panelId}
+          title={picker.sheetTitle}
+          className="ui-datepicker-sheet"
+        >
+          {calendar}
+        </Sheet>
       )}
     </div>
   );

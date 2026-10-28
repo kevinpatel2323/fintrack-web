@@ -14,19 +14,6 @@
   gap: 2px;
 }
 
-/* Phone: view switch and month navigation in one row under the header. */
-.cal-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.cal-toolbar__tabs {
-  flex: 1 1 200px;
-  min-width: 0;
-}
-
 /* ── Layout: main column + ~320px side panel ──────────────────────────── */
 
 .cal-layout {
@@ -297,28 +284,6 @@
   color: var(--ink-gray-5);
 }
 
-/* Phone: day number and dots only. */
-.cal-grid--compact .cal-grid__weekday {
-  padding: 6px 0;
-  text-align: center;
-}
-
-.cal-grid--compact .cal-day {
-  align-items: center;
-  min-height: 48px;
-  padding: 5px 2px 6px;
-}
-
-.cal-grid--compact .cal-day__head {
-  flex-direction: column;
-  justify-content: flex-start;
-  gap: 4px;
-}
-
-.cal-grid--compact .cal-day__marks {
-  min-height: 6px;
-}
-
 /* ── Days to categorise ───────────────────────────────────────────────── */
 
 /* The one state worth finding from across the month: a warm tint with an
@@ -368,19 +333,6 @@
 
 .cal-grid--focus .cal-day {
   transition: opacity 160ms, background-color 100ms;
-}
-
-/* Phone: the tint and pill carry it on their own; the pill sits under the
-   day number. */
-.cal-grid--compact .cal-pending-pill {
-  height: 16px;
-  min-width: 16px;
-  padding: 0 4px;
-  font-size: 10px;
-}
-
-.cal-grid--compact .cal-day.has-pending {
-  box-shadow: inset 0 2px 0 var(--ink-amber-4);
 }
 
 /* The bar above the grid: how much is left, and a way straight to it. */
@@ -458,17 +410,6 @@
 .cal-pending-bar.is-done .cal-pending-bar__icon {
   background: var(--surface-green-3);
   color: var(--ink-green-8);
-}
-
-@media (max-width: 767.98px) {
-  .cal-pending-bar {
-    flex-wrap: wrap;
-  }
-
-  .cal-pending-bar__actions {
-    justify-content: space-between;
-    width: 100%;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -575,8 +516,7 @@
 }
 
 /* Rows still to categorise: the calendar's amber marker, in the table. */
-.cal-dayview__table .ui-list__row.is-pending,
-.cal-dayview__row.is-pending {
+.cal-dayview__table .ui-list__row.is-pending {
   --ui-avatar-group-ring: var(--surface-amber-1);
   background: var(--surface-amber-1);
   box-shadow: inset 2px 0 0 var(--ink-amber-4);
@@ -587,11 +527,6 @@
     --ui-avatar-group-ring: var(--surface-amber-2);
     background: var(--surface-amber-2);
   }
-}
-
-.cal-dayview__rows {
-  display: flex;
-  flex-direction: column;
 }
 
 .cal-dayview__bills {
@@ -705,74 +640,6 @@
   display: inline-flex;
 }
 
-/* Phone rows: name and cadence on the left, amount and status on the right. */
-.cal-sub-list {
-  overflow: hidden;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border: 1px solid var(--outline-gray-1);
-  border-radius: var(--radius-5);
-}
-
-.cal-sub-list > li + li,
-.cal-sub-list > .cal-sub-row + .cal-sub-row {
-  border-top: 1px solid var(--outline-gray-1);
-}
-
-.cal-sub-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  min-height: 56px;
-  margin: 0;
-  padding: 10px 12px;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  color: inherit;
-  cursor: pointer;
-}
-
-.cal-sub-row:active {
-  background: var(--surface-gray-2);
-}
-
-.cal-sub-row:focus-visible {
-  outline: var(--focus-outline-default);
-  outline-offset: -2px;
-}
-
-.cal-sub-row__text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.cal-sub-row__name {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ink-gray-8);
-}
-
-.cal-sub-row__meta {
-  font-size: 13px;
-  color: var(--ink-gray-5);
-}
-
-.cal-sub-row__end {
-  display: flex;
-  flex-shrink: 0;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  font-size: 14px;
-}
-
 /* ── Forms ────────────────────────────────────────────────────────────── */
 
 .cal-form {
@@ -803,30 +670,565 @@
 }
 
 /* ── Phone ────────────────────────────────────────────────────────────── */
+/* Phone-only markup (CalendarPhoneParts, DayTransactionsPhone, the compact
+   grid, the phone branches of the views and forms). One column: segment and
+   month bar, the categorising strip, the grid, the selected day, then the
+   month's spending and bills as sections 28px apart. */
 
 @media (max-width: 767.98px) {
-  .cal-page {
+  .cal-phone {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+
+  /* Sections sit 28px apart (16px gap + 12px). */
+  .cal-phone > .cal-pday,
+  .cal-phone > .ui-msection.cal-psection,
+  .cal-psubs > .ui-msection.cal-psection {
+    margin-top: 12px;
+  }
+
+  /* ── Segment and month bar ── */
+
+  .cal-pbar {
+    display: flex;
+    flex-direction: column;
     gap: 12px;
   }
 
-  .cal-layout {
-    gap: 16px;
+  .cal-mbar {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
+
+  .cal-mbar__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 36px;
+  }
+
+  .cal-mbar__title {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--ink-gray-9);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cal-mbar__nav {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 2px;
+    margin-right: -6px;
+  }
+
+  .cal-mbar__nav > .ui-button:first-child {
+    margin-right: 4px;
+  }
+
+  .cal-mbar__spinner {
+    display: inline-flex;
+    margin-left: 6px;
+    vertical-align: -2px;
+  }
+
+  /* ── Categorising strip ── */
+
+  .cal-todo {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 56px;
+    padding: 8px 8px 10px 12px;
+    overflow: hidden;
+    border: 1px solid var(--outline-amber-2);
+    border-radius: var(--radius-6);
+    background: var(--surface-amber-1);
+  }
+
+  .cal-todo__icon {
+    flex-shrink: 0;
+    color: var(--ink-amber-7);
+  }
+
+  .cal-todo__text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  .cal-todo__title,
+  .cal-todo__meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cal-todo__title {
+    font-size: 15px;
+    line-height: 1.3;
+    color: var(--ink-gray-8);
+  }
+
+  .cal-todo__title strong {
+    font-weight: 600;
+  }
+
+  .cal-todo__meta {
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--ink-gray-6);
+  }
+
+  .cal-todo__focus,
+  .cal-todo__next {
+    flex-shrink: 0;
+  }
+
+  /* 375px: the strip's text needs the icon's room. */
+  @media (max-width: 389.98px) {
+    .cal-todo__icon {
+      display: none;
+    }
+  }
+
+  .cal-todo__track {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: var(--surface-amber-3);
+  }
+
+  .cal-todo__fill {
+    display: block;
+    height: 100%;
+    background: var(--ink-amber-5);
+    transition: width 240ms ease;
+  }
+
+  .cal-todo.is-done {
+    min-height: 0;
+    padding: 10px 12px;
+    border-color: var(--outline-green-2);
+    background: var(--surface-green-1);
+  }
+
+  .cal-todo.is-done .cal-todo__icon {
+    color: var(--ink-green-6);
+  }
+
+  .cal-todo.is-done .cal-todo__title {
+    white-space: normal;
+  }
+
+  /* ── Month grid: rounded day tiles, 7 across ── */
+
+  .cal-pgrid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .cal-grid--compact {
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    /* Vertical scrolling stays with the browser; sideways is a swipe. */
+    touch-action: pan-y;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .cal-grid--compact .cal-grid__weekdays {
+    margin-bottom: 4px;
+    border-bottom: 0;
+  }
+
+  .cal-grid--compact .cal-grid__weekday {
+    padding: 2px 0;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+  }
+
+  .cal-grid--compact .cal-grid__days {
+    gap: 4px 3px;
+  }
+
+  .cal-grid--compact .cal-day {
+    align-items: center;
+    gap: 0;
+    min-height: 54px;
+    padding: 5px 0 4px;
+    border: 0;
+    border-radius: var(--radius-6);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .cal-grid--compact button.cal-day:active {
+    background: var(--surface-gray-2);
+  }
+
+  .cal-grid--compact .cal-day__head {
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 2px;
+    min-height: 0;
+  }
+
+  .cal-grid--compact .cal-day__num {
+    min-width: 28px;
+    height: 28px;
+    font-size: 15px;
+  }
+
+  .cal-grid--compact .cal-day__marks {
+    min-height: 16px;
+    gap: 3px;
+  }
+
+  .cal-grid--compact .cal-dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .cal-grid--compact .cal-pending-pill {
+    height: 16px;
+    min-width: 18px;
+    padding: 0 5px;
+    font-size: 11px;
+  }
+
+  .cal-grid--compact .cal-day.is-selected {
+    background: var(--surface-gray-2);
+    box-shadow: inset 0 0 0 1.5px var(--ink-gray-7);
+  }
+
+  /* Days to categorise: the whole tile is tinted, with the count under the
+     number. */
+  .cal-grid--compact .cal-day.has-pending {
+    background: var(--surface-amber-1);
+    box-shadow: inset 0 0 0 1px var(--outline-amber-2);
+  }
+
+  .cal-grid--compact .cal-day.has-pending.is-selected {
+    background: var(--surface-amber-2);
+    box-shadow: inset 0 0 0 1.5px var(--ink-gray-7);
+  }
+
+  .cal-grid--compact button.cal-day.has-pending:active {
+    background: var(--surface-amber-2);
+  }
+
+  /* The month that just came in slides from the side it came from. */
+  .cal-grid--compact .cal-grid__days[data-enter='next'] {
+    animation: cal-days-next 200ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .cal-grid--compact .cal-grid__days[data-enter='prev'] {
+    animation: cal-days-prev 200ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .cal-pgrid .cal-legend {
+    gap: 4px 14px;
+  }
+
+  .cal-pgrid .cal-legend .cal-dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .cal-pgrid .cal-legend .cal-pending-pill {
+    height: 16px;
+    min-width: 18px;
+    padding: 0 5px;
+    font-size: 11px;
+  }
+
+  /* ── Selected day ── */
+
+  .cal-pday {
+    /* "Next" scrolls here. */
+    scroll-margin-top: 12px;
+  }
+
+  .cal-pday .ui-msection__head {
+    align-items: center;
+  }
+
+  .cal-pday__meta {
+    margin-top: -6px;
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--ink-gray-5);
+  }
+
+  .cal-pday__meta .cal-dayview__todo {
+    white-space: nowrap;
+  }
+
+  .cal-pday__add {
+    flex-shrink: 0;
+  }
+
+  .cal-pday__skeleton {
+    display: grid;
+    gap: 8px;
+  }
+
+  /* Edge to edge, rows padded by the gutter. */
+  .cal-pday__rows {
+    margin-inline: calc(-1 * var(--page-gutter));
+  }
+
+  .cal-pday__row {
+    position: relative;
+    padding-inline: var(--page-gutter);
+  }
+
+  /* Hairline between rows, inset to where the text starts. */
+  .cal-pday__row + .cal-pday__row::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: calc(var(--page-gutter) + 44px);
+    border-top: 1px solid var(--outline-gray-1);
+  }
+
+  /* Still to categorise: the calendar's amber, with a bar on the edge. */
+  .cal-pday__row.is-pending {
+    --ui-avatar-group-ring: var(--surface-amber-1);
+    background: var(--surface-amber-1);
+    box-shadow: inset 3px 0 0 var(--ink-amber-4);
+  }
+
+  .cal-pday__row.is-pending + .cal-pday__row::before,
+  .cal-pday__row + .cal-pday__row.is-pending::before {
+    left: 0;
+    border-top-color: var(--outline-amber-2);
+  }
+
+  .cal-pday__expand {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 32px;
+    margin: -6px 0 6px 40px;
+    padding: 0 8px 0 4px;
+    border: 0;
+    border-radius: var(--radius-4);
+    background: transparent;
+    color: var(--ink-gray-6);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .cal-pday__expand:active {
+    background: var(--surface-gray-2);
+  }
+
+  .cal-pday__expand:focus-visible {
+    outline: var(--focus-outline-default);
+    outline-offset: 0;
+  }
+
+  .cal-pday__expand svg {
+    color: var(--ink-gray-5);
+    transition: transform 150ms;
+  }
+
+  .cal-pday__expand.is-open svg {
+    transform: rotate(90deg);
+  }
+
+  /* The card transactions a bill covers hang off the bill's tile. */
+  .cal-pday__nested {
+    margin-left: 15px;
+    padding-bottom: 8px;
+  }
+
+  .cal-pday__note {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 36px;
+    padding: 6px 0 6px 16px;
+    font-size: 13px;
+    color: var(--ink-gray-5);
+  }
+
+  .cal-pday__bills {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+  }
+
+  .cal-pday__label {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--ink-gray-5);
+  }
+
+  /* ── Sections: spending, bills ── */
+
+  .cal-pbill.is-past .ui-mrow__title {
+    color: var(--ink-gray-5);
+  }
+
+  .cal-pempty {
+    padding-block: 16px;
+  }
+
+  /* ── Subscriptions ── */
+
+  .cal-psubs {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+
+  section.cal-psection:not(.ui-msection) {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .cal-psub {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .cal-psub__name {
+    font-size: 16px;
+    line-height: 1.3;
+    color: var(--ink-gray-8);
+  }
+
+  .cal-psub__meta {
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--ink-gray-5);
+  }
+
+  .cal-psub__end {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+
+  .cal-psub__amount {
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  /* ── Forms in the bottom sheet ── */
 
   .cal-form {
     grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
   }
 
-  .cal-dayview__head {
-    align-items: center;
+  .cal-form__pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
   }
+
+  .cal-form__pair > :only-child {
+    grid-column: 1 / -1;
+  }
+
+  .cal-form__hint {
+    margin-top: -10px;
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--ink-gray-5);
+  }
+
+  .cal-form__footer > .ui-button {
+    flex: 1;
+  }
+
+  .cal-form__delete-row {
+    width: 100%;
+  }
+}
+
+@keyframes cal-days-next {
+  from { opacity: 0; transform: translateX(32px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes cal-days-prev {
+  from { opacity: 0; transform: translateX(-32px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 767.98px) and (prefers-reduced-motion: reduce) {
+  .cal-grid--compact .cal-grid__days[data-enter] {
+    animation: none;
+  }
+
+  .cal-todo__fill,
+  .cal-pday__expand svg {
+    transition: none;
+  }
+}
+
+/* Phone, dark: the same blend toward the page as the grid's pending days. */
+[data-theme='dark'] .cal-todo,
+[data-theme='dark'] .cal-pday__row.is-pending {
+  --ui-avatar-group-ring: color-mix(in oklch, var(--surface-amber-1) 45%, var(--surface-base));
+  background: color-mix(in oklch, var(--surface-amber-1) 45%, var(--surface-base));
+}
+
+[data-theme='dark'] .cal-todo {
+  border-color: color-mix(in oklch, var(--outline-amber-2) 60%, var(--surface-base));
+}
+
+[data-theme='dark'] .cal-todo.is-done {
+  border-color: var(--outline-green-2);
+  background: var(--surface-green-1);
+}
+
+[data-theme='dark'] .cal-grid--compact .cal-day.has-pending:not(.is-selected) {
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--outline-amber-2) 60%, var(--surface-base));
+}
+
+[data-theme='dark'] .cal-pday__row.is-pending + .cal-pday__row::before,
+[data-theme='dark'] .cal-pday__row + .cal-pday__row.is-pending::before {
+  border-top-color: color-mix(in oklch, var(--outline-amber-2) 60%, var(--surface-base));
 }
 
 /* Dark mode: Espresso's amber surfaces are deep; blend them toward the page
    so pending days read as warm, not loud. */
 [data-theme='dark'] .cal-day.has-pending,
 [data-theme='dark'] .cal-dayview__table .ui-list__row.is-pending,
-[data-theme='dark'] .cal-dayview__row.is-pending,
 [data-theme='dark'] .cal-pending-bar {
   background: color-mix(in oklch, var(--surface-amber-1) 45%, var(--surface-base));
 }

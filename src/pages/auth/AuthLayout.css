@@ -88,3 +88,61 @@
   flex-direction: column;
   gap: 16px;
 }
+
+/* ---------- Phone ---------- */
+
+/* iPhone: no floating panel. The title block sits under the Dynamic Island,
+   the form fills the screen, and the main button rests at the bottom within
+   thumb reach, clear of the home indicator. */
+@media (max-width: 767.98px) {
+  .auth-page {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: calc(env(safe-area-inset-top) + 56px) var(--page-gutter) calc(env(safe-area-inset-bottom) + 16px);
+    background: var(--surface-base);
+  }
+
+  .auth-page__inner {
+    flex: 1;
+    max-width: 440px;
+    margin-inline: auto;
+  }
+
+  .auth-page__description {
+    font-size: 15px;
+  }
+
+  .auth-page__panel {
+    flex: 1;
+    gap: 16px;
+    margin-top: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  /* Sign in: the one button goes to the bottom. Set up: the fields stay at
+     the top and the button goes to the bottom of the form. */
+  .auth-page__panel > .auth-page__full,
+  .auth-page__form > .auth-page__full {
+    margin-top: auto;
+  }
+
+  .auth-page__form {
+    flex: 1;
+  }
+
+  .auth-page__footer {
+    margin-top: 16px;
+    font-size: 15px;
+  }
+
+  /* A taller tap target for the footer link. */
+  .auth-page__footer a {
+    display: inline-block;
+    padding-block: 8px;
+  }
+}

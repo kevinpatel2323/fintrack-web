@@ -1,24 +1,21 @@
-import { forwardRef, useCallback, useMemo, useState } from 'react';
+import { forwardRef, useMemo } from 'react';
 import { CalendarDays, Plus } from 'lucide-react';
 import { Amount, Button, EmptyState, ListColumnsMenu } from '../../components/ui';
 import TransactionTable, { transactionColumnChoices, useTransactionColumns } from '../../components/TransactionTable.jsx';
-import TransactionListRow from '../../components/TransactionListRow.jsx';
-import { toBankTableRow } from '../../components/transactions/bankTransactionRow.jsx';
-import { ccExpansionItems } from '../../components/transactions/transactionListModel.js';
-import { toCardTableRow } from '../../utils/cardTransactionRow.jsx';
 import { BillRow } from './Bills.jsx';
-import { dayUncategorizedCount, formatDayLong, sumEarned, sumSpent } from './calendarModel.js';
+import { formatDayLong, sumEarned, sumSpent } from './calendarModel.js';
+import { useDayRows } from './useDayRows.js';
 
 // One day has no use for a Date column.
 const OMIT = ['date'];
 const COLUMN_CHOICES = transactionColumnChoices().filter((c) => !OMIT.includes(c.id));
 
 /**
- * The selected day's transactions, in the same table as the Transactions page
- * (phones: the same rows as Activity): category set in place, card bill
- * payments expand to the card transactions they cover, rows open the
- * transaction. What still needs a category is listed first and marked, until
- * a header click orders the table. Bills due that day follow the table.
+ * The selected day's transactions, in the same table as the Transactions page:
+ * category set in place, card bill payments expand to the card transactions
+ * they cover, rows open the transaction. What still needs a category is
+ * listed first and marked, until a header click orders the table. Bills due
+ * that day follow the table. Phones render DayTransactionsPhone instead.
  */
 const DayTransactions = forwardRef(function DayTransactions(
   {
@@ -26,7 +23,6 @@ const DayTransactions = forwardRef(function DayTransactions(
     txs,
     bills,
     loading = false,
-    isMobile = false,
     categories,
     categoriesById,
     onAssignCategory,
@@ -43,32 +39,10 @@ const DayTransactions = forwardRef(function DayTransactions(
   ref,
 ) {
   const columnSettings = useTransactionColumns('fintrack.ledger.calendar');
-  const [expandedIds, setExpandedIds] = useState(() => new Set());
-
   // To-categorise first, otherwise the day's own order.
-  const { rows, pendingIds } = useMemo(() => {
-    const pending = new Set(
-      txs.filter((t) => dayUncategorizedCount([t], ccDetailByTransaction) > 0).map((t) => t.id),
-    );
-    const ordered = [...txs.filter((t) => pending.has(t.id)), ...txs.filter((t) => !pending.has(t.id))];
-    const tagsByTransaction = Object.fromEntries(txs.map((t) => [t.id, t.friendTags || []]));
-    return { rows: ordered.map((t) => toBankTableRow(t, tagsByTransaction)), pendingIds: pending };
-  }, [txs, ccDetailByTransaction]);
-
-  const toggleExpand = useCallback((id) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-    if (!ccDetailByTransaction[id]) onLoadCcDetail(id);
-  }, [ccDetailByTransaction, onLoadCcDetail]);
-
-  const expansionRows = useCallback(
-    (row) => ccExpansionItems(row.id, ccDetailByTransaction[row.id], (t) => toCardTableRow(t, cardTags)),
-    [ccDetailByTransaction, cardTags],
-  );
+  const { rows, pendingIds, expandedIds, toggleExpand, expansionRows } = useDayRows({
+    txs, ccDetailByTransaction, onLoadCcDetail, cardTags,
+  });
   const expansionHandlers = useMemo(
     () => ({ onAssignCategory: onAssignCardCategory, onOpenManage: onOpenCardManage }),
     [onAssignCardCategory, onOpenCardManage],
@@ -107,7 +81,7 @@ const DayTransactions = forwardRef(function DayTransactions(
           )}
         </div>
         <div className="cal-dayview__actions">
-          {!isMobile && txs.length > 0 && <ListColumnsMenu columns={COLUMN_CHOICES} settings={columnSettings} />}
+          {txs.length > 0 && <ListColumnsMenu columns={COLUMN_CHOICES} settings={columnSettings} />}
           <Button iconLeft={Plus} label="Add transaction" onClick={onAddTransaction} />
         </div>
       </header>
@@ -121,19 +95,6 @@ const DayTransactions = forwardRef(function DayTransactions(
             description="No transactions or bills."
           />
         )
-      ) : isMobile ? (
-        <div className="cal-dayview__rows">
-          {rows.map((row) => (
-            <div key={row.id} className={pendingIds.has(row.id) ? 'cal-dayview__row is-pending' : 'cal-dayview__row'}>
-              <TransactionListRow
-                row={row}
-                categories={categories}
-                onAssignCategory={onAssignCategory}
-                onOpenDetail={() => onOpenDetail(row.raw)}
-              />
-            </div>
-          ))}
-        </div>
       ) : (
         <TransactionTable
           className="cal-dayview__table"

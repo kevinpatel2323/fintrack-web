@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Copy, Download, TriangleAlert } from 'lucide-react';
-import { Badge, Button, Card, ErrorMessage, Skeleton, toast } from './ui';
+import { Check, Copy, CreditCard, Download, TriangleAlert } from 'lucide-react';
+import {
+  Badge, Button, Card, ErrorMessage, MobileList, MobileListItem, MobileSection, Skeleton, toast,
+} from './ui';
 import { updateCard } from '../services/cardsApi.js';
 import { useImportSchedule } from '../hooks/useImportSchedule.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import './StatementQueue.css';
 
 /**
@@ -72,10 +75,17 @@ function StatusBadge({ row, today }) {
 
 export default function StatementQueue({ className = '', style }) {
   const { data, error, loading, refresh } = useImportSchedule();
+  const isMobile = useIsCompact();
   const rows = data?.cards ?? [];
 
   // Nothing to schedule without a credit card.
   if (data && rows.length === 0) return null;
+
+  if (isMobile) {
+    return (
+      <StatementQueuePhone data={data} error={error} loading={loading} rows={rows} refresh={refresh} className={className} />
+    );
+  }
 
   return (
     <Card
@@ -193,9 +203,10 @@ function ReadyLine({ next, today }) {
 }
 
 /** The last few months at a glance; the one to import next is outlined. */
-function MonthStrip({ timeline, highlight }) {
+function MonthStrip({ timeline, highlight, compact = false }) {
   if (!timeline?.length) return null;
   const present = new Set(timeline.map((t) => t.state));
+  if (compact) return <MonthStripCompact timeline={timeline} highlight={highlight} present={present} />;
   return (
     <div className="stq-months">
       <ul className="stq-months__strip" aria-label="Recent statements">
@@ -301,5 +312,177 @@ function DayMismatch({ card, statementDay, onFixed }) {
       </p>
       <Button label={`Use the ${ordinal(statementDay)}`} loading={busy} onClick={fix} />
     </div>
+  );
+}
+
+/* ---------- Phones ---------- */
+
+function PhoneStatus({ row, today }) {
+  if (row.status === 'ready') {
+    return isOverdue(row, today) ? <Badge theme="red" label="Overdue" /> : <Badge theme="amber" label="Ready" />;
+  }
+  if (row.status === 'waiting') return <Badge theme="green" label="Up to date" />;
+  return <Badge label="Not tracked" />;
+}
+
+/**
+ * Phones (< 768px): a section of card rows (MobileList). Each row links to
+ * the card and carries its status, the next statement and when, the month
+ * strip and the notes; the copy-file-name hint and the statement-day fix sit
+ * under it, outside the link.
+ */
+function StatementQueuePhone({ data, error, loading, rows, refresh, className }) {
+  return (
+    <MobileSection
+      title="Card statements · up next"
+      className={`stq-ph ${className}`.trim()}
+      aside={rows.length > 1 && data.pendingCount > 0 ? <Badge theme="amber" label={`${data.pendingCount} to import`} /> : null}
+    >
+      {!data && loading && (
+        <div className="stq__loading" aria-busy="true">
+          <Skeleton height={14} width="60%" />
+          <Skeleton height={12} width="85%" />
+          <Skeleton height={22} width="100%" />
+        </div>
+      )}
+      {error && <ErrorMessage message={error} />}
+      {rows.length > 0 && (
+        <MobileList className="stq-ph-list" aria-label="Card statements">
+          {rows.map((row) => (
+            <ScheduleRowPhone key={row.card.id} row={row} today={data.today} onChanged={refresh} />
+          ))}
+        </MobileList>
+      )}
+    </MobileSection>
+  );
+}
+
+function ScheduleRowPhone({ row, today, onChanged }) {
+  const { card, status, next, pending, gaps, timeline } = row;
+  const known = status !== 'unknown';
+
+  let when;
+  if (!known) {
+    when = 'Import any one statement for this card, or set its statement day on the card page, and the next one will show up here.';
+  } else if (status === 'ready') {
+    const ago = -next.daysAway;
+    const due = next.estimatedDueDate;
+    when = (
+      <>
+        {next.label} statement out since {fmtDay(next.expectedDate, today)}
+        {ago > 0 ? ` · ${plural(ago, 'day', 'days')} ago` : ' · today'}
+        {due && (
+          <>
+            {' · '}
+            <span className={due < today ? 'stq-due is-past' : 'stq-due'}>
+              bill {due < today ? 'was due' : 'due'} around {fmtDay(due, today)}
+            </span>
+          </>
+        )}
+      </>
+    );
+  } else {
+    when = (
+      <>
+        {next.label} statement arrives {fmtDay(next.expectedDate, today)} · in {plural(next.daysAway, 'day', 'days')}
+      </>
+    );
+  }
+
+  const notes = [];
+  if (known && pending.length > 1) {
+    notes.push(
+      `Then ${pending.slice(1).map((p) => p.label).join(', ')}. Import them oldest first so each one can pick up where the last left off.`,
+    );
+  }
+  if (known && row.unbilledInNext > 0) {
+    notes.push(
+      `${plural(row.unbilledInNext, 'entry', 'entries')} you added by hand will be matched against the ${next.label} statement instead of being added twice.`,
+    );
+  }
+
+  const showFile = known && status === 'ready' && next.filenameHint;
+  const showFix = known && row.statementDayMismatch;
+
+  return (
+    <div className="stq-ph-card">
+      <MobileListItem
+        to={`/cards/${card.id}`}
+        leading={
+          <span className="stq-ph-tile" aria-hidden>
+            <CreditCard size={16} strokeWidth={1.5} />
+          </span>
+        }
+        title={
+          <span className="stq-ph-head">
+            <span className="stq-ph-head__name">
+              <span className="truncate">{card.nickname || card.name}</span>
+              <span className="stq-ph-head__last4 tabular-nums">•• {card.last4}</span>
+            </span>
+            <PhoneStatus row={row} today={today} />
+          </span>
+        }
+      >
+        <span className="stq-ph-when">{when}</span>
+        {known && <MonthStrip timeline={timeline} highlight={status === 'ready' ? next.month : null} compact />}
+        {notes.map((n) => (
+          <span key={n} className="stq-ph-note">
+            {n}
+          </span>
+        ))}
+        {known && gaps.length > 0 && (
+          <span className="stq-ph-note stq-note--alert">Missing from your history: {gaps.map((g) => g.label).join(', ')}.</span>
+        )}
+      </MobileListItem>
+      {(showFile || showFix) && (
+        <div className="stq-ph-extras">
+          {showFile && <FileHint stem={next.filenameHint} />}
+          {showFix && <DayMismatch card={card} statementDay={row.statementDay} onFixed={onChanged} />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The month strip inside a phone row (inside a link, so spans, not a list). */
+function MonthStripCompact({ timeline, highlight, present }) {
+  return (
+    <span className="stq-ph-months">
+      <span className="stq-ph-months__strip" role="list" aria-label="Recent statements">
+        {timeline.map((t) => {
+          const s = MONTH_STATES[t.state] || MONTH_STATES.upcoming;
+          const Icon = s.icon;
+          const isNext = t.month === highlight;
+          return (
+            <span
+              key={t.month}
+              role="listitem"
+              className={`stq-month stq-ph-month${isNext ? ' is-next' : ''}`}
+              data-state={t.state}
+            >
+              <span aria-hidden>{t.label.slice(0, 3)}</span>
+              {Icon && <Icon size={12} strokeWidth={2} aria-hidden />}
+              <span className="sr-only">
+                {t.label}, {s.text}
+                {isNext ? ', import next' : ''}
+              </span>
+            </span>
+          );
+        })}
+      </span>
+      {(present.has('ready') || present.has('missing')) && (
+        <span className="stq-ph-months__legend" aria-hidden>
+          {LEGEND.filter(([state]) => present.has(state)).map(([state, label]) => {
+            const Icon = MONTH_STATES[state].icon;
+            return (
+              <span key={state} className="stq-legend" data-state={state}>
+                {Icon ? <Icon size={10} strokeWidth={2} /> : <span className="stq-legend__blank" />}
+                {label}
+              </span>
+            );
+          })}
+        </span>
+      )}
+    </span>
   );
 }

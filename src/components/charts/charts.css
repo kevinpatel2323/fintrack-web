@@ -766,6 +766,39 @@ button.ui-chart-catbar:active {
   grid-column: 1 / -1;
 }
 
+/* ── Phone ──────────────────────────────────────────────────────────────── */
+
+/* Touch: taps get a pressed state instead of a hover that sticks after the
+   finger lifts, and the small text buttons (legend toggles, "Show all") get
+   a 32px target. Layout and behaviour are unchanged. */
+@media (max-width: 767.98px) {
+  .ui-chart-legend-button,
+  .ui-chart-catbars-more {
+    height: 32px;
+  }
+
+  button.ui-chart-legend-button:hover,
+  button.ui-chart-catbar:hover,
+  .ui-chart-catbars-more:hover {
+    background: transparent;
+  }
+
+  button.ui-chart-legend-button:active,
+  .ui-chart-catbars-more:active {
+    background: var(--surface-gray-3);
+  }
+
+  button.ui-chart-catbar:active {
+    background: var(--surface-gray-2);
+  }
+
+  .ui-chart-svg,
+  .ui-chart-catbar,
+  .ui-chart-legend-button {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
 /* ── Motion ─────────────────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import AppSidebar from './AppSidebar.jsx';
 import MobileNav from './MobileNav.jsx';
@@ -29,6 +29,38 @@ function useScrollReset(ref) {
 }
 
 /**
+ * Publishes how much of the bottom of the screen the phone chrome covers
+ * (the footer slot's action bar plus the tab bar, each with its home
+ * indicator inset) as `--phone-chrome-bottom` on <html>, so body-level layers
+ * such as the toaster can sit just above it.
+ */
+function useBottomChromeInset(footerNode, navRef, hasNav) {
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const update = () => {
+      const footer = footerNode?.offsetHeight ?? 0;
+      const nav = hasNav ? (navRef.current?.offsetHeight ?? 0) : 0;
+      root.style.setProperty('--phone-chrome-bottom', `${footer + nav}px`);
+    };
+    update();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
+    if (ro) {
+      if (footerNode) ro.observe(footerNode);
+      if (hasNav && navRef.current) ro.observe(navRef.current);
+    }
+    // The slot's content comes and goes without resizing anything observed
+    // when it is display:none while empty.
+    const mo = footerNode && typeof MutationObserver !== 'undefined' ? new MutationObserver(update) : null;
+    mo?.observe(footerNode, { childList: true });
+    return () => {
+      ro?.disconnect();
+      mo?.disconnect();
+      root.style.removeProperty('--phone-chrome-bottom');
+    };
+  }, [footerNode, navRef, hasNav]);
+}
+
+/**
  * The phone frame (frappe-ui MobileShell): a fixed column of header slot,
  * natively scrolling content, footer slot and — on a tab's own page — the
  * tab bar. Pushed pages (a record, anything under You) hide the tab bar and
@@ -40,6 +72,8 @@ function MobileShell({ children, scrollRef }) {
   const [footerNode, setFooterNode] = useState(null);
   const onTabRoot = isTabRoot(pathname);
   const underYou = YOU_PATHS.some((p) => pathname.startsWith(p));
+  const navRef = useRef(null);
+  useBottomChromeInset(footerNode, navRef, onTabRoot);
 
   const chrome = useMemo(
     () => ({
@@ -60,7 +94,7 @@ function MobileShell({ children, scrollRef }) {
         </div>
         <div className="mobile-shell__footer" ref={setFooterNode} />
         {onTabRoot && (
-          <MobileNav onReselect={() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })} />
+          <MobileNav ref={navRef} onReselect={() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })} />
         )}
       </div>
     </PhoneChromeContext.Provider>

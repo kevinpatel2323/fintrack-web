@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Download } from 'lucide-react';
 import { Button, Dialog, FormControl, LoadingIndicator, toast } from './ui';
 import LedgerPaper from './ledger-export/LedgerPaper.jsx';
@@ -6,6 +6,7 @@ import LedgerRowPicker from './ledger-export/LedgerRowPicker.jsx';
 import { buildLedgerPdf } from '../utils/ledgerPdf';
 import { ledgerBalanceDelta, ledgerOpenTotals } from '../utils/ledgerParties';
 import { groupIdOf } from '../utils/entryGroups.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import './FriendLedgerExportModal.css';
 
 import { API_BASE, apiErrorMessage, apiFetch } from '../services/http.js';
@@ -68,6 +69,31 @@ function formatGeneratedStamp() {
 /** How long a burst of clicks settles before the pinned choices are saved. */
 const PREF_SAVE_DEBOUNCE_MS = 600;
 
+/** The paper's width in the preview (LedgerPaper.css `min-width`). */
+const PAPER_WIDTH = 760;
+
+/**
+ * Phones: the zoom that fits the paper to the width of its desk, so the
+ * preview reads as a picture of the whole page. `null` until measured.
+ */
+function usePaperFit(desk, enabled) {
+  const [fit, setFit] = useState(null);
+  useLayoutEffect(() => {
+    if (!enabled || !desk) return undefined;
+    const update = () => {
+      const cs = getComputedStyle(desk);
+      const inner = desk.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      if (inner > 0) setFit(Math.min(1, Math.floor((inner / PAPER_WIDTH) * 1000) / 1000));
+    };
+    update();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(update);
+    ro.observe(desk);
+    return () => ro.disconnect();
+  }, [desk, enabled]);
+  return fit;
+}
+
 /**
  * Exports a person's ledger as a PDF statement. Options on the left (period
  * and which rows to include), a live preview of the PDF on the right; the
@@ -92,6 +118,11 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
   const [session, setSession] = useState(null);
   const [pdfBusy, setPdfBusy] = useState(false);
   const ledgerOpenIdRef = useRef(null);
+  // Phones: the preview fits the page to the screen; "Actual size" pans it.
+  const isMobile = useIsCompact();
+  const [desk, setDesk] = useState(null);
+  const [actualSize, setActualSize] = useState(false);
+  const fit = usePaperFit(desk, isMobile && !actualSize);
 
   // Mirrors of the two sets, so a save that fires from a timer or an unmount
   // reads the live values instead of the render that scheduled it.
@@ -439,8 +470,24 @@ export default function FriendLedgerExportModal({ friend, open, onClose }) {
         <div className="lx-preview__head">
           <h3 className="lx-section-title">Preview</h3>
           {dateOrderOk && loadState === 'loading' && loadedTags.length > 0 && <LoadingIndicator text="Updating…" />}
+          {isMobile && (
+            <Button
+              className="lx-preview__zoom"
+              variant="ghost"
+              label={actualSize ? 'Fit to screen' : 'Actual size'}
+              aria-pressed={actualSize}
+              onClick={() => setActualSize((v) => !v)}
+            />
+          )}
         </div>
-        <div className="lx-preview__desk">{preview}</div>
+        <div
+          ref={setDesk}
+          className="lx-preview__desk"
+          data-fit={isMobile && !actualSize && fit ? '' : undefined}
+          style={isMobile && fit ? { '--lx-fit': fit } : undefined}
+        >
+          {preview}
+        </div>
       </section>
     </Dialog>
   );

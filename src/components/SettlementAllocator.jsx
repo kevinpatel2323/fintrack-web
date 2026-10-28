@@ -5,6 +5,7 @@ import { AllocRowView, AllocTable } from './people/AllocTable.jsx';
 import { fetchOpenDues } from '../services/friendsApi.js';
 import { friendFirstName } from '../utils/ledgerParties.js';
 import { fillGroup, groupOpenMinor } from '../utils/entryGroups.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import {
   availableMinor,
   checkDraft,
@@ -70,6 +71,9 @@ export default function SettlementAllocator({
   const [loaded, setLoaded] = useState(null);
   const [loadError, setLoadError] = useState('');
   const first = friendFirstName(friendName);
+  // Phones: 36px controls (a size up from the desktop's).
+  const phone = useIsCompact();
+  const controlSize = phone ? 'md' : 'sm';
 
   useEffect(() => {
     let cancelled = false;
@@ -212,10 +216,10 @@ export default function SettlementAllocator({
               </span>
             </h4>
             <div className="alloc-section__actions">
-              <Button size="sm" variant="subtle" label="Fill oldest first" onClick={() => fillLoose(fillOldestFirst, side)} />
+              <Button size={controlSize} variant="subtle" label="Fill oldest first" onClick={() => fillLoose(fillOldestFirst, side)} />
               {sides.length > 1 && (
                 <Button
-                  size="sm"
+                  size={controlSize}
                   variant="ghost"
                   label="Net all off"
                   tooltip="Net all of these off and clear that much more of the other side"
@@ -270,7 +274,7 @@ export default function SettlementAllocator({
           On account <strong>{rupees(status.onAccountMinor)}</strong>
         </span>
         {hasDraft && (
-          <Button className="alloc-foot__clear" size="sm" variant="ghost" label="Clear" onClick={() => onDraftChange({})} />
+          <Button className="alloc-foot__clear" size={controlSize} variant="ghost" label="Clear" onClick={() => onDraftChange({})} />
         )}
       </div>
       {hasDraft && status.valid && (
@@ -296,6 +300,7 @@ export default function SettlementAllocator({
  */
 function GroupBlock({ group, draft, status, settledSide, first, amountMinor, onDraftChange }) {
   const [open, setOpen] = useState(false);
+  const phone = useIsCompact();
   const [typed, setTyped] = useState(null);
   const { members } = group;
   const ids = members.map((m) => String(m.id));
@@ -364,7 +369,7 @@ function GroupBlock({ group, draft, status, settledSide, first, amountMinor, onD
         extra={
           <Button
             className="alloc-group__toggle"
-            size="xs"
+            size={phone ? 'md' : 'xs'}
             variant="ghost"
             iconLeft={open ? ChevronDown : ChevronRight}
             aria-expanded={open}

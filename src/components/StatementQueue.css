@@ -231,3 +231,104 @@
   border: 1px solid var(--outline-gray-1);
   border-radius: var(--radius-4);
 }
+
+/* ---------- Phones (StatementQueuePhone): a row per card ---------- */
+
+@media (max-width: 767.98px) {
+  .stq-ph-card {
+    position: relative;
+  }
+
+  /* Hairline between cards, from where the text starts. */
+  .stq-ph-card + .stq-ph-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: calc(var(--page-gutter) + 44px);
+    right: 0;
+    border-top: 1px solid var(--outline-gray-1);
+    pointer-events: none;
+  }
+
+  .stq-ph-list .ui-mrow__inner {
+    align-items: flex-start;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .stq-ph-tile {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-4);
+    background: var(--surface-gray-2);
+    color: var(--ink-gray-6);
+  }
+
+  .stq-ph-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .stq-ph-head__name {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .stq-ph-head__last4 {
+    flex-shrink: 0;
+    font-size: 13px;
+    color: var(--ink-gray-5);
+  }
+
+  .stq-ph-when,
+  .stq-ph-note {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ink-gray-5);
+  }
+
+  .stq-ph-note {
+    margin-top: 6px;
+  }
+
+  .stq-ph-note.stq-note--alert {
+    color: var(--ink-red-6);
+  }
+
+  .stq-ph-months {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+  }
+
+  .stq-ph-months__strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .stq-ph-months__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    font-size: 12px;
+    color: var(--ink-gray-5);
+  }
+
+  /* The file-name hint and the statement-day fix: under the row, outside its
+     link, lined up with its text. */
+  .stq-ph-extras {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 var(--page-gutter) 12px calc(var(--page-gutter) + 44px);
+  }
+}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Trash2 } from 'lucide-react';
-import { Amount, Avatar, Button } from './ui';
+import { Ellipsis, ListChecks, Trash2 } from 'lucide-react';
+import { Amount, Avatar, Button, Dropdown } from './ui';
+import { useIsCompact } from '../styles/breakpoints.js';
 import { ledgerDirectionPhrase } from '../utils/ledgerParties.js';
 import { rupees, toMinor } from '../utils/settlementAllocation.js';
 import SettlementAllocationModal from './SettlementAllocationModal.jsx';
@@ -81,7 +82,65 @@ export function FriendTagCard({ tag, transaction, friendName, onRemove, onAlloca
   const note = typeof tag.note === 'string' ? tag.note.trim() : '';
   const settlement = settlementLine(tag);
   const [allocating, setAllocating] = useState(false);
+  const isMobile = useIsCompact();
   const canAllocate = tag.direction === 'SETTLEMENT' && Boolean(onAllocationChanged);
+  const allocateLabel = tag.settlementLegacy === false && toMinor(tag.allocatedAmount) === 0
+    ? 'Apply to entries'
+    : 'Change what it settles';
+  const allocationModal = allocating ? (
+    <SettlementAllocationModal
+      tag={tag}
+      friendName={displayName}
+      onClose={() => setAllocating(false)}
+      onSaved={onAllocationChanged}
+    />
+  ) : null;
+
+  if (isMobile) {
+    // Phone: a list row (avatar, who and what, the amount) with the row's
+    // actions behind a `…` that opens as an action sheet. The date and
+    // method are already on the transaction around it, so they're left out.
+    const menu = [
+      canAllocate && { label: allocateLabel, icon: ListChecks, onClick: () => setAllocating(true) },
+      onRemove && { group: 'Remove', hideLabel: true, items: [{ label: 'Remove split', icon: Trash2, theme: 'red', onClick: onRemove }] },
+    ].filter(Boolean);
+    return (
+      <article className="people-tag-row" role="listitem">
+        <Avatar label={displayName} size="xl" aria-hidden />
+        <div className="people-tag-row__body">
+          <div className="people-tag-row__head">
+            <h4 className="people-tag-row__name">{displayName}</h4>
+            <Amount className="people-tag-row__amount" value={amount} tone={amountTone(tag.direction)} />
+          </div>
+          <p className="people-tag-row__line">{ledgerDirectionPhrase(tag.direction, displayName)}</p>
+          {note ? <p className="people-tag-row__line people-tag-row__line--wrap">{note}</p> : null}
+          {tag.entryGroup?.title ? <p className="people-tag-row__line">Part of {tag.entryGroup.title}</p> : null}
+          {settlement ? (
+            <p className="people-tag-row__line people-tag-row__line--wrap" data-tone={settlement.warn ? 'warn' : undefined}>
+              {settlement.text}
+            </p>
+          ) : null}
+          {/* Money still on account is the one thing to act on: keep its
+              button in view. Otherwise it waits in the menu. */}
+          {canAllocate && settlement?.warn ? (
+            <Button
+              className="people-tag-row__action"
+              size="md"
+              variant="subtle"
+              label={allocateLabel}
+              onClick={() => setAllocating(true)}
+            />
+          ) : null}
+        </div>
+        {menu.length > 0 ? (
+          <Dropdown options={menu} label={displayName}>
+            <Button variant="ghost" size="md" icon={Ellipsis} label={`Actions for ${displayName}`} className="people-tag-row__more" />
+          </Dropdown>
+        ) : null}
+        {allocationModal}
+      </article>
+    );
+  }
 
   return (
     <article className="people-tag-card">
@@ -104,11 +163,7 @@ export function FriendTagCard({ tag, transaction, friendName, onRemove, onAlloca
             className="people-tag-card__action"
             size="sm"
             variant="subtle"
-            label={
-              tag.settlementLegacy === false && toMinor(tag.allocatedAmount) === 0
-                ? 'Apply to entries'
-                : 'Change what it settles'
-            }
+            label={allocateLabel}
             onClick={() => setAllocating(true)}
           />
         ) : null}
@@ -127,14 +182,7 @@ export function FriendTagCard({ tag, transaction, friendName, onRemove, onAlloca
         ) : null}
       </div>
 
-      {allocating ? (
-        <SettlementAllocationModal
-          tag={tag}
-          friendName={displayName}
-          onClose={() => setAllocating(false)}
-          onSaved={onAllocationChanged}
-        />
-      ) : null}
+      {allocationModal}
     </article>
   );
 }

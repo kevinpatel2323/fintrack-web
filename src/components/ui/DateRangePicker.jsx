@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useState } from 'react';
 import Portal from '../Portal.jsx';
+import Sheet from './Sheet.jsx';
 import { useStableId } from './internal/floating.js';
 import TextInput from './TextInput.jsx';
 import {
@@ -19,6 +20,10 @@ import './DateRangePicker.css';
 // first click starts a range, the second completes it (in either order) and
 // closes; until then the hovered or focused day previews the range.
 // `presets` render as the `#actions` column beside the calendar.
+//
+// Phones (< 768px): a bottom sheet titled after the field, the presets as
+// chips above the month grid, a line saying which end to pick next; the
+// field is read-only there, so a tap only opens the sheet.
 //
 // value: { start: 'YYYY-MM-DD', end: 'YYYY-MM-DD' }  ('' for an empty end)
 // onChange({ start, end }) — `{ start: '', end: '' }` when cleared.
@@ -59,6 +64,7 @@ const DateRangePicker = forwardRef(function DateRangePicker(
     isDateUnavailable,
     disabled = false,
     invalid = false,
+    sheetTitle,
     id: idProp,
     className,
     style,
@@ -113,7 +119,7 @@ const DateRangePicker = forwardRef(function DateRangePicker(
     emit({ start: dates[0], end: dates[1] ?? dates[0] });
   };
 
-  const picker = usePickerPopover({ disabled, onCommit: commit });
+  const picker = usePickerPopover({ disabled, onCommit: commit, sheetTitle, sheetFallback: 'Choose dates' });
   const { open, openPanel, close, rootRef, anchorRef, calendarRef, panelProps } = picker;
 
   const setInputRef = useCallback(
@@ -177,6 +183,50 @@ const DateRangePicker = forwardRef(function DateRangePicker(
   const showClear = clearable && !disabled && Boolean(start || end);
   const hasPresets = Array.isArray(presets) && presets.length > 0;
 
+  // Phones: say which end of the range the next tap sets.
+  const sheetHint = from && !to ? `From ${formatDate(from, format)}. Now pick the last day.` : 'Pick the first day, then the last.';
+
+  const content = (
+    <div className={cx('ui-daterange__layout', hasPresets && 'has-presets')}>
+      {hasPresets && (
+        <div className="ui-daterange__presets" role="group" aria-label="Shortcuts">
+          {presets.map((preset, i) => {
+            const active = isPresetActive(preset);
+            return (
+              <button
+                key={`${preset.label}-${i}`}
+                type="button"
+                className={cx('ui-daterange__preset', active && 'is-active')}
+                aria-pressed={active}
+                onClick={() => {
+                  const p = normalizeRange(preset.value);
+                  if (p.start) finish({ start: p.start, end: p.end || p.start });
+                }}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <CalendarPanel
+        ref={calendarRef}
+        className="ui-datepicker__calendar"
+        anchor={from || start}
+        getCellState={getCellState}
+        isUnavailable={unavailable}
+        min={min}
+        max={max}
+        onSelect={selectDate}
+        onToday={(today) => {
+          if (!unavailable(today)) finish({ start: today, end: today });
+        }}
+        onHoverDate={(d) => setHoverDate(d)}
+        onFocusDate={(d) => setFocusDate(d)}
+      />
+    </div>
+  );
+
   return (
     <div
       ref={rootRef}
@@ -198,6 +248,7 @@ const DateRangePicker = forwardRef(function DateRangePicker(
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         aria-autocomplete="none"
+        readOnly={picker.asSheet || undefined}
         value={draft ?? display}
         onChange={(e) => setDraft(e.target.value)}
         onClick={(e) => {
@@ -242,7 +293,7 @@ const DateRangePicker = forwardRef(function DateRangePicker(
         }
         {...rest}
       />
-      {open && (
+      {picker.floatingOpen && (
         <Portal>
           <div
             {...panelProps}
@@ -251,46 +302,25 @@ const DateRangePicker = forwardRef(function DateRangePicker(
             aria-label="Choose date range"
             className="ui-datepicker__panel ui-daterange__panel"
           >
-            <div className={cx('ui-daterange__layout', hasPresets && 'has-presets')}>
-              {hasPresets && (
-                <div className="ui-daterange__presets" role="group" aria-label="Shortcuts">
-                  {presets.map((preset, i) => {
-                    const active = isPresetActive(preset);
-                    return (
-                      <button
-                        key={`${preset.label}-${i}`}
-                        type="button"
-                        className={cx('ui-daterange__preset', active && 'is-active')}
-                        aria-pressed={active}
-                        onClick={() => {
-                          const p = normalizeRange(preset.value);
-                          if (p.start) finish({ start: p.start, end: p.end || p.start });
-                        }}
-                      >
-                        {preset.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              <CalendarPanel
-                ref={calendarRef}
-                className="ui-datepicker__calendar"
-                anchor={from || start}
-                getCellState={getCellState}
-                isUnavailable={unavailable}
-                min={min}
-                max={max}
-                onSelect={selectDate}
-                onToday={(today) => {
-                  if (!unavailable(today)) finish({ start: today, end: today });
-                }}
-                onHoverDate={(d) => setHoverDate(d)}
-                onFocusDate={(d) => setFocusDate(d)}
-              />
-            </div>
+            {content}
           </div>
         </Portal>
+      )}
+      {picker.sheetPresent && (
+        <Sheet
+          open={open}
+          onClose={() => {
+            setPending(null);
+            close(true);
+          }}
+          side="bottom"
+          id={panelId}
+          title={picker.sheetTitle}
+          description={sheetHint}
+          className="ui-datepicker-sheet ui-daterange-sheet"
+        >
+          {content}
+        </Sheet>
       )}
     </div>
   );

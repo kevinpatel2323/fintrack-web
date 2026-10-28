@@ -267,3 +267,185 @@
     grid-column: 1 / -1;
   }
 }
+
+/* ---------- Phones (pages/people/PersonPhone.jsx) ----------
+   Phone-only markup: the balance as the hero figure, the other totals in one
+   row, the ledger, then the chart and contact details as sections. */
+
+@media (max-width: 767.98px) {
+  .person-m {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .person-m-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+
+  .person-m-who {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .person-m-who__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  /* The header truncates the name; here it may take two lines. */
+  .person-m-who__name {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--ink-gray-9);
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .person-m-who__contact {
+    overflow: hidden;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--ink-gray-5);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .person-m-balance {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .person-m-balance__label {
+    font-size: 15px;
+    line-height: 1.4;
+    color: var(--ink-gray-7);
+  }
+
+  .person-m-balance__amount {
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    color: var(--ink-gray-9);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .person-m-balance__note {
+    margin: 2px 0 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ink-gray-5);
+  }
+
+  .person-m-balance__warn {
+    color: var(--ink-amber-7);
+  }
+
+  /* The other three totals: one row of small figures between hairlines. */
+  .person-m-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0;
+    padding: 12px 0;
+    border-top: 1px solid var(--outline-gray-1);
+    border-bottom: 1px solid var(--outline-gray-1);
+  }
+
+  .person-m-stat {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .person-m-stat + .person-m-stat {
+    padding-left: 12px;
+    border-left: 1px solid var(--outline-gray-1);
+  }
+
+  .person-m-stat__label {
+    font-size: 13px;
+    line-height: 1.3;
+    color: var(--ink-gray-5);
+    overflow-wrap: anywhere;
+  }
+
+  .person-m-stat__value {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--ink-gray-8);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .person-m-attention__icon {
+    color: var(--ink-amber-6);
+  }
+
+  /* Attention rows can say a sentence: let the subtitle wrap. */
+  .person-m-attention .ui-mrow__title,
+  .person-m-attention .ui-mrow__subtitle {
+    white-space: normal;
+  }
+
+  /* ---------- Ledger ---------- */
+
+  .person-m-ledger {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .person-m-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  /* Five segments at 375px: tighter pills, labels never clipped. */
+  .person-m-filters .ui-tab-buttons__pill {
+    padding-inline: 2px;
+  }
+
+  /* The page's gap already spaces the sections. */
+  .person-m > .ui-msection + .ui-msection {
+    margin-top: 4px;
+  }
+
+  .person-m-chart {
+    padding: 12px 12px 8px;
+    border: 1px solid var(--outline-gray-1);
+    border-radius: var(--radius-6);
+  }
+
+  .person-m-link {
+    color: var(--ink-blue-link);
+  }
+
+  /* The last section clears the action bar's hairline. */
+  .person-m > :last-child {
+    margin-bottom: 8px;
+  }
+}

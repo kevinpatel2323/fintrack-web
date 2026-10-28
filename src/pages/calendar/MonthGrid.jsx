@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Check, CreditCard, Tag } from 'lucide-react';
 import { Amount } from '../../components/ui';
 import { inr } from '../../utils/inr.js';
-import { WEEKDAYS, addDaysIso, dayModel, formatDayLong } from './calendarModel.js';
+import { WEEKDAYS, addDaysIso, dayModel, formatDayLong, swipeDirection } from './calendarModel.js';
 
 const cx = (...parts) => parts.filter(Boolean).join(' ');
 
@@ -50,7 +50,8 @@ function Marks({ day, compact }) {
  * spent / earned and any card bill paid that day. Days with transactions to
  * categorise are tinted and carry a count, so they stand out from across the
  * month; `focusPending` fades every other day. Phones get the compact variant:
- * day number and marks only.
+ * rounded day tiles with the number and marks only, and `onSwipe(step)`
+ * (phones only) changes month on a sideways swipe, sliding the new month in.
  *
  * Days are buttons with a roving tab stop; the arrow keys move the selection.
  */
@@ -67,6 +68,7 @@ export default function MonthGrid({
   loading = false,
   focusPending = false,
   label,
+  onSwipe,
 }) {
   const buttons = useRef(new Map());
   const pendingFocus = useRef(null);
@@ -74,6 +76,44 @@ export default function MonthGrid({
   const inMonth = cells.filter((c) => c.inMonth);
   const firstIso = inMonth[0]?.iso;
   const lastIso = inMonth[inMonth.length - 1]?.iso;
+
+  // Phone: which way the month just moved, so the new one slides in from
+  // that side (set on render; idempotent, so a double render is harmless).
+  const shownMonth = useRef(firstIso);
+  const enterFrom = useRef(null);
+  if (compact && shownMonth.current !== firstIso) {
+    enterFrom.current = firstIso > shownMonth.current ? 'next' : 'prev';
+    shownMonth.current = firstIso;
+  }
+
+  // Phone: a sideways swipe changes month. `touch-action: pan-y` (CSS) leaves
+  // vertical scrolling to the browser, which cancels the pointer when it
+  // takes over, so a scroll never reads as a swipe.
+  const swipe = useRef(null);
+  const swiped = useRef(false);
+  const swipeHandlers = onSwipe ? {
+    onPointerDown: (e) => {
+      swiped.current = false;
+      swipe.current = e.isPrimary ? { id: e.pointerId, x: e.clientX, y: e.clientY } : null;
+    },
+    onPointerUp: (e) => {
+      const start = swipe.current;
+      swipe.current = null;
+      if (!start || start.id !== e.pointerId) return;
+      const step = swipeDirection(e.clientX - start.x, e.clientY - start.y);
+      if (!step) return;
+      swiped.current = true;
+      onSwipe(step);
+    },
+    onPointerCancel: () => { swipe.current = null; },
+    // The release that ends a swipe is not a tap on the day under it.
+    onClickCapture: (e) => {
+      if (!swiped.current) return;
+      swiped.current = false;
+      e.preventDefault();
+      e.stopPropagation();
+    },
+  } : null;
   const tabStop = inMonth.some((c) => c.iso === selectedIso)
     ? selectedIso
     : inMonth.some((c) => c.iso === todayIso) ? todayIso : firstIso;
@@ -100,13 +140,18 @@ export default function MonthGrid({
       role="group"
       aria-label={label}
       aria-busy={loading || undefined}
+      {...swipeHandlers}
     >
       <div className="cal-grid__weekdays" aria-hidden="true">
         {WEEKDAYS.map((wd) => (
           <span key={wd} className="cal-grid__weekday">{compact ? wd[0] : wd}</span>
         ))}
       </div>
-      <div className="cal-grid__days">
+      <div
+        className="cal-grid__days"
+        key={compact ? firstIso : undefined}
+        data-enter={(compact && enterFrom.current) || undefined}
+      >
         {cells.map((cell) => {
           const isToday = cell.iso === todayIso;
           if (!cell.inMonth) {
@@ -188,7 +233,7 @@ export function CalendarLegend({ compact = false }) {
         <span className="cal-legend__pending" aria-hidden="true">
           <span className="cal-pending-pill">{!compact && <Tag size={11} strokeWidth={2} />}2</span>
         </span>
-        Transactions to categorise
+        {compact ? 'To categorise' : 'Transactions to categorise'}
       </li>
       {!compact && (
         <li><Check className="cal-day__done" size={13} strokeWidth={2} aria-hidden="true" />All categorised</li>

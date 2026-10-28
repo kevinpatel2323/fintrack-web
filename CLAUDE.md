@@ -23,12 +23,14 @@ npm test         # Vitest
 | `/friends`, `/friends/:id` | `pages/Friends.jsx`, `pages/FriendDetail.jsx` | People and the friend ledger (`pages/people/`, `components/people/`) |
 | `/categories` | `pages/Categories.jsx` | Category list, month split, create/edit (`components/categories/`) |
 | `/import` | `pages/StatementImport.jsx` | Upload → review → confirm (`pages/import/`) |
-| `/you` | `pages/You.jsx` | "More" on phones: manage links and appearance |
+| `/you` | `pages/You.jsx` | "You" on phones (from the header's leading button): categories, imports, security, appearance (`pages/you/YouPhone.jsx`) |
 | `/security` | `pages/Security.jsx` | Passkeys and sign-out (hidden when auth is disabled) |
 | `/login`, `/setup` | `pages/Login.jsx`, `pages/Setup.jsx` | Shell-less passkey screens (`pages/auth/AuthLayout.jsx`) |
 | `/ui-kit` | `pages/dev/UiKit.jsx` | Dev only: every kit component, light and dark |
 
-The app shell (`components/shell/`) wraps every signed-in route: the Frappe-style sidebar on desktop (collapses to a 48px rail below 1100px, toggle remembered) and a bottom tab bar on phones (< 768px, `styles/breakpoints.js`). Destinations and their attention badges are defined once in `components/shell/nav.js`.
+The app shell (`components/shell/`) wraps every signed-in route: the Frappe-style sidebar on desktop (collapses to a 48px rail below 1100px, toggle remembered) and, on phones (< 768px, `styles/breakpoints.js`), frappe-ui's MobileShell: a fixed header slot, five tabs (Home, Activity, Calendar, Cards, People) shown only on a tab's own page, and pushed pages with Back. Destinations and their attention badges are defined once in `components/shell/nav.js`.
+
+Phones have their own layouts, not the desktop squeezed: pages render a phone component when `useIsCompact()` is true (`pages/TransactionsPhone.jsx`, `pages/people/FriendsPhone.jsx`, `pages/cards/CardDetailPhone.jsx`, …) and phone CSS lives in `@media (max-width: 767.98px)`. The desktop markup and styles must not change for a phone fix. Rules: `DESIGN.md#phone`; phone kit (`MobileSection`, `MobileList`, `MobileField`, `MobileActionBar`, `ActionSheet`, and what ListView, Dialog, Dropdown and the pickers do on phones): `components/ui/docs/phone.md`.
 
 ## Design system
 

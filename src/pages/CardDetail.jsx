@@ -15,9 +15,9 @@ import CardPaymentModal from '../components/CardPaymentModal.jsx';
 import CardStatementModal from '../components/CardStatementModal.jsx';
 import TransactionTable, { transactionColumnChoices, useTransactionColumns } from '../components/TransactionTable.jsx';
 import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
-import TransactionMobileList from '../components/TransactionMobileList.jsx';
 import CardDetailsPanel from './cards/CardDetailsPanel.jsx';
 import StatementBreakdownDialog from './cards/StatementBreakdownDialog.jsx';
+import CardDetailPhone, { CardDetailPhoneSkeleton } from './cards/CardDetailPhone.jsx';
 import {
   deleteCard,
   deleteCardPayment,
@@ -385,9 +385,6 @@ export default function CardDetail() {
     ? [
         {
           items: [
-            ...(isMobile && isCredit
-              ? [{ label: 'Paste unbilled', icon: ClipboardPaste, onClick: () => setPasteOpen(true) }]
-              : []),
             { label: 'Edit card', icon: Pencil, onClick: () => setEditOpen(true) },
             ...(!card.isPrimary ? [{ label: 'Make primary', icon: Star, onClick: onMakePrimary }] : []),
           ],
@@ -402,6 +399,32 @@ export default function CardDetail() {
               },
             ]
           : []),
+        { items: [{ label: 'Delete card', icon: Trash2, theme: 'red', onClick: onDeleteCard }] },
+      ]
+    : [];
+
+  // Phones: the header's `…` holds every card action but "Add transaction"
+  // (the `+` next to it) — Paste unbilled lives here instead of a header button.
+  const phoneMenuOptions = card
+    ? [
+        ...(isCredit
+          ? [
+              {
+                items: [
+                  { label: 'Paste unbilled', icon: ClipboardPaste, onClick: () => setPasteOpen(true) },
+                  { label: 'Record payment', icon: Banknote, onClick: () => setPayOpen(true) },
+                  { label: 'Import statement', icon: Upload, onClick: () => navigate('/import') },
+                  { label: 'Add statement', icon: FileText, onClick: () => setStmtOpen(true) },
+                ],
+              },
+            ]
+          : []),
+        {
+          items: [
+            { label: 'Edit card', icon: Pencil, onClick: () => setEditOpen(true) },
+            ...(!card.isPrimary ? [{ label: 'Make primary', icon: Star, onClick: onMakePrimary }] : []),
+          ],
+        },
         { items: [{ label: 'Delete card', icon: Trash2, theme: 'red', onClick: onDeleteCard }] },
       ]
     : [];
@@ -428,7 +451,7 @@ export default function CardDetail() {
         card && (
           <>
             <Button variant="ghost" size="md" icon={Plus} label="Add transaction" onClick={() => setTxnOpen(true)} />
-            <Dropdown options={menuOptions} placement="bottom-end">
+            <Dropdown options={phoneMenuOptions} label="Card actions">
               <Button variant="ghost" size="md" icon={MoreHorizontal} label="More actions" />
             </Dropdown>
           </>
@@ -460,6 +483,14 @@ export default function CardDetail() {
   }
 
   // ── First load ──
+  if (!card && isMobile) {
+    return (
+      <>
+        {header}
+        <CardDetailPhoneSkeleton />
+      </>
+    );
+  }
   if (!card) {
     return (
       <>
@@ -619,46 +650,28 @@ export default function CardDetail() {
               </>
             )}
           </span>
-          {!isMobile && <ListColumnsMenu columns={CARD_COLUMN_CHOICES} settings={columnSettings} />}
+          <ListColumnsMenu columns={CARD_COLUMN_CHOICES} settings={columnSettings} />
         </div>
 
-        {isMobile ? (
-          tableRows.length === 0 ? (
-            <EmptyState
-              size="sm"
-              icon={Search}
-              title="No transactions match"
-              action={<Button label="Clear filters" onClick={clearFilters} />}
-            />
-          ) : (
-            <TransactionMobileList
-              rows={tableRows}
-              categories={categories}
-              onAssignCategory={assignCategory}
-              onOpenDetail={(row) => openManage(row.id)}
-            />
-          )
-        ) : (
-          <div className="cardd-ledger">
-            <TransactionTable
-              rows={tableRows}
-              columnSettings={columnSettings}
-              columnLabels={CARD_COLUMN_LABELS}
-              categories={categories}
-              onAssignCategory={assignCategory}
-              onOpenManage={openManage}
-              onOpenDetail={(row) => openManage(row.id)}
-              sort={sort}
-              onSortChange={setSort}
-              page={page}
-              pageSize={pageSize}
-              onPageChange={setPage}
-              onPageSizeChange={setPageSize}
-              loading={loading}
-              emptyMessage="No transactions match."
-            />
-          </div>
-        )}
+        <div className="cardd-ledger">
+          <TransactionTable
+            rows={tableRows}
+            columnSettings={columnSettings}
+            columnLabels={CARD_COLUMN_LABELS}
+            categories={categories}
+            onAssignCategory={assignCategory}
+            onOpenManage={openManage}
+            onOpenDetail={(row) => openManage(row.id)}
+            sort={sort}
+            onSortChange={setSort}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            loading={loading}
+            emptyMessage="No transactions match."
+          />
+        </div>
       </>
     );
 
@@ -868,54 +881,101 @@ export default function CardDetail() {
   return (
     <>
       {header}
-      <PageBody className="cardd-body">
-        <div className="cardd">
-          <div className="cardd__main">
-            {error && (
-              <Alert
-                theme="red"
-                title="Couldn't refresh this card"
-                description={error}
-                primaryAction={{ label: 'Try again', onClick: () => loadAll() }}
-              />
-            )}
-            {readyToImport && (
-              <Alert
-                theme="blue"
-                title={`${cardSchedule.next.label} statement is ready to import`}
-                primaryAction={{ label: 'Import', onClick: () => navigate('/import') }}
-              />
-            )}
+      {isMobile ? (
+        <CardDetailPhone
+          card={card}
+          isCredit={isCredit}
+          loading={loading}
+          error={error}
+          onRetry={() => loadAll()}
+          importReady={readyToImport || null}
+          onImport={() => navigate('/import')}
+          schedule={cardSchedule}
+          due={due}
+          cycleRange={cycleRange}
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={setTab}
+          ledger={{
+            transactions,
+            rows: tableRows,
+            categories,
+            loading,
+            search,
+            onSearchChange: (value) => { setSearch(value); setPage(1); },
+            categoryFilter,
+            onCategoryChange: (value) => { setCategoryFilter(value); setPage(1); },
+            billingFilter,
+            onBillingChange: (value) => { setBillingFilter(value); setPage(1); },
+            categoryOptions,
+            filtersActive,
+            filteredCount: filteredTransactions.length,
+            filteredSpend,
+            totalSpend,
+            clearFilters,
+            onAssignCategory: assignCategory,
+            onOpenDetail: (row) => openManage(row.id),
+          }}
+          statements={statements}
+          payments={payments}
+          paidTotal={paidTotal}
+          onOpenStatement={openBreakdown}
+          onDeletePayment={onDeletePayment}
+          onAddTransaction={() => setTxnOpen(true)}
+          onAddStatement={() => setStmtOpen(true)}
+          onRecordPayment={() => setPayOpen(true)}
+          onEdit={() => setEditOpen(true)}
+        />
+      ) : (
+        <PageBody className="cardd-body">
+          <div className="cardd">
+            <div className="cardd__main">
+              {error && (
+                <Alert
+                  theme="red"
+                  title="Couldn't refresh this card"
+                  description={error}
+                  primaryAction={{ label: 'Try again', onClick: () => loadAll() }}
+                />
+              )}
+              {readyToImport && (
+                <Alert
+                  theme="blue"
+                  title={`${cardSchedule.next.label} statement is ready to import`}
+                  primaryAction={{ label: 'Import', onClick: () => navigate('/import') }}
+                />
+              )}
 
-            {summary}
+              {summary}
 
-            <div className="cardd-tabs">
-              <Tabs idPrefix="cardd" aria-label="Card sections" tabs={tabs} value={activeTab} onChange={setTab} />
-              <div
-                className="cardd-tabpanel"
-                role="tabpanel"
-                id={`cardd-panel-${activeTab}`}
-                aria-labelledby={`cardd-tab-${activeTab}`}
-              >
-                {activeTab === 'transactions' && transactionsPanel}
-                {activeTab === 'statements' && isCredit && statementsPanel}
-                {activeTab === 'payments' && isCredit && paymentsPanel}
-                {activeTab === 'details' && (
-                  <CardDetailsPanel card={card} schedule={cardSchedule} onEdit={() => setEditOpen(true)} />
-                )}
+              <div className="cardd-tabs">
+                <Tabs idPrefix="cardd" aria-label="Card sections" tabs={tabs} value={activeTab} onChange={setTab} />
+                <div
+                  className="cardd-tabpanel"
+                  role="tabpanel"
+                  id={`cardd-panel-${activeTab}`}
+                  aria-labelledby={`cardd-tab-${activeTab}`}
+                >
+                  {activeTab === 'transactions' && transactionsPanel}
+                  {activeTab === 'statements' && isCredit && statementsPanel}
+                  {activeTab === 'payments' && isCredit && paymentsPanel}
+                  {activeTab === 'details' && (
+                    <CardDetailsPanel card={card} schedule={cardSchedule} onEdit={() => setEditOpen(true)} />
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          {!isStacked && (
-            <aside className="cardd__aside" aria-label="Card details">
-              <div className="cardd__aside-inner">
-                <CardDetailsPanel card={card} schedule={cardSchedule} onEdit={() => setEditOpen(true)} />
-              </div>
-            </aside>
-          )}
-        </div>
-      </PageBody>
+            {!isStacked && (
+              <aside className="cardd__aside" aria-label="Card details">
+                <div className="cardd__aside-inner">
+                  <CardDetailsPanel card={card} schedule={cardSchedule} onEdit={() => setEditOpen(true)} />
+                </div>
+              </aside>
+            )}
+          </div>
+        </PageBody>
+      )}
 
       {editOpen && (
         <CardFormModal

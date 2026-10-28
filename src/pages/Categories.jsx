@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ChevronLeft, ChevronRight, Download, MoreHorizontal, Pencil, Plus, Search, Tags, Trash2,
+  ChevronLeft, ChevronRight, Download, Ellipsis, MoreHorizontal, Pencil, Plus, Search, Tags, Trash2,
 } from 'lucide-react';
 import {
-  Alert, Amount, Button, ConfirmDialog, Dropdown, EmptyState, ListView, PageBody, PageHeader, Skeleton, TextInput,
+  Alert, Button, ConfirmDialog, Dropdown, EmptyState, ListView, PageBody, PageHeader, Skeleton, TextInput,
   toast,
 } from '../components/ui';
 import { CategoryIcon } from '../components/common/Category.jsx';
@@ -13,6 +13,9 @@ import CategorySplitCard from '../components/categories/CategorySplitCard.jsx';
 import { categoryColor } from '../utils/categoryColors.js';
 import { fetchCategoryBreakdown } from '../services/dashboardApi.js';
 import { API_BASE, apiErrorMessage, apiFetch } from '../services/http.js';
+import { useIsCompact } from '../styles/breakpoints.js';
+import CategoriesPhone from './categories/CategoriesPhone.jsx';
+import { SpentCell, UNCATEGORISED_COLOR, categoryRowText, pctText, plural } from './categories/shared.jsx';
 import './Categories.css';
 
 /** First and last day of the month `offset` months from now, as ISO dates. */
@@ -28,18 +31,8 @@ function monthRange(offset = 0) {
   };
 }
 
-function plural(n, one, many) {
-  return `${n} ${n === 1 ? one : many}`;
-}
-
-function pctText(pct) {
-  return `${pct < 1 ? '<1' : pct.toFixed(0)}%`;
-}
-
-/** Colour for spending that has no category (list bar and donut slice). */
-const UNCATEGORISED_COLOR = 'var(--ink-gray-6)';
-
 export default function Categories() {
+  const isMobile = useIsCompact();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -342,82 +335,121 @@ export default function Categories() {
         }
         mobileActions={
           <>
-            <Button variant="ghost" size="md" icon={Download} label="Export" onClick={() => openExport(null)} disabled={!categories.length} />
             <Button variant="ghost" size="md" icon={Plus} label="Add category" onClick={openCreate} />
+            <Dropdown
+              label="Categories"
+              options={[
+                {
+                  label: 'Export CSV',
+                  icon: Download,
+                  disabled: !categories.length,
+                  onClick: () => openExport(null),
+                },
+              ]}
+            >
+              <Button variant="ghost" size="md" icon={Ellipsis} label="More actions" />
+            </Dropdown>
           </>
         }
       />
-      <PageBody className="catg-page">
-        {noCategories ? (
-          // Nothing to search, page through or split yet: just the way in.
-          <EmptyState
-            className="catg-empty"
-            icon={Tags}
-            title="No categories yet"
-            description="Add categories to sort your spending, like Food or Rent."
-            action={<Button iconLeft={Plus} label="Add category" onClick={openCreate} />}
-          />
-        ) : (
-          <div className="catg-layout">
-            <div className="catg-main">
-              <div className="catg-toolbar">
-                <TextInput
-                  className="catg-search"
-                  type="search"
-                  prefix={Search}
-                  placeholder="Search categories"
-                  aria-label="Search categories"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
-                <div className="catg-toolbar__end">
-                  <span className="catg-summary text-sm">{summary}</span>
-                  <div className="catg-month" role="group" aria-label="Month">
-                    <Button variant="ghost" icon={ChevronLeft} label="Previous month" onClick={() => setMonthOffset((o) => o - 1)} />
-                    <span className="catg-month__label" aria-live="polite">{month.label}</span>
-                    <Button
-                      variant="ghost"
-                      icon={ChevronRight}
-                      label="Next month"
-                      disabled={monthOffset >= 0}
-                      onClick={() => setMonthOffset((o) => o + 1)}
-                    />
+      {isMobile ? (
+        <CategoriesPhone
+          month={month}
+          monthOffset={monthOffset}
+          onMonthChange={(step) => setMonthOffset((o) => o + step)}
+          summary={summary}
+          query={query}
+          onQueryChange={setQuery}
+          noCategories={noCategories}
+          loading={loading && categories.length === 0}
+          loadError={loadError}
+          onRetryLoad={fetchCategories}
+          breakdownError={breakdownError}
+          breakdownLoading={breakdownLoading}
+          onRetryBreakdown={() => setBreakdownKey((k) => k + 1)}
+          showList={showList}
+          groups={flatRows ? undefined : groups}
+          rows={flatRows}
+          splitItems={splitItems}
+          splitTotal={breakdown?.totalSpent || splitTotal}
+          onCreate={openCreate}
+          onEdit={openEdit}
+          onExport={openExport}
+          onDelete={setDeleting}
+        />
+      ) : (
+        <PageBody className="catg-page">
+          {noCategories ? (
+            // Nothing to search, page through or split yet: just the way in.
+            <EmptyState
+              className="catg-empty"
+              icon={Tags}
+              title="No categories yet"
+              description="Add categories to sort your spending, like Food or Rent."
+              action={<Button iconLeft={Plus} label="Add category" onClick={openCreate} />}
+            />
+          ) : (
+            <div className="catg-layout">
+              <div className="catg-main">
+                <div className="catg-toolbar">
+                  <TextInput
+                    className="catg-search"
+                    type="search"
+                    prefix={Search}
+                    placeholder="Search categories"
+                    aria-label="Search categories"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                  <div className="catg-toolbar__end">
+                    <span className="catg-summary text-sm">{summary}</span>
+                    <div className="catg-month" role="group" aria-label="Month">
+                      <Button variant="ghost" icon={ChevronLeft} label="Previous month" onClick={() => setMonthOffset((o) => o - 1)} />
+                      <span className="catg-month__label" aria-live="polite">{month.label}</span>
+                      <Button
+                        variant="ghost"
+                        icon={ChevronRight}
+                        label="Next month"
+                        disabled={monthOffset >= 0}
+                        onClick={() => setMonthOffset((o) => o + 1)}
+                      />
+                    </div>
                   </div>
                 </div>
+
+                {loadError && (
+                  <Alert
+                    theme="red"
+                    title="Couldn't load categories"
+                    description={loadError}
+                    primaryAction={{ label: 'Try again', onClick: fetchCategories }}
+                  />
+                )}
+                {breakdownError && !loadError && (
+                  <Alert
+                    theme="amber"
+                    title={`Couldn't load spending for ${month.label}`}
+                    primaryAction={{ label: 'Try again', onClick: () => setBreakdownKey((k) => k + 1) }}
+                  />
+                )}
+
+                {list}
               </div>
 
-              {loadError && (
-                <Alert
-                  theme="red"
-                  title="Couldn't load categories"
-                  description={loadError}
-                  primaryAction={{ label: 'Try again', onClick: fetchCategories }}
+              <aside className="catg-aside" aria-label="Spending split">
+                <CategorySplitCard
+                  month={month}
+                  items={splitItems}
+                  total={breakdown?.totalSpent || splitTotal}
+                  loading={breakdownLoading || (loading && categories.length === 0)}
+                  error={breakdownError}
+                  onRetry={() => setBreakdownKey((k) => k + 1)}
                 />
-              )}
-              {breakdownError && !loadError && (
-                <Alert
-                  theme="amber"
-                  title={`Couldn't load spending for ${month.label}`}
-                  primaryAction={{ label: 'Try again', onClick: () => setBreakdownKey((k) => k + 1) }}
-                />
-              )}
-
-              {list}
+              </aside>
             </div>
-
-            <aside className="catg-aside" aria-label="Spending split">
-              <CategorySplitCard
-                month={month}
-                items={splitItems}
-                total={breakdown?.totalSpent || splitTotal}
-                loading={breakdownLoading || (loading && categories.length === 0)}
-                error={breakdownError}
-                onRetry={() => setBreakdownKey((k) => k + 1)}
-              />
-            </aside>
-          </div>
-        )}
-      </PageBody>
+          )}
+        </PageBody>
+      )}
 
       <CategoryFormDialog
         open={formOpen}
@@ -455,23 +487,9 @@ function deleteMessage(cat) {
 }
 
 function NameCell({ row, loading }) {
-  const { cat, stat, uncategorised } = row;
-  const amount = stat?.totalAmount || 0;
-  const used = stat && amount !== 0;
-  let hint = null;
-  if (uncategorised) hint = 'Not in any category yet';
-  else if (!used && !loading) {
-    hint = cat.transactionCount ? `${plural(cat.transactionCount, 'transaction', 'transactions')} all time` : 'Not used yet';
-  }
-
-  // Phones drop the share and count columns; this line carries them instead.
-  let meta = hint;
-  if (used) {
-    meta = amount < 0
-      ? `Money in · ${plural(stat.transactionCount, 'transaction', 'transactions')}`
-      : `${plural(stat.transactionCount, 'transaction', 'transactions')} · ${pctText(Math.max(0, stat.percentage || 0))}`;
-    if (uncategorised) meta = `${hint} · ${meta}`;
-  }
+  const { cat, uncategorised } = row;
+  // Narrow lists drop the share and count columns; `meta` carries them instead.
+  const { hint, meta } = categoryRowText(row, loading);
 
   return (
     <div className="catg-name">
@@ -483,17 +501,6 @@ function NameCell({ row, loading }) {
       </div>
     </div>
   );
-}
-
-/**
- * A category can net to a credit (refunds, a card bill paid from the account)
- * — that shows as money in, outside the month's spend.
- */
-function SpentCell({ stat, loading }) {
-  if (loading) return <Skeleton as="span" width={56} height={12} />;
-  if (!stat || stat.totalAmount === 0) return <span className="catg-muted">—</span>;
-  if (stat.totalAmount < 0) return <Amount value={-stat.totalAmount} sign="always" />;
-  return <Amount value={stat.totalAmount} tone="out" />;
 }
 
 function ShareCell({ row, loading }) {

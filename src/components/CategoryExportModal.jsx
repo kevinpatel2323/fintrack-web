@@ -4,6 +4,7 @@ import { Dialog, ErrorMessage, FormControl, toast } from './ui';
 import { formatDate } from './ui/DatePicker.jsx';
 import { categoryColor } from '../utils/categoryColors.js';
 import { downloadCategoryCsv } from '../services/categoriesApi.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 import './categories/category-dialogs.css';
 
 function pad(n) {
@@ -51,6 +52,8 @@ function rangeText({ start, end }) {
  * let the user pick, e.g. from the page header's "Export".
  */
 export default function CategoryExportModal({ category, categories, open, onClose }) {
+  // Phones: the dialog docks as a bottom sheet; its fields are 44px there.
+  const fieldSize = useIsCompact() ? 'lg' : undefined;
   const [categoryId, setCategoryId] = useState(null);
   const [period, setPeriod] = useState('all');
   const [custom, setCustom] = useState({ start: '', end: '' });
@@ -126,6 +129,7 @@ export default function CategoryExportModal({ category, categories, open, onClos
       {categories ? (
         <FormControl
           type="combobox"
+          size={fieldSize}
           label="Category"
           placeholder="Choose a category"
           searchPlaceholder="Search categories"
@@ -144,6 +148,7 @@ export default function CategoryExportModal({ category, categories, open, onClos
 
       <FormControl
         type="select"
+        size={fieldSize}
         label="Period"
         options={PERIODS}
         value={period}
@@ -154,6 +159,7 @@ export default function CategoryExportModal({ category, categories, open, onClos
       {period === 'custom' && (
         <FormControl
           type="daterange"
+          size={fieldSize}
           label="Dates"
           placeholder="Pick a start and end date"
           value={custom}

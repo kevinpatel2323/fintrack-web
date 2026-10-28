@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { Checkbox, TextInput } from '../ui';
+import { useIsCompact } from '../../styles/breakpoints.js';
 import './allocation.css';
 
 /**
@@ -44,6 +45,9 @@ export function AllocRowView({
   extra,
 }) {
   const id = useId();
+  // Phones: a 36px amount box (allocation.css makes the whole row the
+  // checkbox's label).
+  const phone = useIsCompact();
   return (
     <div className="alloc-row" role="row" data-selected={selected ? '' : undefined} data-editing={editing ? '' : undefined}>
       <span className="alloc-row__check" role="cell">
@@ -61,7 +65,7 @@ export function AllocRowView({
           <>
             <TextInput
               className="alloc-row__input"
-              size="sm"
+              size={phone ? 'md' : 'sm'}
               variant="outline"
               inputMode="decimal"
               placeholder="0.00"

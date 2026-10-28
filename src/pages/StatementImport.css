@@ -354,16 +354,6 @@
   color: var(--ink-gray-5);
 }
 
-@media (max-width: 639.98px) {
-  .import-row-desc__phone {
-    display: block;
-  }
-
-  .import-rows__search {
-    width: 100%;
-  }
-}
-
 /* The rows scroll inside the step on wider screens, so the step's buttons
    stay close; phones show the first rows and a "Show all" instead. */
 @media (min-width: 768px) {
@@ -470,16 +460,6 @@
   padding: 8px 16px 12px;
 }
 
-@media (max-width: 639.98px) {
-  .import-hist {
-    --ui-list-row-height: 64px;
-  }
-
-  .import-hist__phone-meta {
-    display: block;
-  }
-}
-
 /* ---------- Last bank import ---------- */
 
 .import-last__account {
@@ -547,40 +527,398 @@
   overflow-wrap: anywhere;
 }
 
-/* ---------- Phone ---------- */
+/* ---------- Phone layout (import/ImportPhone.jsx and the phone branches of
+   its pieces). Only phone markup uses these classes. ---------- */
 
 @media (max-width: 767.98px) {
-  p.import-header-note {
-    margin-bottom: 12px;
+  /* Scroll target for a new step: the top of the page, padding included. */
+  .import-ph-top {
+    position: relative;
+    top: -16px;
+    height: 0;
   }
 
-  .import-flow__steps {
-    padding: 12px;
-  }
-
-  .import-stepper {
+  /* Step line: "Step 1 of 3 · Upload" over a thin three-part bar. */
+  .import-ph-steps {
+    display: flex;
     flex-direction: column;
-    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .import-ph-steps__line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .import-ph-steps__label {
+    min-width: 0;
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--ink-gray-9);
+  }
+
+  .import-ph-steps__count {
+    font-weight: 420;
+    color: var(--ink-gray-5);
+  }
+
+  .import-ph-steps__note {
+    flex-shrink: 0;
+    font-size: 13px;
+    color: var(--ink-gray-5);
+    white-space: nowrap;
+  }
+
+  .import-ph-steps__bar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .import-ph-steps__seg {
+    height: 4px;
+    border-radius: var(--radius-full);
+    background: var(--surface-gray-2);
+  }
+
+  .import-ph-steps__seg[data-done] {
+    background: var(--surface-gray-10);
+  }
+
+  /* ---------- The step ---------- */
+
+  .import-ph-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+
+  .import-ph-drop.ui-file-uploader--md {
+    min-height: 184px;
+    padding: 32px 16px;
+    border-radius: var(--radius-6);
+  }
+
+  .import-ph-drop .ui-file-uploader__title {
+    font-size: 16px;
+  }
+
+  .import-ph-drop .ui-file-uploader__description,
+  .import-ph-drop .ui-file-uploader__error {
+    font-size: 13px;
+  }
+
+  .import-ph-hint {
+    margin: -8px 0 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ink-gray-5);
+  }
+
+  .import-ph .import-file {
+    min-height: 56px;
+    border-radius: var(--radius-6);
+  }
+
+  .import-ph .import-file__name {
+    font-size: 16px;
+    font-weight: 420;
+  }
+
+  /* Review: counts as tiles, two to a row; with three, "New" leads alone. */
+  .import-ph-tiles {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+  }
+
+  .import-ph-tiles[data-count='3'] > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  .import-ph-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--outline-gray-1);
+    border-radius: var(--radius-6);
+  }
+
+  .import-ph-tile__label {
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--ink-gray-5);
+  }
+
+  .import-ph-tile__value {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 6px;
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--ink-gray-9);
+  }
+
+  .import-ph-tile__hint {
+    font-size: 13px;
+    font-weight: 420;
+    color: var(--ink-gray-5);
+  }
+
+  .import-ph .import-section__title {
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  .import-ph .import-section__description {
+    font-size: 13px;
+  }
+
+  .import-ph .import-match__label {
+    font-size: 15px;
+  }
+
+  .import-ph-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    margin-top: 8px;
+  }
+
+  .import-ph-rows__title {
+    display: flex;
+    align-items: baseline;
     gap: 6px;
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--ink-gray-9);
   }
 
-  .import-stepper__step + .import-stepper__step {
-    flex: none;
+  .import-ph-rows__count {
+    font-size: 15px;
+    font-weight: 420;
+    color: var(--ink-gray-5);
   }
 
-  .import-stepper__step + .import-stepper__step::before {
-    display: none;
+  /* Search pins at the top of the scroll area while the rows go by. */
+  .import-ph-rows__search {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    margin-inline: calc(-1 * var(--page-gutter));
+    padding: 4px var(--page-gutter) 8px;
+    background: var(--surface-base);
   }
 
-  .import-flow__body {
-    padding: 12px;
+  .import-ph-rows__search .ui-text-input {
+    width: 100%;
   }
 
-  .import-flow__footer {
-    padding: 12px;
+  /* `.ui-list` caps itself at 100%, which undoes phone-bleed's margins. */
+  .import-ph-list {
+    --list-gap: 12px;
+    max-width: none;
   }
 
-  .import-drop.ui-file-uploader--md {
-    padding: 28px 16px;
+  .import-ph-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .import-ph-row__title,
+  .import-ph-row__sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .import-ph-row__title {
+    font-size: 16px;
+    line-height: 1.3;
+    color: var(--ink-gray-8);
+  }
+
+  .import-ph-row__sub {
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--ink-gray-5);
+  }
+
+  .import-ph-row__sub[data-status='merge'] {
+    color: var(--ink-amber-7);
+  }
+
+  .import-ph-row__amount {
+    font-size: 16px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .import-ph-rows__more {
+    width: 100%;
+  }
+
+  /* Confirm */
+  .import-ph-confirm {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .import-ph-confirm__lead {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--ink-gray-8);
+  }
+
+  /* Action bar: the secondary button takes its own width, the main one the
+     rest ("Import 128 transactions" needs it at 375px). */
+  .import-ph-bar > .import-ph-bar__secondary {
+    flex: 0 0 auto;
+    padding-inline: 20px;
+  }
+
+  /* ---------- Under the upload: what's next, what came in ---------- */
+
+  .import-ph-status {
+    margin-top: 32px;
+  }
+
+  /* Section titles sit level with the control beside them (the account
+     picker, the refresh button, the "to import" badge). */
+  .import-ph-status .ui-msection__head {
+    align-items: center;
+  }
+
+  .import-ph-last__account {
+    width: 152px;
+  }
+
+  .import-ph-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 12px 16px;
+    border-radius: var(--radius-7);
+    background: var(--surface-gray-1);
+  }
+
+  .import-ph-strip > div {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .import-ph-strip dt {
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--ink-gray-5);
+  }
+
+  .import-ph-strip dd {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--ink-gray-9);
+  }
+
+  .import-ph-callout {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 4px 0 0;
+    padding: 0 4px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ink-gray-6);
+  }
+
+  .import-ph-callout > svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: var(--ink-gray-5);
+  }
+
+  .import-ph-hist {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .import-ph-hist__title,
+  .import-ph-hist__sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .import-ph-hist__title {
+    font-size: 16px;
+    line-height: 1.3;
+    color: var(--ink-gray-8);
+  }
+
+  .import-ph-hist__sub {
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--ink-gray-5);
+  }
+
+  .import-ph-hist__end {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    white-space: nowrap;
+  }
+
+  .import-ph-hist__value {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink-gray-8);
+  }
+
+  .import-ph-hist__date {
+    font-size: 13px;
+    color: var(--ink-gray-5);
+  }
+
+  .import-ph-hist__busy {
+    display: inline-grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+  }
+
+  /* The row `…` sits flush with the gutter, like MobileListItem's. */
+  .import-ph-list .ui-list__cell:last-child:has(button, .import-ph-hist__busy) {
+    margin-right: -8px;
+  }
+
+  .import-ph-list .ui-list__footer {
+    padding-inline: var(--page-gutter);
   }
 }

@@ -4,6 +4,7 @@ import { categoryOptions as buildCategoryOptions } from './common/Category.jsx';
 import { createCardTransaction, updateCardTransaction } from '../services/cardsApi.js';
 import './cards/cards.css';
 import { getTodayIso } from '../utils/dateUtils.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 
 /**
  * Add or edit a card transaction. Pass `initial` (an existing card
@@ -20,6 +21,8 @@ export default function CardTransactionModal({
 }) {
   const formId = useId();
   const isEdit = Boolean(initial);
+  // No autofocus on phones: the keyboard would cover the sheet as it opens.
+  const isMobile = useIsCompact();
   const [merchant, setMerchant] = useState(initial?.merchant ?? '');
   const [amount, setAmount] = useState(initial ? String(initial.amount ?? '') : '');
   const [txnDate, setTxnDate] = useState(initial?.txnDate ?? getTodayIso());
@@ -105,7 +108,7 @@ export default function CardTransactionModal({
           maxLength={200}
           placeholder="Amazon India"
           error={fieldErrors.merchant}
-          autoFocus={!isEdit}
+          autoFocus={!isEdit && !isMobile}
         />
         <div className="cardform__grid cardform__grid--keep">
           <FormControl

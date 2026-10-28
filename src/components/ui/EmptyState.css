@@ -61,3 +61,38 @@
 .ui-empty-state--sm .ui-empty-state__action {
   margin-top: 12px;
 }
+
+/* Phones: body-size text (15px) and a little more air on a full page; the
+ * small one inside a list keeps 13px secondary text. */
+@media (max-width: 767.98px) {
+  .ui-empty-state {
+    max-width: 320px;
+    padding: 48px 16px;
+  }
+
+  .ui-empty-state--sm {
+    padding: 32px 16px;
+  }
+
+  .ui-empty-state__title {
+    font-size: 16px;
+    letter-spacing: 0.01em;
+  }
+
+  .ui-empty-state__description {
+    font-size: 15px;
+    letter-spacing: 0.01em;
+  }
+
+  .ui-empty-state--sm .ui-empty-state__title {
+    font-size: 15px;
+  }
+
+  .ui-empty-state--sm .ui-empty-state__description {
+    font-size: 13px;
+  }
+
+  .ui-empty-state__action {
+    margin-top: 20px;
+  }
+}

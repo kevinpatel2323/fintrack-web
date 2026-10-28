@@ -129,7 +129,22 @@ export default function SubscriptionDialog({
     }
   }
 
-  const footer = (
+  const footer = compact ? (
+    // Phone: Cancel and the main action share the width; Delete sits at the
+    // foot of the form instead of crowding them.
+    <div className="cal-form__footer">
+      <Button size="lg" label="Cancel" onClick={onClose} disabled={saving} />
+      <Button
+        size="lg"
+        variant="solid"
+        type="submit"
+        form={FORM_ID}
+        label={editingId ? 'Save' : 'Add subscription'}
+        loading={saving}
+        loadingText="Saving…"
+      />
+    </div>
+  ) : (
     <div className="cal-form__footer">
       {editingId && (
         <Button
@@ -154,6 +169,232 @@ export default function SubscriptionDialog({
     </div>
   );
 
+  const nameField = (
+    <FormControl
+      className="cal-form__full"
+      label="Name"
+      required
+      placeholder="Netflix"
+      maxLength={200}
+      // Phones open the sheet without the keyboard (frappe-ui BottomSheet).
+      autoFocus={!editingId && !compact}
+      value={form.name}
+      onChange={set('name')}
+      error={errors.name}
+    />
+  );
+  const amountField = (
+    <FormControl
+      label="Amount"
+      type="number"
+      required
+      min="0"
+      step="0.01"
+      placeholder="0.00"
+      prefix={<span className="text-ink-gray-5">₹</span>}
+      inputMode={compact ? 'decimal' : undefined}
+      value={form.amount}
+      onChange={set('amount')}
+      error={errors.amount}
+    />
+  );
+  const startField = (
+    <FormControl
+      label="Start date"
+      type="date"
+      required
+      value={form.dtstart}
+      onChange={setValue('dtstart')}
+      error={errors.dtstart}
+    />
+  );
+  const repeatsField = (
+    <FormControl
+      label="Repeats"
+      type="select"
+      options={CADENCE_OPTIONS}
+      value={cadence.mode}
+      onChange={(e) => changeMode(e.target.value)}
+      description={compact ? undefined : cadenceHint(cadence.mode, cadence.day)}
+    />
+  );
+  const dayField = cadence.mode === 'monthly' && (
+    <FormControl
+      label="Day of month"
+      type="number"
+      min="1"
+      max="31"
+      step="1"
+      inputMode={compact ? 'numeric' : undefined}
+      value={cadence.day}
+      onChange={(e) => changeDay(e.target.value)}
+      onBlur={() => changeDay(String(parseCadence(form.rrule).day ?? 1))}
+    />
+  );
+  const customField = cadence.mode === 'custom' && (
+    <FormControl
+      className="cal-form__full"
+      label="Recurrence rule (RRULE)"
+      required
+      placeholder="FREQ=MONTHLY;BYMONTHDAY=15"
+      inputClassName="cal-form__mono"
+      value={form.rrule}
+      onChange={set('rrule')}
+      error={errors.rrule}
+      description="RFC 5545 rule, for example FREQ=MONTHLY;INTERVAL=2;BYMONTHDAY=15"
+    />
+  );
+  const statusField = (
+    <FormControl
+      label="Status"
+      type="select"
+      options={STATUS_OPTIONS}
+      value={form.status}
+      onChange={set('status')}
+    />
+  );
+  const categoryField = (
+    <FormControl
+      label="Category"
+      type="combobox"
+      options={categoryOptions}
+      value={form.categoryId || null}
+      onChange={setValue('categoryId')}
+      placeholder="No category"
+      searchPlaceholder="Search categories"
+      clearable
+    />
+  );
+  const merchantField = (
+    <FormControl
+      label="Merchant label"
+      placeholder="As it appears on the statement"
+      maxLength={200}
+      value={form.merchantLabel}
+      onChange={set('merchantLabel')}
+    />
+  );
+  const remindField = (
+    <FormControl
+      label="Remind days before"
+      type="number"
+      min="0"
+      step="1"
+      placeholder="No reminder"
+      inputMode={compact ? 'numeric' : undefined}
+      value={form.remindDaysBefore}
+      onChange={set('remindDaysBefore')}
+    />
+  );
+  const trialField = (
+    <FormControl
+      className="cal-form__full"
+      type="checkbox"
+      label="Free trial"
+      checked={form.isTrial}
+      onChange={(e) => setForm((p) => ({ ...p, isTrial: e.target.checked }))}
+    />
+  );
+  const trialDates = form.isTrial && (
+    <>
+      <FormControl
+        label="Trial started on"
+        type="date"
+        clearable
+        placeholder="Not set"
+        value={form.trialStartedOn}
+        onChange={setValue('trialStartedOn')}
+      />
+      <FormControl
+        label="Trial ends on"
+        type="date"
+        clearable
+        placeholder="Not set"
+        value={form.trialEndsOn}
+        onChange={setValue('trialEndsOn')}
+      />
+    </>
+  );
+  const exdatesField = (
+    <FormControl
+      className="cal-form__full"
+      label="Exception dates"
+      type="textarea"
+      rows={2}
+      placeholder="2026-12-01"
+      value={form.exdatesText}
+      onChange={set('exdatesText')}
+      description="Dates with no bill, one per line (YYYY-MM-DD)"
+    />
+  );
+  const notesField = (
+    <FormControl
+      className="cal-form__full"
+      label="Notes"
+      type="textarea"
+      rows={2}
+      value={form.notes}
+      onChange={set('notes')}
+    />
+  );
+  const errorField = formError && <ErrorMessage className="cal-form__full" message={formError} />;
+
+  // Phone: one column in the order a bill is thought about (what, how much,
+  // how often, from when), with the repeat controls side by side.
+  const hint = cadenceHint(cadence.mode, cadence.day);
+  const fields = compact ? (
+    <>
+      {nameField}
+      {amountField}
+      <div className="cal-form__pair">
+        {repeatsField}
+        {dayField}
+      </div>
+      {hint && <p className="cal-form__hint">{hint}</p>}
+      {customField}
+      {startField}
+      {categoryField}
+      {statusField}
+      {merchantField}
+      {remindField}
+      {trialField}
+      {form.isTrial && <div className="cal-form__pair">{trialDates}</div>}
+      {exdatesField}
+      {notesField}
+      {errorField}
+      {editingId && (
+        <Button
+          size="lg"
+          variant="ghost"
+          theme="red"
+          iconLeft={Trash2}
+          label="Delete subscription"
+          disabled={saving}
+          onClick={() => onDelete(subscription)}
+          className="cal-form__delete-row"
+        />
+      )}
+    </>
+  ) : (
+    <>
+      {nameField}
+      {amountField}
+      {startField}
+      {repeatsField}
+      {dayField}
+      {customField}
+      {statusField}
+      {categoryField}
+      {merchantField}
+      {remindField}
+      {trialField}
+      {trialDates}
+      {exdatesField}
+      {notesField}
+      {errorField}
+    </>
+  );
+
   return (
     <FormFrame
       compact={compact}
@@ -165,149 +406,7 @@ export default function SubscriptionDialog({
       footer={footer}
     >
       <form id={FORM_ID} className="cal-form" onSubmit={submit} noValidate>
-        <FormControl
-          className="cal-form__full"
-          label="Name"
-          required
-          placeholder="Netflix"
-          maxLength={200}
-          autoFocus={!editingId}
-          value={form.name}
-          onChange={set('name')}
-          error={errors.name}
-        />
-        <FormControl
-          label="Amount"
-          type="number"
-          required
-          min="0"
-          step="0.01"
-          placeholder="0.00"
-          prefix={<span className="text-ink-gray-5">₹</span>}
-          value={form.amount}
-          onChange={set('amount')}
-          error={errors.amount}
-        />
-        <FormControl
-          label="Start date"
-          type="date"
-          required
-          value={form.dtstart}
-          onChange={setValue('dtstart')}
-          error={errors.dtstart}
-        />
-        <FormControl
-          label="Repeats"
-          type="select"
-          options={CADENCE_OPTIONS}
-          value={cadence.mode}
-          onChange={(e) => changeMode(e.target.value)}
-          description={cadenceHint(cadence.mode, cadence.day)}
-        />
-        {cadence.mode === 'monthly' && (
-          <FormControl
-            label="Day of month"
-            type="number"
-            min="1"
-            max="31"
-            step="1"
-            value={cadence.day}
-            onChange={(e) => changeDay(e.target.value)}
-            onBlur={() => changeDay(String(parseCadence(form.rrule).day ?? 1))}
-          />
-        )}
-        {cadence.mode === 'custom' && (
-          <FormControl
-            className="cal-form__full"
-            label="Recurrence rule (RRULE)"
-            required
-            placeholder="FREQ=MONTHLY;BYMONTHDAY=15"
-            inputClassName="cal-form__mono"
-            value={form.rrule}
-            onChange={set('rrule')}
-            error={errors.rrule}
-            description="RFC 5545 rule, for example FREQ=MONTHLY;INTERVAL=2;BYMONTHDAY=15"
-          />
-        )}
-        <FormControl
-          label="Status"
-          type="select"
-          options={STATUS_OPTIONS}
-          value={form.status}
-          onChange={set('status')}
-        />
-        <FormControl
-          label="Category"
-          type="combobox"
-          options={categoryOptions}
-          value={form.categoryId || null}
-          onChange={setValue('categoryId')}
-          placeholder="No category"
-          searchPlaceholder="Search categories"
-          clearable
-        />
-        <FormControl
-          label="Merchant label"
-          placeholder="As it appears on the statement"
-          maxLength={200}
-          value={form.merchantLabel}
-          onChange={set('merchantLabel')}
-        />
-        <FormControl
-          label="Remind days before"
-          type="number"
-          min="0"
-          step="1"
-          placeholder="No reminder"
-          value={form.remindDaysBefore}
-          onChange={set('remindDaysBefore')}
-        />
-        <FormControl
-          className="cal-form__full"
-          type="checkbox"
-          label="Free trial"
-          checked={form.isTrial}
-          onChange={(e) => setForm((p) => ({ ...p, isTrial: e.target.checked }))}
-        />
-        {form.isTrial && (
-          <>
-            <FormControl
-              label="Trial started on"
-              type="date"
-              clearable
-              placeholder="Not set"
-              value={form.trialStartedOn}
-              onChange={setValue('trialStartedOn')}
-            />
-            <FormControl
-              label="Trial ends on"
-              type="date"
-              clearable
-              placeholder="Not set"
-              value={form.trialEndsOn}
-              onChange={setValue('trialEndsOn')}
-            />
-          </>
-        )}
-        <FormControl
-          className="cal-form__full"
-          label="Exception dates"
-          type="textarea"
-          rows={2}
-          placeholder="2026-12-01"
-          value={form.exdatesText}
-          onChange={set('exdatesText')}
-          description="Dates with no bill, one per line (YYYY-MM-DD)"
-        />
-        <FormControl
-          className="cal-form__full"
-          label="Notes"
-          type="textarea"
-          rows={2}
-          value={form.notes}
-          onChange={set('notes')}
-        />
-        {formError && <ErrorMessage className="cal-form__full" message={formError} />}
+        {fields}
       </form>
     </FormFrame>
   );

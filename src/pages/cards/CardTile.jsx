@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Amount, Badge, Progress, Skeleton } from '../../components/ui';
 import CardFace from '../../components/cards/CardFace.jsx';
 import {
-  bankName, cardTitle, dayLabel, dueBadge, formatPct,
+  bankName, cardTitle, dayLabel, dueBadge, formatPct, nextBill,
 } from '../../components/cards/cardFormat.js';
 
 /** "Statements up to date · Nov 2026 in 20 days", or the statement to import. */
@@ -30,15 +30,14 @@ export function StatementStatus({ schedule, className = '' }) {
 
 /** The next bill on a credit card, from /cards/dues (falls back to the card). */
 function DueLine({ card, due }) {
-  const owed = due ? (due.status === 'no-due' ? 0 : due.amount) : Number(card.currentDue || 0);
-  const date = due?.dueDate || card.currentDueDate;
-  if (!owed || !date) return <p className="cards-tile__muted">No bill due</p>;
+  const bill = nextBill(card, due);
+  if (!bill) return <p className="cards-tile__muted">No bill due</p>;
   const badge = dueBadge(due);
   return (
     <p className="cards-tile__due">
       <span className="truncate">
-        Due {dayLabel(date)} ·{' '}
-        <Amount value={Number(owed)} tone={due?.status === 'overdue' ? 'due' : 'inherit'} />
+        Due {dayLabel(bill.date)} ·{' '}
+        <Amount value={bill.amount} tone={due?.status === 'overdue' ? 'due' : 'inherit'} />
       </span>
       {badge && <Badge size="sm" theme={badge.theme} label={badge.label} />}
     </p>

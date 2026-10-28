@@ -165,18 +165,48 @@
   }
 }
 
+/* ---------- Phones: card dialogs as bottom sheets ---------- */
 @media (max-width: 767.98px) {
-  .cardform__grid--3 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 479.98px) {
-  .cardform__grid {
-    grid-template-columns: minmax(0, 1fr);
+  /* The preview stays a card, at a size that leaves room for the form. */
+  .cardform__preview {
+    width: 62%;
+    max-width: 240px;
   }
 
-  .cardform__grid--keep {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Last 4 digits, expiry month and year read as one line on the card. */
+  .cardform__grid.cardform__grid--phone3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  /* Seven colours across the width, each a full-size tap target. */
+  .cardform__swatches {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .cardform__swatch {
+    width: 100%;
+    height: 44px;
+  }
+
+  .cardform__swatch .card-mark {
+    width: 32px;
+    height: 21px;
+    border-radius: 4px;
+  }
+
+  .cardform__heading {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .unbilled__steps {
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .unbilled__summary {
+    font-size: 15px;
   }
 }

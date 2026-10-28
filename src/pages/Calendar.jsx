@@ -15,9 +15,11 @@ import {
   parseCalendarView,
   patchCalendarParams,
 } from '../utils/calendarParams.js';
-import { BillsCard } from './calendar/Bills.jsx';
+import { BillsCard, BillsSection } from './calendar/Bills.jsx';
+import { PhoneCalendarBar, PhonePendingStrip } from './calendar/CalendarPhoneParts.jsx';
 import CategorySpend from './calendar/CategorySpend.jsx';
 import DayTransactions from './calendar/DayTransactions.jsx';
+import DayTransactionsPhone from './calendar/DayTransactionsPhone.jsx';
 import MonthGrid, { CalendarLegend } from './calendar/MonthGrid.jsx';
 import NewTransactionDialog from './calendar/NewTransactionDialog.jsx';
 import SubscriptionDialog from './calendar/SubscriptionDialog.jsx';
@@ -45,7 +47,9 @@ function errorMessage(data, fallback) {
  * Calendar (`/calendar`): the month's transactions on a grid with the
  * selected day beside it, and (`?view=subscriptions`) the recurring bills.
  * `month`, `day` and `view` live in the URL so the transaction page can
- * send you back to the same place.
+ * send you back to the same place. Phones get their own layout (one column:
+ * view segment, month bar, the categorising strip, a swipeable grid, the
+ * selected day, then the month's spending and bills) over the same state.
  */
 export default function Calendar() {
   const navigate = useNavigate();
@@ -389,7 +393,8 @@ export default function Calendar() {
 
   const header = (
     <PageHeader
-      title={monthTitle}
+      // Phones name the tab; the month sits in the bar under the header.
+      title={isMobile ? 'Calendar' : monthTitle}
       actions={
         <>
           {monthNav}
@@ -463,6 +468,43 @@ export default function Calendar() {
     </div>
   ) : null;
 
+  const subsViewProps = {
+    subs,
+    loading: subsLoading,
+    error: subsError,
+    onRetry: loadSubs,
+    nextById,
+    categoriesById,
+    subsById,
+    monthBills,
+    monthName,
+    monthTotal: monthBillsTotal,
+    todayIso,
+    onNew: openNewSubscription,
+    onEdit: openSubscription,
+    onDelete: setDeleting,
+  };
+
+  // The selected day's panel: the desktop table or the phone rows.
+  const dayProps = {
+    iso: activeIso,
+    txs: selectedTxs,
+    bills: selectedBills,
+    loading: txLoading,
+    categories,
+    categoriesById,
+    onAssignCategory: assignCategory,
+    onOpenDetail: openTransactionDetail,
+    ccDetailByTransaction,
+    onLoadCcDetail: loadCcDetail,
+    cardTags: cardManager.tagsByTransaction,
+    onAssignCardCategory: cardManager.assignCategory,
+    onOpenCardManage: openCardManage,
+    subsById,
+    onOpenSubscription: openSubscription,
+    onAddTransaction: openManual,
+  };
+
   const transactionsView = (
     <div className="cal-layout">
       <div className="cal-main">
@@ -497,38 +539,18 @@ export default function Calendar() {
           todayIso={todayIso}
           selectedIso={activeIso}
           onSelect={selectDay}
-          compact={isMobile}
           loading={txLoading}
           focusPending={focusPending}
           label={monthTitle}
         />
-        <CalendarLegend compact={isMobile} />
-        <DayTransactions
-          ref={dayRef}
-          iso={activeIso}
-          txs={selectedTxs}
-          bills={selectedBills}
-          loading={txLoading}
-          isMobile={isMobile}
-          categories={categories}
-          categoriesById={categoriesById}
-          onAssignCategory={assignCategory}
-          onOpenDetail={openTransactionDetail}
-          ccDetailByTransaction={ccDetailByTransaction}
-          onLoadCcDetail={loadCcDetail}
-          cardTags={cardManager.tagsByTransaction}
-          onAssignCardCategory={cardManager.assignCategory}
-          onOpenCardManage={openCardManage}
-          subsById={subsById}
-          onOpenSubscription={openSubscription}
-          onAddTransaction={openManual}
-        />
+        <CalendarLegend />
+        <DayTransactions ref={dayRef} {...dayProps} />
       </div>
       <aside className="cal-aside" ref={asideRef} aria-label="Month details">
         <CategorySpend
           transactions={transactions}
           monthName={monthName}
-          max={isMobile ? 5 : 6}
+          max={6}
           loading={txLoading && transactions.length === 0}
         />
         {upcomingCard}
@@ -536,34 +558,111 @@ export default function Calendar() {
     </div>
   );
 
+  // ── Phone ──────────────────────────────────────────────────────────────
+  const swipeMonth = (step) => (step > 0 ? goNext() : goPrev());
+  // First load: no "₹0 spent" before anything has arrived.
+  const firstLoad = txLoading && transactions.length === 0;
+
+  const phoneTransactions = (
+    <>
+      {txError && (
+        <Alert
+          theme="red"
+          title="Couldn’t load transactions"
+          description={txError}
+          primaryAction={{ label: 'Try again', onClick: loadTransactions }}
+        />
+      )}
+      {pending.total > 0 && (
+        <PhonePendingStrip
+          pending={pending}
+          monthName={monthName}
+          focus={focusPending}
+          onFocusChange={setFocusPending}
+          onNext={goToNextPending}
+        />
+      )}
+      <div className="cal-pgrid">
+        <MonthGrid
+          cells={cells}
+          txByDay={txByDay}
+          subByDay={subByDay}
+          cardsById={cardsById}
+          ccDetailByTransaction={ccDetailByTransaction}
+          todayIso={todayIso}
+          selectedIso={activeIso}
+          onSelect={selectDay}
+          compact
+          loading={txLoading}
+          focusPending={focusPending}
+          label={monthTitle}
+          onSwipe={swipeMonth}
+        />
+        <CalendarLegend compact />
+      </div>
+      <DayTransactionsPhone ref={dayRef} {...dayProps} />
+      <CategorySpend
+        phone
+        transactions={transactions}
+        monthName={monthName}
+        max={5}
+        loading={firstLoad}
+      />
+      <BillsSection
+        title="Upcoming bills"
+        action={{ label: 'New subscription', onClick: openNewSubscription }}
+        items={upcoming}
+        todayIso={todayIso}
+        subsById={subsById}
+        categoriesById={categoriesById}
+        onOpenSubscription={openSubscription}
+        loading={occLoading && upcoming.length === 0}
+        emptyTitle={`No more bills in ${monthName}`}
+        emptyDescription="Subscriptions you add show here before they are due."
+      />
+    </>
+  );
+
+  const phoneBody = (
+    <div className="cal-phone">
+      <PhoneCalendarBar
+        views={VIEW_OPTIONS}
+        view={view}
+        onViewChange={setView}
+        monthTitle={monthTitle}
+        onPrev={goPrev}
+        onNext={goNext}
+        onToday={goToday}
+      >
+        {!isSubs && firstLoad && (
+          <p className="cal-summary cal-mbar__summary">
+            Loading the month
+            <Spinner size="sm" aria-label="Loading transactions" className="cal-mbar__spinner" />
+          </p>
+        )}
+        {!isSubs && !firstLoad && (
+          <p className="cal-summary cal-mbar__summary">
+            <Amount value={monthSpent} sign="never" tone="inherit" className="cal-summary__figure" /> spent
+            <span aria-hidden="true"> · </span>
+            <Amount value={monthEarned} sign={monthEarned > 0 ? 'always' : 'never'} tone={monthEarned > 0 ? 'in' : 'inherit'} className="cal-summary__figure" /> earned
+            <span aria-hidden="true"> · </span>
+            <Amount value={monthBillsTotal} sign="never" tone="inherit" className="cal-summary__figure" /> in bills
+            {txLoading && <Spinner size="sm" aria-label="Loading transactions" className="cal-mbar__spinner" />}
+          </p>
+        )}
+      </PhoneCalendarBar>
+      {isSubs ? (
+        <SubscriptionsView compact {...subsViewProps} />
+      ) : phoneTransactions}
+    </div>
+  );
+
   return (
     <>
       {header}
       <PageBody className="cal-page">
-        {isMobile && (
-          <div className="cal-toolbar">
-            <TabButtons options={VIEW_OPTIONS} value={view} onChange={setView} fluid aria-label="Calendar view" className="cal-toolbar__tabs" />
-            {monthNav}
-          </div>
-        )}
-        {isSubs ? (
-          <SubscriptionsView
-            compact={isMobile}
-            subs={subs}
-            loading={subsLoading}
-            error={subsError}
-            onRetry={loadSubs}
-            nextById={nextById}
-            categoriesById={categoriesById}
-            subsById={subsById}
-            monthBills={monthBills}
-            monthName={monthName}
-            monthTotal={monthBillsTotal}
-            todayIso={todayIso}
-            onNew={openNewSubscription}
-            onEdit={openSubscription}
-            onDelete={setDeleting}
-          />
+        {isMobile ? phoneBody : isSubs ? (
+          <SubscriptionsView {...subsViewProps} />
         ) : (
           transactionsView
         )}

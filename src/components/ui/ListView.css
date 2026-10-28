@@ -600,6 +600,12 @@
   justify-content: flex-start;
 }
 
+/* Phones: the menu opens as a bottom sheet (Popover mobile="sheet"). */
+.ui-list-colmenu-sheet .ui-list-colmenu {
+  min-width: 0;
+  padding: 0;
+}
+
 /* ---------- Selection banner ---------- */
 
 /* A zero-height sticky anchor at the end of the list: the banner hangs above
@@ -709,12 +715,34 @@
   }
 }
 
+/* Phones: the phone shell's scroll area already ends above the tab bar or a
+ * MobileActionBar, so the banner floats 12px above that edge — or above the
+ * home indicator when the screen has neither. It spans the width inside the
+ * page gutter, with 36px buttons. */
 @media (max-width: 767.98px) {
   .ui-list__banner-anchor {
-    bottom: calc(16px + var(--mobile-nav-height, 0px) + env(safe-area-inset-bottom, 0px));
+    bottom: 12px;
+  }
+  .mobile-shell:not([data-nav]):not(:has(> .mobile-shell__footer:not(:empty))) .ui-list__banner-anchor {
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
   .ui-list-banner {
-    padding: 8px 8px 8px 12px;
+    width: min(100%, calc(100vw - 2 * var(--page-gutter, 16px)));
+    min-width: 0;
+    max-width: none;
+    min-height: 52px;
+    padding: 8px 8px 8px 16px;
+    border-radius: var(--radius-6);
+    font-size: 15px;
+  }
+  .ui-list-banner__btn {
+    height: 36px;
+    padding: 0 10px;
+    font-size: 15px;
+  }
+  .ui-list-banner__btn--icon {
+    width: 36px;
+    padding: 0;
   }
 }
 
@@ -778,6 +806,44 @@
   .ui-list[data-phone] .ui-list__row:first-child .ui-list__divider {
     display: none;
   }
+
+  /* iOS-style inset hairlines: set --ui-list-divider-inset on the list (e.g.
+     44px = a 32px leading tile + 12px gap) to start them at the text. */
+  .ui-list[data-phone] .ui-list__divider {
+    left: var(--ui-list-divider-inset, 0px);
+  }
+
+  /* `.phone-bleed` lists run edge to edge (styles/base.css). */
+  .ui-list.phone-bleed {
+    max-width: none;
+  }
+
+  /* Group headers: a comfortable tap to fold, 13px medium label. */
+  .ui-list[data-phone] .ui-list__group-header {
+    height: 40px;
+  }
+  .ui-list[data-phone] .ui-list__group-toggle {
+    height: 36px;
+    gap: 6px;
+    letter-spacing: 0.01em;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ui-list[data-phone] .ui-list__group + .ui-list__group {
+    margin-top: 8px;
+  }
+
+  /* Skeleton rows: a title bar over a shorter line, like a loaded row. */
+  .ui-list[data-phone] .ui-list__skeleton {
+    height: 14px;
+  }
+
+  .ui-list[data-phone] .ui-list__empty {
+    padding: 0;
+  }
+
+  .ui-list[data-phone] .ui-list__footer {
+    padding-top: 4px;
+  }
 }
 
 .ui-list-phonesort {
@@ -804,6 +870,10 @@
 
 .ui-list-phonesort__btn:active {
   background: var(--surface-gray-2);
+}
+
+.ui-list-phonesort__btn > svg {
+  flex-shrink: 0;
 }
 
 .ui-list-phonesort__btn:focus-visible {

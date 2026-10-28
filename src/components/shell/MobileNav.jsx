@@ -1,9 +1,10 @@
+import { forwardRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { MOBILE_TABS, useNavBadges } from './nav.js';
 
 // frappe-ui MobileNav: equal-width tabs, 24px icon over an xs label. Tapping
 // the tab you're on scrolls the page back to the top instead of re-navigating.
-export default function MobileNav({ onReselect }) {
+const MobileNav = forwardRef(function MobileNav({ onReselect }, ref) {
   const { pathname } = useLocation();
   const badges = useNavBadges();
   // Import lives under You on phones, so the header's You button carries
@@ -11,7 +12,7 @@ export default function MobileNav({ onReselect }) {
   const alerts = { '/friends': badges['/friends']?.label };
 
   return (
-    <nav className="mobile-nav" aria-label="Primary">
+    <nav ref={ref} className="mobile-nav" aria-label="Primary">
       {MOBILE_TABS.map((tab) => {
         const Icon = tab.icon;
         const active = tab.match(pathname);
@@ -41,4 +42,6 @@ export default function MobileNav({ onReselect }) {
       })}
     </nav>
   );
-}
+});
+
+export default MobileNav;

@@ -141,3 +141,49 @@
     transition: none;
   }
 }
+
+/* Phones: a compact tile (frappe-ui AccountingMobile's KPI tiles: p-3, label
+ * text-sm gray-6, value text-xl semibold) so two sit side by side at 375px:
+ * 12px padding, 13px label, 20px value, 13px muted lines under it. */
+@media (max-width: 767.98px) {
+  .ui-card.ui-stat-card {
+    --ui-card-px: 12px;
+    --ui-card-py: 12px;
+    --ui-card-gap: 4px;
+  }
+
+  .ui-stat-card__label {
+    letter-spacing: 0.01em;
+  }
+
+  .ui-stat-card__value {
+    font-size: 20px;
+    line-height: 1.3;
+    letter-spacing: 0;
+  }
+
+  .ui-stat-card > .ui-stat-card__delta,
+  .ui-stat-card__caption,
+  .ui-stat-card__hint {
+    font-size: 13px;
+    line-height: 1.35;
+    letter-spacing: 0.01em;
+  }
+
+  .ui-stat-card__hint {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .ui-stat-card__value-skeleton {
+    width: 72%;
+  }
+
+  .ui-stat-card__delta-skeleton {
+    width: 88%;
+  }
+
+  .ui-stat-card--interactive {
+    -webkit-tap-highlight-color: transparent;
+  }
+}

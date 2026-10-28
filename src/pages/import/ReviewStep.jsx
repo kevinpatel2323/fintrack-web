@@ -19,7 +19,7 @@ const STATUS = {
 export default function ReviewStep({ preview, previewRows, confirmedMatchKeys, onToggleMatch, isCompact }) {
   return (
     <div className="import-review">
-      <ReviewStats preview={preview} />
+      <ReviewStats preview={preview} isCompact={isCompact} />
       <SkipWarning preview={preview} />
       <NothingNew preview={preview} />
       <MatchReview matches={preview.matches} confirmedKeys={confirmedMatchKeys} onToggle={onToggleMatch} />
@@ -33,13 +33,29 @@ export default function ReviewStep({ preview, previewRows, confirmedMatchKeys, o
   );
 }
 
-function ReviewStats({ preview }) {
+function ReviewStats({ preview, isCompact }) {
   // Only card statements can merge into entries added by hand.
   const stats = [
     { label: 'New', value: preview.willInsert ?? 0 },
     preview.kind === 'card' && { label: 'Already added by you', value: preview.matchedRows ?? 0 },
     { label: 'Skipped', value: preview.skippedRows ?? 0, hint: 'already imported' },
   ].filter(Boolean);
+  if (isCompact) {
+    // Phones: compact tiles, label over a 20px figure, the hint under it.
+    return (
+      <dl className="import-ph-tiles" data-count={stats.length}>
+        {stats.map((s) => (
+          <div key={s.label} className="import-ph-tile">
+            <dt className="import-ph-tile__label">{s.label}</dt>
+            <dd className="import-ph-tile__value tabular-nums">
+              {s.value}
+              {s.hint && <span className="import-ph-tile__hint">{s.hint}</span>}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    );
+  }
   return (
     <dl className="import-stats">
       {stats.map((s) => (
@@ -208,7 +224,57 @@ function StatementRows({ preview, previewRows, confirmedKeys, isCompact }) {
   const limited = isCompact && !showAll && visible.length > PHONE_ROW_LIMIT;
   const shown = limited ? visible.slice(0, PHONE_ROW_LIMIT) : visible;
 
-  const columns = [
+  // Phones: the description over "date · status", and the amount. Date and
+  // status stay as hidden columns so "Sorted by" still offers them.
+  const phoneColumns = [
+    {
+      key: 'date',
+      label: 'Date',
+      width: 0,
+      sortable: true,
+      sortFirst: 'desc',
+      hideBelow: 'md',
+      render: () => null,
+    },
+    {
+      key: 'description',
+      label: 'Description',
+      width: 'minmax(0, 1fr)',
+      flex: true,
+      sortable: true,
+      render: (it) => (
+        <span className="import-ph-row">
+          <span className="import-ph-row__title">{rowText(it.row) || 'No description'}</span>
+          <span className="import-ph-row__sub" data-status={it.status}>
+            {fmtShortDate(it.row.transactionDate)}
+            {it.status !== 'new' && ` · ${STATUS[it.status].label}`}
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      width: 0,
+      sortable: true,
+      hideBelow: 'md',
+      render: () => null,
+    },
+    {
+      key: 'amount',
+      label: 'Amount',
+      width: 'auto',
+      align: 'right',
+      sortable: true,
+      render: (it) => (
+        <span className="import-ph-row__amount">
+          <Amount value={it.amount} sign="always" />
+        </span>
+      ),
+    },
+  ];
+
+  const columns = isCompact ? phoneColumns : [
     {
       key: 'date',
       label: 'Date',
@@ -264,6 +330,51 @@ function StatementRows({ preview, previewRows, confirmedKeys, isCompact }) {
     emptyState = `No rows match “${query.trim()}”.`;
   }
 
+  if (isCompact) {
+    return (
+      <section className="import-ph-rows" aria-labelledby={headingId}>
+        <h3 id={headingId} className="import-ph-rows__title">
+          Rows in this statement <span className="import-ph-rows__count tabular-nums">{previewRows.length}</span>
+        </h3>
+        {previewRows.length > 0 && (
+          <div className="import-ph-rows__search">
+            <TextInput
+              prefix={Search}
+              type="search"
+              size="md"
+              placeholder="Search rows"
+              aria-label="Search rows"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+        )}
+        <ListView
+          className="phone-bleed import-ph-list"
+          aria-label="Statement rows to import"
+          columns={columns}
+          rows={shown}
+          rowKey="index"
+          // Ordered here, before the first-rows cut, so the cut shows the
+          // top of the sorted list.
+          sort={sort}
+          onSortChange={setSort}
+          emptyState={emptyState}
+          footer={
+            limited ? (
+              <Button
+                size="md"
+                className="import-ph-rows__more"
+                label={`Show all ${visible.length} rows`}
+                onClick={() => setShowAll(true)}
+              />
+            ) : undefined
+          }
+        />
+      </section>
+    );
+  }
+
   return (
     <section className="import-section" aria-labelledby={headingId}>
       <div className="import-rows__toolbar">
@@ -293,7 +404,7 @@ function StatementRows({ preview, previewRows, confirmedKeys, isCompact }) {
           sort={sort}
           onSortChange={setSort}
           storageKey="fintrack.import.review"
-          stickyHeader={!isCompact}
+          stickyHeader
           emptyState={emptyState}
           footer={
             limited ? (

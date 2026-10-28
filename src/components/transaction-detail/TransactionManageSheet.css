@@ -66,3 +66,77 @@
   flex-direction: column;
   gap: 8px;
 }
+
+/* ---------- Phone (PhoneManageSheet, a bottom sheet) ----------
+ * The figure under the centred title, then Category, who it's split with
+ * and the split form as phone sections; Cancel and Add split share the
+ * pinned footer. Phone-only markup, so no media query. */
+
+.txm-m {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.txm-m-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.txm-m-hero__amount {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.txm-m-hero__meta {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+}
+
+.txm-m-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+/* The caller's ledger buttons (Link / Unlink card bill, a card's Edit and
+   Delete) at full phone size, sharing the row. */
+.txm-m-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.txm-m-actions > .ui-button {
+  flex: 1 1 0;
+  min-width: 40%;
+  height: 44px;
+  font-size: 16px;
+}
+
+.txm-m-muted {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink-gray-5);
+}
+
+/* Sheet footer: the two buttons share the width, main one last. The split
+   form's pinned total sits right above it. */
+.txm-sheet[data-side='bottom'] .ui-sheet__footer {
+  flex-wrap: nowrap;
+}
+
+.txm-sheet[data-side='bottom'] .ui-sheet__footer > .ui-button {
+  flex: 1;
+  min-width: 0;
+}

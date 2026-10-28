@@ -98,6 +98,8 @@ A native `<select>` styled as frappe-ui's Select trigger: same heights and varia
   value={freq} onChange={(e) => setFreq(e.target.value)} />
 ```
 
+Select is built on Combobox's panel (searchable above 8 options), so on phones it opens the same bottom sheet; `sheetTitle` works here too. Below 768px its trigger text is 16px, like the text fields beside it.
+
 ## FormLabel
 
 Port of `FormLabel.vue` / `InputLabel.vue`: a 13px `--ink-gray-6` label. Its size never follows the control's.
@@ -253,6 +255,8 @@ Port of `Combobox.vue` in its button-trigger mode, with `ComboboxResults.vue`. T
 | `clearable` | bool | `false` | × button on the trigger, plus Backspace/Delete on the trigger. Calls `onChange(null)`. |
 | `disabled`, `invalid` | bool | | |
 | `className` | string | | On the `inline-flex` wrapper. Give it a width, or use `FormControl` to fill the row. |
+| `renderTrigger({ selected, open })` | function | | Replaces the trigger's content and chrome (e.g. a category tile in a table row). Same panel and list. |
+| `sheetTitle` | node | | Phones: the bottom sheet's title. Default: the field's `<label>` (FormControl), `aria-labelledby`, `title`, `aria-label`, then a specific `placeholder`. |
 
 The ref and other props go to the trigger `<button>`. Keyboard: on the trigger, ↓/↑/Enter/Space opens it, and typing a letter opens it with the search started. In the search box, ↑/↓ move, PageUp/PageDown jump to the first/last, Enter picks, Escape closes, and Tab leaves. Focus goes back to the trigger. ARIA: the search box is a `combobox` with `aria-activedescendant` on a `listbox` of `option`s.
 
@@ -264,6 +268,8 @@ The ref and other props go to the trigger `<button>`. Keyboard: on the trigger, 
 
 <Combobox options={[{ group: 'Cards', items: cards }, { group: 'Banks', items: banks }]} value={acct} onChange={setAcct} />
 ```
+
+**On phones** (< 768px) the options open in a bottom sheet instead of the popover: grab handle, the title above, the search box pinned on top (searchable lists), 48px rows with 16px text, icons and descriptions, inset hairlines, a check on the selected option, the create row and the empty text. It closes on a pick, a tap on the scrim, a swipe down or Escape. The sheet takes focus, not the search box, so the keyboard comes up only when the search box is tapped; arrow keys, Enter, Home/End and typing still work from a hardware keyboard. The clear × gets a 40px touch target.
 
 ## DatePicker
 
@@ -292,6 +298,8 @@ The ref and other props go to the `<input>`. The pure helpers are exported from 
 <DatePicker value={due} onChange={setDue} clearable min={todayISO()} format="ddd, D MMM" />
 ```
 
+**On phones** the calendar opens in a bottom sheet titled after the field (`sheetTitle`, else its label, else "Choose date"), with 44px day cells seven to a row, a 17px month title and 40px month arrows. The field shows the formatted value but is read-only there, so a tap opens the calendar without the keyboard.
+
 ## DateRangePicker
 
 Port of `DateRangePicker.vue` + `DateRangeCalendar.vue`. The first click sets the start, and the second sets the end (in either order) and closes. In between, the day under the mouse or the keyboard shows a preview of the range. `presets` appear as a column of buttons beside the calendar (Frappe's `#actions` slot).
@@ -316,6 +324,8 @@ const today = todayISO();
   { label: 'Last 30 days', value: { start: addDays(today, -29), end: today } },
 ]} />
 ```
+
+**On phones** the range opens in the same bottom sheet: `presets` become chips above the month grid (the matching one filled), a line under the title says which end the next tap sets, and the range reads as one band across each week. `sheetTitle` defaults to the field's label, else "Choose dates".
 
 ## FileUploader
 

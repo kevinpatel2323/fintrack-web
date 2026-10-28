@@ -3,7 +3,8 @@
  * Desktop: stat row, "Needs attention", then a 2:1 grid of cards
  *   [Income vs expenses | Spending by category]
  *   [Recent activity    | People + Accounts   ]
- * Below 1024px the grid is one column; phones get their own stack. */
+ * Below 1024px the grid is one column. Phones render their own layout
+ * (dashboard/DashboardPhone.jsx, DashboardPhone.css). */
 
 .dash-page {
   display: flex;
@@ -33,8 +34,7 @@
   transition: opacity 150ms;
 }
 
-.dash-stack,
-.dash-mobile-stack {
+.dash-stack {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -47,21 +47,18 @@
 }
 
 /* Cards in a row share its height; the body takes the slack so footers line up. */
-.dash-grid .ui-card__body,
-.dash-mobile-stack .ui-card__body {
+.dash-grid .ui-card__body {
   flex: 1 1 auto;
 }
 
 /* A new range is loading: keep the old figures in view, quietly. */
-.dash-grid.is-refreshing,
-.dash-mobile-stack.is-refreshing {
+.dash-grid.is-refreshing {
   opacity: 0.6;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .dash-grid,
-  .dash-stack,
-  .dash-mobile-stack {
+  .dash-stack {
     transition: none;
   }
 }
@@ -278,46 +275,4 @@ a.dash-row:focus-visible,
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-}
-
-/* ---------- Phone ---------- */
-
-.dash-mobile-range {
-  display: flex;
-}
-
-@media (max-width: 767.98px) {
-  .dash-page {
-    gap: 12px;
-  }
-
-  .dash-stats {
-    gap: 8px;
-  }
-
-  .dash-mobile-stack {
-    gap: 12px;
-  }
-
-  /* Two lines: description and amount, then date and category. */
-  .dash-txn {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas:
-      'name name amount'
-      'date cat cat';
-    column-gap: 8px;
-    row-gap: 2px;
-    min-height: 52px;
-    padding: 8px 16px;
-  }
-
-  /* The chevron already says "go"; the label would crowd the text. */
-  .dash-attn__action {
-    display: none;
-  }
-
-  .dash-error__body {
-    flex-direction: column;
-    align-items: stretch;
-  }
 }

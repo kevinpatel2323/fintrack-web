@@ -1,10 +1,10 @@
 import { MoreHorizontal, Pencil, Plus, Repeat, Trash2 } from 'lucide-react';
 import {
-  Alert, Amount, Badge, Button, Dropdown, EmptyState, ListView, Skeleton,
+  Alert, Amount, Badge, Button, Dropdown, EmptyState, ListView,
 } from '../../components/ui';
 import { CategoryBadge } from '../../components/common/Category.jsx';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';
-import { BillsCard } from './Bills.jsx';
+import { BillsCard, BillsSection } from './Bills.jsx';
 import { describeRRule } from './cadence.js';
 import { formatDayShort, subscriptionStatus } from './calendarModel.js';
 
@@ -169,41 +169,82 @@ export default function SubscriptionsView({
   );
 
   if (compact) {
+    // Phone: ListView's phone rows. Name over how it repeats and when it is
+    // next due; amount over its status. The hidden columns still sort.
+    const phoneColumns = [
+      {
+        key: 'name',
+        label: 'Name',
+        flex: true,
+        sortable: true,
+        sortValue: (row) => row.name,
+        render: (row) => {
+          const next = nextOf(row);
+          const meta = [describeRRule(row.rrule), next ? `Next ${formatDayShort(next)}` : null].filter(Boolean).join(' · ');
+          return (
+            <span className="cal-psub">
+              <span className="cal-psub__name truncate">{row.name}</span>
+              <span className="cal-psub__meta truncate">{meta}</span>
+            </span>
+          );
+        },
+      },
+      {
+        key: 'next', label: 'Next', hideBelow: 'md', sortable: true, sortValue: (row) => nextOf(row) || '',
+      },
+      {
+        key: 'status', label: 'Status', hideBelow: 'md', sortable: true, sortValue: (row) => subscriptionStatus(row).label,
+      },
+      {
+        key: 'amount',
+        label: 'Amount',
+        width: 'auto',
+        align: 'right',
+        sortable: true,
+        sortFirst: 'desc',
+        sortValue: (row) => Number(row.amount || 0),
+        render: (row) => (
+          <span className="cal-psub__end">
+            <Amount value={Number(row.amount || 0)} sign="never" tone="out" className="cal-psub__amount" />
+            <StatusBadge sub={row} />
+          </span>
+        ),
+      },
+    ];
+
     return (
-      <div className="cal-stack">
+      <div className="cal-psubs">
         {alert}
-        {summary}
-        {loading && subs.length === 0 ? (
-          <div className="cal-sub-list" aria-busy="true">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="cal-sub-row"><Skeleton height={14} width="60%" /></div>
-            ))}
-          </div>
-        ) : subs.length === 0 ? (
-          !error && empty
-        ) : (
-          <ul className="cal-sub-list" aria-label="Subscriptions">
-            {subs.map((row) => {
-              const next = nextOf(row);
-              const meta = [describeRRule(row.rrule), next ? `Next ${formatDayShort(next)}` : null].filter(Boolean).join(' · ');
-              return (
-                <li key={row.id}>
-                  <button type="button" className="cal-sub-row" onClick={() => onEdit(row)}>
-                    <span className="cal-sub-row__text">
-                      <span className="cal-sub-row__name truncate">{row.name}</span>
-                      <span className="cal-sub-row__meta truncate">{meta}</span>
-                    </span>
-                    <span className="cal-sub-row__end">
-                      <Amount value={Number(row.amount || 0)} sign="never" tone="out" />
-                      <StatusBadge sub={row} />
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+        {!(error && subs.length === 0) && (
+          <section className="cal-psection" aria-label="Subscriptions">
+            {summary}
+            <ListView
+              aria-label="Subscriptions"
+              className="phone-bleed cal-psubs__list"
+              columns={phoneColumns}
+              rows={subs}
+              onRowClick={(row) => onEdit(row)}
+              loading={loading}
+              emptyState={empty}
+            />
+          </section>
         )}
-        {bills}
+        {/* Nothing set up yet: the empty list says it all. */}
+        {(loading || subs.length > 0) && (
+          <BillsSection
+            title={`Due in ${monthName}`}
+            description={monthBills.length > 0 ? (
+              <><Amount value={monthTotal} sign="never" tone="inherit" /> in {monthBills.length} bill{monthBills.length === 1 ? '' : 's'}</>
+            ) : null}
+            items={monthBills}
+            todayIso={todayIso}
+            subsById={subsById}
+            categoriesById={categoriesById}
+            onOpenSubscription={onEdit}
+            emptyTitle={`No bills in ${monthName}`}
+            emptyDescription="Active subscriptions show here on the dates they repeat."
+          />
+        )}
       </div>
     );
   }

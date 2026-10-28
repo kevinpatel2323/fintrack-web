@@ -9,50 +9,17 @@ import PersonDialog from '../components/people/PersonDialog.jsx';
 import { avatarTheme } from '../components/ui/AvatarGroup.jsx';
 import { useReviewSummary } from '../hooks/useReviewSummary.js';
 import { API_BASE, apiFetch } from '../services/http.js';
+import { useIsCompact } from '../styles/breakpoints.js';
+import FriendsPhone from './people/FriendsPhone.jsx';
+import {
+  BalanceCell, FILTERS, SIDE_ORDER, STATUS, balanceSide, fmtActivity, people, reviewDetail, reviewHref,
+} from './people/peopleList.jsx';
 import './Friends.css';
-
-const FILTERS = [
-  { id: 'all', label: 'All' },
-  { id: 'owed', label: 'They owe' },
-  { id: 'owe', label: 'You owe' },
-  { id: 'settled', label: 'Settled' },
-];
 
 // Same column set-up as the transactions table: Name is always shown,
 // contact details are there to turn on from Columns.
 const COLUMN_RULES = { pinned: ['name'], defaultHidden: ['email', 'phone'] };
 const DEFAULT_SORT = { key: 'balance', direction: 'desc' };
-const SIDE_ORDER = { owed: 0, owe: 1, settled: 2 };
-const STATUS = {
-  owed: { label: 'Owes you', theme: 'green' },
-  owe: { label: 'You owe', theme: 'amber' },
-  settled: { label: 'Settled', theme: 'gray' },
-};
-
-// Under a rupee either way reads as settled (paise left over from splits).
-const SETTLED_BELOW = 1;
-
-function balanceSide(bal) {
-  if (Math.abs(bal) < SETTLED_BELOW) return 'settled';
-  return bal > 0 ? 'owed' : 'owe';
-}
-
-/** "Today", "3 days ago", "17 Oct", "17 Oct 2025" — for the row's last activity. */
-function fmtActivity(iso) {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
-  if (days <= 0) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 7) return `${days} days ago`;
-  const sameYear = d.getFullYear() === new Date().getFullYear();
-  return new Intl.DateTimeFormat('en-IN', {
-    day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }),
-  }).format(d);
-}
-
-const people = (n) => `${n} ${n === 1 ? 'person' : 'people'}`;
 
 export default function Friends() {
   const [friends, setFriends] = useState([]);
@@ -67,6 +34,7 @@ export default function Friends() {
   const [createOpen, setCreateOpen] = useState(false);
   const columnSettings = useListSettings('fintrack.people.columns', COLUMN_RULES);
   const [toolbarRef, toolbarHeight] = useStickyHeight();
+  const isMobile = useIsCompact();
 
   useEffect(() => {
     const t = setTimeout(() => setQuery(queryInput.trim()), 250);
@@ -155,6 +123,12 @@ export default function Friends() {
 
   const owedToMe = balances.reduce((s, b) => s + Math.max(0, Number(b.netBalance) || 0), 0);
   const iOwe = balances.reduce((s, b) => s - Math.min(0, Number(b.netBalance) || 0), 0);
+  // Who the two totals come from (all balances, not just a search's matches).
+  const sideCounts = useMemo(() => {
+    const c = { owed: 0, owe: 0, settled: 0 };
+    for (const b of balances) c[balanceSide(Number(b.netBalance) || 0)] += 1;
+    return c;
+  }, [balances]);
 
   const columns = [
     {
@@ -283,6 +257,36 @@ export default function Friends() {
     );
   }
 
+  // Phones: their own layout (summary tiles, search and segments, the list
+  // as rows), on the same state.
+  if (isMobile) {
+    return (
+      <>
+        <FriendsPhone
+          counts={counts}
+          filter={filter}
+          onFilterChange={setFilter}
+          queryInput={queryInput}
+          onQueryInput={setQueryInput}
+          query={query}
+          rows={rows}
+          sort={sort}
+          onSortChange={setSort}
+          loading={loading && merged.length === 0}
+          error={error}
+          onRetry={() => setReloadKey((k) => k + 1)}
+          noPeople={noPeople}
+          emptyCopy={emptyCopy}
+          owedToMe={owedToMe}
+          iOwe={iOwe}
+          sideCounts={sideCounts}
+          onAdd={() => setCreateOpen(true)}
+        />
+        <PersonDialog open={createOpen} onClose={() => setCreateOpen(false)} onSaved={refreshFriends} />
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader
@@ -347,14 +351,6 @@ export default function Friends() {
   );
 }
 
-/** The open balance; its side is in the Status column (and under the name on
- *  phones), so the figure stays a plain, sortable number. */
-function BalanceCell({ value }) {
-  const side = balanceSide(value);
-  if (side === 'settled') return <span className="people-cell-empty">—</span>;
-  return <Amount className="people-balance" value={Math.abs(value)} tone={side === 'owed' ? 'in' : 'out'} />;
-}
-
 /**
  * Friends whose older settlements — saved before amounts were recorded —
  * don't match their entries. Opens that friend's review (`?review=1`).
@@ -364,9 +360,7 @@ function ReviewAlert() {
   const friends = (data?.friends ?? []).filter((f) => f.needingReview > 0);
   if (friends.length === 0) return null;
   const n = data.needingReview;
-  const reviewHref = (f) => `/friends/${f.friendId}?review=1`;
-  const detail = (f) =>
-    `${f.needingReview} ${f.needingReview === 1 ? 'settlement' : 'settlements'}${f.netChange !== 0 ? ' · balance changes' : ''}`;
+  const detail = reviewDetail;
 
   // One person: a straight link. Several: pick whose review to open.
   const single = friends.length === 1;

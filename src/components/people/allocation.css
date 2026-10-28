@@ -361,3 +361,99 @@
     flex-basis: 100%;
   }
 }
+
+/* ---------- Phones: the bottom sheet ----------
+   Rows stack (entry and date over what is left and the amount box, by the
+   container query above); here they get the phone's type and tap sizes.
+   SettlementAllocator, NetOffModal and LegacyReviewModal all sit in a sheet
+   whose body scrolls, so nothing in here scrolls on its own. */
+@media (max-width: 767.98px) {
+  .alloc,
+  .alloc-table,
+  .alloc-group,
+  .alloc-group__members {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .alloc-balance {
+    padding: 10px 12px;
+    border-radius: var(--radius-5);
+  }
+
+  .alloc-section__title {
+    font-size: 15px;
+  }
+
+  /* The whole row is the checkbox's label: the entry's label stretches over
+     the row, and only the box, the amount field and "Show entries" sit above
+     it. */
+  .alloc-row {
+    position: relative;
+    min-height: 56px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    row-gap: 6px;
+  }
+
+  .alloc-row__entry::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .alloc-row__check,
+  .alloc-row__input,
+  .alloc-row__extra {
+    position: relative;
+    z-index: 1;
+  }
+
+  .alloc-row__name,
+  .alloc-row__open {
+    font-size: 16px;
+    line-height: 1.3;
+  }
+
+  .alloc-row__after {
+    font-size: 13px;
+  }
+
+  .alloc-row__input {
+    width: 148px;
+  }
+
+  .alloc-row__input input {
+    font-size: 16px;
+  }
+
+  /* "Show entries": a 36px target. */
+  .alloc-group__toggle {
+    min-height: 36px;
+  }
+
+  /* Applied over On account, with Clear beside both. */
+  .alloc-foot {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 2px 12px;
+    font-size: 15px;
+    line-height: 1.4;
+  }
+
+  .alloc-foot > span {
+    grid-column: 1;
+  }
+
+  .alloc-foot__clear {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    margin-left: 0;
+  }
+
+  .alloc-review {
+    padding: 12px 12px 8px;
+  }
+}

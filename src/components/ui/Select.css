@@ -244,3 +244,14 @@
   .ui-select__trigger[data-size='md'] { min-height: 36px; }
   .ui-select__trigger[data-size='lg'] { min-height: 44px; }
 }
+
+/* Phones set text fields in 16px so iOS never zooms (styles/base.css); a
+   picker's trigger sits among them in forms and toolbars, so it matches. */
+@media (max-width: 767.98px) {
+  .ui-select__trigger[data-size='sm'],
+  .ui-select__trigger[data-size='md'],
+  .ui-select__trigger[data-size='lg'] {
+    font-size: 16px;
+    letter-spacing: 0;
+  }
+}

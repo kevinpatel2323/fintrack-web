@@ -89,3 +89,43 @@
   font-weight: 500;
   color: var(--ink-gray-8);
 }
+
+/* ---------- Phones: the dialogs dock as bottom sheets ---------- */
+
+@media (max-width: 767.98px) {
+  .catg-form {
+    gap: 20px;
+  }
+
+  /* Finger-sized colour targets, six to a row at 375px. */
+  .catg-swatches {
+    display: grid;
+    grid-template-columns: repeat(6, 44px);
+    justify-content: space-between;
+    gap: 12px 0;
+  }
+
+  .catg-swatch {
+    width: 44px;
+    height: 44px;
+  }
+
+  .catg-swatch svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .catg-form__preview {
+    margin-top: 26px;
+  }
+
+  .catx-fixed {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .catx-dot {
+    width: 10px;
+    height: 10px;
+  }
+}

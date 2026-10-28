@@ -18,8 +18,9 @@ const shortDay = (iso) => {
  * The balance with a friend after each day that has an entry, oldest first,
  * from the ledger's own running balance (`ledgerRunningBalances`), so the
  * last point is the balance on the page. Above zero means they owe you.
+ * `height` is the plot's (phones use a shorter one).
  */
-export default function BalanceChart({ tags, friendFirst }) {
+export default function BalanceChart({ tags, friendFirst, height = 180 }) {
   const data = useMemo(() => {
     const dated = [...tags]
       .filter((t) => t.transaction?.transactionDate)
@@ -42,7 +43,7 @@ export default function BalanceChart({ tags, friendFirst }) {
       data={data}
       xKey="day"
       series={[{ key: 'balance', label: 'Balance' }]}
-      height={180}
+      height={height}
       curve="linear"
       area
       formatXLabel={shortDay}

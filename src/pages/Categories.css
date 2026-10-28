@@ -184,58 +184,168 @@
   }
 }
 
-/* ---------- Phones ---------- */
+/* ---------- Phone layout (categories/CategoriesPhone.jsx) ----------
+   Only the phone component renders these classes. */
 
 @media (max-width: 767.98px) {
-  .catg-toolbar {
-    flex-direction: column;
-    align-items: stretch;
+  .catg-ph-month {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin: -4px 0 20px;
   }
 
-  .catg-search {
+  /* Fixed width so the arrows don't move as the month name changes. */
+  .catg-ph-month__label {
+    min-width: 136px;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--ink-gray-9);
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .catg-ph-alert {
+    margin-bottom: 20px;
+  }
+
+  /* The chart is the one boxed thing on the page (DESIGN.md#phone). */
+  .catg-ph-chart {
+    padding: 16px 8px 8px;
+    border: 1px solid var(--outline-gray-1);
+    border-radius: var(--radius-6);
+  }
+
+  .catg-ph-chart .catg-split__chart.ui-chart-donut--right {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .catg-ph-chart .catg-split__chart .ui-chart-donut-box {
+    align-self: center;
+  }
+
+  .catg-ph-chart .ui-chart-donut-value {
+    font-size: 20px;
+  }
+
+  .catg-ph-chart .ui-chart-donut-caption {
+    font-size: 13px;
+  }
+
+  /* Legend rows: a finger-sized row per slice (tapping one hides it). */
+  .catg-ph-chart .ui-chart-legend {
+    gap: 0;
+    font-size: 15px;
+    letter-spacing: 0;
+  }
+
+  .catg-ph-chart .ui-chart-legend-button {
+    height: 40px;
+    gap: 10px;
+    padding: 0 8px;
+    color: var(--ink-gray-8);
+  }
+
+  .catg-ph-chart .ui-chart-legend-dot {
+    width: 10px;
+    height: 10px;
+  }
+
+  .catg-ph-chart .ui-chart-legend-value {
+    color: var(--ink-gray-8);
+    font-weight: 500;
+  }
+
+  .catg-ph-chart .ui-chart-legend-hint {
+    min-width: 36px;
+    font-size: 13px;
+    color: var(--ink-gray-5);
+    text-align: right;
+  }
+
+  .catg-ph-chart .catg-split__error,
+  .catg-ph-chart .catg-split__loading {
+    padding: 4px 8px 8px;
+  }
+
+  /* Search pins at the top of the scroll area while the list scrolls by. */
+  .catg-ph-search {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    margin-inline: calc(-1 * var(--page-gutter));
+    padding: 4px var(--page-gutter) 8px;
+    background: var(--surface-base);
+  }
+
+  .catg-ph-search .ui-text-input {
     width: 100%;
   }
 
-  /* Month navigator on its own row, the summary under it: side by side they
-     overflow a phone. */
-  .catg-toolbar__end {
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 4px 12px;
+  /* `.ui-list` caps itself at 100% width, which undoes phone-bleed's
+     negative margins; let it span the gutters. */
+  .catg-ph-list {
+    --list-gap: 12px;
+    max-width: none;
   }
 
-  .catg-summary {
-    order: 2;
-    flex-basis: 100%;
+  /* Hairlines start where the text does, after the 32px tile. */
+  .catg-ph-list .ui-list__divider {
+    left: 44px;
+  }
+
+  .catg-ph-list .catg-ph-row--static {
+    cursor: default;
+  }
+
+  .catg-ph-name {
+    display: flex;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    align-items: center;
+    gap: 12px;
   }
 
-  .catg-month {
-    flex-shrink: 0;
-    margin-inline: auto;
-  }
-
-  .catg-month__label {
-    min-width: 104px;
-  }
-
-  .catg-list {
-    --ui-list-row-height: 52px;
-  }
-
-  .catg-name__text {
+  .catg-ph-name__text {
+    display: flex;
+    min-width: 0;
     flex-direction: column;
-    align-items: stretch;
     gap: 2px;
   }
 
-  .catg-name__hint {
-    display: none;
+  .catg-ph-name__title {
+    overflow: hidden;
+    font-size: 16px;
+    line-height: 1.3;
+    color: var(--ink-gray-8);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .catg-name__meta {
-    display: block;
+  .catg-ph-name__sub {
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--ink-gray-5);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .catg-ph-amount {
+    font-size: 16px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  /* The `…` sits flush with the gutter, like MobileListItem's. */
+  .catg-ph-list .ui-list__cell:last-child {
+    margin-right: -8px;
+  }
+
+  .catg-ph-empty {
+    padding: 64px 0;
   }
 }

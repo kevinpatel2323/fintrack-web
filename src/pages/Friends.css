@@ -88,3 +88,94 @@
     width: 100%;
   }
 }
+
+/* ---------- Phones (pages/people/FriendsPhone.jsx) ----------
+   Phone-only markup, so these classes never meet the desktop table. Review
+   nudge, two summary tiles, a pinned search band with fluid segments, then
+   the people as ListView's phone rows. */
+
+@media (max-width: 767.98px) {
+  .people-m {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* Attention row: amber icon, the count, who it is with. */
+  .people-m-attention__icon {
+    color: var(--ink-amber-6);
+  }
+
+  .people-m-tiles {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  /* The search band follows the tiles, then pins at the top of the scroll
+     area as the list scrolls under it. */
+  .people-m .people-m-toolbar {
+    margin-top: 0;
+    margin-bottom: -16px;
+    border-top: 1px solid var(--outline-gray-1);
+  }
+
+  .people-m-toolbar .list-toolbar__filters {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .people-m-search {
+    width: 100%;
+  }
+
+  /* Four segments with counts at 375px: tighter pills. */
+  .people-m-segments .ui-tab-buttons__pill {
+    padding-inline: 4px;
+  }
+
+  .people-m-segments .people-count {
+    margin-left: 4px;
+  }
+
+  .people-m-list {
+    --ui-list-row-height: 64px;
+  }
+
+  .people-m-name {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .people-m-name__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .people-m-name__label {
+    overflow: hidden;
+    font-size: 16px;
+    line-height: 1.3;
+    color: var(--ink-gray-8);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .people-m-name__meta {
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--ink-gray-5);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .people-m-list .people-balance {
+    font-size: 16px;
+  }
+}

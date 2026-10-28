@@ -1,7 +1,9 @@
 import { cloneElement, isValidElement, useCallback, useEffect, useRef } from 'react';
 import Portal from '../Portal.jsx';
+import Sheet from './Sheet.jsx';
 import { useDismiss, useFloating, useStableId } from './internal/floating.js';
-import { cx, focusFirst, useControllableState, useMergedRef } from './internal/dialogUtils.js';
+import { cx, focusFirst, useControllableState, useMergedRef, usePresence } from './internal/dialogUtils.js';
+import { useIsCompact } from '../../styles/breakpoints.js';
 import './Popover.css';
 
 /**
@@ -11,6 +13,11 @@ import './Popover.css';
  * `trigger` is a single element (it gets the ref, onClick and aria wiring) or
  * a render function `({ ref, open, toggle, close, props })` — spread `props`
  * and attach `ref` yourself. `children` is content or `({ close }) => content`.
+ *
+ * Phones (< 768px): `mobile="sheet"` (default) opens the content in a bottom
+ * sheet (titled `sheetTitle`, styled with `sheetClassName`) — right for
+ * filters and other form content. `mobile="popover"` keeps a small floating
+ * panel (a hint, a short read-only note), placed inside the viewport.
  */
 export default function Popover({
   trigger,
@@ -25,11 +32,18 @@ export default function Popover({
   className,
   closeOnOutsideClick = true,
   autoFocus = true,
+  mobile = 'sheet',
+  sheetTitle,
+  sheetClassName,
   style: styleProp,
   ...rest
 }) {
   const [open, setOpen] = useControllableState(openProp, defaultOpen, onOpenChange);
-  const { anchorRef, floatingRef, style, side } = useFloating({ open, placement, offset, matchWidth });
+  // Phones: form content opens in a bottom sheet instead of a floating panel.
+  const asSheet = useIsCompact() && mobile !== 'popover';
+  const floatingOpen = open && !asSheet;
+  const sheet = usePresence(open && asSheet, 200);
+  const { anchorRef, floatingRef, style, side } = useFloating({ open: floatingOpen, placement, offset, matchWidth });
   const id = useStableId('ui-popover');
   const dismissedOutsideRef = useRef(false);
 
@@ -37,7 +51,7 @@ export default function Popover({
   const toggle = useCallback(() => setOpen((v) => !v), [setOpen]);
 
   useDismiss({
-    active: open,
+    active: floatingOpen,
     refs: [anchorRef, floatingRef],
     outside: closeOnOutsideClick,
     onDismiss: (e) => {
@@ -52,14 +66,15 @@ export default function Popover({
   useEffect(() => {
     if (open && !wasOpenRef.current) {
       dismissedOutsideRef.current = false;
-      if (autoFocus) focusFirst(floatingRef.current);
+      // The phone sheet focuses itself, so no field brings up the keyboard.
+      if (autoFocus && !asSheet) focusFirst(floatingRef.current);
     } else if (!open && wasOpenRef.current) {
       const active = document.activeElement;
       const lost = !active || active === document.body || floatingRef.current?.contains(active);
       if (!dismissedOutsideRef.current && lost) anchorRef.current?.focus?.({ preventScroll: true });
     }
     wasOpenRef.current = open;
-  }, [open, autoFocus, anchorRef, floatingRef]);
+  }, [open, autoFocus, asSheet, anchorRef, floatingRef]);
 
   const triggerProps = {
     'aria-haspopup': 'dialog',
@@ -89,7 +104,7 @@ export default function Popover({
   return (
     <>
       {triggerNode}
-      {open && (
+      {floatingOpen && (
         <Portal>
           <div
             {...rest}
@@ -105,6 +120,20 @@ export default function Popover({
             {typeof children === 'function' ? children({ close }) : children}
           </div>
         </Portal>
+      )}
+      {asSheet && sheet.present && (
+        <Sheet
+          open={open}
+          onClose={close}
+          side="bottom"
+          id={id}
+          title={sheetTitle}
+          label={sheetTitle ? undefined : rest['aria-label']}
+          className={cx('ui-popover-sheet', sheetClassName)}
+          closeOnOutsideClick={closeOnOutsideClick}
+        >
+          {typeof children === 'function' ? children({ close }) : children}
+        </Sheet>
       )}
     </>
   );

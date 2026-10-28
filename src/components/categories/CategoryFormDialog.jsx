@@ -3,6 +3,7 @@ import { Check } from 'lucide-react';
 import { Dialog, ErrorMessage, FormControl, FormLabel } from '../ui';
 import { CategoryIcon } from '../common/Category.jsx';
 import { CATEGORY_PALETTE, categoryColor } from '../../utils/categoryColors.js';
+import { useIsCompact } from '../../styles/breakpoints.js';
 import './category-dialogs.css';
 
 const PRESET_COLORS = Object.values(CATEGORY_PALETTE);
@@ -97,6 +98,10 @@ function ColorSwatches({ value, onChange, labelId }) {
  * `onSubmit({ name, color, icon })` saves; a rejection shows its message here.
  */
 export default function CategoryFormDialog({ open, category, onClose, onSubmit }) {
+  // Phones: the sheet takes focus rather than the name field, so the keyboard
+  // doesn't cover the colours (frappe-ui BottomSheet); fields are 44px.
+  const isMobile = useIsCompact();
+  const fieldSize = isMobile ? 'lg' : undefined;
   const formId = useId();
   const colorLabelId = useId();
   const [name, setName] = useState('');
@@ -157,7 +162,8 @@ export default function CategoryFormDialog({ open, category, onClose, onSubmit }
         <FormControl
           label="Name"
           required
-          autoFocus
+          autoFocus={!isMobile}
+          size={fieldSize}
           maxLength={100}
           placeholder="e.g. Coffee"
           value={name}
@@ -174,12 +180,13 @@ export default function CategoryFormDialog({ open, category, onClose, onSubmit }
             label="Icon"
             description="An emoji or up to 6 characters. Leave empty for the default icon."
             placeholder="Optional"
+            size={fieldSize}
             maxLength={6}
             value={icon}
             onChange={(e) => setIcon(e.target.value)}
           />
           <span className="catg-form__preview" title="Preview">
-            <CategoryIcon category={{ name: name || 'Category', color, icon }} size={28} />
+            <CategoryIcon category={{ name: name || 'Category', color, icon }} size={isMobile ? 44 : 28} />
           </span>
         </div>
 

@@ -207,3 +207,42 @@
     transition-duration: 0ms;
   }
 }
+
+/* Phones: one size up like the other controls — a 16px box (18px at md),
+ * 15px label, padded rows 40px / 44px tall. */
+@media (max-width: 767.98px) {
+  .ui-checkbox--sm .ui-checkbox__input {
+    width: 16px;
+    height: 16px;
+  }
+
+  .ui-checkbox--md .ui-checkbox__input {
+    width: 18px;
+    height: 18px;
+  }
+
+  .ui-checkbox--sm .ui-checkbox__row,
+  .ui-checkbox--md .ui-checkbox__row {
+    gap: 10px;
+  }
+
+  .ui-checkbox--sm .ui-checkbox__label,
+  .ui-checkbox--md .ui-checkbox__label {
+    font-size: 15px;
+    line-height: 1.3;
+    letter-spacing: 0.01em;
+  }
+
+  .ui-checkbox--sm .ui-checkbox__detail,
+  .ui-checkbox--md .ui-checkbox__detail {
+    padding-inline-start: 26px;
+  }
+
+  .ui-checkbox--padded.ui-checkbox--sm { height: 40px; padding: 0 8px; }
+  .ui-checkbox--padded.ui-checkbox--md { height: 44px; padding: 0 12px; }
+  .ui-checkbox--padded.has-detail { height: auto; padding: 8px; }
+
+  .ui-checkbox--padded {
+    -webkit-tap-highlight-color: transparent;
+  }
+}

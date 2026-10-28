@@ -93,3 +93,35 @@
     padding: 8px 8px 8px 12px;
   }
 }
+
+/* ---------- Phones: the selection in the action bar ---------- */
+
+.ledger-mbar {
+  flex-wrap: wrap;
+}
+
+.ledger-mbar > .ledger-mbar__text {
+  display: flex;
+  flex: 1 1 100%;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.ledger-mbar__count {
+  flex-shrink: 0;
+  font-weight: 500;
+  color: var(--ink-gray-9);
+  font-variant-numeric: tabular-nums;
+}
+
+.ledger-mbar__hint {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-gray-5);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

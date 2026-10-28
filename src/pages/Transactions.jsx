@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, CreditCard, Inbox, Plus, RefreshCw, Search, SearchX, SlidersHorizontal, Upload,
+  AlertTriangle, CreditCard, Inbox, Plus, RefreshCw, Search, SearchX, Upload,
 } from 'lucide-react';
 import CcLinkModal from '../components/CcLinkModal.jsx';
 import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
-import TransactionMobileList from '../components/TransactionMobileList.jsx';
 import TransactionTable, {
   transactionColumnChoices,
   useTransactionColumns,
@@ -13,7 +12,6 @@ import TransactionTable, {
 import ManualTransactionDialog from '../components/transactions/ManualTransactionDialog.jsx';
 import {
   TYPE_OPTIONS,
-  TransactionFilterSheet,
   TransactionPeriodFilter,
   accountOptions,
   useCategoryFilterOptions,
@@ -21,14 +19,13 @@ import {
 import {
   ccExpansionItems,
   countActiveFilters,
-  formatRangeLabel,
   getCurrentMonthRange,
   getMonthOptions,
   matchMonthValue,
 } from '../components/transactions/transactionListModel.js';
 import {
-  Alert, Amount, Badge, Button, Combobox, ConfirmDialog, EmptyState, ErrorMessage, KeyboardShortcut,
-  ListColumnsMenu, PageBody, PageHeader, Select, Skeleton, TabButtons, TextInput, toast,
+  Alert, Amount, Button, Combobox, ConfirmDialog, EmptyState, ErrorMessage, KeyboardShortcut,
+  ListColumnsMenu, PageBody, PageHeader, Select, TabButtons, TextInput, toast,
 } from '../components/ui';
 import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
 import { useIsCompact } from '../styles/breakpoints.js';
@@ -41,26 +38,10 @@ import {
 import { API_BASE, apiErrorMessage, apiFetch } from '../services/http.js';
 import { toBankTableRow } from '../components/transactions/bankTransactionRow.jsx';
 import ListToolbar, { ListSummary } from '../components/common/ListToolbar.jsx';
+import TransactionsPhone from './TransactionsPhone.jsx';
 import './Transactions.css';
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
-
-function ListSkeleton() {
-  return (
-    <div className="txns-skeleton" aria-busy="true" aria-label="Loading transactions">
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <div className="txns-skeleton__row" key={i}>
-          <Skeleton width={32} height={32} />
-          <div className="txns-skeleton__text">
-            <Skeleton height={12} width={`${60 - i * 4}%`} />
-            <Skeleton height={10} width="35%" />
-          </div>
-          <Skeleton height={12} width={56} />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export default function Transactions() {
   const navigate = useNavigate();
@@ -138,7 +119,6 @@ export default function Transactions() {
   const [ccDetailByTransaction, setCcDetailByTransaction] = useState({});
   const [ccLinkModalRow, setCcLinkModalRow] = useState(null);
   const [manualOpen, setManualOpen] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // The box keeps what was typed; the URL keeps it trimmed.
   const [searchDraft, setSearchDraft] = useState(search);
@@ -765,83 +745,46 @@ export default function Transactions() {
   if (isMobile) {
     return (
       <>
-        <PageHeader
-          title="Activity"
-          mobileActions={<Button variant="ghost" size="md" icon={Plus} label="New transaction" onClick={newTransaction} />}
-        />
-        <PageBody className="txns-page" style={{ '--list-toolbar-height': `${toolbarHeight}px` }}>
-          <div className="txns-mobile-toolbar" ref={toolbarRef}>
-            <TextInput
-              className="txns-search"
-              type="search"
-              prefix={Search}
-              placeholder="Search transactions"
-              aria-label="Search transactions"
-              value={searchDraft}
-              onChange={(e) => {
-                setSearchDraft(e.target.value);
-                setSearch(e.target.value);
-              }}
-            />
-            <Button
-              iconLeft={SlidersHorizontal}
-              iconRight={activeSheetFilters > 0
-                ? <Badge variant="solid" size="sm" label={activeSheetFilters} aria-hidden="true" />
-                : undefined}
-              label="Filter"
-              aria-label={activeSheetFilters ? `Filter, ${activeSheetFilters} active` : 'Filter'}
-              aria-haspopup="dialog"
-              active={activeSheetFilters > 0}
-              onClick={() => setFiltersOpen(true)}
-            />
-          </div>
-
-          <p className="txns-summary txns-summary--mobile">
-            {periodLabel || formatRangeLabel(rangeStart, rangeEnd)}
-            {summaryContent && <> · {summaryContent}</>}
-          </p>
-
-          {pageErrors.length > 0 && <ErrorMessage message={pageErrors} />}
-          {loadError && transactions.length > 0 && (
-            <Alert
-              theme="red"
-              title="Couldn't refresh transactions"
-              description={loadError}
-              primaryAction={{ label: 'Try again', onClick: () => handleRangeFetch() }}
-            />
-          )}
-
-          {transactionsLoading ? (
-            <ListSkeleton />
-          ) : tableRows.length === 0 ? (
-            emptyState
-          ) : (
-            <TransactionMobileList
-              rows={tableRows}
-              onOpenDetail={openTransactionDetail}
-              categories={categories}
-              onAssignCategory={assignCategoryInline}
-            />
-          )}
-        </PageBody>
-
-        <TransactionFilterSheet
-          open={filtersOpen}
-          onClose={() => setFiltersOpen(false)}
-          activeCount={activeSheetFilters}
-          onReset={resetSheetFilters}
+        <TransactionsPhone
+          onNewTransaction={newTransaction}
+          onRefresh={() => handleRangeFetch()}
+          searchDraft={searchDraft}
+          search={search}
+          onSearchChange={(value) => {
+            setSearchDraft(value);
+            setSearch(value);
+          }}
           filterTab={filterTab}
           onFilterTabChange={setFilterTab}
           rangeStart={rangeStart}
           rangeEnd={rangeEnd}
           onRangeChange={applyDateRange}
           monthOptions={monthOptions}
+          selectedMonth={selectedMonth}
           accounts={accounts}
           account={rangeAccount}
           onAccountChange={setRangeAccount}
-          categoryOptions={categoryFilterOptions}
-          category={categoryFilter}
-          onCategoryChange={setCategoryFilter}
+          categories={categories}
+          categoryFilterOptions={categoryFilterOptions}
+          categoryFilter={categoryFilter}
+          onCategoryFilterChange={setCategoryFilter}
+          activeFilterCount={activeSheetFilters}
+          onResetFilters={resetSheetFilters}
+          sort={sort}
+          onSortChange={setSort}
+          rows={tableRows}
+          totalCount={transactions.length}
+          filteredCount={filteredTransactions.length}
+          hasClientFilters={hasClientFilters}
+          totalSpent={totalSpent}
+          totalEarned={totalEarned}
+          loading={transactionsLoading}
+          loadError={loadError}
+          hasTransactions={transactions.length > 0}
+          pageErrors={pageErrors}
+          emptyState={emptyState}
+          onAssignCategory={assignCategoryInline}
+          onOpenDetail={openTransactionDetail}
         />
         {overlays}
       </>

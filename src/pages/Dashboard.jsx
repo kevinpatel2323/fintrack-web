@@ -1,17 +1,16 @@
 import { useMemo, useState } from 'react';
-import { CalendarDays, Plus, Upload } from 'lucide-react';
-import { Button, DateRangePicker, PageBody, PageHeader, Select } from '../components/ui';
+import { Plus, Upload } from 'lucide-react';
+import { Button, DateRangePicker, PageBody, PageHeader } from '../components/ui';
 import { useDashboardData } from '../hooks/useDashboardData.js';
 import { useImportSchedule } from '../hooks/useImportSchedule.js';
 import { useReviewSummary } from '../hooks/useReviewSummary.js';
 import { useIsCompact } from '../styles/breakpoints.js';
-import {
-  attentionItems, defaultDateRange, formatRangeLabel, matchPreset, rangePresets, summaryStats,
-} from './dashboard/dashboardModel.js';
+import { attentionItems, defaultDateRange, rangePresets, summaryStats } from './dashboard/dashboardModel.js';
 import { useCardDues } from './dashboard/useCardDues.js';
 import {
   AccountsCard, AttentionCard, CategoryCard, DashboardError, PeopleCard, RecentCard, StatGrid, TrendCard,
 } from './dashboard/DashboardSections.jsx';
+import DashboardPhone from './dashboard/DashboardPhone.jsx';
 import './Dashboard.css';
 
 // "New transaction" opens the Transactions page, as it always has; this state
@@ -90,27 +89,24 @@ export default function Dashboard() {
 
   const errorPanel = error && !loading && <DashboardError error={error} onRetry={refresh} />;
   const attentionCard = attention.length > 0 && <AttentionCard items={attention} />;
-  const statGrid = hasContent && (
-    <StatGrid stats={stats} range={dateRange} loading={loading} compact={isMobile} />
-  );
+  const statGrid = hasContent && <StatGrid stats={stats} range={dateRange} loading={loading} />;
 
   if (isMobile) {
+    // Phones get their own layout: one column of sections (dashboard/DashboardPhone.jsx).
     return (
       <>
         {header}
-        <PageBody className="dash-page">
-          <MobileRangeSelect presets={presets} range={dateRange} onChange={setDateRange} />
-          {errorPanel}
-          {statGrid}
-          {attentionCard}
-          {hasContent && (
-            <div className={`dash-mobile-stack${refreshing ? ' is-refreshing' : ''}`} aria-busy={loading || undefined}>
-              <RecentCard items={data?.recentTransactions} loading={firstLoad} limit={5} />
-              <CategoryCard breakdown={data?.categoryBreakdown} range={dateRange} loading={firstLoad} limit={3} />
-              <PeopleCard balances={data?.friendBalances} loading={firstLoad} />
-            </div>
-          )}
-        </PageBody>
+        <DashboardPhone
+          data={data}
+          loading={loading}
+          error={error}
+          onRetry={refresh}
+          range={dateRange}
+          onRangeChange={setDateRange}
+          presets={presets}
+          stats={stats}
+          attention={attention}
+        />
       </>
     );
   }
@@ -135,27 +131,5 @@ export default function Dashboard() {
         )}
       </PageBody>
     </>
-  );
-}
-
-/** Phone: the range as a preset menu (the calendar picker is too wide there). */
-function MobileRangeSelect({ presets, range, onChange }) {
-  const current = matchPreset(presets, range);
-  const options = presets.map((p) => ({ label: p.label, value: p.key }));
-  if (!current) options.unshift({ label: formatRangeLabel(range), value: 'custom', disabled: true });
-
-  return (
-    <div className="dash-mobile-range">
-      <Select
-        prefix={CalendarDays}
-        aria-label="Date range"
-        options={options}
-        value={current ? current.key : 'custom'}
-        onChange={(e) => {
-          const preset = presets.find((p) => p.key === e.target.value);
-          if (preset) onChange({ startDate: preset.value.start, endDate: preset.value.end });
-        }}
-      />
-    </div>
   );
 }

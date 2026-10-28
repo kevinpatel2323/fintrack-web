@@ -47,3 +47,9 @@
     animation-duration: 0ms;
   }
 }
+
+/* Phones: a Popover opened as a bottom sheet (mobile="sheet"). The content
+   gets the sheet's 16px gutter; checkboxes and fields inside get room. */
+.ui-popover-sheet .ui-sheet__body {
+  padding-top: 4px;
+}

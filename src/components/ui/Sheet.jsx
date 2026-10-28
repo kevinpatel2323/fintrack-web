@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import Portal from '../Portal.jsx';
 import { useDismiss, useStableId } from './internal/floating.js';
 import {
@@ -9,6 +9,7 @@ import {
   usePresence,
   useScrollLock,
 } from './internal/dialogUtils.js';
+import { useSheetDrag } from './internal/sheetDrag.js';
 import { DialogCloseButton } from './Dialog.jsx';
 import './Dialog.css';
 import './Sheet.css';
@@ -64,73 +65,17 @@ export default function Sheet({
   });
 
   // ---- Swipe down to dismiss (bottom sheet, from the handle/title area) ----
-  const dragRef = useRef(null);
-
-  // Re-opened mid-exit after a swipe: clear the drag leftovers.
-  useLayoutEffect(() => {
-    const el = panelRef.current;
-    if (!open || !el) return;
-    el.removeAttribute('data-dragged');
-    el.removeAttribute('data-drag-dismissed');
-    el.style.transform = '';
-    el.style.transition = '';
-  }, [open]);
-
-  function onDragStart(e) {
-    if (!dismissable || resolvedSide !== 'bottom' || e.button !== 0) return;
-    const el = panelRef.current;
-    if (!el) return;
-    dragRef.current = { id: e.pointerId, startY: e.clientY, lastY: e.clientY, lastT: e.timeStamp, v: 0 };
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-    // A running entry animation outranks the inline transform; drop it.
-    el.setAttribute('data-dragged', '');
-    el.style.transition = 'none';
-  }
-
-  function onDragMove(e) {
-    const d = dragRef.current;
-    const el = panelRef.current;
-    if (!d || !el || e.pointerId !== d.id) return;
-    const dt = Math.max(1, e.timeStamp - d.lastT);
-    d.v = (e.clientY - d.lastY) / dt;
-    d.lastY = e.clientY;
-    d.lastT = e.timeStamp;
-    const dy = e.clientY - d.startY;
-    // Free downwards, heavy resistance upwards.
-    el.style.transform = `translateY(${dy >= 0 ? dy : dy / 6}px)`;
-  }
-
-  function onDragEnd(e) {
-    const d = dragRef.current;
-    const el = panelRef.current;
-    if (!d || !el || e.pointerId !== d.id) return;
-    dragRef.current = null;
-    const dy = Math.max(0, e.clientY - d.startY);
-    const dismiss = e.type === 'pointerup' && (dy > Math.min(140, el.offsetHeight * 0.3) || (d.v > 0.6 && dy > 8));
-    if (dismiss) {
-      el.setAttribute('data-drag-dismissed', '');
-      el.style.transition = 'transform 200ms ease-in';
-      el.style.transform = 'translateY(100%)';
-      close();
-    } else {
-      el.style.transition = 'transform 300ms cubic-bezier(0.32, 0.72, 0, 1)';
-      el.style.transform = '';
-    }
-  }
+  const dragHandlers = useSheetDrag({
+    panelRef,
+    open,
+    enabled: dismissable && resolvedSide === 'bottom',
+    onDismiss: close,
+  });
 
   if (!present) return null;
 
   const isBottom = resolvedSide === 'bottom';
   const panelStyle = isBottom ? styleProp : { width, ...styleProp };
-
-  const dragHandlers = isBottom
-    ? {
-        onPointerDown: onDragStart,
-        onPointerMove: onDragMove,
-        onPointerUp: onDragEnd,
-        onPointerCancel: onDragEnd,
-      }
-    : {};
 
   return (
     <Portal>

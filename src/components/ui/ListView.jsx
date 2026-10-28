@@ -117,7 +117,8 @@ function ListPager({ total, currentPage, totalPages, pageStart, pageEnd, pageSiz
   );
 }
 
-/** Phones: the rows so far and "Show more" instead of page buttons. */
+/** Phones: the rows so far and "Show more" instead of page buttons (only
+ *  while there are more to show). */
 function ListShowMore({ shown, total, step, onMore }) {
   return (
     <div className="ui-list-more">
@@ -749,7 +750,7 @@ export default function ListView({
         </div>
       </div>
 
-      {paged && phone && !loading && total > 0 && (
+      {paged && phone && !loading && limit < total && (
         <div className="ui-list__footer">
           <ListShowMore shown={Math.min(limit, total)} total={total} step={pageSize} onMore={() => setPhoneLimit(limit + pageSize)} />
         </div>

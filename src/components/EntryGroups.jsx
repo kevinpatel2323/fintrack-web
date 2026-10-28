@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { Button, Dialog, ErrorMessage, FormControl } from './ui';
+import { Button, Dialog, ErrorMessage, FormControl, MobileActionBar } from './ui';
 import { groupTotals } from '../utils/entryGroups.js';
 import { friendFirstName } from '../utils/ledgerParties.js';
 import { rupees, toMinor } from '../utils/settlementAllocation.js';
@@ -90,13 +90,22 @@ export function GroupTitleDialog({ mode, initialTitle = '', members = [], friend
  * The floating bar shown while ticking entries to group, or to add to a
  * group — the kit's list selection banner, with the group action in it.
  */
+function selectionCopy(count, target) {
+  return {
+    ready: target ? count >= 1 : count >= 2,
+    hint: target
+      ? `Tick entries to add to “${target.title}”`
+      : count < 2
+        ? 'Tick at least 2 entries to group'
+        : 'Tick the entries to group',
+    confirmLabel: target
+      ? count > 0 ? `Add ${count} to group` : 'Add to group'
+      : count > 0 ? `Group ${count}` : 'Group entries',
+  };
+}
+
 export function GroupSelectionBar({ count, target, onConfirm, onCancel }) {
-  const ready = target ? count >= 1 : count >= 2;
-  const hint = target
-    ? `Tick entries to add to “${target.title}”`
-    : count < 2
-      ? 'Tick at least 2 entries to group'
-      : 'Tick the entries to group';
+  const { ready, hint, confirmLabel } = selectionCopy(count, target);
   return (
     <div className="ledger-selection-anchor">
       <div className="ledger-selection" role="region" aria-label="Selection">
@@ -108,18 +117,28 @@ export function GroupSelectionBar({ count, target, onConfirm, onCancel }) {
         </div>
         <div className="ledger-selection__actions">
           <Button variant="ghost" label="Cancel" onClick={onCancel} />
-          <Button
-            variant="solid"
-            disabled={!ready}
-            onClick={onConfirm}
-            label={
-              target
-                ? count > 0 ? `Add ${count} to group` : 'Add to group'
-                : count > 0 ? `Group ${count}` : 'Group entries'
-            }
-          />
+          <Button variant="solid" disabled={!ready} onClick={onConfirm} label={confirmLabel} />
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * The same selection on a phone: it takes the place of the page's action
+ * bar at the bottom of the screen, with the count and hint above the two
+ * buttons.
+ */
+export function GroupSelectionActionBar({ count, target, onConfirm, onCancel }) {
+  const { ready, hint, confirmLabel } = selectionCopy(count, target);
+  return (
+    <MobileActionBar className="ledger-mbar">
+      <p className="ledger-mbar__text" role="status" aria-live="polite">
+        <span className="ledger-mbar__count">{count} selected</span>
+        <span className="ledger-mbar__hint">{hint}</span>
+      </p>
+      <Button size="lg" label="Cancel" onClick={onCancel} />
+      <Button size="lg" variant="solid" disabled={!ready} onClick={onConfirm} label={confirmLabel} />
+    </MobileActionBar>
   );
 }

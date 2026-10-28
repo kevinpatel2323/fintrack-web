@@ -29,13 +29,20 @@ A floating panel that opens on click: rounded-6, `surface-elevation-2`, shadow-2
 | `matchWidth` | bool | `false` | The panel is at least as wide as the trigger. |
 | `panelClassName` | string | | Extra class on the panel (`className` lands there too). |
 | `closeOnOutsideClick` | bool | `true` | Escape still closes. |
-| `autoFocus` | bool | `true` | Focus the first `[autofocus]`/`[data-autofocus]` or tabbable element on open. |
+| `autoFocus` | bool | `true` | Focus the first `[autofocus]`/`[data-autofocus]` or tabbable element on open. Not on a phone sheet, which focuses itself so no field brings up the keyboard. |
+| `mobile` | `'sheet'` \| `'popover'` | `'sheet'` | Phones (< 768px). `'sheet'`: the content opens in a bottom sheet (grab handle, scrim, swipe down or tap outside to close) — for filters and other form content. `'popover'`: a small floating panel kept inside the viewport — for a hint or a short read-only note. |
+| `sheetTitle` | node | | Phones: the sheet's 17px title. Without it the sheet has only the grab handle (and is labelled by `aria-label` if given). |
+| `sheetClassName` | string | | Phones: class on the sheet panel (`panelClassName` is not applied to the sheet). |
 
 Focus returns to the trigger after Escape or `close()`, but not after an outside click.
 
 ```jsx
-<Popover trigger={<Button iconLeft={SlidersHorizontal} label="Filter" />}>
+<Popover sheetTitle="Filters" trigger={<Button iconLeft={SlidersHorizontal} label="Filter" />}>
   {({ close }) => <FilterForm onApply={() => { apply(); close(); }} />}
+</Popover>
+
+<Popover mobile="popover" trigger={<Button variant="ghost" icon={Info} label="What is unbilled?" />}>
+  <p className="x-note">Spends since the last statement.</p>
 </Popover>
 ```
 
@@ -94,6 +101,8 @@ A modal dialog (frappe-ui Dialog). It has a black-overlay scrim and a rounded-7 
 | `bodyClassName` | string | | Class on the scrolling body. |
 | `mobile` | `'sheet' \| 'center'` | `'sheet'` | Phone presentation: docked to the bottom edge, or the centred card. |
 
+**On phones** (`mobile="sheet"`) the dialog docks to the bottom edge with a grab handle and a centred 17px title (× on the right), and swipes down to dismiss from the handle or the header (not from a button in it; `dismissable={false}` turns it off). Built-in `actions` share the width at 44px. A custom `footer` gets the same: kit `Button`s placed straight in it, or inside one wrapper row, share the width at 44px; anything else in it (a status line) takes a full row above them. `mobile="center"` keeps the centred card with 44px buttons sharing its width (ConfirmDialog).
+
 Focus moves to an `[autofocus]`/`data-autofocus` element (React's `autoFocus` also works), or else to the dialog itself. Tab cycles inside the dialog, and focus returns to the opener on close.
 
 ```jsx
@@ -137,7 +146,7 @@ frappe-ui's `dialog.confirm()`. A `md` Dialog with a theme icon (alert-triangle,
 
 ## Sheet
 
-A side panel or drawer. `right` is a full-height panel that slides in from the right, with a hairline header (title, description, ×) and footer. `bottom` is frappe-ui's BottomSheet: a 36px top radius, a grab handle, a centred 20px title, a 90dvh cap, and swipe-down on the handle area to dismiss.
+A side panel or drawer. `right` is a full-height panel that slides in from the right, with a hairline header (title, description, ×) and footer. `bottom` is frappe-ui's BottomSheet: a 36px top radius, a grab handle, a centred 20px title (17px on phones), a 90dvh cap, and swipe-down on the handle area to dismiss. The kit's phone pickers (Select, Combobox, DatePicker, DateRangePicker), `Popover` with `mobile="sheet"`, and `ActionSheet` are all built on it.
 
 | Prop | Type | Default | Notes |
 |---|---|---|---|
@@ -151,6 +160,8 @@ A side panel or drawer. `right` is a full-height panel that slides in from the r
 | `label`, `bodyClassName` | | | |
 
 The body scrolls and the right panel's body has 20px padding. Modal behaviour is the same as Dialog.
+
+**On phones** a bottom sheet's title is 17px, and kit `Button`s in its `footer` (straight in it, or in one wrapper row) share the width at 44px; other footer content takes its own row above them. These rules are kept at low specificity, so a page can still give its main button more room (`flex-grow: 2`).
 
 ```jsx
 <Sheet open={!!txn} onClose={() => setTxn(null)} title={txn?.description} footer={<Button variant="solid" label="Save" onClick={save} />}>
@@ -182,6 +193,8 @@ toast.dismiss(id);   // toast.dismiss() dismisses all
 | `id` | auto | Pass an existing id to update that toast in place. |
 | `onDismiss` | | `(toast) => void` |
 
+**On phones** the stack runs the width of the screen inside the page gutter, 12px above whatever the phone shell shows at the bottom: the tab bar, a `MobileActionBar`, or just the home indicator. The shell publishes that height as `--phone-chrome-bottom` on `<html>`. Rows are 48px with 15px text and a 32px close target.
+
 Timers pause while the stack is hovered or focused, and while the tab is hidden. The region is an `aria-live="polite"` section labelled "Notifications". Mount `<Toaster />` once at the app root. Extra mounts render nothing, so a page that mounts its own `<Toaster />` (like the UI kit gallery) is harmless.
 
 ## Tabs
@@ -196,7 +209,9 @@ Underline tabs (frappe-ui Tabs, `underline` variant). Tabs sit 24px apart on a h
 | `idPrefix` | string | | Tab ids become `${idPrefix}-tab-${value}`, with `aria-controls="${idPrefix}-panel-${value}"`. |
 | `aria-label` | string | | |
 
-The tabs use tablist/tab roles with roving tabindex. ←/→ move and select, and Home/End jump to the ends. When the tabs don't fit, they scroll sideways inside their own box and keep the selected tab in view.
+The tabs use tablist/tab roles with roving tabindex. ←/→ move and select, and Home/End jump to the ends. When the tabs don't fit, they scroll sideways inside their own box (no scrollbar) and keep the selected tab in view.
+
+**On phones** tabs are 44px tall with 15px labels, 20px apart. Add `className="phone-bleed"` to run the rail edge to edge: the first and last tab keep the page gutter.
 
 ```jsx
 <Tabs idPrefix="txn" value={tab} onChange={setTab} tabs={[{ label: 'All', value: 'all', count: 128 }, { label: 'Uncategorised', value: 'uncat', count: 7 }]} />
@@ -216,6 +231,8 @@ A segmented control (frappe-ui TabButtons, `subtle` variant). It's a gray-2 trac
 | `aria-label` | string | | |
 
 It uses radiogroup semantics: one tab stop, and the arrow keys move and select.
+
+**On phones** pills are 30px in a 32px track. With `fluid` the options split the row evenly with tighter insets, so a label plus a small count (`label: <>They owe<span className="x-count">3</span></>`) fits three to a row at 375px; long labels truncate.
 
 ```jsx
 <TabButtons value={range} onChange={setRange} options={[{ label: 'Week', value: 'week' }, { label: 'Month', value: 'month' }]} />

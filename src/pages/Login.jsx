@@ -5,6 +5,7 @@ import { Alert, Button, ErrorMessage } from '../components/ui';
 import AuthLayout from './auth/AuthLayout.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { browserSupportsWebAuthn, loginWithPasskey } from '../services/authApi.js';
+import { useIsCompact } from '../styles/breakpoints.js';
 
 export default function Login() {
   const { status, authDisabled, refresh } = useAuth();
@@ -12,6 +13,8 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const supported = browserSupportsWebAuthn();
+  // Phones: a 44px button, pinned near the bottom of the screen (AuthLayout.css).
+  const isMobile = useIsCompact();
 
   // Auth disabled locally, or already signed in → go home.
   useEffect(() => {
@@ -45,7 +48,7 @@ export default function Login() {
       {supported ? (
         <Button
           variant="solid"
-          size="md"
+          size={isMobile ? 'lg' : 'md'}
           className="auth-page__full"
           iconLeft={KeyRound}
           label={busy ? 'Waiting for passkey…' : 'Sign in with passkey'}
