@@ -161,3 +161,18 @@
     transition: none;
   }
 }
+
+/* Phones: segmented controls are a comfortable tap (30px pills in a 32px
+   track, like a 32px button); icon-only pills stay square. */
+@media (max-width: 767.98px) {
+  .ui-tab-buttons__pill,
+  .ui-tab-buttons[data-size='md'] .ui-tab-buttons__pill {
+    height: 30px;
+    padding-inline: 12px;
+  }
+  .ui-tab-buttons__button[data-icon-only] .ui-tab-buttons__pill,
+  .ui-tab-buttons[data-size='md'] .ui-tab-buttons__button[data-icon-only] .ui-tab-buttons__pill {
+    width: 30px;
+    padding-inline: 5px;
+  }
+}

@@ -4,6 +4,9 @@ import { Check } from 'lucide-react';
 import Portal from '../Portal.jsx';
 import { useDismiss, useFloating, useStableId } from './internal/floating.js';
 import { cx, useControllableState, useMergedRef } from './internal/dialogUtils.js';
+import { normalizeOptions, renderIcon } from './internal/menuOptions.jsx';
+import ActionSheet from './ActionSheet.jsx';
+import { useIsCompact } from '../../styles/breakpoints.js';
 import './Popover.css';
 import './Dropdown.css';
 
@@ -16,46 +19,6 @@ import './Dropdown.css';
  * `options` key works too), or a mix. Item: `{ label, icon, onClick, to,
  * theme: 'red', disabled, shortcut, description, selected, condition }`.
  */
-
-// A group is any entry holding a list of items; its `group` label is optional
-// (an unlabelled group is still separated from its neighbours by a hairline).
-function isGroup(opt) {
-  return !!opt && typeof opt === 'object' && (Array.isArray(opt.items) || Array.isArray(opt.options));
-}
-
-function isShown(item) {
-  return !!item && !(typeof item.condition === 'function' && !item.condition());
-}
-
-function normalizeOptions(options) {
-  const groups = [];
-  let implicit = null;
-  (options || []).forEach((opt, i) => {
-    if (!opt) return;
-    if (isGroup(opt)) {
-      implicit = null;
-      const items = (opt.items || opt.options)
-        .filter(isShown)
-        .map((it) => (opt.theme && !it.theme ? { ...it, theme: opt.theme } : it));
-      if (items.length) groups.push({ key: opt.key ?? `group-${i}`, label: opt.hideLabel ? undefined : opt.group, items });
-      return;
-    }
-    if (!isShown(opt)) return;
-    if (!implicit) {
-      implicit = { key: `implicit-${i}`, label: undefined, items: [] };
-      groups.push(implicit);
-    }
-    implicit.items.push(opt);
-  });
-  return groups;
-}
-
-function renderIcon(icon, className) {
-  if (!icon) return null;
-  if (isValidElement(icon)) return icon;
-  const Icon = icon;
-  return <Icon className={className} size={16} aria-hidden="true" />;
-}
 
 export default function Dropdown({
   options = [],
@@ -72,7 +35,10 @@ export default function Dropdown({
   ...rest
 }) {
   const [open, setOpen] = useControllableState(openProp, defaultOpen, onOpenChange);
-  const { anchorRef, floatingRef, style, side } = useFloating({ open, placement, offset, matchWidth });
+  // Phones get the same options as an action sheet instead of a floating menu.
+  const asSheet = useIsCompact();
+  const floatingOpen = open && !asSheet;
+  const { anchorRef, floatingRef, style, side } = useFloating({ open: floatingOpen, placement, offset, matchWidth });
   const menuId = useStableId('ui-menu');
   const fallbackTriggerId = useStableId('ui-menu-trigger');
 
@@ -117,7 +83,7 @@ export default function Dropdown({
   );
 
   useDismiss({
-    active: open,
+    active: floatingOpen,
     refs: [anchorRef, floatingRef],
     // Escape returns focus to the trigger; an outside click leaves it where the user put it.
     onDismiss: (e) => closeMenu({ focusTrigger: e?.type !== 'pointerdown' }),
@@ -125,7 +91,7 @@ export default function Dropdown({
 
   // Initial focus once the menu is mounted and placed.
   useEffect(() => {
-    if (!open) {
+    if (!floatingOpen) {
       setHighlight(-1);
       return;
     }
@@ -135,7 +101,7 @@ export default function Dropdown({
     else if (mode === 'last' && enabled.length) focusItem(enabled[enabled.length - 1]);
     else floatingRef.current?.focus({ preventScroll: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [floatingOpen]);
 
   function onItemClick(item, e) {
     if (item.disabled) {
@@ -202,7 +168,7 @@ export default function Dropdown({
   const triggerNode = cloneElement(trigger, {
     ref: mergedTriggerRef,
     id: triggerId,
-    'aria-haspopup': 'menu',
+    'aria-haspopup': asSheet ? 'dialog' : 'menu',
     'aria-expanded': open,
     'aria-controls': open ? menuId : undefined,
     'data-state': open ? 'open' : 'closed',
@@ -323,6 +289,21 @@ export default function Dropdown({
   ) : (
     <div className="ui-menu__empty">No options</div>
   );
+
+  if (asSheet) {
+    return (
+      <>
+        {triggerNode}
+        <ActionSheet
+          open={open}
+          onClose={() => setOpen(false)}
+          title={label}
+          options={options}
+          className={className}
+        />
+      </>
+    );
+  }
 
   return (
     <>

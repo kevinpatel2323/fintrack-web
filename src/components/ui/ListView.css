@@ -110,19 +110,6 @@
   background: var(--ui-list-header-bg, var(--surface-base));
 }
 
-/* Phone: the compact page header is 52px (plus the inset when installed). */
-@media (max-width: 767.98px) {
-  .ui-list[data-sticky] .ui-list__head {
-    top: var(--ui-list-sticky-top, calc(52px + var(--list-toolbar-height, 0px)));
-  }
-}
-
-@media (max-width: 767.98px) and (display-mode: standalone) {
-  .ui-list[data-sticky] .ui-list__head {
-    top: var(--ui-list-sticky-top, calc(52px + env(safe-area-inset-top) + var(--list-toolbar-height, 0px)));
-  }
-}
-
 /* A list that scrolls sideways is its own scroll box, so a sticky header
    would pin inside it (pushed down by the page offset) instead of to the
    page. The header stays in place there. */
@@ -766,4 +753,74 @@
   .ui-list__skeleton {
     animation: none;
   }
+}
+
+/* ---------- Phone (frappe-ui mobile list) ----------
+ * No header row (kept for screen readers; sorting moves to the "Sorted by"
+ * control), 56px rows with 15px text, square rows with a pressed state and
+ * no hover, "Show more" under the rows. `.phone-bleed` (styles/base.css)
+ * takes a list edge to edge with the rows padded by the page gutter. */
+@media (max-width: 767.98px) {
+  .ui-list[data-phone] .ui-list__head {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .ui-list[data-phone] .ui-list__row {
+    min-height: var(--ui-list-row-height, var(--mobile-row-height));
+    font-size: 15px;
+  }
+
+  .ui-list[data-phone] .ui-list__row:first-child .ui-list__divider {
+    display: none;
+  }
+}
+
+.ui-list-phonesort {
+  display: flex;
+  padding: 0 var(--ui-list-pad);
+}
+
+.ui-list-phonesort__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  margin-left: -4px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--radius-4);
+  background: transparent;
+  color: var(--ink-gray-6);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ui-list-phonesort__btn:active {
+  background: var(--surface-gray-2);
+}
+
+.ui-list-phonesort__btn:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: 0;
+}
+
+.ui-list-more {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px var(--ui-list-pad) 4px;
+}
+
+.ui-list-more__count {
+  font-size: 13px;
+  color: var(--ink-gray-5);
+  font-variant-numeric: tabular-nums;
 }

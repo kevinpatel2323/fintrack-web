@@ -177,3 +177,12 @@ svg {
     font-size: 16px !important;
   }
 }
+
+/* Phones: take a list or band edge to edge, its rows padded by the page
+   gutter instead (frappe-ui mobile lists run full width). */
+@media (max-width: 767.98px) {
+  .phone-bleed {
+    --list-row-padding-x: var(--page-gutter);
+    margin-inline: calc(-1 * var(--page-gutter));
+  }
+}

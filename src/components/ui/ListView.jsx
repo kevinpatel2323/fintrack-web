@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import ActionSheet from './ActionSheet.jsx';
 import Button from './Button.jsx';
 import EmptyState from './EmptyState.jsx';
 import Select from './Select.jsx';
@@ -11,6 +12,7 @@ import {
   nextSort, paginateRows, resizeHandles, resolveWidth, sortRows, templateVars, toTrack, trackMin,
 } from './internal/listModel.js';
 import { useListSettings } from './useListSettings.js';
+import { useIsCompact } from '../../styles/breakpoints.js';
 import './ListView.css';
 
 /**
@@ -24,6 +26,11 @@ import './ListView.css';
  * every row. Columns with `hideBelow` drop out of the template (and the cell
  * hides) under that breakpoint. When the tracks need more room than there
  * is, the list scrolls sideways inside its own box — never the page.
+ *
+ * Phones (< 768px) get frappe-ui's mobile list instead of a table look: no
+ * header row (it stays for screen readers), 56px rows, a "Sorted by …"
+ * control that opens the sort options as an action sheet, no resizing, and
+ * "Show more" in place of the pager.
  *
  * The rules (tracks, resize handles, sorting, paging) live in
  * `internal/listModel.js`; API in `docs/overlays.md#listview`.
@@ -110,6 +117,51 @@ function ListPager({ total, currentPage, totalPages, pageStart, pageEnd, pageSiz
   );
 }
 
+/** Phones: the rows so far and "Show more" instead of page buttons. */
+function ListShowMore({ shown, total, step, onMore }) {
+  return (
+    <div className="ui-list-more">
+      <span className="ui-list-more__count">
+        {shown} of {total}
+      </span>
+      {shown < total && (
+        <Button variant="subtle" size="md" label={`Show ${Math.min(step, total - shown)} more`} onClick={onMore} />
+      )}
+    </div>
+  );
+}
+
+/** Phones: the column header row is hidden, so sorting lives in this control. */
+function ListPhoneSort({ columns, sort, onPick }) {
+  const [open, setOpen] = useState(false);
+  const current = columns.find((c) => sort && c.key === sort.key);
+  const Glyph = sort?.direction === 'asc' ? ArrowUp : ArrowDown;
+  const name = (col) => columnName(col) || String(col.key);
+  return (
+    <div className="ui-list-phonesort">
+      <button type="button" className="ui-list-phonesort__btn" aria-haspopup="dialog" onClick={() => setOpen(true)}>
+        <ArrowUpDown size={14} aria-hidden="true" />
+        <span>{current ? `Sorted by ${name(current).toLowerCase()}` : 'Sort'}</span>
+        {current && <Glyph size={14} aria-label={sort.direction === 'asc' ? 'ascending' : 'descending'} />}
+      </button>
+      <ActionSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Sort by"
+        description={current ? 'Pick the same column again to reverse the order.' : undefined}
+        options={columns.map((col) => ({
+          key: col.key,
+          label: name(col),
+          selected: current?.key === col.key,
+          description:
+            current?.key === col.key ? (sort.direction === 'asc' ? 'Ascending' : 'Descending') : undefined,
+          onClick: () => onPick(col),
+        }))}
+      />
+    </div>
+  );
+}
+
 const INTERACTIVE_INSIDE = 'a, button, input, select, textarea, label, summary, [role="button"], [role="checkbox"], [role="switch"], [role="menuitem"], [role="separator"], [data-row-click-ignore]';
 
 const SKELETON_WIDTHS = [72, 48, 60, 84, 40, 66];
@@ -149,6 +201,7 @@ export default function ListView({
   ...rest
 }) {
   const listId = useStableId('ui-list');
+  const phone = useIsCompact();
   const scrollRef = useRef(null);
   const tableRef = useRef(null);
   const [overflowX, setOverflowX] = useState(false);
@@ -173,7 +226,12 @@ export default function ListView({
 
   const shownColumns = useMemo(() => columns.filter((c) => c.pinned || !hidden[c.key]), [columns, hidden]);
   const flexKey = useMemo(() => flexColumnKey(shownColumns), [shownColumns]);
-  const handles = useMemo(() => resizeHandles(shownColumns, resizable, flexKey), [shownColumns, resizable, flexKey]);
+  // No resizing on phones (touch has no column edge to drag); saved desktop
+  // widths don't apply there either.
+  const handles = useMemo(
+    () => resizeHandles(shownColumns, resizable && !phone, flexKey),
+    [shownColumns, resizable, phone, flexKey],
+  );
   const laidOut = useMemo(
     () => shownColumns.map((col) => ({
       ...col,
@@ -201,9 +259,14 @@ export default function ListView({
     paging.onPageSizeChange,
   );
 
+  // Phones show the first `phoneLimit` rows and grow by a page at a time.
+  const [phoneLimit, setPhoneLimit] = useState(null);
+  const limit = phoneLimit ?? pageSize;
+
   function toggleSort(col) {
     setSort(nextSort(sort, col));
     if (paged) setPage(1);
+    setPhoneLimit(null);
   }
 
   // ---- Rows: sort, then page, then sub-rows under their parents ----
@@ -212,8 +275,12 @@ export default function ListView({
     [clientSort, groups, rows, columns, sort],
   );
   const pageInfo = useMemo(
-    () => (paged ? paginateRows(sortedRows, page, pageSize) : null),
-    [paged, sortedRows, page, pageSize],
+    () => (paged && !phone ? paginateRows(sortedRows, page, pageSize) : null),
+    [paged, phone, sortedRows, page, pageSize],
+  );
+  const phoneRows = useMemo(
+    () => (paged && phone ? sortedRows.slice(0, limit) : null),
+    [paged, phone, sortedRows, limit],
   );
   const shownGroups = useMemo(
     () => groups?.map((g) => {
@@ -223,8 +290,8 @@ export default function ListView({
     [groups, clientSort, columns, sort, subRows],
   );
   const bodyRows = useMemo(
-    () => (groups ? null : flattenRows(pageInfo ? pageInfo.pageRows : sortedRows, subRows)),
-    [groups, pageInfo, sortedRows, subRows],
+    () => (groups ? null : flattenRows(phoneRows ?? (pageInfo ? pageInfo.pageRows : sortedRows), subRows)),
+    [groups, phoneRows, pageInfo, sortedRows, subRows],
   );
 
   // Groups: collapsed state starts from `groups[].collapsed`, then is ours.
@@ -519,6 +586,7 @@ export default function ListView({
   // Records, not the sub-rows shown under them.
   const total = groups ? groups.reduce((n, g) => n + (g.rows?.length || 0), 0) : sortedRows.length;
   const showEmpty = !loading && total === 0;
+  const phoneSortable = phone && canSort ? shownColumns.filter((c) => c.sortable) : [];
 
   let body;
   if (shownGroups) {
@@ -583,8 +651,12 @@ export default function ListView({
       data-selectable={selectable ? '' : undefined}
       data-sticky={stickyHeader ? '' : undefined}
       data-resizing={resizingKey ? '' : undefined}
+      data-phone={phone ? '' : undefined}
       style={style}
     >
+      {phone && phoneSortable.length > 0 && total > 1 && (
+        <ListPhoneSort columns={phoneSortable} sort={sort} onPick={toggleSort} />
+      )}
       <div ref={scrollRef} className="ui-list__scroll" data-overflow={overflowX ? '' : undefined}>
         <div
           ref={tableRef}
@@ -677,7 +749,13 @@ export default function ListView({
         </div>
       </div>
 
-      {paged && !loading && total > 0 && (
+      {paged && phone && !loading && total > 0 && (
+        <div className="ui-list__footer">
+          <ListShowMore shown={Math.min(limit, total)} total={total} step={pageSize} onMore={() => setPhoneLimit(limit + pageSize)} />
+        </div>
+      )}
+
+      {paged && !phone && !loading && total > 0 && (
         <div className="ui-list__footer">
           <ListPager
             total={total}

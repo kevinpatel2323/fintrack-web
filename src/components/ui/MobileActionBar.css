@@ -1,0 +1,20 @@
+/* Sticky bottom action bar for pushed phone pages (frappe-ui MailMobile,
+   HRMS FormView): hairline on top, buttons sharing the width, clear of the
+   home indicator. Above a tab bar it drops the inset (the bar has it). */
+
+.ui-mactionbar {
+  display: flex;
+  gap: 8px;
+  padding: 8px var(--page-gutter) calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--outline-gray-1);
+  background: var(--surface-base);
+}
+
+.mobile-shell[data-nav] .ui-mactionbar {
+  padding-bottom: 8px;
+}
+
+.ui-mactionbar > * {
+  flex: 1;
+  min-width: 0;
+}

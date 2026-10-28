@@ -49,7 +49,7 @@ The pre-redesign layer (`primitives.jsx`, `Icon.jsx`, the `--ft-*` variables and
 - Every named column is sortable (`sortable`, plus `sortValue` when the cell isn't the raw value); dates and amounts start descending (`sortFirst: 'desc'`).
 - The title column is `flex`; the rest can be dragged. Give each table a `storageKey` (or `columnSettings` shared with a `ListColumnsMenu` where columns are optional) so widths and choices stick.
 - Paginate lists that grow without end: transactions, a ledger, people, statements, payments. Bounded lists — categories, subscriptions, recent imports, a calendar day, an import preview — show every row.
-- People show as `AvatarGroup` stacks. On phones the less important columns drop out (`hideBelow`) and their facts fold into a second line under the title; size column floors so the table fits a 390px phone. Ledger pages may swap the table for the phone row list (`TransactionMobileList`).
+- People show as `AvatarGroup` stacks. On phones a table becomes a list of rows (see **Phone**): the less important columns drop out (`hideBelow`) and their facts fold into a second line under the title. Ledger pages may swap the table for the phone row list (`TransactionMobileList`).
 - List pages put their search, filters and summary in `components/common/ListToolbar.jsx`, which pins under the page header; the table header pins under it.
 
 Not tables, on purpose (each is listed in `ui/__tests__/oneTable.test.ts`, which fails on table markup anywhere else):
@@ -81,10 +81,74 @@ Not tables, on purpose (each is listed in `ui/__tests__/oneTable.test.ts`, which
 - Destructive actions confirm with `ConfirmDialog` (red).
 - Report success and failure with `toast`, not banners that linger.
 
-**Phone (<768px):**
-- `PageHeader` switches to the compact centred title on its own. Pass `back` on detail pages and `mobileActions` for one or two icon buttons.
-- Lists become simple stacked rows: primary text plus muted secondary line on the left, amount on the right. Hide non-essential `ListView` columns with `hideBelow` or render a row list.
-- Forms open as bottom sheets. A `Dialog` docks to the bottom edge on its own; a `Sheet` does with `side="auto"`. Confirmations (`ConfirmDialog`) stay a centred card.
+## Phone
+
+Phones (< 768px, designed on an iPhone 17 at 402×874 and checked at 375px) get their own layout, the way Frappe's newer apps do it (Gameplan, frappe-ui's `MobileShell` and mobile recipes): a separate phone layout, not the desktop one squeezed. API for the phone components: `docs/phone.md`.
+
+**The desktop is frozen.** Every phone change lives in a phone-only branch or in CSS inside `@media (max-width: 767.98px)`.
+- Phone-only branch: `useIsCompact()` → render a phone component.
+- Never edit a desktop rule or desktop markup to get a phone result.
+- A page whose phone layout differs a lot renders a separate phone component that shares the page's hooks and state. Don't sprinkle `isMobile` through the desktop JSX.
+
+**Shell** (`components/shell/`):
+- **Tab bar.** Five tabs: Home, Activity, Calendar, Cards, People. It shows only on a tab's own page.
+- **Pushed pages.** Everything else — a record, anything under You — has a Back button and no tab bar.
+  - Back returns to the previous screen when there is one, so scroll position and filters survive. Otherwise it goes to the page's `back` path.
+- **You.** Categories, Import statements, Security and appearance live on You. It opens from the round button at the left of every tab's header, which carries a dot when card statements wait to be imported.
+- **Header.**
+  - Fixed, 52px, centred one-line 17px title.
+  - On the left: Back or You. On the right: at most two icon buttons (`mobileActions`).
+  - The create action (`Plus`) and a `…` overflow menu holding the page's other actions. No text buttons in the header.
+- **Main actions.** A pushed page's main actions go in `MobileActionBar` at the bottom: one or two `size="lg"` buttons, main one last and solid. Tab pages create from the header's `+`. No floating action buttons.
+
+**Layout:**
+- One column, a 16px gutter (`--page-gutter`).
+- Lists run edge to edge, their rows padded by the gutter: `MobileList`, or a `ListView` with `className="phone-bleed"`.
+- **Sections.**
+  - Sections are `MobileSection`: a 17px semibold title with an optional "View all ›", 28px apart.
+  - Sections are not boxed cards. Boxes are only for charts and summary tiles.
+- **Summary figures.**
+  - A record page leads with one hero figure (28px semibold) and a muted line under it.
+  - An overview uses up to four compact tiles in a 2-column grid: label 13px, value 20px semibold.
+- **Details.** A desktop side panel becomes a Details section of `MobileField` label/value rows.
+- **Tabs and segments.**
+  - Underline `Tabs` scroll sideways when they overflow.
+  - Segments ("All · They owe · You owe") are `TabButtons`, `fluid` when they fill the row.
+
+**Lists:**
+- **Records** use `ListView`'s phone layout: no header row, a "Sorted by …" control, 56px rows and "Show more" in place of the pager.
+  - Show the title column (with a muted second line carrying the facts of the hidden columns) and one trailing value.
+  - Hide the other columns with `hideBelow="md"`.
+- **Transactions** are grouped by day under sticky date headers (`TransactionMobileList`).
+- **Rows.**
+  - Text: a 16px title in `--ink-gray-8`, a 13px subtitle in `--ink-gray-5`, and the amount as 16px medium tabular figures.
+  - A 32px leading tile or avatar, and inset hairlines between rows.
+  - A pressed state and no hover. No selected-row highlight that lingers.
+- **Overview lists, menus and settings** are `MobileList`/`MobileListItem`; the You hub uses `variant="inset"` groups.
+
+**Controls:**
+- **Search** is full width, pinned at the top of the scroll area (`ListToolbar`).
+- **Filters.**
+  - They sit behind a "Filter" button that shows the active count. It opens a bottom sheet of filter fields with Clear and a "Show N results" button.
+  - One quick segment row may sit under the search.
+- **Sizes.**
+  - Kit controls are one size up on phones: sm 32px, md 36, lg 44.
+  - Text fields use 16px text, so iOS never zooms the page.
+- **Menus.** A `Dropdown` opens as an action sheet on its own. A row's actions go in a `…` on the row (`MobileListItem actions`) or on its record page.
+
+**Overlays:**
+- **Forms.** A `Dialog` docks as a bottom sheet: grab handle, centred title, 44px full-width buttons. A `Sheet` does too with `side="auto"`.
+- **Confirmations.** `ConfirmDialog` stays a centred card.
+- **Toasts** sit above the tab bar.
+
+**Type on phones:**
+- Header and section titles: 17px semibold.
+- Row titles: 16px. Body: 15px. Secondary text: 13px.
+- Hero amount: 28px semibold. Tile values: 20px semibold.
+
+**Safe areas:**
+- The header pads the top inset when the app is installed to the home screen.
+- The tab bar, action bar, sheets and the last row all clear the home indicator.
 - No horizontal page scrolling, ever.
 
 ## Writing

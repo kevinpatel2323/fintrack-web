@@ -1,0 +1,272 @@
+/* Phone lists (frappe-ui mobile recipes, Gameplan MobileListRow /
+   MobileMoreMenu). Phone-only components, so no media queries here. */
+
+.ui-mlist {
+  --mrow-pad: var(--page-gutter);
+  margin-inline: calc(-1 * var(--page-gutter));
+}
+
+/* Grouped inset block: rounded, on a faint surface, inside the gutter. */
+.ui-mlist[data-variant='inset'] {
+  --mrow-pad: 16px;
+  margin-inline: 0;
+  overflow: hidden;
+  border-radius: var(--radius-7);
+  background: var(--surface-gray-1);
+}
+
+.ui-mrow {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+/* Hairline between rows, inset to where the text starts. */
+.ui-mrow + .ui-mrow::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: var(--mrow-pad);
+  right: 0;
+  border-top: 1px solid var(--outline-gray-1);
+  pointer-events: none;
+}
+
+.ui-mrow[data-leading] + .ui-mrow[data-leading]::before {
+  left: calc(var(--mrow-pad) + 32px + 12px);
+}
+
+.ui-mrow__main {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ui-mrow[data-interactive] .ui-mrow__main:active {
+  background: var(--surface-gray-2);
+}
+
+.ui-mlist[data-variant='inset'] .ui-mrow[data-interactive] .ui-mrow__main:active {
+  background: var(--surface-gray-3);
+}
+
+.ui-mrow__main:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: -2px;
+}
+
+/* Flex on an inner span: WebKit wraps a button's children in an anonymous
+   box, so a flex <button> top-aligns its content. */
+.ui-mrow__inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px var(--mrow-pad);
+}
+
+.ui-mrow:has(.ui-mrow__more) .ui-mrow__inner {
+  padding-right: 4px;
+}
+
+.ui-mrow__leading {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 32px;
+  min-height: 32px;
+}
+
+.ui-mrow__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ui-mrow__title {
+  overflow: hidden;
+  font-size: 16px;
+  line-height: 1.3;
+  color: var(--ink-gray-8);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-mrow__subtitle {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-mrow__end {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-items: flex-end;
+  gap: 2px;
+  max-width: 50%;
+  text-align: right;
+}
+
+.ui-mrow__value {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--ink-gray-8);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ui-mrow__value-sub {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ui-mrow__chevron {
+  flex-shrink: 0;
+  margin-right: -4px;
+  color: var(--ink-gray-4);
+}
+
+.ui-mrow__more {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding-right: calc(var(--mrow-pad) - 8px);
+}
+
+.ui-mrow[data-disabled] .ui-mrow__title {
+  color: var(--ink-gray-4);
+}
+
+.ui-mrow[data-tone='red'] .ui-mrow__title {
+  color: var(--ink-red-5);
+}
+
+/* ---------- Fields (label / value) ---------- */
+
+.ui-mfield {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 44px;
+  padding: 11px 0;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.ui-mfield + .ui-mfield::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.ui-mlist[data-variant='inset'] > .ui-mfield {
+  padding-inline: 16px;
+}
+
+.ui-mlist[data-variant='inset'] > .ui-mfield + .ui-mfield::before {
+  left: 16px;
+}
+
+.ui-mfield__label {
+  flex-shrink: 0;
+  color: var(--ink-gray-5);
+}
+
+.ui-mfield__value {
+  min-width: 0;
+  color: var(--ink-gray-9);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Section ---------- */
+
+.ui-msection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ui-msection + .ui-msection {
+  margin-top: 28px;
+}
+
+.ui-msection__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
+}
+
+.ui-msection__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ui-msection__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ink-gray-9);
+}
+
+.ui-msection__description {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+}
+
+.ui-msection__action {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  height: 28px;
+  margin-right: -4px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--radius-4);
+  background: transparent;
+  color: var(--ink-gray-6);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ui-msection__action:active {
+  background: var(--surface-gray-2);
+}
+
+.ui-msection__action:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: 0;
+}

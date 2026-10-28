@@ -37,6 +37,7 @@ export { default as FileUploader } from './FileUploader.jsx';
 // Overlays & navigation
 export { default as Popover } from './Popover.jsx';
 export { default as Dropdown } from './Dropdown.jsx';
+export { default as ActionSheet } from './ActionSheet.jsx';
 export { default as Dialog } from './Dialog.jsx';
 export { default as ConfirmDialog } from './ConfirmDialog.jsx';
 export { default as Sheet } from './Sheet.jsx';
@@ -51,4 +52,7 @@ export { sortRows as sortListRows } from './internal/listModel.js';
 
 // App shell
 export { default as PageHeader, PageBody } from './PageHeader.jsx';
+// Phone (< 768px) layouts: see docs/DESIGN.md#phone
+export { MobileList, MobileListItem, MobileField, MobileSection } from './MobileList.jsx';
+export { default as MobileActionBar } from './MobileActionBar.jsx';
 export { Sidebar, SidebarHeader, SidebarItem, SidebarLabel, SidebarCollapseToggle } from './Sidebar.jsx';

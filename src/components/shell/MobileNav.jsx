@@ -6,11 +6,9 @@ import { MOBILE_TABS, useNavBadges } from './nav.js';
 export default function MobileNav({ onReselect }) {
   const { pathname } = useLocation();
   const badges = useNavBadges();
-  // Import lives under More on phones, so More carries its nudge.
-  const alerts = {
-    '/friends': badges['/friends']?.label,
-    '/you': badges['/import']?.label,
-  };
+  // Import lives under You on phones, so the header's You button carries
+  // its nudge (YouButton.jsx); People keeps its own.
+  const alerts = { '/friends': badges['/friends']?.label };
 
   return (
     <nav className="mobile-nav" aria-label="Primary">

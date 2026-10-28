@@ -37,8 +37,11 @@
   flex-shrink: 0;
 }
 
-/* Phone: 52px, centred title between an absolute prefix and suffix. */
+/* Phone (PageHeaderMobile): 52px, a centred one-line title between an
+   absolute prefix and suffix. It lives in the phone shell's fixed header
+   slot, so it doesn't need to stick. */
 .ui-page-header--mobile {
+  position: relative;
   justify-content: center;
   height: 52px;
   min-height: 52px;
@@ -54,11 +57,11 @@
 
 .ui-page-header__mobile-title {
   min-width: 0;
-  max-width: calc(100% - 2 * 96px);
+  max-width: calc(100% - 2 * 92px);
   font-size: 17px;
   font-weight: 600;
   line-height: 1.25;
-  letter-spacing: 0.015em;
+  letter-spacing: 0.01em;
   text-align: center;
   color: var(--ink-gray-9);
 }
@@ -106,6 +109,6 @@
 
 @media (max-width: 767.98px) {
   .ui-page-body {
-    padding: 12px 12px 24px;
+    padding: 16px var(--page-gutter) 32px;
   }
 }

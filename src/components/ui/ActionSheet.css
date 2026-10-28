@@ -1,0 +1,132 @@
+/* ActionSheet — a Dropdown's options as a bottom sheet (iOS action sheet,
+   frappe-ui FilesMobile's per-item sheet): 52px rows with a 20px icon,
+   16px labels, red destructive items, a check on the picked one, and a
+   separate Cancel at the bottom. */
+
+.ui-action-sheet .ui-sheet__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.ui-action-sheet__group {
+  overflow: hidden;
+  border-radius: var(--radius-7);
+  background: var(--surface-gray-1);
+}
+
+.ui-action-sheet__label {
+  padding: 10px 16px 4px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+}
+
+.ui-action-sheet__item {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink-gray-9);
+  font: inherit;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The flex layout lives on an inner span: WebKit wraps a button's children
+   in an anonymous box, which breaks vertical centring on the button itself. */
+.ui-action-sheet__inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 16px;
+}
+
+.ui-action-sheet__item + .ui-action-sheet__item .ui-action-sheet__inner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.ui-action-sheet__item:active {
+  background: var(--surface-gray-3);
+}
+
+.ui-action-sheet__item:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: -2px;
+}
+
+.ui-action-sheet__icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 20px;
+  color: var(--ink-gray-6);
+}
+
+.ui-action-sheet__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ui-action-sheet__item-label {
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.ui-action-sheet__description {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-gray-5);
+}
+
+.ui-action-sheet__check {
+  flex-shrink: 0;
+  color: var(--ink-gray-9);
+}
+
+.ui-action-sheet__item[data-tone='red'],
+.ui-action-sheet__item[data-tone='red'] .ui-action-sheet__icon {
+  color: var(--ink-red-5);
+}
+
+.ui-action-sheet__item[data-disabled] {
+  color: var(--ink-gray-4);
+}
+
+.ui-action-sheet__item[data-disabled] .ui-action-sheet__icon {
+  color: var(--ink-gray-3);
+}
+
+.ui-action-sheet__cancel {
+  min-height: 52px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: var(--radius-7);
+  background: var(--surface-gray-2);
+  color: var(--ink-gray-9);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ui-action-sheet__cancel:active {
+  background: var(--surface-gray-3);
+}
+
+.ui-action-sheet__cancel:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: 0;
+}

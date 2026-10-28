@@ -226,7 +226,12 @@
   width: 100%;
 }
 
-@media (max-width: 639.98px) {
+/* Phones (the app's compact tier, < 768px): a dialog docks to the bottom
+ * edge as frappe-ui's BottomSheet does — 36px top corners, grab handle,
+ * centred title, 90dvh cap, slide up — so a form reads the same whichever
+ * frame a flow uses. Its action buttons share the width at 44px.
+ * `mobile="center"` (confirmations) stays a centred card, as alerts are. */
+@media (max-width: 767.98px) {
   .ui-dialog-container {
     padding: 16px;
   }
@@ -237,10 +242,6 @@
     padding-right: 16px;
   }
 
-  /* Phones: a dialog docks to the bottom edge the way the kit's bottom Sheet
-   * does (same corners, height cap and slide), so a form reads the same
-   * whichever frame a flow uses. `mobile="center"` (confirmations) stays a
-   * centred card, as alerts are on phones. */
   .ui-dialog-container[data-mobile='sheet'] {
     justify-content: flex-end;
     padding: 0;
@@ -256,15 +257,40 @@
   .ui-dialog[data-mobile='sheet'][data-state='closed'] {
     animation: ui-sheet-out-bottom 200ms ease-in both;
   }
+  /* Grab handle (BottomSheet: h-1.5 w-10 rounded-full surface-gray-3). */
+  .ui-dialog[data-mobile='sheet']::before {
+    content: '';
+    flex-shrink: 0;
+    align-self: center;
+    width: 40px;
+    height: 6px;
+    margin-top: 12px;
+    border-radius: var(--radius-full);
+    background: var(--surface-gray-3);
+  }
   .ui-dialog[data-mobile='sheet'] .ui-dialog__header {
-    padding-top: 24px;
+    padding-top: 12px;
+  }
+  .ui-dialog[data-mobile='sheet'] .ui-dialog__heading {
+    flex: 1;
+    min-width: 0;
+  }
+  .ui-dialog[data-mobile='sheet'] .ui-dialog__title {
+    font-size: 17px;
   }
   .ui-dialog[data-mobile='sheet'] .ui-dialog__actions {
+    padding-top: 12px;
     padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+  .ui-dialog[data-mobile='sheet'] .ui-dialog__actions > .ui-dialog-btn,
+  .ui-dialog[data-mobile='sheet'] .ui-confirm-dialog__actions > .ui-dialog-btn {
+    flex: 1;
+    height: 44px;
+    font-size: 16px;
   }
 }
 
-@media (max-width: 639.98px) and (prefers-reduced-motion: reduce) {
+@media (max-width: 767.98px) and (prefers-reduced-motion: reduce) {
   .ui-dialog[data-mobile='sheet'] {
     animation-duration: 0ms;
   }

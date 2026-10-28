@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import AppSidebar from './AppSidebar.jsx';
 import MobileNav from './MobileNav.jsx';
+import YouButton from './YouButton.jsx';
+import { YOU_PATHS, isTabRoot } from './nav.js';
+import { PhoneChromeContext } from '../ui/internal/phoneChrome.js';
 import { useIsCompact, QUERY_EXPANDED } from '../../styles/breakpoints.js';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 import './AppShell.css';
@@ -26,9 +29,48 @@ function useScrollReset(ref) {
 }
 
 /**
- * The app frame (frappe-ui DesktopShell / MobileShell). Desktop: sidebar plus
- * a content column whose body scrolls under a sticky PageHeader. Phone: the
- * page scrolls between its header and the bottom tab bar.
+ * The phone frame (frappe-ui MobileShell): a fixed column of header slot,
+ * natively scrolling content, footer slot and — on a tab's own page — the
+ * tab bar. Pushed pages (a record, anything under You) hide the tab bar and
+ * show Back instead, as Gameplan does with `hideMobileNav`.
+ */
+function MobileShell({ children, scrollRef }) {
+  const { pathname } = useLocation();
+  const [headerNode, setHeaderNode] = useState(null);
+  const [footerNode, setFooterNode] = useState(null);
+  const onTabRoot = isTabRoot(pathname);
+  const underYou = YOU_PATHS.some((p) => pathname.startsWith(p));
+
+  const chrome = useMemo(
+    () => ({
+      headerNode,
+      footerNode,
+      rootPrefix: onTabRoot ? <YouButton /> : null,
+      fallbackBack: underYou && pathname !== '/you' ? '/you' : '/',
+    }),
+    [headerNode, footerNode, onTabRoot, underYou, pathname],
+  );
+
+  return (
+    <PhoneChromeContext.Provider value={chrome}>
+      <div className="mobile-shell" data-nav={onTabRoot ? '' : undefined}>
+        <div className="mobile-shell__header" ref={setHeaderNode} />
+        <div className="mobile-shell__scroll" ref={scrollRef}>
+          {children}
+        </div>
+        <div className="mobile-shell__footer" ref={setFooterNode} />
+        {onTabRoot && (
+          <MobileNav onReselect={() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })} />
+        )}
+      </div>
+    </PhoneChromeContext.Provider>
+  );
+}
+
+/**
+ * The app frame (frappe-ui DesktopShell / MobileShell) — two navigation
+ * models, not one responsive layout. Desktop: sidebar plus a content column
+ * whose body scrolls under a sticky PageHeader. Phone: MobileShell above.
  */
 export default function AppShell({ children }) {
   const isMobile = useIsCompact();
@@ -50,14 +92,7 @@ export default function AppShell({ children }) {
   }, [collapsed]);
 
   if (isMobile) {
-    return (
-      <div className="mobile-shell">
-        <div className="mobile-shell__scroll" ref={scrollRef}>
-          {children}
-        </div>
-        <MobileNav onReselect={() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })} />
-      </div>
-    );
+    return <MobileShell scrollRef={scrollRef}>{children}</MobileShell>;
   }
 
   return (

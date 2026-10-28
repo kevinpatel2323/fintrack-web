@@ -39,6 +39,10 @@
 
 /* ---------- Phone ---------- */
 
+/* frappe-ui MobileShell: a fixed column — header slot, scrolling content,
+   footer slot, tab bar. The header sits outside the scroll area so it never
+   moves with the page (or its rubber band); sticky bands inside the page pin
+   at the top of the scroll area, hence --header-height: 0 in there. */
 .mobile-shell {
   position: fixed;
   inset: 0;
@@ -48,7 +52,12 @@
   background: var(--surface-base);
 }
 
+.mobile-shell__header {
+  flex-shrink: 0;
+}
+
 .mobile-shell__scroll {
+  --header-height: 0px;
   flex: 1;
   min-height: 0;
   overflow-x: hidden;
@@ -57,13 +66,24 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* No tab bar: keep the last row clear of the home indicator. */
+.mobile-shell:not([data-nav]) .mobile-shell__scroll {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* MobileActionBar renders into this slot (frappe-ui MailMobile's action
+   footer in place of the tab bar). */
+.mobile-shell__footer:empty {
+  display: none;
+}
+
 .mobile-nav {
   display: grid;
   grid-auto-columns: 1fr;
   grid-auto-flow: column;
   flex-shrink: 0;
-  border-top: 1px solid var(--outline-gray-2);
-  background: var(--surface-elevation-2);
+  border-top: 1px solid var(--outline-gray-1);
+  background: var(--surface-base);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
@@ -74,7 +94,7 @@
   justify-content: center;
   gap: 4px;
   min-height: var(--mobile-nav-height);
-  padding: 8px 0;
+  padding: 8px 0 6px;
   color: var(--ink-gray-5);
   -webkit-tap-highlight-color: transparent;
   transition: transform 150ms, color 150ms;
@@ -85,7 +105,7 @@
 }
 
 .mobile-nav__item.is-active {
-  color: var(--ink-gray-8);
+  color: var(--ink-gray-9);
 }
 
 .mobile-nav__icon {
@@ -94,7 +114,8 @@
   place-items: center;
 }
 
-.mobile-nav__dot {
+.mobile-nav__dot,
+.you-button__dot {
   position: absolute;
   top: -1px;
   right: -3px;
@@ -102,14 +123,43 @@
   height: 8px;
   border-radius: 50%;
   background: var(--ink-red-5);
-  box-shadow: 0 0 0 2px var(--surface-elevation-2);
+  box-shadow: 0 0 0 2px var(--surface-base);
 }
 
 .mobile-nav__label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   line-height: 1.15;
   letter-spacing: 0.02em;
+}
+
+.mobile-nav__item.is-active .mobile-nav__label {
+  font-weight: 600;
+}
+
+.you-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  color: var(--ink-gray-7);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.you-button:active {
+  background: var(--surface-gray-2);
+}
+
+.you-button:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: 0;
+}
+
+.you-button__dot {
+  top: 6px;
+  right: 6px;
 }
 
 @media (prefers-reduced-motion: reduce) {

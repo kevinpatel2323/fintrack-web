@@ -413,3 +413,14 @@
     transition: none;
   }
 }
+
+/* Phones: one step up so every control is a comfortable tap (sm 32px,
+   md 36px, lg 44px); desktop keeps frappe-ui's 28/32/40. */
+@media (max-width: 767.98px) {
+  .ui-button--sm { height: 32px; }
+  .ui-button--md { height: 36px; }
+  .ui-button--lg { height: 44px; font-size: 16px; }
+  .ui-button--icon.ui-button--sm { width: 32px; }
+  .ui-button--icon.ui-button--md { width: 36px; }
+  .ui-button--icon.ui-button--lg { width: 44px; }
+}

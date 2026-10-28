@@ -40,12 +40,16 @@
   white-space: nowrap;
 }
 
-/* Phone: the compact header is 52px and the page gutter 12px. */
+/* Phone (frappe-ui FilesMobile): a search band pinned at the top of the
+   scroll area — the header is fixed above it — with filters and segments
+   on their own line. */
 @media (max-width: 767.98px) {
   .list-toolbar {
-    top: 52px;
-    margin: -12px -12px 0;
-    padding: 8px 12px;
+    top: 0;
+    flex-direction: column;
+    align-items: stretch;
+    margin: -16px calc(-1 * var(--page-gutter)) 0;
+    padding: 8px var(--page-gutter);
   }
 
   .list-toolbar__meta {
@@ -54,11 +58,5 @@
 
   .list-toolbar__summary {
     white-space: normal;
-  }
-}
-
-@media (max-width: 767.98px) and (display-mode: standalone) {
-  .list-toolbar {
-    top: calc(52px + env(safe-area-inset-top));
   }
 }

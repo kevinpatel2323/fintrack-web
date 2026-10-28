@@ -17,6 +17,8 @@
   --header-height: 48px;
   --page-gutter: 20px;
   --mobile-nav-height: 56px;
+  /* Phone rows (frappe-ui mobile recipes: h-14 rows, 16px gutter). */
+  --mobile-row-height: 56px;
 
   /* Money. Spending is the default state of a transaction, so it reads in
      plain ink; only money coming in is coloured, and only overdue/owed
@@ -44,6 +46,13 @@
   --cat-transfer: var(--ink-gray-4);
   --cat-salary: var(--ink-teal-5);
   --cat-health: var(--ink-cyan-5);
+}
+
+/* Phones: a 16px gutter (frappe-ui recipes' px-4). */
+@media (max-width: 767.98px) {
+  :root {
+    --page-gutter: 16px;
+  }
 }
 
 [data-theme='dark'] {

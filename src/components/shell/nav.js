@@ -1,5 +1,5 @@
 import {
-  ArrowLeftRight, CalendarDays, CreditCard, Ellipsis, House, LayoutDashboard,
+  ArrowLeftRight, CalendarDays, CreditCard, House, LayoutDashboard,
   ShieldCheck, Tags, Upload, Users,
 } from 'lucide-react';
 import { useImportSchedule } from '../../hooks/useImportSchedule.js';
@@ -22,20 +22,26 @@ export const MANAGE_NAV = [
   { to: '/security', label: 'Security', icon: ShieldCheck, authOnly: true },
 ];
 
-/** Phone tab bar. "More" (the /you page) holds everything in MANAGE_NAV. */
+/**
+ * Phone tab bar: the five places people go every day. Everything in
+ * MANAGE_NAV (plus appearance) lives on the You page, opened from the button
+ * at the left of every tab's header — iOS keeps a tab bar to five items.
+ */
 export const MOBILE_TABS = [
   { to: '/', label: 'Home', icon: House, match: (p) => p === '/' },
   { to: '/transactions', label: 'Activity', icon: ArrowLeftRight, match: (p) => p.startsWith('/transactions') },
   { to: '/calendar', label: 'Calendar', icon: CalendarDays, match: (p) => p.startsWith('/calendar') },
   { to: '/cards', label: 'Cards', icon: CreditCard, match: (p) => p.startsWith('/cards') },
   { to: '/friends', label: 'People', icon: Users, match: (p) => p.startsWith('/friends') },
-  {
-    to: '/you',
-    label: 'More',
-    icon: Ellipsis,
-    match: (p) => ['/you', '/categories', '/import', '/security'].some((r) => p.startsWith(r)),
-  },
 ];
+
+/** Pages under You on phones; their back button falls back to /you. */
+export const YOU_PATHS = ['/you', '/categories', '/import', '/security'];
+
+/** The tab bar shows on a tab's own page only; pushed pages get a back button instead. */
+export function isTabRoot(pathname) {
+  return MOBILE_TABS.some((tab) => tab.to === pathname);
+}
 
 /**
  * Counts that need the user's attention, keyed by route: card statements out

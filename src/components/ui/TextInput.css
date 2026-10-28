@@ -244,3 +244,10 @@
     transition-duration: 0ms;
   }
 }
+
+/* Phones: one step up, matching Button (sm 32px, md 36px, lg 44px). */
+@media (max-width: 767.98px) {
+  .ui-text-input--sm .ui-text-input__control { height: 32px; }
+  .ui-text-input--md .ui-text-input__control { height: 36px; }
+  .ui-text-input--lg .ui-text-input__control { height: 44px; }
+}
