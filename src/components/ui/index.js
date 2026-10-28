@@ -45,6 +45,9 @@ export { default as Tabs } from './Tabs.jsx';
 export { default as TabButtons } from './TabButtons.jsx';
 export { default as Breadcrumbs } from './Breadcrumbs.jsx';
 export { default as ListView } from './ListView.jsx';
+export { default as ListColumnsMenu } from './ListColumnsMenu.jsx';
+export { useListSettings } from './useListSettings.js';
+export { sortRows as sortListRows } from './internal/listModel.js';
 
 // App shell
 export { default as PageHeader, PageBody } from './PageHeader.jsx';

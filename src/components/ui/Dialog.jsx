@@ -56,12 +56,14 @@ export function DialogActionButton({ action, close, fullWidth }) {
   } = action;
   const [pending, setPending] = useState(false);
   const mountedRef = useRef(true);
-  useEffect(
-    () => () => {
+  // Set on every mount: StrictMode runs this cleanup once before the real
+  // mount, which would otherwise leave the button stuck in its loading state.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
       mountedRef.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
 
   const isLoading = Boolean(loading || pending);
 

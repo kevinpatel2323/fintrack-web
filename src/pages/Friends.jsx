@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, Plus, Search, Users } from 'lucide-react';
 import {
-  Alert, Amount, Avatar, Badge, Button, Dropdown, EmptyState, ListView, PageBody, PageHeader, TabButtons, TextInput,
+  Alert, Amount, Avatar, Badge, Button, Dropdown, EmptyState, ListColumnsMenu, ListView, PageBody, PageHeader, TabButtons,
+  TextInput, useListSettings,
 } from '../components/ui';
 import ListToolbar, { ListSummary, useStickyHeight } from '../components/common/ListToolbar.jsx';
 import PersonDialog from '../components/people/PersonDialog.jsx';
-import TransactionColumnsMenu from '../components/transactions/TransactionColumnsMenu.jsx';
-import { useTransactionTableSettings } from '../components/transactions/useTransactionTableSettings.js';
 import { avatarTheme } from '../components/ui/AvatarGroup.jsx';
 import { useReviewSummary } from '../hooks/useReviewSummary.js';
 import { API_BASE, apiFetch } from '../services/http.js';
@@ -21,15 +20,7 @@ const FILTERS = [
 
 // Same column set-up as the transactions table: Name is always shown,
 // contact details are there to turn on from Columns.
-const COLUMNS = [
-  { id: 'name', label: 'Name', pinned: true },
-  { id: 'status', label: 'Status' },
-  { id: 'activity', label: 'Last activity' },
-  { id: 'email', label: 'Email', defaultHidden: true },
-  { id: 'phone', label: 'Phone', defaultHidden: true },
-  { id: 'balance', label: 'Balance' },
-];
-const COLUMN_CHOICES = COLUMNS.filter((c) => !c.pinned).map(({ id, label }) => ({ id, label }));
+const COLUMN_RULES = { pinned: ['name'], defaultHidden: ['email', 'phone'] };
 const DEFAULT_SORT = { key: 'balance', direction: 'desc' };
 const SIDE_ORDER = { owed: 0, owe: 1, settled: 2 };
 const STATUS = {
@@ -74,10 +65,7 @@ export default function Friends() {
   const [filter, setFilter] = useState('all'); // all | owed | owe | settled
   const [sort, setSort] = useState(DEFAULT_SORT);
   const [createOpen, setCreateOpen] = useState(false);
-  const columnSettings = useTransactionTableSettings('fintrack.people.columns', {
-    pinned: ['name'],
-    defaultHidden: COLUMNS.filter((c) => c.defaultHidden).map((c) => c.id),
-  });
+  const columnSettings = useListSettings('fintrack.people.columns', COLUMN_RULES);
   const [toolbarRef, toolbarHeight] = useStickyHeight();
 
   useEffect(() => {
@@ -168,12 +156,13 @@ export default function Friends() {
   const owedToMe = balances.reduce((s, b) => s + Math.max(0, Number(b.netBalance) || 0), 0);
   const iOwe = balances.reduce((s, b) => s - Math.min(0, Number(b.netBalance) || 0), 0);
 
-  const hidden = columnSettings.hidden;
   const columns = [
     {
       key: 'name',
       label: 'Name',
       width: 'minmax(150px, 3fr)',
+      flex: true,
+      pinned: true,
       sortable: true,
       render: (f) => {
         const side = balanceSide(Number(f.summary?.netBalance || 0));
@@ -210,6 +199,7 @@ export default function Friends() {
       label: 'Last activity',
       width: 140,
       sortable: true,
+      sortFirst: 'desc',
       hideBelow: 'sm',
       render: (f) => {
         const activity = fmtActivity(f.summary?.lastTransactionDate);
@@ -220,6 +210,7 @@ export default function Friends() {
       key: 'email',
       label: 'Email',
       width: 'minmax(160px, 2fr)',
+      defaultHidden: true,
       sortable: true,
       hideBelow: 'md',
       render: (f) => (f.email ? <span className="people-cell-muted truncate">{f.email}</span> : <span className="people-cell-empty">—</span>),
@@ -228,6 +219,7 @@ export default function Friends() {
       key: 'phone',
       label: 'Phone',
       width: 140,
+      defaultHidden: true,
       sortable: true,
       hideBelow: 'md',
       render: (f) => (f.phone ? <span className="people-cell-muted">{f.phone}</span> : <span className="people-cell-empty">—</span>),
@@ -238,9 +230,10 @@ export default function Friends() {
       width: 120,
       align: 'right',
       sortable: true,
+      sortFirst: 'desc',
       render: (f) => <BalanceCell value={Number(f.summary?.netBalance || 0)} />,
     },
-  ].filter((c) => c.key === 'name' || !hidden[c.key]);
+  ];
 
   const emptyCopy = (() => {
     if (query) return { title: 'No matches', description: `Nothing found for “${query}”. Try another name.` };
@@ -280,7 +273,9 @@ export default function Friends() {
         rows={rows}
         rowHref={(f) => `/friends/${f.id}`}
         sort={sort}
-        onSortChange={(next) => setSort(next ?? DEFAULT_SORT)}
+        onSortChange={setSort}
+        columnSettings={columnSettings}
+        pagination
         stickyHeader
         loading={loading && merged.length === 0}
         emptyState={<EmptyState size="sm" title={emptyCopy.title} description={emptyCopy.description} />}
@@ -315,7 +310,7 @@ export default function Friends() {
                   </>
                 )}
               </ListSummary>
-              <TransactionColumnsMenu columns={COLUMN_CHOICES} settings={columnSettings} />
+              <ListColumnsMenu columns={columns} settings={columnSettings} />
             </>
           )}
         >

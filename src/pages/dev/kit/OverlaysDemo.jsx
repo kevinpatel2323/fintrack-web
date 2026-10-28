@@ -29,6 +29,8 @@ import Tabs from '../../../components/ui/Tabs.jsx';
 import TabButtons from '../../../components/ui/TabButtons.jsx';
 import Breadcrumbs from '../../../components/ui/Breadcrumbs.jsx';
 import ListView from '../../../components/ui/ListView.jsx';
+import ListColumnsMenu from '../../../components/ui/ListColumnsMenu.jsx';
+import { useListSettings } from '../../../components/ui/useListSettings.js';
 
 // Demo triggers are plain <button>s (the kit's Button is built separately);
 // they borrow the Dialog action-button styles so the page reads like Frappe.
@@ -88,18 +90,7 @@ function OverlaysDemoInner() {
   const [loading, setLoading] = useState(false);
   const [empty, setEmpty] = useState(false);
 
-  const sortedRows = useMemo(() => {
-    if (empty) return [];
-    const rows = [...TRANSACTIONS];
-    if (!sort) return rows;
-    const dir = sort.direction === 'asc' ? 1 : -1;
-    return rows.sort((a, b) => {
-      const x = a[sort.key];
-      const y = b[sort.key];
-      if (typeof x === 'number') return (x - y) * dir;
-      return String(x).localeCompare(String(y)) * dir;
-    });
-  }, [sort, empty]);
+  const listSettings = useListSettings('fintrack.ui-kit.list', { pinned: ['description'] });
 
   const groups = useMemo(
     () =>
@@ -111,19 +102,25 @@ function OverlaysDemoInner() {
   );
 
   const columns = [
-    { key: 'date', label: 'Date', width: 90, sortable: true, hideBelow: 'sm', render: (r) => fmtDate(r.date) },
+    {
+      key: 'date', label: 'Date', width: 90, minWidth: 72, sortable: true, sortFirst: 'desc', hideBelow: 'sm',
+      render: (r) => fmtDate(r.date),
+    },
     {
       key: 'description',
       label: 'Description',
       width: 'minmax(140px, 2fr)',
+      flex: true,
+      pinned: true,
       sortable: true,
       render: (r) => <span className="ui-list__text font-medium">{r.description}</span>,
     },
-    { key: 'category', label: 'Category', width: 140, hideBelow: 'md' },
+    { key: 'category', label: 'Category', width: 140, hideBelow: 'md', sortable: true },
     {
       key: 'amount',
       label: 'Amount',
       width: 120,
+      minWidth: 96,
       align: 'right',
       sortable: true,
       render: (r) => (
@@ -573,17 +570,20 @@ function OverlaysDemoInner() {
           <span className="text-sm text-ink-gray-5">
             Sort: {sort ? `${sort.key} ${sort.direction}` : 'none'} · {selection.length} selected
           </span>
+          <ListColumnsMenu columns={columns} settings={listSettings} variant="ghost" />
         </div>
         <ListView
           aria-label="Transactions"
           columns={columns}
-          rows={loading ? [] : sortedRows}
+          rows={loading || empty ? [] : TRANSACTIONS}
           loading={loading}
           selectable
           selection={selection}
           onSelectionChange={setSelection}
-          sort={sort}
+          defaultSort={sort}
           onSortChange={setSort}
+          columnSettings={listSettings}
+          pagination={{ defaultPageSize: 5, pageSizes: [5, 10, 25] }}
           onRowClick={(row) => toast(row.description)}
           emptyState={
             <div style={{ display: 'grid', gap: 4, justifyItems: 'center' }}>
@@ -632,7 +632,15 @@ function OverlaysDemoInner() {
         />
 
         <h3>ListView · grouped, row links, sticky header in a scroll box</h3>
-        <div style={{ maxHeight: 320, overflow: 'auto', border: '1px solid var(--outline-gray-1)', borderRadius: 12 }}>
+        <div
+          style={{
+            '--ui-list-sticky-top': '0px',
+            maxHeight: 320,
+            overflow: 'auto',
+            border: '1px solid var(--outline-gray-1)',
+            borderRadius: 12,
+          }}
+        >
           <ListView
             aria-label="Transactions by day"
             stickyHeader

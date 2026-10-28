@@ -3,7 +3,7 @@
 React ports of frappe-ui 1.0.2 overlays and navigation on Espresso tokens. Import from the barrel:
 
 ```jsx
-import { Popover, Dropdown, Dialog, ConfirmDialog, Sheet, toast, Toaster, Tabs, TabButtons, Breadcrumbs, ListView } from '../components/ui';
+import { Popover, Dropdown, Dialog, ConfirmDialog, Sheet, toast, Toaster, Tabs, TabButtons, Breadcrumbs, ListView, ListColumnsMenu, useListSettings } from '../components/ui';
 ```
 
 All overlays render through `Portal` and use `internal/floating.js` for placement and dismissal. Escape and outside clicks close only the top-most layer, so a dropdown inside a dialog closes before the dialog does. Dialog and Sheet also trap focus, return it on close, make `#root` inert and lock page scroll. Icons are lucide-react components passed as props. Unknown props spread onto the root element (on overlays, onto the panel), and `className` is merged. Gallery: `/ui-kit` in dev.
@@ -237,51 +237,102 @@ With more than 3 items the middle ones fold into a "…" menu (first, …, last 
 
 ## ListView
 
-A list or table (frappe-ui's list molecule) driven by `columns`. One CSS grid template drives the header and every row. It has a 32px header with a hairline, 40px rows, hairlines between rows, and rounded hover surfaces from `sm` up. It also has a checkbox column, group headers, sort arrows and frappe's floating "N selected" banner.
+**The one table component.** Every list of records — transactions, people, a person's ledger, categories, statements, payments, imports, subscriptions, an import preview — renders through `ListView`, so they all behave like the Transactions table: same header, 44px rows, hover, sorting, column resizing, saved column choices, pager, loading and empty states, keyboard. Pages only describe their columns. Don't build a table out of a `<table>` or a CSS grid of rows: `ui/__tests__/oneTable.test.ts` fails if one appears outside the exceptions listed in `DESIGN.md`.
+
+Transactions wrap it in `components/TransactionTable.jsx`, which only adds the transaction columns and cells (category picker, card bill disclosure, row menu).
+
+A list or table (frappe-ui's list molecule) driven by `columns`. One CSS grid template drives the header and every row. It has a 32px header with a hairline, 44px rows, hairlines between rows, and rounded hover surfaces from `sm` up. It also has a checkbox column, group headers, sort arrows, resize handles, a pager and frappe's floating "N selected" banner. The rules (tracks, handles, sorting, paging) are pure functions in `ui/internal/listModel.js`, tested in `ui/__tests__/listModel.test.ts`.
+
+### Columns
+
+| Field | Type | Notes |
+|---|---|---|
+| `key` | string | Unique per table; also the sort key and the saved-width key. |
+| `label` | node | Header text. When it isn't a string, give `sortLabel` or `menuLabel` so the sort tooltip, the Columns menu and the resize handle have a name. |
+| `width` | number (px) or CSS track | `'minmax(120px, 1fr)'`, `'2fr'`. A bare `Nfr` becomes `minmax(96px, Nfr)`; no width means `minmax(96px, 1fr)`. |
+| `flex` | bool | The column that takes the leftover width (usually the title). It can't be resized. Without one, the first fractional column flexes. |
+| `minWidth` | number | Narrowest the column can be dragged (default 64). |
+| `resizable` | bool | Columns with a name are resizable by default; columns without one (row menus, checkboxes) aren't. `false` opts out, `true` opts in an unnamed one. |
+| `sortable` | bool | Shows the sort button. |
+| `sortValue` | `(row) => value` | What the list orders by when it sorts the rows itself (default `row[key]`). Numbers compare as numbers, text naturally and case-insensitively; blanks go last. |
+| `sortFirst` | `'asc' \| 'desc'` | Direction of the first click (default `'asc'`; dates and amounts usually want `'desc'`). |
+| `pinned` | bool | Can't be hidden from the Columns menu. |
+| `defaultHidden` | bool | Hidden until turned on in the Columns menu. |
+| `align` | `'left' \| 'right' \| 'center'` | Numbers are right-aligned. |
+| `hideBelow` | `'sm' \| 'md' \| 'lg'` | Drops the track and the cell under 640 / 768 / 1024px. |
+| `render` | `(row) => node` | Cell content; strings and numbers are truncated with an ellipsis. |
+| `className` / `headerClassName` / `sortLabel` / `menuLabel` | | |
+
+### Props
 
 | Prop | Type | Default | Notes |
 |---|---|---|---|
-| `columns` | `[{ key, label, width, align, render?(row), sortable?, sortLabel?, className?, headerClassName?, hideBelow? }]` | `[]` | `width`: a CSS track (`'2fr'`, `'minmax(120px,1fr)'`) or px number. A bare `Nfr` becomes `minmax(96px, Nfr)`, and no width means `minmax(96px, 1fr)`. `align`: `'left' \| 'right' \| 'center'`. `hideBelow`: `'sm' \| 'md' \| 'lg'` (640 / 768 / 1024px) drops the track and the cell. |
+| `columns` | see above | `[]` | |
 | `rows` | array | `[]` | Ignored when `groups` is set. |
-| `rowKey` | string or `(row, index) => key` | `'id'` | |
-| `onRowClick` | `(row, event) => void` | | Clicks on buttons, links or inputs inside a cell don't trigger it. |
+| `rowKey` | string or `(row, index) => key` | `'id'` | Must also cover sub-rows. |
+| `onRowClick` | `(row, event) => void` | | Clicks on buttons, links, inputs or resize handles inside the row don't trigger it. |
 | `rowHref` | `(row) => to` | | The row is a router `Link` (Cmd-click opens a new tab). `onRowClick` still runs first. |
-| `rowLinkState` | `(row) => state` | | Router `state` passed with a `rowHref` link (e.g. the row's data, so the detail page can render at once). |
-| `selectable` | bool | `false` | Shows the checkbox column and a select-all checkbox in the header. Shift-click selects a range. Without `onRowClick`/`rowHref`, a row click toggles the row. |
-| `selection` / `onSelectionChange` | keys / `(keys) => void` | | Controlled. Leave out `selection` to let the list manage it. |
-| `selectionActions` | `(selectedKeys, clearSelection) => node` | | Buttons in the banner, before "Select all" and ×. Style them with `ui-list-banner__btn` to match. |
-| `sort` / `onSortChange` | `{ key, direction }` / `(sort \| null) => void` | | Sortable headers cycle asc → desc → none (`null`). You sort the rows. |
-| `loading` | bool | `false` | Skeleton rows: `skeletonRows` (5) when empty, 2 more after existing rows. |
-| `emptyState` | node | "No results" | |
-| `groups` | `[{ key, label, count?, rows, collapsed? }]` | | Collapsible sections. `collapsed` is the starting state. `onGroupToggle(key, collapsed)`. |
-| `stickyHeader` | bool | `false` | Pins the header (and its white background) while the list scrolls. |
+| `rowLinkState` | `(row) => state` | | Router `state` passed with a `rowHref` link. |
 | `rowClassName` | `(row) => string` | | |
-| `footer` | node | | Below the rows, e.g. "Load more". |
+| `sort` / `onSortChange` | `{ key, direction }` / `(sort) => void` | | **Controlled**: the page orders the rows (needed when it also shows them elsewhere, e.g. a phone list, or keeps its own tie-breaks). |
+| `defaultSort` | `{ key, direction }` or `null` | `null` | **Uncontrolled** (no `sort` prop): the list orders the rows by `sortValue`, starting here; `null` keeps the given order until a header is clicked. `onSortChange` still reports changes. |
+| `resizable` | bool | `true` | Drag handles on the header. Turn off only for a table that must not change shape. |
+| `storageKey` | string | | Saves hidden columns and dragged widths in localStorage (`{ hidden, colWidths }`). Without it they last while the table is mounted. |
+| `columnSettings` | `useListSettings(…)` result | | Use instead of `storageKey` when a `ListColumnsMenu` outside the table shares the state. |
+| `pagination` | `false \| true \| { page, pageSize, onPageChange, onPageSizeChange, defaultPageSize, pageSizes }` | `false` | Rows-per-page select (10/25/50/100, default 25), range and page buttons under the rows. Any field left out is kept by the list. Changing the sort goes back to page 1. Not with `groups`. |
+| `subRows` | `(row) => rows \| null` | | Rows shown right under a row (an open entry group, a card bill's transactions). They follow their parent through sorting and paging and aren't counted as records. Keep the open/closed state in the page. |
+| `selectable` | bool | `false` | Checkbox column and select-all in the header. Shift-click selects a range. Without `onRowClick`/`rowHref`, a row click toggles the row. Select all covers the rows on the current page. |
+| `selection` / `onSelectionChange` | keys / `(keys) => void` | | Controlled. Leave out `selection` to let the list manage it. |
+| `selectionActions` | `(selectedKeys, clearSelection) => node` | | Buttons in the banner, before "Select all" and ×. Style them with `ui-list-banner__btn`. |
+| `loading` | bool | `false` | Skeleton rows: `skeletonRows` (5) when empty, 2 more after existing rows. |
+| `emptyState` | node or string | "No results" | A string becomes `<EmptyState size="sm" title=… />`. |
+| `groups` | `[{ key, label, count?, rows, collapsed? }]` | | Collapsible sections; sorting applies inside each group. `onGroupToggle(key, collapsed)`. |
+| `stickyHeader` | bool | `false` | Pins the header under the page header and the list toolbar (`--list-toolbar-height`). In a scroll box set `--ui-list-sticky-top: 0px` on the box. |
+| `footer` | node | | Below the rows (and the pager), e.g. "Show all". |
 | `aria-label` | string | | Names the table. |
 
-Keyboard: interactive rows are focusable. Enter activates a row. Space toggles it when `selectable` (otherwise it activates), and ↑/↓ move between rows.
+### Sorting
 
-Layout: if the tracks need more width than there is, the list scrolls sideways inside its own box and the page never scrolls sideways. Styling hooks, set on the list or any parent: `--list-gap` (8px), `--list-row-padding-x` (12px), `--ui-list-row-height` (40px), `--ui-list-sticky-top` (0) and `--ui-list-header-bg`.
+A header click sorts by that column in its `sortFirst` direction; clicking it again reverses. There is always an order, as on Transactions.
 
-`stickyHeader` sticks to the page while the list fits its width. A list that scrolls sideways becomes its own scroll container. In that case, put it in a box with a height (for example `max-height: 60vh; overflow: auto`) and the header sticks inside that box.
+### Resizing
+
+Every named, non-flexible column has an 8px handle in the gap beside its header. A hairline shows in every gap while the pointer is over the header. Left of the flexible column the handle sits on the column's right edge; right of it, on the left edge. Either way the edge you drag follows the pointer and the flexible column gives way. Double-click a handle to reset that column. Handles are focusable separators (`role="separator"`): ← / → move the edge 8px (Shift: 32px). They're hidden on touch screens. "Reset widths" in the Columns menu resets them all.
+
+### Columns menu
+
+```jsx
+const settings = useListSettings('fintrack.people.columns', { pinned: ['name'], defaultHidden: ['email'] });
+<ListColumnsMenu columns={columns} settings={settings} />   // in the toolbar
+<ListView columns={columns} columnSettings={settings} … />
+```
+
+`ListColumnsMenu` lists every named, unpinned column, plus "Show all columns" and, once something was dragged, "Reset widths". The last visible optional column can't be hidden.
+
+### Keyboard and accessibility
+
+Interactive rows are focusable. ↑/↓ move between rows, Home/End jump to the first/last, Enter activates a row, Space toggles it when `selectable` (otherwise it activates). Headers are `columnheader`s with `aria-sort`; sort buttons are titled "Order by …"; resize handles are labelled "Resize … column".
+
+### Layout
+
+If the tracks need more width than there is, the list scrolls sideways inside its own box and the page never scrolls sideways. Size column floors so a table fits a 390px phone once its `hideBelow` columns drop out. Styling hooks, set on the list or any parent: `--list-gap` (8px), `--list-row-padding-x` (12px), `--ui-list-row-height` (44px; raise it on phones when a cell stacks two lines), `--ui-list-sticky-top` and `--ui-list-header-bg`.
+
+`stickyHeader` sticks to the page while the list fits its width. A list that scrolls sideways becomes its own scroll container, and its header then stays in place.
 
 ```jsx
 <ListView
-  aria-label="Transactions"
+  aria-label="Payments"
   columns={[
-    { key: 'date', label: 'Date', width: 90, sortable: true, hideBelow: 'sm', render: (t) => fmtDate(t.date) },
-    { key: 'description', label: 'Description', width: 'minmax(160px, 2fr)', sortable: true },
-    { key: 'category', label: 'Category', width: 140, hideBelow: 'md' },
-    { key: 'amount', label: 'Amount', width: 120, align: 'right', sortable: true, render: (t) => <Amount value={t.amount} /> },
+    { key: 'paidOn', label: 'Date', width: 120, sortable: true, sortFirst: 'desc', sortValue: (p) => p.paidOn, render: (p) => fmtDate(p.paidOn) },
+    { key: 'via', label: 'Paid from', width: 'minmax(120px, 2fr)', flex: true, sortable: true },
+    { key: 'amount', label: 'Amount', width: 112, align: 'right', sortable: true, sortValue: (p) => Number(p.amount), render: (p) => <Amount value={p.amount} /> },
+    { key: 'actions', label: '', width: 40, align: 'right', render: (p) => <RowMenu payment={p} /> },
   ]}
-  rows={rows}
-  rowHref={(t) => `/transactions/${t.id}`}
-  selectable
-  selection={selected}
-  onSelectionChange={setSelected}
-  selectionActions={(keys, clear) => <button className="ui-list-banner__btn" onClick={() => { bulkDelete(keys); clear(); }}>Delete</button>}
-  sort={sort}
-  onSortChange={setSort}
+  rows={payments}
+  defaultSort={{ key: 'paidOn', direction: 'desc' }}
+  storageKey="fintrack.card.payments"
+  pagination
   loading={loading}
+  emptyState={<EmptyState size="sm" title="No payments yet" />}
 />
 ```

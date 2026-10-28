@@ -15,24 +15,22 @@ const NOTE_THEME = { ok: 'green', warn: 'amber' };
 const cx = (...parts) => parts.filter(Boolean).join(' ');
 const stop = (e) => e.stopPropagation();
 
-/** Entries and groups as table rows; an expanded group's entries follow it. */
-function flatten(rows, expanded) {
-  const items = [];
-  for (const r of rows) {
-    if (r.kind === 'group') {
-      const open = expanded.has(r.group.id);
-      items.push({ key: `g${r.group.id}`, kind: 'group', group: r.group, members: r.members, open });
-      if (open) {
-        r.members.forEach((tag, i) => items.push({
-          key: `m${tag.id}`, kind: 'member', tag, group: r.group, last: i === r.members.length - 1,
-        }));
-      }
-    } else {
-      items.push({ key: `t${r.tag.id}`, kind: 'entry', tag: r.tag });
-    }
-  }
-  return items;
+/** Entries and groups as table rows. A group's entries are its sub-rows. */
+function toItems(rows, expanded) {
+  return rows.map((r) => (r.kind === 'group'
+    ? { key: `g${r.group.id}`, kind: 'group', group: r.group, members: r.members, open: expanded.has(r.group.id) }
+    : { key: `t${r.tag.id}`, kind: 'entry', tag: r.tag }));
 }
+
+/** An open group's entries, shown under it (they follow it through sorting and paging). */
+function memberRows(item) {
+  if (item.kind !== 'group' || !item.open) return null;
+  return item.members.map((tag, i) => ({
+    key: `m${tag.id}`, kind: 'member', tag, group: item.group, last: i === item.members.length - 1,
+  }));
+}
+
+const dayOf = (value) => (value ? String(value).slice(0, 10) : '');
 
 function StatusCell({ notes, applyInline, applyLabel, onApply }) {
   if (!notes.length && !applyInline) return <span className="pledger-muted">—</span>;
@@ -52,10 +50,11 @@ function StatusCell({ notes, applyInline, applyLabel, onApply }) {
 
 /**
  * A person's ledger in the same table as Transactions: Date, Entry,
- * Direction, Status, Amount, and a row menu. Entry groups are one row with
- * the entries' net total and expand in place, like card bills do on
- * Transactions. While entries are being picked for a group, a checkbox column
- * appears and a row click ticks it; otherwise a row opens its transaction.
+ * Direction, Status, Amount, and a row menu; sortable, resizable and paged
+ * like every ListView. Entry groups are one row with the entries' net total
+ * and expand in place, like card bills do on Transactions. While entries are
+ * being picked for a group, a checkbox column appears and a row click ticks
+ * it; otherwise a row opens its transaction. Rows start in ledger order.
  */
 export default function PersonLedgerTable({
   rows,
@@ -73,7 +72,7 @@ export default function PersonLedgerTable({
   onUngroup,
 }) {
   const [expanded, setExpanded] = useState(() => new Set());
-  const items = useMemo(() => flatten(rows, expanded), [rows, expanded]);
+  const items = useMemo(() => toItems(rows, expanded), [rows, expanded]);
   const first = friendFirstName(friendName);
 
   const toggleGroup = (id) => setExpanded((prev) => {
@@ -124,7 +123,13 @@ export default function PersonLedgerTable({
       key: 'date',
       label: 'Date',
       width: 112,
+      minWidth: 88,
       hideBelow: 'sm',
+      sortable: true,
+      sortFirst: 'desc',
+      sortValue: (item) => (item.kind === 'group'
+        ? dayOf(groupTotals(item.members).dateFrom)
+        : dayOf(item.tag.transaction?.transactionDate)),
       render: (item) => {
         if (item.kind === 'group') return <span className="pledger-date">{formatDay(groupTotals(item.members).dateFrom)}</span>;
         return <span className="pledger-date">{entryFacts(item.tag, friendName).date}</span>;
@@ -133,7 +138,11 @@ export default function PersonLedgerTable({
     {
       key: 'entry',
       label: 'Entry',
-      width: 'minmax(200px, 3fr)',
+      // Floors sized so Entry, Amount and the menu fit a 390px phone.
+      width: 'minmax(160px, 3fr)',
+      flex: true,
+      sortable: true,
+      sortValue: (item) => (item.kind === 'group' ? item.group.title : entryFacts(item.tag, friendName).title),
       render: (item) => {
         if (item.kind === 'group') {
           const totals = groupTotals(item.members);
@@ -172,6 +181,12 @@ export default function PersonLedgerTable({
       label: 'Direction',
       width: 180,
       hideBelow: 'sm',
+      sortable: true,
+      sortValue: (item) => {
+        if (item.kind !== 'group') return entryFacts(item.tag, friendName).words;
+        const net = toMinor(groupTotals(item.members).totalAmount);
+        return net > 0 ? `${first} owes you` : net < 0 ? `You owe ${first}` : 'Nets to nothing';
+      },
       render: (item) => {
         if (item.kind === 'group') {
           const net = toMinor(groupTotals(item.members).totalAmount);
@@ -185,6 +200,10 @@ export default function PersonLedgerTable({
       label: 'Status',
       width: 'minmax(160px, 1.5fr)',
       hideBelow: 'md',
+      sortable: true,
+      sortValue: (item) => (item.kind === 'group'
+        ? GROUP_STATUS[groupTotals(item.members).status]
+        : entryFacts(item.tag, friendName).notes.map((n) => n.text).join(' ')),
       render: (item) => {
         if (item.kind === 'group') {
           const totals = groupTotals(item.members);
@@ -210,8 +229,13 @@ export default function PersonLedgerTable({
     {
       key: 'amount',
       label: 'Amount',
-      width: 128,
+      width: 112,
+      minWidth: 96,
       align: 'right',
+      sortable: true,
+      sortValue: (item) => (item.kind === 'group'
+        ? Number(groupTotals(item.members).totalAmount) || 0
+        : entryFacts(item.tag, friendName).signed),
       render: (item) => {
         if (item.kind === 'group') {
           const total = groupTotals(item.members).totalAmount;
@@ -268,6 +292,9 @@ export default function PersonLedgerTable({
       columns={columns}
       rows={items}
       rowKey="key"
+      subRows={memberRows}
+      storageKey="fintrack.person-ledger"
+      pagination
       onRowClick={onRowClick}
       rowClassName={(item) => cx(
         `pledger-row--${item.kind}`,

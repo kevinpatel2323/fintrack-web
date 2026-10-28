@@ -11,7 +11,6 @@ import TransactionTable, {
   useTransactionColumns,
 } from '../components/TransactionTable.jsx';
 import ManualTransactionDialog from '../components/transactions/ManualTransactionDialog.jsx';
-import TransactionColumnsMenu from '../components/transactions/TransactionColumnsMenu.jsx';
 import {
   TYPE_OPTIONS,
   TransactionFilterSheet,
@@ -29,7 +28,7 @@ import {
 } from '../components/transactions/transactionListModel.js';
 import {
   Alert, Amount, Badge, Button, Combobox, ConfirmDialog, EmptyState, ErrorMessage, KeyboardShortcut,
-  PageBody, PageHeader, Select, Skeleton, TabButtons, TextInput, toast,
+  ListColumnsMenu, PageBody, PageHeader, Select, Skeleton, TabButtons, TextInput, toast,
 } from '../components/ui';
 import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
 import { useIsCompact } from '../styles/breakpoints.js';
@@ -146,8 +145,9 @@ export default function Transactions() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
-  const [sortCol, setSortCol] = useState('date');
-  const [sortDir, setSortDir] = useState('desc');
+  // Header clicks come from the table (ListView decides the next sort and
+  // returns to page 1); the rows are ordered here, with the ledger's own keys.
+  const [sort, setSort] = useState({ key: 'date', direction: 'desc' });
 
   const searchInputRef = useRef(null);
   const columnSettings = useTransactionColumns('fintrack.ledger.bank');
@@ -514,16 +514,6 @@ export default function Transactions() {
     [assignCategory],
   );
 
-  function handleSort(col) {
-    if (sortCol === col) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortCol(col);
-      setSortDir(col === 'date' ? 'desc' : 'asc');
-    }
-    setPage(1);
-  }
-
   // -- Filters --
   const clearListFilters = useCallback(() => {
     setSearchParams(
@@ -580,12 +570,17 @@ export default function Transactions() {
     const sorted = [...filteredTransactions];
     sorted.sort((a, b) => {
       let va, vb;
-      switch (sortCol) {
+      switch (sort.key) {
         case 'date':
           va = a.transactionDate || ''; vb = b.transactionDate || ''; break;
         case 'description':
           va = (a.upiName || a.narration || '').toLowerCase();
           vb = (b.upiName || b.narration || '').toLowerCase(); break;
+        case 'note': {
+          // The same text the Note column shows.
+          const note = (t) => t.upiDescription || (t.narration && t.narration !== t.upiName ? t.narration : '');
+          va = note(a).toLowerCase(); vb = note(b).toLowerCase(); break;
+        }
         case 'category':
           va = (a.category?.name || '').toLowerCase();
           vb = (b.category?.name || '').toLowerCase(); break;
@@ -601,12 +596,12 @@ export default function Transactions() {
         default:
           return 0;
       }
-      if (va < vb) return sortDir === 'asc' ? -1 : 1;
-      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      if (va < vb) return sort.direction === 'asc' ? -1 : 1;
+      if (va > vb) return sort.direction === 'asc' ? 1 : -1;
       return 0;
     });
     return sorted;
-  }, [filteredTransactions, sortCol, sortDir, tagsByTransaction]);
+  }, [filteredTransactions, sort, tagsByTransaction]);
 
   // Totals describe what the list shows: the whole period, or the filtered rows.
   const summaryRows = hasClientFilters ? filteredTransactions : transactions;
@@ -774,7 +769,7 @@ export default function Transactions() {
           title="Activity"
           mobileActions={<Button variant="ghost" size="md" icon={Plus} label="New transaction" onClick={newTransaction} />}
         />
-        <PageBody className="txns-page" style={{ '--txl-sticky-offset': `${toolbarHeight}px` }}>
+        <PageBody className="txns-page" style={{ '--list-toolbar-height': `${toolbarHeight}px` }}>
           <div className="txns-mobile-toolbar" ref={toolbarRef}>
             <TextInput
               className="txns-search"
@@ -865,13 +860,13 @@ export default function Transactions() {
           </>
         )}
       />
-      <PageBody className="txns-page" style={{ '--txl-sticky-offset': `${toolbarHeight}px` }}>
+      <PageBody className="txns-page" style={{ '--list-toolbar-height': `${toolbarHeight}px` }}>
         <ListToolbar
           ref={toolbarRef}
           meta={(
             <>
               {summaryContent && <ListSummary>{summaryContent}</ListSummary>}
-              <TransactionColumnsMenu columns={transactionColumnChoices()} settings={columnSettings} />
+              <ListColumnsMenu columns={transactionColumnChoices()} settings={columnSettings} />
               <Button
                 variant="ghost"
                 icon={RefreshCw}
@@ -938,15 +933,13 @@ export default function Transactions() {
         <TransactionTable
           className="txns-table"
           rows={tableRows}
-          storageKey="fintrack.ledger.bank"
           columnSettings={columnSettings}
           categories={categories}
           onAssignCategory={assignCategoryInline}
           onOpenManage={openFriendTagsSheet}
           onOpenDetail={openTransactionDetail}
-          sortCol={sortCol}
-          sortDir={sortDir}
-          onSort={handleSort}
+          sort={sort}
+          onSortChange={setSort}
           page={page}
           pageSize={pageSize}
           onPageChange={setPage}

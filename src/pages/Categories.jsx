@@ -222,6 +222,9 @@ export default function Categories() {
       key: 'name',
       label: 'Category',
       width: 'minmax(160px, 2fr)',
+      flex: true,
+      sortable: true,
+      sortValue: (row) => (row.uncategorised ? 'Uncategorised' : row.cat.name),
       render: (row) => <NameCell row={row} loading={breakdownLoading} />,
     },
     {
@@ -229,13 +232,21 @@ export default function Categories() {
       label: 'Spent',
       width: 112,
       align: 'right',
+      sortable: true,
+      sortFirst: 'desc',
+      sortValue: (row) => row.stat?.totalAmount ?? 0,
       render: (row) => <SpentCell stat={row.stat} loading={breakdownLoading} />,
     },
     {
       key: 'share',
       label: `Share of ${month.short}`,
+      // The label names the month; the menu and handle don't need to.
+      sortLabel: 'Share',
       width: 'minmax(140px, 1fr)',
       hideBelow: 'md',
+      sortable: true,
+      sortFirst: 'desc',
+      sortValue: (row) => row.stat?.totalAmount ?? 0,
       render: (row) => <ShareCell row={row} loading={breakdownLoading} />,
     },
     {
@@ -244,6 +255,9 @@ export default function Categories() {
       width: 104,
       align: 'right',
       hideBelow: 'md',
+      sortable: true,
+      sortFirst: 'desc',
+      sortValue: (row) => (row.stat && row.stat.totalAmount !== 0 ? row.stat.transactionCount : 0),
       render: (row) =>
         breakdownLoading ? (
           <Skeleton as="span" width={24} height={12} />
@@ -296,6 +310,7 @@ export default function Categories() {
         rows={flatRows}
         groups={flatRows ? undefined : groups}
         rowKey="id"
+        storageKey="fintrack.categories"
         loading={loading && categories.length === 0}
         onRowClick={(row) => {
           if (!row.uncategorised) openEdit(row.cat);

@@ -19,12 +19,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The table header pins under the page header and the toolbar. */
-.people-list {
-  --ui-list-row-height: 44px;
-  --ui-list-sticky-top: calc(var(--header-height) + var(--list-toolbar-height, 0px));
-}
-
 @media (hover: hover) and (pointer: fine) {
   .people-list .ui-list__row:hover {
     --ui-avatar-group-ring: var(--surface-gray-1);
@@ -82,7 +76,6 @@
 
   .people-list {
     --ui-list-row-height: 56px;
-    --ui-list-sticky-top: calc(52px + var(--list-toolbar-height, 0px));
   }
 }
 

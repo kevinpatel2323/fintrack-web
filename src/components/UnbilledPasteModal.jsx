@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import { Amount, Badge, Dialog, ErrorMessage, FormControl, toast } from './ui';
+import { Amount, Badge, Dialog, ErrorMessage, FormControl, ListView, toast } from './ui';
 import { cardLabel, dayLabel } from './cards/cardFormat.js';
 import { previewUnbilledPaste, saveUnbilledPaste } from '../services/cardsApi.js';
 import './cards/cards.css';
@@ -10,6 +10,69 @@ const STATUS = {
   existing: { label: 'Already added', theme: 'gray' },
   billed_cycle: { label: 'Already billed', theme: 'gray' },
 };
+
+const statusOf = (r) => STATUS[r.status] || STATUS.existing;
+const signed = (r) => (r.isRefund ? Number(r.amount) : -Number(r.amount));
+
+// The preview table: the same columns as the import review, in paste order
+// until a header is clicked. Date and Status fold under the merchant on phones.
+const PREVIEW_COLUMNS = [
+  {
+    key: 'date',
+    label: 'Date',
+    width: 88,
+    minWidth: 72,
+    hideBelow: 'sm',
+    sortable: true,
+    sortFirst: 'desc',
+    sortValue: (r) => r.txnDate || '',
+    render: (r) => <span className="unbilled__date">{dayLabel(r.txnDate)}</span>,
+  },
+  {
+    key: 'merchant',
+    label: 'Merchant',
+    width: 'minmax(160px, 1fr)',
+    flex: true,
+    sortable: true,
+    sortValue: (r) => r.merchant || '',
+    render: (r) => (
+      <span className="unbilled__merchant">
+        <span className="truncate" title={r.merchant}>{r.merchant}</span>
+        <span className="unbilled__phone-meta">
+          {dayLabel(r.txnDate)}
+          {r.status !== 'new' && ` · ${statusOf(r).label}`}
+        </span>
+      </span>
+    ),
+  },
+  {
+    key: 'status',
+    label: 'Status',
+    width: 128,
+    minWidth: 96,
+    hideBelow: 'sm',
+    sortable: true,
+    sortValue: (r) => statusOf(r).label,
+    render: (r) => <Badge theme={statusOf(r).theme} label={statusOf(r).label} />,
+  },
+  {
+    key: 'amount',
+    label: 'Amount',
+    width: 112,
+    minWidth: 96,
+    align: 'right',
+    sortable: true,
+    sortValue: signed,
+    render: (r) => (
+      <Amount
+        value={signed(r)}
+        sign={r.isRefund ? 'always' : 'never'}
+        decimals={2}
+        tone={r.status === 'new' ? undefined : 'muted'}
+      />
+    ),
+  },
+];
 
 const PLACEHOLDER = 'Total Spent\n₹22,074.00\n…\n25 Oct 2026\nUpi-four Coffee\n₹735.00 debit icon';
 
@@ -26,6 +89,7 @@ export default function UnbilledPasteModal({ card, onClose, onSaved, open = true
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const previewRows = useMemo(() => (preview?.rows || []).map((r, index) => ({ ...r, index })), [preview]);
 
   const run = async (fn) => {
     setBusy(true);
@@ -124,31 +188,15 @@ export default function UnbilledPasteModal({ card, onClose, onSaved, open = true
               </span>
             )}
           </div>
-          {preview.rows.length > 0 && (
-            <div className="unbilled__list" role="list" aria-label="Pasted transactions">
-              {preview.rows.map((r, i) => {
-                const st = STATUS[r.status] || STATUS.existing;
-                const amt = Number(r.amount);
-                return (
-                  <div
-                    key={i}
-                    role="listitem"
-                    className={`unbilled__row${r.status === 'new' ? '' : ' is-skipped'}`}
-                  >
-                    <span className="unbilled__date">{dayLabel(r.txnDate)}</span>
-                    <span className="unbilled__merchant truncate" title={r.merchant}>
-                      {r.merchant}
-                    </span>
-                    <span className="unbilled__amount">
-                      <Amount value={r.isRefund ? amt : -amt} sign={r.isRefund ? 'always' : 'never'} decimals={2} />
-                    </span>
-                    <span className="unbilled__status">
-                      <Badge theme={st.theme} label={st.label} />
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+          {previewRows.length > 0 && (
+            <ListView
+              aria-label="Pasted transactions"
+              columns={PREVIEW_COLUMNS}
+              rows={previewRows}
+              rowKey="index"
+              rowClassName={(r) => (r.status === 'new' ? '' : 'unbilled__row--skipped')}
+              storageKey="fintrack.cards.unbilled-preview"
+            />
           )}
         </>
       )}

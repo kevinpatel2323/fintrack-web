@@ -42,12 +42,14 @@ export default function ConfirmDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const mountedRef = useRef(true);
-  useEffect(
-    () => () => {
+  // Set on every mount: StrictMode runs this cleanup once before the real
+  // mount, which would otherwise drop the error and keep the spinner.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
       mountedRef.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
 
   useEffect(() => {
     if (open) {

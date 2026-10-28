@@ -9,6 +9,9 @@ export default function RecentImports({ imports, loading, error, revertingId, on
       key: 'account',
       label: 'Account',
       width: 'minmax(140px, 2fr)',
+      flex: true,
+      sortable: true,
+      sortValue: (imp) => accountLabel(imp.accountNumber),
       render: (imp) => {
         const skipped = imp.totalRows - imp.insertedRows;
         return (
@@ -30,6 +33,9 @@ export default function RecentImports({ imports, loading, error, revertingId, on
       label: 'Date range',
       width: 'minmax(124px, 1.4fr)',
       hideBelow: 'sm',
+      sortable: true,
+      sortFirst: 'desc',
+      sortValue: (imp) => imp.periodEnd || imp.periodStart || '',
       render: (imp) => <span className="import-hist__muted truncate">{fmtPeriod(imp.periodStart, imp.periodEnd)}</span>,
     },
     {
@@ -37,6 +43,9 @@ export default function RecentImports({ imports, loading, error, revertingId, on
       label: 'Rows',
       width: 96,
       hideBelow: 'sm',
+      sortable: true,
+      sortFirst: 'desc',
+      sortValue: (imp) => imp.insertedRows,
       render: (imp) => {
         const skipped = imp.totalRows - imp.insertedRows;
         return (
@@ -50,8 +59,12 @@ export default function RecentImports({ imports, loading, error, revertingId, on
     {
       key: 'uploadedAt',
       label: 'Imported',
-      width: 76,
+      width: 88,
+      minWidth: 76,
       hideBelow: 'sm',
+      sortable: true,
+      sortFirst: 'desc',
+      sortValue: (imp) => imp.uploadedAt || '',
       render: (imp) => (
         <span className="import-hist__muted tabular-nums" title={fmtDate(imp.uploadedAt)}>
           {fmtShortDate(imp.uploadedAt)}
@@ -88,6 +101,8 @@ export default function RecentImports({ imports, loading, error, revertingId, on
         aria-label="Recent imports"
         columns={columns}
         rows={imports}
+        defaultSort={{ key: 'uploadedAt', direction: 'desc' }}
+        storageKey="fintrack.import.history"
         loading={loading && imports.length === 0}
         skeletonRows={3}
         emptyState={

@@ -4,8 +4,8 @@ import {
   Banknote, ClipboardPaste, CreditCard, FileText, MoreHorizontal, Pencil, Plus, Receipt, Search, Star, Trash2, Upload,
 } from 'lucide-react';
 import {
-  Alert, Amount, Badge, Button, ConfirmDialog, Dropdown, EmptyState, ListView, PageBody, PageHeader, Select,
-  Skeleton, StatCard, Tabs, TextInput, toast,
+  Alert, Amount, Badge, Button, ConfirmDialog, Dropdown, EmptyState, ListColumnsMenu, ListView, PageBody, PageHeader,
+  Select, Skeleton, StatCard, Tabs, TextInput, toast,
 } from '../components/ui';
 import CardFormModal from '../components/CardFormModal.jsx';
 import { categoryOptions as buildCategoryOptions } from '../components/common/Category.jsx';
@@ -14,7 +14,6 @@ import UnbilledPasteModal from '../components/UnbilledPasteModal.jsx';
 import CardPaymentModal from '../components/CardPaymentModal.jsx';
 import CardStatementModal from '../components/CardStatementModal.jsx';
 import TransactionTable, { transactionColumnChoices, useTransactionColumns } from '../components/TransactionTable.jsx';
-import TransactionColumnsMenu from '../components/transactions/TransactionColumnsMenu.jsx';
 import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
 import TransactionMobileList from '../components/TransactionMobileList.jsx';
 import CardDetailsPanel from './cards/CardDetailsPanel.jsx';
@@ -104,8 +103,9 @@ export default function CardDetail() {
   // '' | 'unbilled' | 'billed' — spend made after the last statement closed has
   // no statement yet, and this is how you pull it up on its own.
   const [billingFilter, setBillingFilter] = useState('');
-  const [sortCol, setSortCol] = useState('date');
-  const [sortDir, setSortDir] = useState('desc');
+  // The table picks the next sort (and goes back to page 1); the phone list
+  // shows the same order, so the rows are sorted here.
+  const [sort, setSort] = useState({ key: 'date', direction: 'desc' });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [editTxn, setEditTxn] = useState(null);
@@ -228,18 +228,6 @@ export default function CardDetail() {
     });
   }, [manager]);
 
-  const handleSort = useCallback((col) => {
-    setSortCol((currentCol) => {
-      if (currentCol === col) {
-        setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-      } else {
-        setSortDir(col === 'date' ? 'desc' : 'asc');
-      }
-      return col;
-    });
-    setPage(1);
-  }, []);
-
   const onDeletePayment = (payment) => {
     askConfirm({
       title: 'Delete payment?',
@@ -326,12 +314,15 @@ export default function CardDetail() {
     const sorted = [...filteredTransactions];
     sorted.sort((a, b) => {
       let va, vb;
-      switch (sortCol) {
+      switch (sort.key) {
         case 'date':
           va = a.txnDate || ''; vb = b.txnDate || ''; break;
         case 'description':
           va = (a.merchant || '').toLowerCase();
           vb = (b.merchant || '').toLowerCase(); break;
+        case 'note':
+          va = (a.notes || '').toLowerCase();
+          vb = (b.notes || '').toLowerCase(); break;
         case 'category':
           va = (a.category?.name || '').toLowerCase();
           vb = (b.category?.name || '').toLowerCase(); break;
@@ -347,12 +338,12 @@ export default function CardDetail() {
         default:
           return 0;
       }
-      if (va < vb) return sortDir === 'asc' ? -1 : 1;
-      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      if (va < vb) return sort.direction === 'asc' ? -1 : 1;
+      if (va > vb) return sort.direction === 'asc' ? 1 : -1;
       return 0;
     });
     return sorted;
-  }, [filteredTransactions, sortCol, sortDir, tagsByTransaction]);
+  }, [filteredTransactions, sort, tagsByTransaction]);
 
   const tableRows = useMemo(
     () => sortedTransactions.map((row) => toCardTableRow(row, tagsByTransaction)),
@@ -628,7 +619,7 @@ export default function CardDetail() {
               </>
             )}
           </span>
-          {!isMobile && <TransactionColumnsMenu columns={CARD_COLUMN_CHOICES} settings={columnSettings} />}
+          {!isMobile && <ListColumnsMenu columns={CARD_COLUMN_CHOICES} settings={columnSettings} />}
         </div>
 
         {isMobile ? (
@@ -657,9 +648,8 @@ export default function CardDetail() {
               onAssignCategory={assignCategory}
               onOpenManage={openManage}
               onOpenDetail={(row) => openManage(row.id)}
-              sortCol={sortCol}
-              sortDir={sortDir}
-              onSort={handleSort}
+              sort={sort}
+              onSortChange={setSort}
               page={page}
               pageSize={pageSize}
               onPageChange={setPage}
@@ -676,7 +666,12 @@ export default function CardDetail() {
     {
       key: 'cycle',
       label: 'Cycle',
-      width: 'minmax(132px, 2fr)',
+      // Floor sized so Cycle, Status and Total fit a 390px phone.
+      width: 'minmax(120px, 2fr)',
+      flex: true,
+      sortable: true,
+      sortFirst: 'desc',
+      sortValue: (s) => s.cycleEnd || s.cycleStart || '',
       render: (s) => (
         <span className="cardd-cell">
           <span className="truncate">{rangeLabel(s.cycleStart, s.cycleEnd)}</span>
@@ -684,11 +679,22 @@ export default function CardDetail() {
         </span>
       ),
     },
-    { key: 'due', label: 'Due', width: 120, hideBelow: 'sm', render: (s) => dayLabel(s.dueDate, { year: true }) },
+    {
+      key: 'due',
+      label: 'Due',
+      width: 120,
+      hideBelow: 'sm',
+      sortable: true,
+      sortFirst: 'desc',
+      sortValue: (s) => s.dueDate || '',
+      render: (s) => dayLabel(s.dueDate, { year: true }),
+    },
     {
       key: 'status',
       label: 'Status',
       width: 88,
+      sortable: true,
+      sortValue: (s) => (STATEMENT_STATUS[s.status] || { label: s.status }).label,
       render: (s) => {
         const st = STATEMENT_STATUS[s.status] || { label: s.status, theme: 'gray' };
         return <Badge theme={st.theme} label={st.label} />;
@@ -700,6 +706,8 @@ export default function CardDetail() {
       width: 120,
       align: 'right',
       hideBelow: 'md',
+      sortable: true,
+      sortValue: (s) => Number(s.paidAmount) || 0,
       render: (s) => <Amount value={Number(s.paidAmount)} tone="inherit" />,
     },
     {
@@ -707,6 +715,8 @@ export default function CardDetail() {
       label: 'Total',
       width: 112,
       align: 'right',
+      sortable: true,
+      sortValue: (s) => Number(s.totalAmount) || 0,
       render: (s) => <Amount value={Number(s.totalAmount)} tone="inherit" />,
     },
     {
@@ -728,11 +738,23 @@ export default function CardDetail() {
   ];
 
   const paymentColumns = [
-    { key: 'paidOn', label: 'Date', width: 120, hideBelow: 'sm', render: (p) => dayLabel(p.paidOn, { year: true }) },
+    {
+      key: 'paidOn',
+      label: 'Date',
+      width: 120,
+      hideBelow: 'sm',
+      sortable: true,
+      sortFirst: 'desc',
+      sortValue: (p) => p.paidOn || '',
+      render: (p) => dayLabel(p.paidOn, { year: true }),
+    },
     {
       key: 'via',
       label: 'Paid from',
       width: 'minmax(120px, 2fr)',
+      flex: true,
+      sortable: true,
+      sortValue: (p) => p.viaLabel || 'Manual payment',
       render: (p) => (
         <span className="cardd-cell">
           <span className="truncate">{p.viaLabel || 'Manual payment'}</span>
@@ -745,6 +767,8 @@ export default function CardDetail() {
       label: 'Notes',
       width: 'minmax(120px, 2fr)',
       hideBelow: 'md',
+      sortable: true,
+      sortValue: (p) => p.notes || '',
       render: (p) => <span className="truncate text-ink-gray-5">{p.notes || ''}</span>,
     },
     {
@@ -752,6 +776,8 @@ export default function CardDetail() {
       label: 'Amount',
       width: 112,
       align: 'right',
+      sortable: true,
+      sortValue: (p) => Number(p.amount) || 0,
       render: (p) => <Amount value={Number(p.amount)} tone="in" />,
     },
     {
@@ -785,6 +811,9 @@ export default function CardDetail() {
         aria-label="Statements"
         columns={statementColumns}
         rows={statements}
+        defaultSort={{ key: 'cycle', direction: 'desc' }}
+        storageKey="fintrack.card.statements"
+        pagination
         onRowClick={(s) => openBreakdown(s)}
         loading={loading && statements.length === 0}
         emptyState={
@@ -818,6 +847,9 @@ export default function CardDetail() {
         aria-label="Payments"
         columns={paymentColumns}
         rows={payments}
+        defaultSort={{ key: 'paidOn', direction: 'desc' }}
+        storageKey="fintrack.card.payments"
+        pagination
         loading={loading && payments.length === 0}
         emptyState={
           <EmptyState

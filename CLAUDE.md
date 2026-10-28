@@ -37,7 +37,7 @@ Fintrack follows Frappe UI (the library behind Frappe CRM/Helpdesk). Read `src/c
 - **Tokens**: `styles/espresso.css` is generated from frappe-ui 1.0.2's tokens (surface/ink/outline scales, elevation, focus, radius; light on `:root`, dark on `[data-theme='dark']`). `styles/theme.css` adds Fintrack roles (money colours, chart and category hues, layout sizes). `styles/base.css` holds Inter, page defaults and text utilities.
 - **Kit**: `components/ui/` — React ports of frappe-ui components (Button, TextInput, Select, Combobox, DatePicker, Dialog, Sheet, Dropdown, Toast, Tabs, ListView, PageHeader, Sidebar, …). Import from `components/ui`. API docs in `components/ui/docs/`.
 - **Charts**: `components/charts/` — SVG BarChart, LineChart, DonutChart, CategoryBars, Sparkline in Frappe's chart style (README inside).
-- **Lists**: every list of records is a `ListView` table (transactions through `components/TransactionTable.jsx`); list pages use `components/common/ListToolbar.jsx` for the pinned search/filters/summary band. People show as `AvatarGroup` stacks.
+- **Tables**: every list of records is the kit `ListView` — the one table component, with sorting, column resizing, saved column choices (`useListSettings`, `ListColumnsMenu`), the pager, sub-rows, loading and empty states; its rules live in `components/ui/internal/listModel.js`. Transactions go through `components/TransactionTable.jsx`, which only defines the transaction columns. `ui/__tests__/oneTable.test.ts` fails on table markup outside `ListView` and the exceptions in `DESIGN.md`. List pages use `components/common/ListToolbar.jsx` for the pinned search/filters/summary band. People show as `AvatarGroup` stacks.
 - **Shared**: `components/common/Category.jsx` (`CategoryBadge`, `CategoryIcon`); category colours in `utils/categoryColors.js` (palette hex → theme tokens, including older stored colours).
 - Theme: `hooks/useTheme.js` (light / dark / system); `<html data-theme>` always holds the resolved theme.
 
@@ -64,7 +64,7 @@ Serialization: `serializeSplitPayload` / `parseSplitPayload` encode `SerializedS
 
 | Component | Purpose |
 |-----------|---------|
-| `TransactionTable` / `TransactionMobileList` | The ledger table (kit `ListView`) and its phone list, shared by Transactions, the card page and a bill payment's covered transactions |
+| `TransactionTable` / `TransactionMobileList` | The transaction columns on the kit `ListView`, and the phone list; shared by Transactions, the card page, a calendar day, a statement's breakdown and a bill payment's covered transactions |
 | `TransactionManageSheet` | Side/bottom sheet to recategorise, split or tag a transaction (Transactions, Calendar, card page) |
 | `SplitTransactionForm` | Form for splitting transaction amounts |
 | `FriendTagLedgerDisplay` | Shows ledger entries for a friend |
@@ -101,6 +101,6 @@ No CSS framework. Each component or page has a CSS file next to it, using Espres
 ## Testing
 
 Vitest. Test files at `src/**/__tests__/`.  
-Tests are `*.test.ts` (see `vitest.config.ts`) and cover the pure logic: split engine, ledger maths, settlement allocation, list/calendar params, dashboard and calendar models, chart scales and date helpers.
+Tests are `*.test.ts` (see `vitest.config.ts`) and cover the pure logic: split engine, ledger maths, settlement allocation, list/calendar params, dashboard and calendar models, the table rules (`listModel`), chart scales and date helpers. `oneTable.test.ts` guards that tables are only built with `ListView`.
 
 Run `npm test` (single pass) or add `--watch` for interactive mode.

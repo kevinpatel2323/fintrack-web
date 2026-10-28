@@ -1,9 +1,5 @@
 /* A person's ledger, in the transactions table's look. Prefix: .pledger- */
 
-.pledger {
-  --ui-list-row-height: 44px;
-}
-
 .pledger-date {
   font-size: 13px;
   color: var(--ink-gray-7);

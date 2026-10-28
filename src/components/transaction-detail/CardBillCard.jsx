@@ -1,6 +1,5 @@
-import { Amount, Card } from '../ui';
+import { Amount, Card, ListColumnsMenu } from '../ui';
 import TransactionTable, { transactionColumnChoices, useTransactionColumns } from '../TransactionTable.jsx';
-import TransactionColumnsMenu from '../transactions/TransactionColumnsMenu.jsx';
 import TransactionListRow from '../TransactionListRow.jsx';
 
 /**
@@ -10,6 +9,7 @@ import TransactionListRow from '../TransactionListRow.jsx';
  */
 const COLUMN_LABELS = { description: 'Merchant', method: 'Status' };
 const COLUMN_CHOICES = transactionColumnChoices(COLUMN_LABELS);
+export const COVERED_ORDER = { key: 'date', direction: 'asc' };
 
 export default function CardBillCard({
   ccLink,
@@ -18,13 +18,6 @@ export default function CardBillCard({
   categories,
   onAssignCategory,
   onOpenManage,
-  sortCol,
-  sortDir,
-  onSort,
-  page,
-  pageSize,
-  onPageChange,
-  onPageSizeChange,
 }) {
   const columnSettings = useTransactionColumns('fintrack.ledger.covered');
   const count = (ccLink.coveredTransactions || []).length;
@@ -37,7 +30,7 @@ export default function CardBillCard({
       title="Card bill"
       description={`${cardLabel} · ${count} covered card ${count === 1 ? 'transaction' : 'transactions'}`}
       padding="none"
-      actions={isMobile ? null : <TransactionColumnsMenu columns={COLUMN_CHOICES} settings={columnSettings} />}
+      actions={isMobile ? null : <ListColumnsMenu columns={COLUMN_CHOICES} settings={columnSettings} />}
       className="txd-bill"
       footer={remainder !== 0 ? (
         <div className="txd-bill__remainder">
@@ -75,13 +68,9 @@ export default function CardBillCard({
           onAssignCategory={onAssignCategory}
           onOpenManage={onOpenManage}
           onOpenDetail={(row) => onOpenManage(row.id)}
-          sortCol={sortCol}
-          sortDir={sortDir}
-          onSort={onSort}
-          page={page}
-          pageSize={pageSize}
-          onPageChange={onPageChange}
-          onPageSizeChange={onPageSizeChange}
+          // Rows arrive oldest first (see TransactionDetail); the table
+          // re-orders them from the headers and pages them itself.
+          defaultSort={COVERED_ORDER}
           emptyMessage="No card transactions covered."
         />
       )}

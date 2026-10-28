@@ -9,7 +9,7 @@ Fintrack looks and behaves like a Frappe app (Frappe CRM, Helpdesk, Gameplan): c
 | Page frame | `PageHeader` + `PageBody` (`components/ui/PageHeader.jsx`). The shell (sidebar, phone tab bar) is already around every page. |
 | Components | `import { Button, Dialog, ListView, … } from '../components/ui'`. API: `components/ui/docs/basics.md`, `forms.md`, `overlays.md` |
 | Charts | `components/charts` (see its README) |
-| Category display | `CategoryBadge` (dot + name, for tables and rows), `CategoryIcon` (tile with emoji or icon, for lists and pickers), from `components/common/Category.jsx` |
+| Category display | `CategoryBadge` (tile + name, for tables and rows), `CategoryIcon` (the tile alone: emoji or icon, for lists and pickers), from `components/common/Category.jsx` |
 | Money | `<Amount value={…} />`, never hand-formatted. Utilities live in `utils/inr.js`. |
 | Tokens | Espresso CSS variables (`styles/espresso.css`) and Fintrack roles (`styles/theme.css`) |
 | Text utilities | `.text-sm`, `.text-base`, `.font-medium`, `.text-ink-gray-5`, `.tabular-nums`, `.truncate` (`styles/base.css`) |
@@ -44,14 +44,25 @@ The pre-redesign layer (`primitives.jsx`, `Icon.jsx`, the `--ft-*` variables and
 
 ## Layout patterns
 
-**One table for every list of records.** Anything that lists records — transactions, people, a person's ledger, categories, imports, statements — is a table in the same look: the kit `ListView` (transactions use `components/TransactionTable.jsx`, which wraps it). Same header row, row height, hover, sortable headers, a Columns menu where columns are optional, avatars for people, and on phones the less important columns fold into a second line under the title. Don't build a card list or a custom row list for records. List pages put their search, filters and summary in `components/common/ListToolbar.jsx`, which pins under the page header.
+**One table for every list of records.** Anything that lists records — transactions, people, a person's ledger, categories, statements, payments, imports, subscriptions, an import or paste preview — is the kit `ListView` (transactions through `components/TransactionTable.jsx`, which only adds the transaction columns). It brings the Transactions table's behaviour to every table: header, 44px rows, hover, sorting, column resizing, saved column choices, the pager, loading and empty states, keyboard. Pages describe columns; they don't re-implement any of it. API: `docs/overlays.md#listview`.
 
-Deliberate exceptions, each a short list rather than a page of records: the Cards page's grid of card pictures, the dashboard's short lists, a day's "Bills due" under the Calendar table, the passkeys on Security, and pick lists inside a dialog (choosing entries for a settlement, a statement to link, rows for an export).
+- Every named column is sortable (`sortable`, plus `sortValue` when the cell isn't the raw value); dates and amounts start descending (`sortFirst: 'desc'`).
+- The title column is `flex`; the rest can be dragged. Give each table a `storageKey` (or `columnSettings` shared with a `ListColumnsMenu` where columns are optional) so widths and choices stick.
+- Paginate lists that grow without end: transactions, a ledger, people, statements, payments. Bounded lists — categories, subscriptions, recent imports, a calendar day, an import preview — show every row.
+- People show as `AvatarGroup` stacks. On phones the less important columns drop out (`hideBelow`) and their facts fold into a second line under the title; size column floors so the table fits a 390px phone. Ledger pages may swap the table for the phone row list (`TransactionMobileList`).
+- List pages put their search, filters and summary in `components/common/ListToolbar.jsx`, which pins under the page header; the table header pins under it.
+
+Not tables, on purpose (each is listed in `ui/__tests__/oneTable.test.ts`, which fails on table markup anywhere else):
+- Short lists that aren't pages of records: the Cards page's grid of card pictures, the dashboard's short lists, a day's "Bills due", the passkeys on Security, and the phone row lists.
+- Pick lists inside a dialog: a statement to link, rows for an export.
+- The bill-wise allocation form (`components/people/AllocTable.jsx`, used by Settle up, Net off and settlement review): each row is a form field, the order is what "Fill oldest first" works through, and it reflows by the width of the dialog or sheet it sits in.
+- The ledger export preview (`components/ledger-export/LedgerPaper.jsx`): a picture of the PDF page.
+- The screen-reader table behind each chart, and the date picker's month grid.
 
 **List page** (Transactions, People, Categories):
 1. `PageHeader`: title on the left; primary action ("New transaction") as a solid button on the right, with secondary actions as subtle buttons or a `…` Dropdown.
 2. Toolbar row under the header, in the style of Frappe CRM's view controls. On the left: a search `TextInput` with a `Search` prefix and filter controls (`Select`, `Combobox`, `DateRangePicker`, or a "Filter" `Dropdown`/`Popover` that shows active filters as removable chips). On the right: sort, columns, view switches (`TabButtons`), and a summary ("87 transactions · ₹1.27L spent").
-3. `ListView` full width, rows clickable to the detail page (`rowHref`), with selection and bulk actions where bulk actions exist.
+3. `ListView` full width with `stickyHeader`, rows clickable to the detail page (`rowHref`), paged, with selection and bulk actions where bulk actions exist.
 4. Empty state (`EmptyState`) and loading state (`loading` / `Skeleton`) instead of blank areas.
 
 **Detail page** (Transaction, Card, Person):

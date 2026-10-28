@@ -1,23 +1,35 @@
+import { useMemo } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Amount, Badge, Dialog, EmptyState, Skeleton } from '../../components/ui';
 import { CategoryBars } from '../../components/charts';
+import TransactionTable from '../../components/TransactionTable.jsx';
+import { useIsCompact } from '../../styles/breakpoints.js';
 import { categoryColor } from '../../utils/categoryColors.js';
+import { toCardTableRow } from '../../utils/cardTransactionRow.jsx';
 import { STATEMENT_STATUS, dayLabel, rangeLabel } from '../../components/cards/cardFormat.js';
+
+// Everything on a statement is billed, and the breakdown carries no splits.
+const OMIT = ['method', 'tags'];
+const LABELS = { description: 'Merchant' };
+const STATEMENT_ORDER = { key: 'date', direction: 'asc' };
 
 /**
  * One statement: its totals, spend by category and the transactions on it
- * (GET /cards/statements/:id/breakdown). `data.loading` shows skeletons while
- * the breakdown loads; `data.statement` is the row that was clicked.
+ * (GET /cards/statements/:id/breakdown) — in the card ledger's table on
+ * wider screens, as plain rows on phones. `data.loading` shows skeletons
+ * while the breakdown loads; `data.statement` is the row that was clicked.
  */
 export default function StatementBreakdownDialog({ data, onClose, onDelete }) {
   const { statement, categories: cats = [], transactions = [], loading } = data;
   const status = STATEMENT_STATUS[statement.status] || { label: statement.status, theme: 'gray' };
+  const isCompact = useIsCompact();
+  const rows = useMemo(() => transactions.map((t) => toCardTableRow(t)), [transactions]);
 
   return (
     <Dialog
       open
       onClose={onClose}
-      size="xl"
+      size="3xl"
       title={rangeLabel(statement.cycleStart, statement.cycleEnd)}
       actions={[
         onDelete && {
@@ -90,6 +102,14 @@ export default function StatementBreakdownDialog({ data, onClose, onDelete }) {
             </h4>
             {transactions.length === 0 ? (
               <EmptyState size="sm" title="No transactions" description="Nothing is linked to this statement." />
+            ) : !isCompact ? (
+              <TransactionTable
+                rows={rows}
+                columnLabels={LABELS}
+                omitColumns={OMIT}
+                defaultSort={STATEMENT_ORDER}
+                storageKey="fintrack.ledger.statement"
+              />
             ) : (
               <ul className="cardd-breakdown__list">
                 {transactions.map((t) => {

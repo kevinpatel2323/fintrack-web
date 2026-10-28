@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 
 /**
- * Per-ledger column preferences: which columns are hidden and any widths the
- * user dragged. Persisted in localStorage under the ledger's `storageKey`
- * (the same key and `hidden` map the old table used, so choices carry over).
- * Widths live under `colWidths`: the old `widths` held every column's default,
- * not just the ones the user changed.
+ * Per-table column preferences: which columns are hidden and any widths the
+ * user dragged. Persisted in localStorage under the table's `storageKey`
+ * (`{ hidden, colWidths }` — the format the transactions ledger always
+ * stored, so earlier choices carry over). With no key the preferences live
+ * in memory for as long as the table is mounted.
+ *
+ * ListView makes its own from `storageKey`; call this yourself only when a
+ * Columns menu outside the table shares the state (`columnSettings`).
  */
 
 function load(storageKey) {
@@ -30,9 +33,10 @@ function save(storageKey, patch) {
 
 /**
  * `defaultHidden` columns start hidden until the user turns them on; a choice
- * the user made (shown or hidden) is stored and always wins.
+ * the user made (shown or hidden) is stored and always wins. `pinned`
+ * columns can't be hidden.
  */
-export function useTransactionTableSettings(storageKey, { pinned = [], defaultHidden = [] } = {}) {
+export function useListSettings(storageKey, { pinned = [], defaultHidden = [] } = {}) {
   const [hidden, setHidden] = useState(() => {
     const stored = load(storageKey)?.hidden || {};
     const defaults = Object.fromEntries(defaultHidden.filter((id) => !(id in stored)).map((id) => [id, true]));
@@ -71,5 +75,7 @@ export function useTransactionTableSettings(storageKey, { pinned = [], defaultHi
     });
   }, []);
 
-  return { hidden, widths, toggleColumn, showAllColumns, setWidth, resetWidth };
+  const resetWidths = useCallback(() => setWidths((prev) => (Object.keys(prev).length ? {} : prev)), []);
+
+  return { hidden, widths, toggleColumn, showAllColumns, setWidth, resetWidth, resetWidths };
 }

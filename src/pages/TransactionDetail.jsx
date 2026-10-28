@@ -7,7 +7,7 @@ import CcLinkModal from '../components/CcLinkModal.jsx';
 import { FriendTagCard } from '../components/FriendTagLedgerDisplay.jsx';
 import { sortTableRows } from '../components/TransactionTable.jsx';
 import TransactionManageSheet from '../components/TransactionManageSheet.jsx';
-import CardBillCard from '../components/transaction-detail/CardBillCard.jsx';
+import CardBillCard, { COVERED_ORDER } from '../components/transaction-detail/CardBillCard.jsx';
 import DetailsPanel from '../components/transaction-detail/DetailsPanel.jsx';
 import { formatTxnDate } from '../components/transaction-detail/formatTxnDate.js';
 import { CategoryIcon } from '../components/common/Category.jsx';
@@ -138,20 +138,6 @@ export default function TransactionDetail() {
     return () => { cancelled = true; };
   }, [id]);
 
-  const [coveredSortCol, setCoveredSortCol] = useState('date');
-  const [coveredSortDir, setCoveredSortDir] = useState('asc');
-  const [coveredPage, setCoveredPage] = useState(1);
-  const [coveredPageSize, setCoveredPageSize] = useState(25);
-
-  const handleCoveredSort = useCallback((col) => {
-    setCoveredSortCol((current) => {
-      if (current === col) setCoveredSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-      else setCoveredSortDir(col === 'date' ? 'desc' : 'asc');
-      return col;
-    });
-    setCoveredPage(1);
-  }, []);
-
   // The covered card transactions are managed like any other ledger row.
   const cardManager = useCardTransactionManager({
     categories,
@@ -170,12 +156,12 @@ export default function TransactionDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ccLink]);
 
+  // Oldest first, for the phone rows and as the table's starting order.
   const coveredRows = sortTableRows(
     (ccLink?.coveredTransactions || []).map((t) =>
       toCardTableRow(t, cardManager.tagsByTransaction),
     ),
-    coveredSortCol,
-    coveredSortDir,
+    COVERED_ORDER,
   );
 
   const cardManageRow = cardManager.manageSheetId
@@ -462,13 +448,6 @@ export default function TransactionDetail() {
                 categories={categories}
                 onAssignCategory={cardManager.assignCategory}
                 onOpenManage={cardManager.openManage}
-                sortCol={coveredSortCol}
-                sortDir={coveredSortDir}
-                onSort={handleCoveredSort}
-                page={coveredPage}
-                pageSize={coveredPageSize}
-                onPageChange={setCoveredPage}
-                onPageSizeChange={setCoveredPageSize}
               />
             )}
           </div>

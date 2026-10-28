@@ -24,7 +24,8 @@ export function AllocTable({ openLabel = 'Open', applyLabel = 'Amount', label, c
 /**
  * One row. `selected` ticks the box; `editing` (default: selected) shows the
  * amount box. `after` is the line under it ("₹200 left", "Cleared") and
- * `tone` is 'done' or 'error' for that line. `extra` spans the row below.
+ * `tone` is 'done' or 'error' for that line. `extra` (e.g. a group's "Show
+ * entries" toggle) spans the row below.
  */
 export function AllocRowView({
   name,
@@ -83,7 +84,11 @@ export function AllocRowView({
           </span>
         )}
       </span>
-      {extra}
+      {extra && (
+        <span className="alloc-row__extra" role="cell">
+          {extra}
+        </span>
+      )}
     </div>
   );
 }

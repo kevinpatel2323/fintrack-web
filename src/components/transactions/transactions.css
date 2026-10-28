@@ -1,73 +1,9 @@
-/* Shared ledger pieces: TransactionTable (desktop, on the kit ListView),
- * TransactionListRow / TransactionMobileList (phones and narrow panels) and
- * the Columns menu. Prefix: txl- (transaction list). */
+/* Shared ledger pieces: TransactionTable's cells (the table itself — rows,
+ * header, resizing, pager — is the kit ListView) and TransactionListRow /
+ * TransactionMobileList (phones and narrow panels). Prefix: txl-
+ * (transaction list). */
 
-/* ---------- Table ---------- */
-
-.txl-table {
-  min-width: 0;
-}
-
-.txl-table[data-resizing] {
-  cursor: col-resize;
-  user-select: none;
-}
-
-.txl-table__bar {
-  display: flex;
-  justify-content: flex-end;
-  padding: 0 0 4px;
-}
-
-.txl-list {
-  --ui-list-row-height: 44px;
-  /* Pages with a pinned toolbar add its height (--txl-sticky-offset). */
-  --ui-list-sticky-top: calc(var(--header-height) + var(--txl-sticky-offset, 0px));
-}
-
-/* The table always hands ListView an EmptyState, which brings its own padding. */
-.txl-list .ui-list__empty {
-  padding: 8px 0;
-}
-
-.txl-hcell {
-  position: relative;
-}
-
-/* Drag handle straddling the gap after a header cell. Sits inside the sort
-   button's label, positioned against the header cell. */
-.txl-resizer {
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  right: calc(var(--ui-list-gap, 8px) / -2 - 4px);
-  z-index: 1;
-  width: 8px;
-  cursor: col-resize;
-  touch-action: none;
-}
-
-.txl-resizer::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  bottom: 2px;
-  left: 3.5px;
-  width: 1px;
-  background: var(--outline-gray-2);
-  opacity: 0;
-  transition: opacity 150ms, background-color 150ms;
-}
-
-.ui-list__header:hover .txl-resizer::after {
-  opacity: 1;
-}
-
-.txl-resizer:hover::after,
-.txl-table[data-resizing] .txl-resizer:active::after {
-  opacity: 1;
-  background: var(--outline-gray-5);
-}
+/* ---------- Table cells (TransactionTable on the kit ListView) ---------- */
 
 .txl-date {
   font-size: 13px;
@@ -286,88 +222,17 @@
   background: transparent;
 }
 
-/* ---------- Pager ---------- */
-
-.txl-pager {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-  padding: 4px var(--ui-list-pad, 12px) 0;
-}
-
-.txl-pager__size {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--ink-gray-5);
-}
-
-.txl-pager__nav {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-left: auto;
-}
-
-.txl-pager__range {
-  font-size: 13px;
-  color: var(--ink-gray-6);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.txl-pager__pages {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.txl-pager__page {
-  min-width: 28px;
-  font-variant-numeric: tabular-nums;
-}
-
-.txl-pager__ellipsis {
-  padding: 0 4px;
-  color: var(--ink-gray-4);
-}
-
-/* ---------- Columns menu ---------- */
-
-.txl-colmenu {
-  display: flex;
-  flex-direction: column;
-  min-width: 208px;
-  padding: 4px;
-}
-
-.txl-colmenu__footer {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  margin-top: 4px;
-  padding-top: 4px;
-  border-top: 1px solid var(--outline-gray-1);
-}
-
-.txl-colmenu__footer .ui-button {
-  justify-content: flex-start;
-}
-
 /* ---------- Phone list: day groups ---------- */
 
 .txl-days {
-  --txl-sticky-top: calc(52px + var(--txl-sticky-offset, 0px));
+  --txl-sticky-top: calc(52px + var(--list-toolbar-height, 0px));
   display: flex;
   flex-direction: column;
 }
 
 @media (display-mode: standalone) {
   .txl-days {
-    --txl-sticky-top: calc(52px + env(safe-area-inset-top) + var(--txl-sticky-offset, 0px));
+    --txl-sticky-top: calc(52px + env(safe-area-inset-top) + var(--list-toolbar-height, 0px));
   }
 }
 

@@ -50,6 +50,9 @@ export default function SubscriptionsView({
       key: 'name',
       label: 'Name',
       width: 'minmax(140px, 2fr)',
+      flex: true,
+      sortable: true,
+      sortValue: (row) => row.name,
       render: (row) => (
         <span className="cal-sub-name">
           <span className="cal-sub-name__title truncate">{row.name}</span>
@@ -62,6 +65,9 @@ export default function SubscriptionsView({
       key: 'category',
       label: 'Category',
       width: 150,
+      minWidth: 112,
+      sortable: true,
+      sortValue: (row) => categoryOf(row)?.name || '',
       render: (row) => (categoryOf(row)
         ? <CategoryBadge category={categoryOf(row)} />
         : <span className="text-ink-gray-4">—</span>),
@@ -70,12 +76,16 @@ export default function SubscriptionsView({
       key: 'rrule',
       label: 'Repeats',
       width: 'minmax(120px, 1.2fr)',
+      sortable: true,
+      sortValue: (row) => describeRRule(row.rrule),
       render: (row) => <span className="truncate" title={row.rrule}>{describeRRule(row.rrule)}</span>,
     },
     {
       key: 'next',
       label: 'Next',
       width: 80,
+      sortable: true,
+      sortValue: (row) => nextOf(row) || '',
       render: (row) => (nextOf(row)
         ? <span className="tabular-nums">{formatDayShort(nextOf(row))}</span>
         : <span className="text-ink-gray-4">—</span>),
@@ -84,10 +94,22 @@ export default function SubscriptionsView({
       key: 'amount',
       label: 'Amount',
       width: 100,
+      minWidth: 88,
       align: 'right',
+      sortable: true,
+      sortFirst: 'desc',
+      sortValue: (row) => Number(row.amount || 0),
       render: (row) => <Amount value={Number(row.amount || 0)} sign="never" tone="out" />,
     },
-    { key: 'status', label: 'Status', width: 96, render: (row) => <StatusBadge sub={row} /> },
+    {
+      key: 'status',
+      label: 'Status',
+      width: 96,
+      minWidth: 88,
+      sortable: true,
+      sortValue: (row) => subscriptionStatus(row).label,
+      render: (row) => <StatusBadge sub={row} />,
+    },
     {
       key: 'actions',
       label: '',
@@ -196,6 +218,7 @@ export default function SubscriptionsView({
             aria-label="Subscriptions"
             columns={columns}
             rows={subs}
+            storageKey="fintrack.subscriptions"
             onRowClick={(row) => onEdit(row)}
             loading={loading}
             emptyState={empty}

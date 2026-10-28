@@ -1,9 +1,8 @@
 import { forwardRef, useCallback, useMemo, useState } from 'react';
 import { CalendarDays, Plus } from 'lucide-react';
-import { Amount, Button, EmptyState } from '../../components/ui';
+import { Amount, Button, EmptyState, ListColumnsMenu } from '../../components/ui';
 import TransactionTable, { transactionColumnChoices, useTransactionColumns } from '../../components/TransactionTable.jsx';
 import TransactionListRow from '../../components/TransactionListRow.jsx';
-import TransactionColumnsMenu from '../../components/transactions/TransactionColumnsMenu.jsx';
 import { toBankTableRow } from '../../components/transactions/bankTransactionRow.jsx';
 import { ccExpansionItems } from '../../components/transactions/transactionListModel.js';
 import { toCardTableRow } from '../../utils/cardTransactionRow.jsx';
@@ -18,8 +17,8 @@ const COLUMN_CHOICES = transactionColumnChoices().filter((c) => !OMIT.includes(c
  * The selected day's transactions, in the same table as the Transactions page
  * (phones: the same rows as Activity): category set in place, card bill
  * payments expand to the card transactions they cover, rows open the
- * transaction. What still needs a category is listed first and marked.
- * Bills due that day follow the table.
+ * transaction. What still needs a category is listed first and marked, until
+ * a header click orders the table. Bills due that day follow the table.
  */
 const DayTransactions = forwardRef(function DayTransactions(
   {
@@ -108,7 +107,7 @@ const DayTransactions = forwardRef(function DayTransactions(
           )}
         </div>
         <div className="cal-dayview__actions">
-          {!isMobile && txs.length > 0 && <TransactionColumnsMenu columns={COLUMN_CHOICES} settings={columnSettings} />}
+          {!isMobile && txs.length > 0 && <ListColumnsMenu columns={COLUMN_CHOICES} settings={columnSettings} />}
           <Button iconLeft={Plus} label="Add transaction" onClick={onAddTransaction} />
         </div>
       </header>

@@ -136,75 +136,38 @@
   color: var(--ink-gray-9);
 }
 
-.unbilled__list {
-  overflow: hidden;
-  border: 1px solid var(--outline-gray-1);
-  border-radius: var(--radius-5);
+.unbilled__merchant {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
 }
 
-.unbilled__row {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) auto 104px;
-  align-items: center;
-  gap: 12px;
-  min-height: 40px;
-  padding: 6px 12px;
-  font-size: 13px;
-  color: var(--ink-gray-8);
-}
-
-.unbilled__row + .unbilled__row {
-  border-top: 1px solid var(--outline-gray-1);
-}
-
-.unbilled__row.is-skipped .unbilled__merchant,
-.unbilled__row.is-skipped .unbilled__amount {
+.unbilled__row--skipped .unbilled__merchant {
   color: var(--ink-gray-5);
 }
 
-.unbilled__date {
+.unbilled__date,
+.unbilled__phone-meta {
+  font-size: 13px;
   color: var(--ink-gray-5);
   font-variant-numeric: tabular-nums;
 }
 
-.unbilled__amount {
-  text-align: right;
+.unbilled__phone-meta {
+  display: none;
+  font-size: 12px;
 }
 
-.unbilled__status {
-  display: flex;
-  justify-content: flex-end;
+@media (max-width: 639.98px) {
+  .unbilled__phone-meta {
+    display: block;
+  }
 }
 
 @media (max-width: 767.98px) {
   .cardform__grid--3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .unbilled__row {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 2px 12px;
-  }
-
-  .unbilled__date {
-    grid-column: 1;
-    grid-row: 2;
-    font-size: 12px;
-  }
-
-  .unbilled__merchant {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .unbilled__amount {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .unbilled__status {
-    grid-column: 2;
-    grid-row: 2;
   }
 }
 

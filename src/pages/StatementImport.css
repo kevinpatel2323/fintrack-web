@@ -368,6 +368,7 @@
    stay close; phones show the first rows and a "Show all" instead. */
 @media (min-width: 768px) {
   .import-rows__scroll {
+    --ui-list-sticky-top: 0px;
     max-height: 52vh;
     overflow: auto;
   }
@@ -426,7 +427,6 @@
 
 .import-hist {
   --list-row-padding-x: 16px;
-  --ui-list-row-height: 52px;
 }
 
 .import-hist__account {

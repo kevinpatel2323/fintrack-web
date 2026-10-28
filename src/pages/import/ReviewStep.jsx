@@ -192,6 +192,7 @@ function StatementRows({ preview, previewRows, confirmedKeys, isCompact }) {
       const value = {
         date: (it) => it.row.transactionDate || '',
         description: (it) => rowText(it.row).toLowerCase(),
+        status: (it) => STATUS[it.status].label,
         amount: (it) => it.amount,
       }[sort.key];
       const dir = sort.direction === 'desc' ? -1 : 1;
@@ -212,7 +213,9 @@ function StatementRows({ preview, previewRows, confirmedKeys, isCompact }) {
       key: 'date',
       label: 'Date',
       width: 100,
+      minWidth: 88,
       sortable: true,
+      sortFirst: 'desc',
       hideBelow: 'sm',
       render: (it) => <span className="import-muted tabular-nums">{fmtDate(it.row.transactionDate)}</span>,
     },
@@ -220,6 +223,7 @@ function StatementRows({ preview, previewRows, confirmedKeys, isCompact }) {
       key: 'description',
       label: 'Description',
       width: 'minmax(136px, 1fr)',
+      flex: true,
       sortable: true,
       render: (it) => (
         <span className="import-row-desc">
@@ -237,13 +241,16 @@ function StatementRows({ preview, previewRows, confirmedKeys, isCompact }) {
       key: 'status',
       label: 'Status',
       width: 156,
+      minWidth: 96,
       hideBelow: 'sm',
+      sortable: true,
       render: (it) => <Badge theme={STATUS[it.status].theme} label={STATUS[it.status].label} />,
     },
     {
       key: 'amount',
       label: 'Amount',
       width: 108,
+      minWidth: 96,
       align: 'right',
       sortable: true,
       render: (it) => <Amount value={it.amount} sign="always" />,
@@ -281,8 +288,11 @@ function StatementRows({ preview, previewRows, confirmedKeys, isCompact }) {
           columns={columns}
           rows={shown}
           rowKey="index"
+          // Ordered here, before the phone's first-rows cut, so the cut
+          // shows the top of the sorted list.
           sort={sort}
           onSortChange={setSort}
+          storageKey="fintrack.import.review"
           stickyHeader={!isCompact}
           emptyState={emptyState}
           footer={

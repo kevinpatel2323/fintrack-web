@@ -17,8 +17,12 @@
  *   banner       frappe ListSelectBanner: bottom-6 centred, min-w-[596px],
  *                rounded-lg, bg-surface-white, px-4 py-2, shadow-2xl
  *
- * Fintrack additions: 40px minimum row height (frappe-ui's classic ListView
- * row), a selected-row surface (surface-gray-2), collapsible groups. */
+ * Fintrack additions, all from the Transactions ledger (the reference
+ * table): 44px minimum row height, a selected-row surface (surface-gray-2),
+ * collapsible groups, column resize handles, the pager and the Columns menu.
+ * A list page's sticky header pins under the page header and the list
+ * toolbar (`--list-toolbar-height`) unless `--ui-list-sticky-top` says
+ * otherwise. */
 
 .ui-list {
   --ui-list-pad: var(--list-row-padding-x, 12px);
@@ -34,6 +38,11 @@
 
 .ui-list[data-selectable] {
   --ui-list-check: 32px;
+}
+
+.ui-list[data-resizing] {
+  cursor: col-resize;
+  user-select: none;
 }
 
 @media (min-width: 640px) {
@@ -96,9 +105,22 @@
 
 .ui-list[data-sticky] .ui-list__head {
   position: sticky;
-  top: var(--ui-list-sticky-top, 0px);
+  top: var(--ui-list-sticky-top, calc(var(--header-height, 0px) + var(--list-toolbar-height, 0px)));
   z-index: 3;
   background: var(--ui-list-header-bg, var(--surface-base));
+}
+
+/* Phone: the compact page header is 52px (plus the inset when installed). */
+@media (max-width: 767.98px) {
+  .ui-list[data-sticky] .ui-list__head {
+    top: var(--ui-list-sticky-top, calc(52px + var(--list-toolbar-height, 0px)));
+  }
+}
+
+@media (max-width: 767.98px) and (display-mode: standalone) {
+  .ui-list[data-sticky] .ui-list__head {
+    top: var(--ui-list-sticky-top, calc(52px + env(safe-area-inset-top) + var(--list-toolbar-height, 0px)));
+  }
 }
 
 /* A list that scrolls sideways is its own scroll box, so a sticky header
@@ -141,6 +163,7 @@
 }
 
 .ui-list__hcell {
+  position: relative;
   display: flex;
   min-width: 0;
   align-items: center;
@@ -199,10 +222,68 @@
   }
 }
 
+/* ---------- Resize handles ---------- */
+
+/* An 8px handle straddling the gap beside a header cell: on its right edge
+   left of the flexible column, on its left edge right of it (data-side).
+   A hairline shows in every gap while the pointer is on the header. */
+.ui-list__resizer {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  z-index: 1;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.ui-list__resizer[data-side='end'] {
+  right: calc(var(--ui-list-gap) / -2 - 4px);
+}
+
+.ui-list__resizer[data-side='start'] {
+  left: calc(var(--ui-list-gap) / -2 - 4px);
+}
+
+.ui-list__resizer::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 3.5px;
+  width: 1px;
+  background: var(--outline-gray-2);
+  opacity: 0;
+  transition: opacity 150ms, background-color 150ms;
+}
+
+.ui-list__header:hover .ui-list__resizer::after {
+  opacity: 1;
+}
+
+.ui-list__resizer:hover::after,
+.ui-list__resizer:focus-visible::after,
+.ui-list[data-resizing] .ui-list__resizer:active::after {
+  opacity: 1;
+  background: var(--outline-gray-5);
+}
+
+.ui-list__resizer:focus-visible {
+  border-radius: var(--radius-1);
+  box-shadow: 0 0 0 2px var(--outline-gray-3);
+}
+
+@media (pointer: coarse) {
+  .ui-list__resizer {
+    display: none;
+  }
+}
+
 /* ---------- Rows ---------- */
 
 .ui-list__row {
-  min-height: var(--ui-list-row-height, 40px);
+  min-height: var(--ui-list-row-height, 44px);
   font-size: 14px;
   line-height: 1.35;
   letter-spacing: 0.02em;
@@ -446,7 +527,7 @@
 }
 
 .ui-list__empty {
-  padding: 40px 16px;
+  padding: 8px 0;
   text-align: center;
   font-size: 14px;
   line-height: 1.5;
@@ -455,6 +536,81 @@
 
 .ui-list__footer {
   padding-top: 8px;
+}
+
+.ui-list__footer + .ui-list__footer {
+  padding-top: 4px;
+}
+
+/* ---------- Pager ---------- */
+
+.ui-list-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 4px var(--ui-list-pad) 0;
+}
+
+.ui-list-pager__size {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.ui-list-pager__nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.ui-list-pager__range {
+  font-size: 13px;
+  color: var(--ink-gray-6);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ui-list-pager__pages {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.ui-list-pager__page {
+  min-width: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-list-pager__ellipsis {
+  padding: 0 4px;
+  color: var(--ink-gray-4);
+}
+
+/* ---------- Columns menu (ListColumnsMenu) ---------- */
+
+.ui-list-colmenu {
+  display: flex;
+  flex-direction: column;
+  min-width: 208px;
+  padding: 4px;
+}
+
+.ui-list-colmenu__footer {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.ui-list-colmenu__footer .ui-button {
+  justify-content: flex-start;
 }
 
 /* ---------- Selection banner ---------- */

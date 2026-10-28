@@ -362,17 +362,15 @@ function GroupBlock({ group, draft, status, settledSide, first, amountMinor, onD
         invalid={memberError || over}
         inputLabel={`Amount for ${group.title}`}
         extra={
-          <span className="alloc-row__extra" role="cell">
-            <Button
-              className="alloc-group__toggle"
-              size="xs"
-              variant="ghost"
-              iconLeft={open ? ChevronDown : ChevronRight}
-              aria-expanded={open}
-              label={open ? 'Hide entries' : `Show ${members.length === 1 ? 'entry' : `${members.length} entries`}`}
-              onClick={() => setOpen(!open)}
-            />
-          </span>
+          <Button
+            className="alloc-group__toggle"
+            size="xs"
+            variant="ghost"
+            iconLeft={open ? ChevronDown : ChevronRight}
+            aria-expanded={open}
+            label={open ? 'Hide entries' : `Show ${members.length === 1 ? 'entry' : `${members.length} entries`}`}
+            onClick={() => setOpen(!open)}
+          />
         }
       />
       {open && (
