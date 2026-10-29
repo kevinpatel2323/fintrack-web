@@ -59,8 +59,9 @@ export function normaliseMemo(value) {
 }
 
 /**
- * Apple Maps at the SMS's location, built only from finite numbers in range;
- * null otherwise. Nothing else from the API goes into the URL.
+ * Google Maps at the SMS's location (opened in a new tab), built only from
+ * finite numbers in range; null otherwise. Nothing else from the API goes into
+ * the URL.
  */
 export function mapLink(location) {
   if (!location) return null;
@@ -68,7 +69,7 @@ export function mapLink(location) {
   const lon = typeof location.longitude === 'number' ? location.longitude : NaN;
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
   if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
-  return `https://maps.apple.com/?ll=${lat},${lon}`;
+  return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

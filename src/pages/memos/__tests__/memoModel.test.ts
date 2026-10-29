@@ -77,8 +77,8 @@ describe('normaliseMemo', () => {
 });
 
 describe('mapLink', () => {
-  it('builds an Apple Maps link from numeric coordinates', () => {
-    expect(mapLink({ latitude: 23.0225, longitude: 72.5714 })).toBe('https://maps.apple.com/?ll=23.0225,72.5714');
+  it('builds a Google Maps link from numeric coordinates', () => {
+    expect(mapLink({ latitude: 23.0225, longitude: 72.5714 })).toBe('https://www.google.com/maps/search/?api=1&query=23.0225,72.5714');
   });
 
   it('refuses anything that is not a finite number in range', () => {
