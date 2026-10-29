@@ -22,6 +22,7 @@ npm test         # Vitest
 | `/cards`, `/cards/:id` | `pages/Cards.jsx`, `pages/CardDetail.jsx` | Card list and record page (`pages/cards/`, `components/cards/`) |
 | `/friends`, `/friends/:id` | `pages/Friends.jsx`, `pages/FriendDetail.jsx` | People and the friend ledger (`pages/people/`, `components/people/`) |
 | `/categories` | `pages/Categories.jsx` | Category list, month split, create/edit (`components/categories/`) |
+| `/memos` | `pages/Memos.jsx` | Bank SMS from the Fintrack Memos iPhone shortcut with the memo typed when each arrived; inline memo edit, detail sheet (raw SMS, map), Connect iPhone (pairing code) and Devices (revoke) (`pages/memos/`, API `/transaction-memos`) |
 | `/import` | `pages/StatementImport.jsx` | Upload → review → confirm (`pages/import/`) |
 | `/you` | `pages/You.jsx` | "You" on phones (from the header's leading button): categories, imports, security, appearance (`pages/you/YouPhone.jsx`) |
 | `/security` | `pages/Security.jsx` | Passkeys and sign-out (hidden when auth is disabled) |

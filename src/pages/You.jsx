@@ -11,6 +11,7 @@ import './You.css';
 
 const DESCRIPTIONS = {
   '/categories': 'Rename and recolour categories',
+  '/memos': 'Notes you typed when a bank SMS arrived',
   '/import': 'Upload an HDFC bank or card statement',
   '/security': 'Passkeys and sign-out',
 };

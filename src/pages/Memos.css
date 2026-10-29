@@ -1,0 +1,525 @@
+/* Memos (/memos): the People/Transactions list layout — a pinned toolbar,
+   then a full-width table whose memo column is edited in place. Also the
+   memo sheet, the Connect iPhone dialog and the Devices dialog (portals, so
+   not scoped under the page). Prefix: .memos- */
+
+.memos-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.memos-search {
+  width: 240px;
+  max-width: 100%;
+}
+
+/* "No memo 3" inside the tab buttons. */
+.memos-count {
+  margin-left: 6px;
+  color: var(--ink-gray-5);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Table cells ---------- */
+
+.memos-time {
+  font-size: 13px;
+  color: var(--ink-gray-6);
+  white-space: nowrap;
+}
+
+.memos-amount {
+  font-weight: 500;
+}
+
+.memos-payee {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.memos-payee__name {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-8);
+}
+
+.memos-payee .ui-badge {
+  flex-shrink: 0;
+}
+
+.memos-muted {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--ink-gray-6);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memos-empty {
+  color: var(--ink-gray-4);
+}
+
+/* The memo field fills its cell; the text lines up with the column's other
+   cells until it is hovered or focused. */
+.memos-cell-control {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.memos-cell {
+  flex: 1;
+  width: calc(100% + 8px);
+  min-width: 0;
+  margin-left: -8px;
+}
+
+.memos-cell .ui-text-input__control {
+  text-overflow: ellipsis;
+}
+
+.memos-cell .ui-text-input__suffix {
+  color: var(--ink-gray-4);
+}
+
+.memos-cell__spinner {
+  color: var(--ink-gray-5);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .memos-cell .ui-input[data-variant='ghost']:not(:disabled):hover {
+    background-color: var(--surface-gray-2);
+  }
+}
+
+.memos-cell .ui-input[data-variant='ghost']:not(:disabled):focus {
+  background-color: var(--surface-base);
+  box-shadow: 0 0 0 1px var(--outline-gray-4), var(--elevation-sm);
+}
+
+/* A memo whose save failed: still the typed text, outlined in red until it
+   saves or Escape puts the saved memo back. */
+.memos-cell .ui-input[data-variant='ghost'][aria-invalid='true']:not(:disabled) {
+  box-shadow: 0 0 0 1px var(--outline-red-3);
+}
+
+.memos-cell .ui-input[data-variant='ghost'][aria-invalid='true']:not(:disabled):focus {
+  box-shadow: 0 0 0 1px var(--outline-red-4), var(--elevation-sm);
+}
+
+/* ---------- Pager (the API pages the list) ---------- */
+
+.memos-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 4px 12px 0;
+}
+
+.memos-pager__size {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.memos-pager__nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.memos-pager__range,
+.memos-pager__page {
+  font-size: 13px;
+  color: var(--ink-gray-6);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.memos-pager__buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ---------- Memo sheet ---------- */
+
+.memos-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.memos-sheet__summary {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+}
+
+.memos-sheet__summary > * + *::before {
+  content: '·';
+  margin-right: 6px;
+  color: var(--ink-gray-4);
+}
+
+.memos-sheet__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.memos-sheet__heading {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-9);
+}
+
+.memos-sheet__memo-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.memos-sheet__note {
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.memos-sheet__error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* The SMS exactly as it arrived: read-only, wrapped, selectable. */
+.memos-sms {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-4);
+  background: var(--surface-gray-1);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-gray-8);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.memos-sms--loading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.memos-fields {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.memos-field {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.memos-field + .memos-field {
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.memos-field__label {
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memos-field__value {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  color: var(--ink-gray-8);
+}
+
+.memos-field__empty {
+  color: var(--ink-gray-4);
+}
+
+.memos-field__mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.memos-field__inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.memos-field__error {
+  color: var(--ink-red-5);
+}
+
+.memos-link {
+  color: var(--ink-blue-link);
+  text-decoration: none;
+}
+
+.memos-link:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Connect iPhone ---------- */
+
+.memos-pair {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.memos-pair__code {
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--radius-5);
+  background: var(--surface-gray-1);
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  color: var(--ink-gray-9);
+  text-align: center;
+  user-select: all;
+}
+
+.memos-pair__code-skeleton {
+  align-self: center;
+}
+
+.memos-pair__expiry {
+  margin: -4px 0 0;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.memos-pair__expiry.is-expired {
+  color: var(--ink-amber-7);
+}
+
+.memos-pair__setup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  border: 1px solid var(--outline-gray-2);
+  border-radius: var(--radius-4);
+}
+
+.memos-pair__setup-text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink-gray-8);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.memos-pair__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-left: 20px;
+  list-style: decimal;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-gray-7);
+}
+
+/* ---------- Devices ---------- */
+
+.memos-devices {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--outline-gray-1);
+  border-radius: var(--radius-5);
+  list-style: none;
+}
+
+.memos-device {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 12px;
+}
+
+.memos-device + .memos-device {
+  border-top: 1px solid var(--outline-gray-1);
+}
+
+.memos-device__icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-4);
+  background: var(--surface-gray-2);
+  color: var(--ink-gray-6);
+}
+
+.memos-device__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.memos-device__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-gray-8);
+}
+
+.memos-device.is-inactive .memos-device__name {
+  color: var(--ink-gray-5);
+}
+
+.memos-device__meta {
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.memos-devices__error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* ---------- Phones (pages/memos/MemosPhone.jsx) ----------
+   Phone-only markup, plus phone sizes for the shared sheet and dialogs.
+   A pinned search band with fluid segments, then the memos as rows. */
+
+@media (max-width: 767.98px) {
+  .memos-m {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .memos-m-toolbar .list-toolbar__filters {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .memos-m-search {
+    width: 100%;
+  }
+
+  /* Four segments with a count at 375px: tighter pills. */
+  .memos-m-segments .ui-tab-buttons__pill {
+    padding-inline: 4px;
+  }
+
+  .memos-m-segments .memos-count {
+    margin-left: 4px;
+  }
+
+  .memos-m-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .memos-m-title__text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .memos-m-title .ui-badge {
+    flex-shrink: 0;
+  }
+
+  .memos-m-memo {
+    color: var(--ink-gray-7);
+  }
+
+  .memos-m-add {
+    color: var(--ink-gray-4);
+  }
+
+  .memos-m-skeleton {
+    display: inline-block;
+  }
+
+  .memos-m-more {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .memos-m-more__count {
+    font-size: 13px;
+    color: var(--ink-gray-5);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .memos-field {
+    grid-template-columns: 104px minmax(0, 1fr);
+    padding: 8px 0;
+  }
+
+  .memos-field__label,
+  .memos-field__value {
+    font-size: 15px;
+  }
+
+  .memos-sms {
+    font-size: 13px;
+  }
+
+  .memos-pair__code {
+    font-size: 30px;
+  }
+
+  .memos-pair__steps {
+    font-size: 15px;
+  }
+}

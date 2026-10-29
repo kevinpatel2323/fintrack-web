@@ -1,8 +1,9 @@
 import {
   ArrowLeftRight, CalendarDays, CreditCard, House, LayoutDashboard,
-  ShieldCheck, Tags, Upload, Users,
+  NotebookPen, ShieldCheck, Tags, Upload, Users,
 } from 'lucide-react';
 import { useImportSchedule } from '../../hooks/useImportSchedule.js';
+import { useMemoSummary } from '../../hooks/useMemoSummary.js';
 import { useReviewSummary } from '../../hooks/useReviewSummary.js';
 
 // One place for the app's destinations, shared by the desktop sidebar and the
@@ -18,6 +19,7 @@ export const PRIMARY_NAV = [
 
 export const MANAGE_NAV = [
   { to: '/categories', label: 'Categories', icon: Tags },
+  { to: '/memos', label: 'Memos', icon: NotebookPen },
   { to: '/import', label: 'Import statements', icon: Upload },
   { to: '/security', label: 'Security', icon: ShieldCheck, authOnly: true },
 ];
@@ -36,7 +38,7 @@ export const MOBILE_TABS = [
 ];
 
 /** Pages under You on phones; their back button falls back to /you. */
-export const YOU_PATHS = ['/you', '/categories', '/import', '/security'];
+export const YOU_PATHS = ['/you', '/categories', '/memos', '/import', '/security'];
 
 /** The tab bar shows on a tab's own page only; pushed pages get a back button instead. */
 export function isTabRoot(pathname) {
@@ -45,16 +47,20 @@ export function isTabRoot(pathname) {
 
 /**
  * Counts that need the user's attention, keyed by route: card statements out
- * but not imported (Import) and older settlements to review (People).
+ * but not imported (Import), older settlements to review (People) and
+ * captured bank SMS without a memo yet (Memos).
  */
 export function useNavBadges() {
   const { data: schedule } = useImportSchedule();
   const { data: review } = useReviewSummary();
+  const { data: memos } = useMemoSummary();
   const toImport = schedule?.pendingCount ?? 0;
   const toReview = review?.needingReview ?? 0;
+  const toWrite = memos?.withoutMemo ?? 0;
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
   return {
     '/import': toImport ? { count: toImport, label: `${plural(toImport, 'card statement')} to import` } : null,
     '/friends': toReview ? { count: toReview, label: `${plural(toReview, 'older settlement')} to review` } : null,
+    '/memos': toWrite ? { count: toWrite, label: `${plural(toWrite, 'memo')} to write` } : null,
   };
 }
