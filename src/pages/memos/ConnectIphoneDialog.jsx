@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Copy, Smartphone } from 'lucide-react';
-import { Button, Dialog, ErrorMessage, Skeleton } from '../../components/ui';
+import { Button, Dialog, ErrorMessage, Skeleton, toast } from '../../components/ui';
 import { createPairCode } from '../../services/memosApi.js';
 import { fmtCountdown } from './memoModel.js';
 
 /**
  * Pairs an iPhone: asks the API for a one-time code as the dialog opens and
  * shows it large, with the line to type into the Fintrack Memos shortcut,
- * a copy button and the time the code has left.
+ * a copy button and the time the code has left. Actions sit bottom-right,
+ * Cancel beside the solid primary: Done, or "Get a new code" once the code
+ * has expired or couldn't be made.
  */
 export default function ConnectIphoneDialog({ open, onClose }) {
   const [pair, setPair] = useState(null);
@@ -67,8 +69,11 @@ export default function ConnectIphoneDialog({ open, onClose }) {
     try {
       await navigator.clipboard.writeText(pair.setupText);
       setCopied(true);
+      toast.success('Setup line copied');
       setTimeout(() => setCopied(false), 1500);
-    } catch {}
+    } catch {
+      toast.error('Could not copy the setup line');
+    }
   }
 
   let body;
@@ -123,10 +128,13 @@ export default function ConnectIphoneDialog({ open, onClose }) {
       actions={
         retry
           ? [
-              { label: 'Close' },
+              { label: 'Cancel' },
               { label: 'Get a new code', variant: 'solid', onClick: () => generate() },
             ]
-          : [{ label: 'Done', variant: 'solid', disabled: loading }]
+          : [
+              { label: 'Cancel' },
+              { label: 'Done', variant: 'solid', disabled: loading },
+            ]
       }
     >
       {body}

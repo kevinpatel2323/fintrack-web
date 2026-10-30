@@ -19,27 +19,30 @@ async function request(path, options = {}) {
   return data;
 }
 
-export const MEMO_TABS = ['all', 'no-memo', 'debit', 'credit'];
+/** The most memos one period request returns (the API's cap). */
+export const PERIOD_PAGE_SIZE = 5000;
 
-/** `?tab=…&q=…&page=…&pageSize=…` for the list; `all` and an empty search are left out. */
-export function memosQuery({ tab = 'all', q = '', page = 1, pageSize = 50 } = {}) {
+/** `?start=…&end=…&pageSize=5000` for one period; a missing end of the range is left out. */
+export function memosPeriodQuery({ start, end } = {}) {
   const params = new URLSearchParams();
-  if (tab && tab !== 'all' && MEMO_TABS.includes(tab)) params.set('tab', tab);
-  const search = (q || '').trim();
-  if (search) params.set('q', search);
-  params.set('page', String(page));
-  params.set('pageSize', String(pageSize));
+  if (start) params.set('start', start);
+  if (end) params.set('end', end);
+  params.set('pageSize', String(PERIOD_PAGE_SIZE));
   return `?${params.toString()}`;
 }
 
-/** `{ count, data: Memo[] }`, newest first; `count` is every row that matches. */
-export const fetchMemos = (filters, { signal } = {}) =>
-  request(`/transaction-memos${memosQuery(filters)}`, { signal });
+/**
+ * Every memo in a period (`start`/`end`, inclusive `YYYY-MM-DD`, by the
+ * memo's own day), newest first: `{ count, data: Memo[] }`. The list
+ * searches, filters, sorts and pages them itself, as Transactions does.
+ */
+export const fetchMemosInPeriod = (period, { signal } = {}) =>
+  request(`/transaction-memos${memosPeriodQuery(period)}`, { signal });
 
 /** `{ withoutMemo, total, lastReceivedAt }` */
 export const fetchMemoSummary = () => request('/transaction-memos/summary');
 
-/** The row plus `{ rawMessage, location, parseError }`. */
+/** The row plus `{ rawMessage, location, locationStatus, parseError, parserVersion, shortcutVersion }`. */
 export const fetchMemo = (id, { signal } = {}) =>
   request(`/transaction-memos/${encodeURIComponent(id)}`, { signal });
 

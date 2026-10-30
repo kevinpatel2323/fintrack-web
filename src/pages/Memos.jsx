@@ -1,146 +1,149 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Ellipsis, NotebookPen, Plus, RotateCw, Search, Smartphone } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Amount, Badge, Button, Dropdown, EmptyState, ListView, PageBody, PageHeader, TabButtons, TextInput, toast,
-} from '../components/ui';
+  AlertTriangle, Inbox, MoreHorizontal, NotebookPen, Plus, RefreshCw, RotateCw, Search, SearchX, Smartphone,
+} from 'lucide-react';
 import ListToolbar, { ListSummary, useStickyHeight } from '../components/common/ListToolbar.jsx';
+import { TransactionPeriodFilter } from '../components/transactions/TransactionFilters.jsx';
+import {
+  formatRangeLabel, getCurrentMonthRange, getMonthOptions, matchMonthValue,
+} from '../components/transactions/transactionListModel.js';
+import {
+  Alert, Amount, Button, ConfirmDialog, Dropdown, EmptyState, KeyboardShortcut, ListColumnsMenu, ListView, PageBody,
+  PageHeader, TabButtons, TextInput, toast,
+} from '../components/ui';
+import { useAccountNames } from '../hooks/useAccounts.js';
 import { refreshMemoSummary, useMemoSummary } from '../hooks/useMemoSummary.js';
-import { fetchMemos, reparseAllMemos, updateMemo } from '../services/memosApi.js';
+import {
+  deleteMemo, fetchMemosInPeriod, reparseAllMemos, reparseMemo, updateMemo,
+} from '../services/memosApi.js';
 import { useIsCompact } from '../styles/breakpoints.js';
 import ConnectIphoneDialog from './memos/ConnectIphoneDialog.jsx';
 import DevicesDialog from './memos/DevicesDialog.jsx';
-import MemoCell from './memos/MemoCell.jsx';
-import MemoSheet from './memos/MemoSheet.jsx';
-import MemosPager from './memos/MemosPager.jsx';
 import MemosPhone from './memos/MemosPhone.jsx';
 import {
-  TABS, fmtMemoTime, fmtRelative, memoAccount, memoAmount, memoPayee, memoTime, parseMemosParams,
-  patchMemosParams, plural,
+  MEMO_DEFAULT_SORT, desktopMemoColumns, memoColumnChoices, useMemoColumns,
+} from './memos/memoColumns.jsx';
+import {
+  TABS, filterMemos, memoTotals, parseMemosParams, parseStatusOf, patchMemosParams, plural,
 } from './memos/memoModel.js';
 import './Memos.css';
 
-const DEFAULT_PAGE_SIZE = 50;
-
-/** Copy for a filtered list with nothing in it. */
-function emptyCopyFor(tab, q) {
-  if (q) return { title: 'No matches', description: `Nothing found for “${q}”.` };
-  if (tab === 'no-memo') return { title: 'Every message has a memo', description: 'New bank SMS without one will show up here.' };
-  if (tab === 'debit') return { title: 'No money out', description: 'Debit messages will show up here.' };
-  if (tab === 'credit') return { title: 'No money in', description: 'Credit messages will show up here.' };
-  return { title: 'No memos', description: 'Captured bank SMS will show up here.' };
-}
-
 /**
  * Memos (/memos): bank, UPI and card SMS the iPhone shortcut captured, each
- * with the short note typed when it arrived. The memo is written in place on
- * each row; a row opens a sheet with the message as it arrived, what was read
- * from it, Re-parse and Delete. The header pairs and manages the iPhones.
+ * with the short memo typed when it arrived — laid out like Transactions.
+ * The toolbar holds the search, the All / No memo / Debit / Credit segments
+ * and the period; the summary, Columns and Refresh sit on its right. The
+ * memo is written in place on each row; a row opens the memo's page
+ * (`/memos/:id`) with the message as it arrived and what was read from it.
  *
- * The API pages and filters (`tab`, `q`), so the list holds one page at a
- * time on desktop; phones append pages with "Show more". The tab and search
- * live in the URL.
+ * One request loads every memo in the period; the list searches, filters,
+ * sorts and pages them itself. Filters and the period live in the URL.
  */
 export default function Memos() {
+  const navigate = useNavigate();
   const isMobile = useIsCompact();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { tab, q } = useMemo(() => parseMemosParams(searchParams), [searchParams]);
-  const { data: summary } = useMemoSummary();
   const [toolbarRef, toolbarHeight] = useStickyHeight();
+  const { data: summary } = useMemoSummary();
+  // Bank accounts show by their holder's name ("Kevin Patel") once named.
+  const accountNames = useAccountNames();
+  const columnSettings = useMemoColumns();
 
-  // The box keeps what was typed; the URL gets it trimmed, after a pause.
-  const [queryInput, setQueryInput] = useState(q);
-  useEffect(() => {
-    setQueryInput((draft) => (draft.trim() === q ? draft : q));
-  }, [q]);
-  useEffect(() => {
-    const next = queryInput.trim();
-    if (next === q) return undefined;
-    const t = setTimeout(() => setSearchParams((prev) => patchMemosParams(prev, { q: next }), { replace: true }), 250);
-    return () => clearTimeout(t);
-  }, [queryInput, q, setSearchParams]);
+  const monthRange = useMemo(() => getCurrentMonthRange(), []);
+  const monthOptions = useMemo(() => getMonthOptions(24), []);
+  const { tab, q, start, end } = useMemo(
+    () => parseMemosParams(searchParams, monthRange),
+    [searchParams, monthRange],
+  );
+  const selectedMonth = useMemo(() => matchMonthValue(start, end, monthOptions), [start, end, monthOptions]);
 
-  const setTab = useCallback((next) => {
-    setSearchParams((prev) => patchMemosParams(prev, { tab: next }), { replace: true });
+  const patchParams = useCallback((patch) => {
+    setSearchParams((prev) => patchMemosParams(prev, patch), { replace: true });
   }, [setSearchParams]);
+  const setTab = useCallback((next) => patchParams({ tab: next }), [patchParams]);
+  const applyDateRange = useCallback((s, e) => patchParams({ start: s, end: e }), [patchParams]);
 
-  // A new filter (or switching layouts) goes back to the first page without
-  // a wasted request for the old page number.
-  const filterKey = `${tab}\n${q}\n${isMobile ? 'phone' : 'desk'}`;
-  const [paging, setPaging] = useState({ key: filterKey, page: 1 });
-  const page = paging.key === filterKey ? paging.page : 1;
-  const setPage = useCallback((p) => setPaging({ key: filterKey, page: p }), [filterKey]);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  // The box keeps what was typed; the URL keeps it trimmed.
+  const [searchDraft, setSearchDraft] = useState(q);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchInputRef = useRef(null);
+  useEffect(() => {
+    setSearchDraft((draft) => (draft.trim() === q ? draft : q));
+  }, [q]);
+  const onSearchChange = useCallback((value) => {
+    setSearchDraft(value);
+    patchParams({ q: value });
+  }, [patchParams]);
 
+  // ⌘K / Ctrl+K focuses the search box.
+  useEffect(() => {
+    if (isMobile) return undefined;
+    function onKeyDown(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isMobile]);
+
+  // ---- Every memo in the period ----
   const [rows, setRows] = useState([]);
-  const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [reloadKey, setReloadKey] = useState(0);
-  // Phones: pages appended so far by "Show more".
-  const [loadedPages, setLoadedPages] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const filterKeyRef = useRef(filterKey);
-  filterKeyRef.current = filterKey;
+  const [loadError, setLoadError] = useState('');
+  const requestRef = useRef(0);
+
+  const load = useCallback(async ({ keep = false } = {}) => {
+    const request = (requestRef.current += 1);
+    setLoading(true);
+    setLoadError('');
+    if (!keep) setRows([]);
+    try {
+      const res = await fetchMemosInPeriod({ start, end });
+      if (request !== requestRef.current) return;
+      setRows(Array.isArray(res?.data) ? res.data : []);
+    } catch (e) {
+      if (request !== requestRef.current) return;
+      setLoadError(e.message || 'Could not load memos');
+    } finally {
+      if (request === requestRef.current) setLoading(false);
+    }
+  }, [start, end]);
 
   useEffect(() => {
-    const ctrl = new AbortController();
-    setLoading(true);
-    setError('');
-    fetchMemos({ tab, q, page, pageSize }, { signal: ctrl.signal })
-      .then((res) => {
-        setRows(Array.isArray(res?.data) ? res.data : []);
-        setCount(Number(res?.count) || 0);
-        setLoadedPages(1);
-        setLoading(false);
-      })
-      .catch((e) => {
-        if (e.name === 'AbortError') return;
-        setError(e.message || 'Could not load memos');
-        setLoading(false);
-      });
-    return () => ctrl.abort();
-  }, [tab, q, page, pageSize, reloadKey]);
-
-  const retry = useCallback(() => {
-    setReloadKey((k) => k + 1);
-    refreshMemoSummary();
+    load();
+  }, [load]);
+  useEffect(() => () => {
+    requestRef.current += 1;
   }, []);
 
-  const loadMore = useCallback(async () => {
-    const key = filterKeyRef.current;
-    const next = loadedPages + 1;
-    setLoadingMore(true);
-    try {
-      const res = await fetchMemos({ tab, q, page: next, pageSize });
-      if (filterKeyRef.current !== key) return;
-      const more = Array.isArray(res?.data) ? res.data : [];
-      // New SMS can shift the pages under us: skip rows already shown.
-      setRows((current) => {
-        const seen = new Set(current.map((r) => r.id));
-        return [...current, ...more.filter((r) => !seen.has(r.id))];
-      });
-      setCount(Number(res?.count) || 0);
-      setLoadedPages(next);
-    } catch (e) {
-      toast.error({ title: 'Could not load more memos', description: e.message });
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [loadedPages, tab, q, pageSize]);
+  const refresh = useCallback(() => {
+    load({ keep: true });
+    refreshMemoSummary();
+  }, [load]);
 
-  // ---- One row changed or went away ----
+  // ---- Paging (desktop): a new filter starts from the first page ----
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  useEffect(() => {
+    setPage(1);
+  }, [tab, q, start, end]);
+
+  // ---- One memo changed or went away ----
   const patchRow = useCallback((updated) => {
     if (!updated?.id) return;
     setRows((current) => current.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)));
   }, []);
 
-  /** Saves a memo (null clears it). Resolves with the row; on failure says so and rethrows. */
-  const saveMemo = useCallback(async (row, memo) => {
+  /** Saves an inline edit (null clears it); on failure toasts and rejects, so the cell keeps the text. */
+  const saveMemo = useCallback(async (memo, text) => {
     try {
-      const updated = await updateMemo(row.id, memo);
+      const updated = await updateMemo(memo.id, text);
       patchRow(updated);
-      toast.success(memo ? 'Memo saved' : 'Memo cleared');
+      toast.success(text ? 'Memo saved' : 'Memo cleared');
       refreshMemoSummary();
       return updated;
     } catch (e) {
@@ -149,65 +152,162 @@ export default function Memos() {
     }
   }, [patchRow]);
 
-  // ---- Sheet ----
-  // The row stays set while the sheet animates closed.
-  const [sheetRow, setSheetRow] = useState(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const openRow = useCallback((row) => {
-    setSheetRow(row);
-    setSheetOpen(true);
-  }, []);
-  // The sheet shows the list's copy of the row, so an edit made in it shows in both.
-  const shownSheetRow = (sheetRow && rows.find((r) => r.id === sheetRow.id)) || sheetRow;
-
-  const onDeleted = useCallback((id) => {
-    setSheetOpen(false);
-    setRows((current) => current.filter((r) => r.id !== id));
-    setCount((c) => Math.max(0, c - 1));
-    // Desktop shows one page: fetch it again so the next row moves up. Phones
-    // keep the rows they have appended.
-    if (!isMobile) setReloadKey((k) => k + 1);
-    toast.success('Message deleted');
-    refreshMemoSummary();
-  }, [isMobile]);
-
-  // A delete can empty the last page; step back to the one before it.
-  useEffect(() => {
-    if (!isMobile && !loading && !error && rows.length === 0 && page > 1) {
-      setPage(Math.max(1, Math.min(page - 1, Math.ceil(count / pageSize))));
+  const reparse = useCallback(async (memo) => {
+    try {
+      const updated = await reparseMemo(memo.id);
+      patchRow(updated);
+      toast.success({ title: 'Memo re-parsed', description: parseStatusOf(updated?.parseStatus).label });
+    } catch (e) {
+      toast.error({ title: 'Could not re-parse the memo', description: e.message });
     }
-  }, [isMobile, loading, error, rows.length, page, count, pageSize, setPage]);
+  }, [patchRow]);
 
-  // ---- Header actions ----
-  const [connectOpen, setConnectOpen] = useState(false);
-  const [devicesOpen, setDevicesOpen] = useState(false);
+  const [deleting, setDeleting] = useState(null);
+  const confirmDelete = useCallback(async () => {
+    const memo = deleting;
+    try {
+      await deleteMemo(memo.id);
+      setRows((current) => current.filter((r) => r.id !== memo.id));
+      toast.success('Memo deleted');
+      refreshMemoSummary();
+    } catch (e) {
+      toast.error({ title: 'Could not delete the memo', description: e.message });
+    }
+    setDeleting(null);
+  }, [deleting]);
 
   const reparseAll = useCallback(async () => {
-    const id = toast('Re-parsing every message…', { duration: Infinity });
+    const id = toast('Re-parsing memos…', { duration: Infinity });
     try {
       const res = await reparseAllMemos();
       const n = Number(res?.updated) || 0;
-      toast.success(n ? `Re-parsed ${plural(n, 'message')}` : 'Nothing changed', { id, duration: 4000 });
-      setReloadKey((k) => k + 1);
-      refreshMemoSummary();
+      toast.success(n ? `Re-parsed ${plural(n, 'memo')}` : 'No memos needed re-parsing', { id, duration: 4000 });
+      load({ keep: true });
     } catch (e) {
-      toast.error({ id, title: 'Could not re-parse messages', description: e.message, duration: 6000 });
+      toast.error({ id, title: 'Could not re-parse memos', description: e.message, duration: 6000 });
     }
-  }, []);
+  }, [load]);
 
-  const withoutMemo = summary?.withoutMemo ?? 0;
-  const noMemos = !loading && !error && count === 0 && tab === 'all' && !q;
-  const emptyCopy = emptyCopyFor(tab, q);
+  const listSearch = searchParams.toString();
+  const rowLinkState = useCallback((memo) => ({ memo, memosSearch: listSearch }), [listSearch]);
+  const openMemo = useCallback((memo) => {
+    navigate(`/memos/${encodeURIComponent(memo.id)}`, { state: rowLinkState(memo) });
+  }, [navigate, rowLinkState]);
 
-  const dialogs = (
+  // ---- Header dialogs ----
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [devicesOpen, setDevicesOpen] = useState(false);
+  const openConnect = useCallback(() => setConnectOpen(true), []);
+  const openDevices = useCallback(() => setDevicesOpen(true), []);
+
+  // ---- Derived ----
+  const filtered = useMemo(() => filterMemos(rows, { tab, q, accountNames }), [rows, tab, q, accountNames]);
+  const hasFilters = tab !== 'all' || Boolean(q);
+  // Totals describe what the list shows: the whole period, or the filtered rows.
+  const totals = useMemo(() => memoTotals(hasFilters ? filtered : rows), [hasFilters, filtered, rows]);
+  const periodWithoutMemo = useMemo(() => memoTotals(rows).withoutMemo, [rows]);
+
+  const clearListFilters = useCallback(() => {
+    setSearchDraft('');
+    patchParams({ tab: 'all', q: '' });
+  }, [patchParams]);
+  const resetSheetFilters = useCallback(() => {
+    patchParams({ tab: 'all', start: '', end: '' });
+  }, [patchParams]);
+  const activeFilterCount = (tab !== 'all' ? 1 : 0)
+    + (start !== monthRange.startIso || end !== monthRange.endIso ? 1 : 0);
+
+  // ---- Copy ----
+  const periodLabel = selectedMonth
+    ? monthOptions.find((m) => m.value === selectedMonth)?.label
+    : formatRangeLabel(start, end);
+  const countLabel = hasFilters
+    ? `${filtered.length} of ${plural(rows.length, 'memo')}`
+    : plural(rows.length, 'memo');
+  const summaryContent = loading && rows.length === 0 ? null : (
     <>
-      <MemoSheet
-        open={sheetOpen}
-        row={shownSheetRow}
-        onClose={() => setSheetOpen(false)}
-        onSaveMemo={saveMemo}
-        onUpdated={patchRow}
-        onDeleted={onDeleted}
+      {countLabel}
+      {totals.withoutMemo > 0 && tab !== 'no-memo' && ` · ${totals.withoutMemo} without a memo`}
+      {' · '}
+      <Amount value={totals.out} sign="never" tone="inherit" /> out
+      {totals.in > 0 && (
+        <>
+          {' · '}
+          <Amount value={totals.in} sign="never" tone="inherit" /> in
+        </>
+      )}
+    </>
+  );
+
+  const tabOptions = TABS.map((t) => ({
+    value: t.id,
+    label: t.id === 'no-memo' && periodWithoutMemo > 0 ? (
+      <>
+        {t.label}
+        <span className="memos-count">{periodWithoutMemo}</span>
+      </>
+    ) : t.label,
+  }));
+
+  const buttonSize = isMobile ? 'md' : undefined;
+  let emptyState;
+  if (loadError) {
+    emptyState = (
+      <EmptyState
+        icon={AlertTriangle}
+        title="Couldn't load memos"
+        description={loadError}
+        action={<Button size={buttonSize} label="Try again" iconLeft={RefreshCw} onClick={refresh} />}
+      />
+    );
+  } else if (hasFilters) {
+    emptyState = (
+      <EmptyState
+        icon={SearchX}
+        title="No memos match these filters"
+        description={periodLabel
+          ? `Nothing in ${periodLabel} matches the search and filters.`
+          : 'Nothing in these dates matches the search and filters.'}
+        action={<Button size={buttonSize} label="Clear filters" onClick={clearListFilters} />}
+      />
+    );
+  } else if (summary?.total === 0) {
+    emptyState = (
+      <EmptyState
+        icon={NotebookPen}
+        title="No memos yet"
+        description="Connect your iPhone to start capturing bank SMS."
+        action={<Button size={buttonSize} iconLeft={Plus} label="Connect iPhone" onClick={openConnect} />}
+      />
+    );
+  } else {
+    emptyState = (
+      <EmptyState
+        icon={Inbox}
+        title={periodLabel ? `No memos in ${periodLabel}` : 'No memos in these dates'}
+        description="Bank SMS your iPhone sends in this period show up here."
+      />
+    );
+  }
+
+  const refreshError = loadError && rows.length > 0 ? (
+    <Alert
+      theme="red"
+      title="Couldn't refresh memos"
+      description={loadError}
+      primaryAction={{ label: 'Try again', onClick: refresh }}
+    />
+  ) : null;
+
+  const overlays = (
+    <>
+      <ConfirmDialog
+        open={Boolean(deleting)}
+        title="Delete this memo?"
+        message="The bank SMS, what was read from it and its memo are removed from Fintrack. This can't be undone."
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleting(null)}
       />
       <ConnectIphoneDialog open={connectOpen} onClose={() => setConnectOpen(false)} />
       <DevicesDialog
@@ -221,147 +321,49 @@ export default function Memos() {
     </>
   );
 
-  // Phones: their own layout on the same state.
+  // ===== PHONE =====
   if (isMobile) {
     return (
       <>
         <MemosPhone
+          searchDraft={searchDraft}
+          onSearchChange={onSearchChange}
           tab={tab}
+          tabOptions={tabOptions}
           onTabChange={setTab}
-          withoutMemo={withoutMemo}
-          queryInput={queryInput}
-          onQueryInput={setQueryInput}
-          rows={rows}
-          count={count}
-          pageSize={pageSize}
+          start={start}
+          end={end}
+          onRangeChange={applyDateRange}
+          monthOptions={monthOptions}
+          selectedMonth={selectedMonth}
+          activeFilterCount={activeFilterCount}
+          onResetFilters={resetSheetFilters}
+          rows={filtered}
+          accountNames={accountNames}
+          summaryContent={summaryContent}
+          hasMemos={rows.length > 0}
           loading={loading}
-          loadingMore={loadingMore}
-          error={error}
-          onRetry={retry}
-          noMemos={noMemos}
-          emptyCopy={emptyCopy}
-          onOpen={openRow}
-          onLoadMore={loadMore}
-          onConnect={() => setConnectOpen(true)}
-          onDevices={() => setDevicesOpen(true)}
+          refreshError={refreshError}
+          emptyState={emptyState}
+          onOpen={openMemo}
+          onConnect={openConnect}
+          onDevices={openDevices}
           onReparseAll={reparseAll}
+          onRefresh={refresh}
         />
-        {dialogs}
+        {overlays}
       </>
     );
   }
 
-  const columns = [
-    {
-      key: 'received',
-      label: 'Received',
-      width: 124,
-      minWidth: 104,
-      render: (m) => <span className="memos-time tabular-nums">{fmtMemoTime(memoTime(m))}</span>,
-    },
-    {
-      key: 'amount',
-      label: 'Amount',
-      width: 112,
-      minWidth: 88,
-      align: 'right',
-      render: (m) => {
-        const a = memoAmount(m);
-        return <Amount className="memos-amount" value={a.value} sign={a.sign} tone={a.tone} decimals={a.decimals} />;
-      },
-    },
-    {
-      key: 'payee',
-      label: 'Payee',
-      width: 'minmax(140px, 1fr)',
-      flex: true,
-      pinned: true,
-      render: (m) => (
-        <span className="memos-payee">
-          <span className="memos-payee__name truncate">{memoPayee(m)}</span>
-          {m.senderVerified === false && (
-            <Badge size="sm" theme="amber" label="Unverified" title="The SMS sender could not be verified" />
-          )}
-        </span>
-      ),
-    },
-    {
-      key: 'account',
-      label: 'Account',
-      width: 136,
-      minWidth: 96,
-      hideBelow: 'lg',
-      render: (m) => {
-        const account = memoAccount(m);
-        return account ? <span className="memos-muted">{account}</span> : <span className="memos-empty">—</span>;
-      },
-    },
-    {
-      key: 'memo',
-      label: 'Memo',
-      width: 'minmax(200px, 1.4fr)',
-      minWidth: 160,
-      render: (m) => <MemoCell row={m} onSave={saveMemo} />,
-    },
-  ];
-
-  let list;
-  if (error) {
-    list = (
-      <EmptyState
-        icon={NotebookPen}
-        title="Could not load memos"
-        description={error}
-        action={<Button label="Try again" onClick={retry} />}
-      />
-    );
-  } else if (noMemos) {
-    list = (
-      <EmptyState
-        icon={NotebookPen}
-        title="No memos yet"
-        description="Connect your iPhone to start capturing bank SMS."
-        action={<Button variant="solid" iconLeft={Plus} label="Connect iPhone" onClick={() => setConnectOpen(true)} />}
-      />
-    );
-  } else {
-    list = (
-      <ListView
-        className="memos-list"
-        aria-label="Memos"
-        columns={columns}
-        rows={rows}
-        onRowClick={openRow}
-        storageKey="fintrack.memos"
-        stickyHeader
-        loading={loading && rows.length === 0}
-        emptyState={<EmptyState size="sm" title={emptyCopy.title} description={emptyCopy.description} />}
-        footer={
-          count > 0 ? (
-            <MemosPager
-              page={page}
-              pageSize={pageSize}
-              total={count}
-              shown={rows.length}
-              onPageChange={setPage}
-              onPageSizeChange={(n) => {
-                setPageSize(n);
-                setPage(1);
-              }}
-            />
-          ) : null
-        }
-      />
-    );
-  }
-
-  const lastReceived = fmtRelative(summary?.lastReceivedAt);
-  const summaryText = [
-    error || (loading && rows.length === 0) ? null : plural(count, 'message'),
-    lastReceived ? `last received ${lastReceived}` : null,
-  ].filter(Boolean).join(' · ');
-  // The search stays on screen through an error, so a search that failed can be changed.
-  const showControls = !noMemos;
+  // ===== DESKTOP =====
+  const columns = desktopMemoColumns({
+    accountNames,
+    onSaveMemo: saveMemo,
+    onOpen: openMemo,
+    onReparse: reparse,
+    onDelete: setDeleting,
+  });
 
   return (
     <>
@@ -369,55 +371,77 @@ export default function Memos() {
         title="Memos"
         actions={(
           <>
-            <Button iconLeft={Smartphone} label="Devices" onClick={() => setDevicesOpen(true)} />
-            <Button variant="solid" iconLeft={Plus} label="Connect iPhone" onClick={() => setConnectOpen(true)} />
+            <Button iconLeft={Smartphone} label="Devices" onClick={openDevices} />
+            <Button variant="solid" iconLeft={Plus} label="Connect iPhone" onClick={openConnect} />
             <Dropdown
               placement="bottom-end"
               label="More memo actions"
               options={[{ label: 'Re-parse all', icon: RotateCw, onClick: reparseAll }]}
             >
-              <Button variant="ghost" icon={Ellipsis} label="More actions" />
+              <Button icon={MoreHorizontal} label="More actions" />
             </Dropdown>
           </>
         )}
       />
       <PageBody className="memos-page" style={{ '--list-toolbar-height': `${toolbarHeight}px` }}>
-        {showControls && (
-          <ListToolbar
-            ref={toolbarRef}
-            meta={summaryText ? <ListSummary>{summaryText}</ListSummary> : null}
-          >
-            <TextInput
-              className="memos-search"
-              type="search"
-              prefix={Search}
-              placeholder="Search memos"
-              aria-label="Search memos"
-              value={queryInput}
-              onChange={(e) => setQueryInput(e.target.value)}
-            />
-            <TabButtons
-              aria-label="Show"
-              value={tab}
-              onChange={setTab}
-              options={TABS.map((t) => ({
-                value: t.id,
-                label:
-                  t.id === 'no-memo' && withoutMemo > 0 ? (
-                    <>
-                      {t.label}
-                      <span className="memos-count">{withoutMemo}</span>
-                    </>
-                  ) : (
-                    t.label
-                  ),
-              }))}
-            />
-          </ListToolbar>
-        )}
-        {list}
+        <ListToolbar
+          ref={toolbarRef}
+          meta={(
+            <>
+              {summaryContent && <ListSummary>{summaryContent}</ListSummary>}
+              <ListColumnsMenu columns={memoColumnChoices()} settings={columnSettings} />
+              <Button
+                variant="ghost"
+                icon={RefreshCw}
+                label="Refresh"
+                tooltip="Refresh"
+                loading={loading}
+                onClick={refresh}
+              />
+            </>
+          )}
+        >
+          <TextInput
+            ref={searchInputRef}
+            className="memos-search"
+            type="search"
+            prefix={Search}
+            suffix={!searchFocused && !searchDraft ? <KeyboardShortcut combo="Mod+K" /> : null}
+            placeholder="Search memos"
+            aria-label="Search memos"
+            value={searchDraft}
+            onChange={(e) => onSearchChange(e.target.value)}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+          />
+          <TabButtons aria-label="Show" options={tabOptions} value={tab} onChange={setTab} />
+          <TransactionPeriodFilter
+            rangeStart={start}
+            rangeEnd={end}
+            onChange={applyDateRange}
+            monthOptions={monthOptions}
+          />
+        </ListToolbar>
+
+        {refreshError}
+
+        <ListView
+          className="memos-table"
+          aria-label="Memos"
+          columns={columns}
+          rows={filtered}
+          onRowClick={openMemo}
+          rowClassName={() => 'memos-row'}
+          defaultSort={MEMO_DEFAULT_SORT}
+          columnSettings={columnSettings}
+          pagination={{ page, pageSize, onPageChange: setPage, onPageSizeChange: setPageSize }}
+          loading={loading}
+          skeletonRows={8}
+          stickyHeader
+          emptyState={emptyState}
+        />
       </PageBody>
-      {dialogs}
+      {overlays}
     </>
   );
 }

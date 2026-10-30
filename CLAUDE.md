@@ -22,7 +22,8 @@ npm test         # Vitest
 | `/cards`, `/cards/:id` | `pages/Cards.jsx`, `pages/CardDetail.jsx` | Card list and record page (`pages/cards/`, `components/cards/`) |
 | `/friends`, `/friends/:id` | `pages/Friends.jsx`, `pages/FriendDetail.jsx` | People and the friend ledger (`pages/people/`, `components/people/`) |
 | `/categories` | `pages/Categories.jsx` | Category list, month split, create/edit (`components/categories/`) |
-| `/memos` | `pages/Memos.jsx` | Bank SMS from the Fintrack Memos iPhone shortcut with the memo typed when each arrived; inline memo edit, detail sheet (raw SMS, map), Connect iPhone (pairing code) and Devices (revoke) (`pages/memos/`, API `/transaction-memos`) |
+| `/memos` | `pages/Memos.jsx` | Bank SMS from the Fintrack Memos iPhone shortcut with the memo typed when each arrived, laid out like Transactions: search, All / No memo / Debit / Credit, the period (in the URL), Columns, Refresh; the memo is edited in place on each row; Connect iPhone (pairing code), Devices (revoke), Re-parse all. One request loads the period; the list filters, sorts and pages it (`pages/memos/`, API `/transaction-memos`) |
+| `/memos/:id` | `pages/MemoDetail.jsx` | Record page: the memo to write, the SMS as it arrived, what was read from it (side panel with the map link); Re-parse, Delete (`pages/memos/MemoDetailPhone.jsx` on phones) |
 | `/import` | `pages/StatementImport.jsx` | Upload → review → confirm (`pages/import/`) |
 | `/you` | `pages/You.jsx` | "You" on phones (from the header's leading button): categories, imports, security, appearance (`pages/you/YouPhone.jsx`) |
 | `/security` | `pages/Security.jsx` | Passkeys and sign-out (hidden when auth is disabled) |
@@ -46,7 +47,7 @@ Fintrack follows Frappe UI (the library behind Frappe CRM/Helpdesk). Read `src/c
 
 ## API service layer
 
-API calls go through `src/services/*` (`dashboardApi`, `cardsApi`, `friendsApi`, `categoriesApi`, `authApi`) on top of `services/http.js` (`apiFetch`, same-origin `/api` prefix). Base URL from `import.meta.env.VITE_API_BASE_URL`.
+API calls go through `src/services/*` (`dashboardApi`, `cardsApi`, `friendsApi`, `categoriesApi`, `memosApi`, `accountsApi`, `authApi`) on top of `services/http.js` (`apiFetch`, same-origin `/api` prefix). Base URL from `import.meta.env.VITE_API_BASE_URL`.
 
 - `fetchDashboardData(startDate, endDate, accountNumber?)` — one request for everything the dashboard shows (`hooks/useDashboardData.js`).
 
@@ -88,11 +89,13 @@ Serialization: `serializeSplitPayload` / `parseSplitPayload` encode `SerializedS
 | File | Purpose |
 |------|---------|
 | `utils/dateUtils.js` | Date formatting helpers |
+| `utils/accounts.js` | **Every account display**: a bank account shows by its holder's name (`accountName`, `accountLabel`, `accountHint`, `accountChoices`; `linkedAccountName` for a card's typed linked account; `accountNameForLast4` for an SMS). Until named, the number or `••6714` shows as before. Never print `accountNumber` directly |
 | `utils/ledgerParties.js` | Friend-ledger maths and **all ledger text** (`ledgerRs`, `ledgerDate`, `ledgerImpactText`, `ledgerOpenText`, `ledgerSettledEntryParts`, `ledgerSettlementCheck`, `ledgerSettlementRefLines`). The export preview (`FriendLedgerExportModal`) and the PDF must both render from these — never format ledger amounts or settlement lines locally, or the two drift apart |
 | `utils/ledgerPdf.js` | jsPDF-based ledger PDF export |
 | `utils/entryGroups.js` | Entry groups: collapsing a group into one row (`groupLedgerRows`), its totals from its entries (`groupTotals`, same sums as the API's `groupFigures`), settling it as one (`fillGroup`), and `ledgerStatement` — the numbered rows the export preview and PDF both print, with settlement links to grouped entries pointing at the group's row |
 | `utils/settlementAllocation.js` | Bill-wise settlement maths in paise: oldest-first fill, draft checks, API shape. Settlement direction for balances lives in `ledgerBalanceDelta` (`settlementSide: 'paid'` adds) |
 | `hooks/useMediaQuery.js` | Responsive breakpoint hook |
+| `hooks/useAccounts.js` | Shared accounts with their holder names; `useAccountNames()` gives the lookup the `utils/accounts.js` helpers take. Call `refreshAccounts()` after naming an account or an import that may add one |
 | `hooks/useImportSchedule.js` | Shared card import schedule (one request for nav badges + pages); call `refreshImportSchedule()` after anything that changes imports or a card's statement day |
 | `hooks/useReviewSummary.js` | Shared count of older settlements to review (People badge); call `refreshReviewSummary()` after reviewing |
 | `hooks/createSharedResource.js` | The one-request-for-every-view store both hooks above are built on |

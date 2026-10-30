@@ -1,7 +1,9 @@
-/* Memos (/memos): the People/Transactions list layout — a pinned toolbar,
-   then a full-width table whose memo column is edited in place. Also the
-   memo sheet, the Connect iPhone dialog and the Devices dialog (portals, so
-   not scoped under the page). Prefix: .memos- */
+/* Memos (/memos, /memos/:id): the Transactions list layout — a pinned
+   toolbar, then the kit ListView whose Memo column is edited in place — and
+   the memo's record page in TransactionDetail's layout. Also the Connect
+   iPhone and Devices dialogs (portals, so not scoped under the page).
+   Phone-only rules are at the end, inside the phone media query.
+   Prefix: .memos- */
 
 .memos-page {
   display: flex;
@@ -9,42 +11,50 @@
   gap: 12px;
 }
 
+/* ---------- Toolbar ---------- */
+
 .memos-search {
   width: 240px;
   max-width: 100%;
 }
 
-/* "No memo 3" inside the tab buttons. */
+/* "No memo 3" inside the segments. */
 .memos-count {
   margin-left: 6px;
   color: var(--ink-gray-5);
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- Table cells ---------- */
-
-.memos-time {
-  font-size: 13px;
-  color: var(--ink-gray-6);
-  white-space: nowrap;
+/* The rows carry their own 12px inset; pull it into the gutter so row text
+   lines up with the toolbar and the hover surface reaches the edge (as
+   Transactions does). */
+.memos-table {
+  margin-inline: -12px;
 }
 
-.memos-amount {
-  font-weight: 500;
+/* ---------- Table cells ---------- */
+
+.memos-date {
+  font-size: 13px;
+  color: var(--ink-gray-6);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .memos-payee {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
+  width: 100%;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--ink-gray-8);
 }
 
 .memos-payee__name {
   min-width: 0;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ink-gray-8);
 }
 
 .memos-payee .ui-badge {
@@ -53,19 +63,17 @@
 
 .memos-muted {
   min-width: 0;
-  overflow: hidden;
   font-size: 13px;
   color: var(--ink-gray-6);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .memos-empty {
   color: var(--ink-gray-4);
 }
 
-/* The memo field fills its cell; the text lines up with the column's other
-   cells until it is hovered or focused. */
+/* Memo: the text (or "Add memo") is a trigger that fills the cell, flush
+   with the column, with a pencil on hover — CategoryCell's look. A click
+   swaps it for a field. */
 .memos-cell-control {
   display: flex;
   flex: 1;
@@ -74,134 +82,235 @@
   max-width: 100%;
 }
 
-.memos-cell {
+.memos-memo-trigger {
+  display: flex;
   flex: 1;
-  width: calc(100% + 8px);
+  align-items: center;
+  gap: 8px;
+  width: calc(100% + 6px);
   min-width: 0;
-  margin-left: -8px;
-}
-
-.memos-cell .ui-text-input__control {
-  text-overflow: ellipsis;
-}
-
-.memos-cell .ui-text-input__suffix {
-  color: var(--ink-gray-4);
-}
-
-.memos-cell__spinner {
-  color: var(--ink-gray-5);
+  height: 28px;
+  margin-left: -6px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-4);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: text;
+  transition: background-color 120ms;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .memos-cell .ui-input[data-variant='ghost']:not(:disabled):hover {
-    background-color: var(--surface-gray-2);
+  .memos-memo-trigger:hover {
+    background: var(--surface-gray-2);
   }
 }
 
-.memos-cell .ui-input[data-variant='ghost']:not(:disabled):focus {
-  background-color: var(--surface-base);
-  box-shadow: 0 0 0 1px var(--outline-gray-4), var(--elevation-sm);
+.memos-memo-trigger:focus-visible {
+  outline: var(--focus-outline-default);
+  outline-offset: 0;
 }
 
-/* A memo whose save failed: still the typed text, outlined in red until it
-   saves or Escape puts the saved memo back. */
-.memos-cell .ui-input[data-variant='ghost'][aria-invalid='true']:not(:disabled) {
-  box-shadow: 0 0 0 1px var(--outline-red-3);
+.memos-memo {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink-gray-7);
 }
 
-.memos-cell .ui-input[data-variant='ghost'][aria-invalid='true']:not(:disabled):focus {
-  box-shadow: 0 0 0 1px var(--outline-red-4), var(--elevation-sm);
+.memos-memo.is-empty {
+  color: var(--ink-gray-5);
 }
 
-/* ---------- Pager (the API pages the list) ---------- */
+.memos-memo__pencil {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--ink-gray-5);
+  opacity: 0;
+  transition: opacity 120ms;
+}
 
-.memos-pager {
+.memos-memo-trigger:hover .memos-memo__pencil,
+.memos-memo-trigger:focus-visible .memos-memo__pencil {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .memos-memo__pencil {
+    opacity: 1;
+  }
+}
+
+.memos-memo-input {
+  flex: 1;
+  width: calc(100% + 6px);
+  min-width: 0;
+  margin-left: -6px;
+}
+
+/* Row menu: shown on row hover or focus, always on touch screens. */
+.memos-row-menu {
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+.memos-row:hover .memos-row-menu,
+.memos-row:focus-within .memos-row-menu,
+.memos-row:focus-visible .memos-row-menu,
+.memos-row-menu[data-state='open'] {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .memos-row-menu {
+    opacity: 1;
+  }
+}
+
+/* ---------- Tile (record summary, phone rows) ---------- */
+
+.memos-tile {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: var(--radius-4);
+  background: var(--surface-gray-2);
+  color: var(--ink-gray-6);
+}
+
+.memos-tile--32 {
+  width: 32px;
+  height: 32px;
+}
+
+.memos-tile--40 {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-5);
+}
+
+/* ---------- Record page (/memos/:id) ----------
+   Summary + sections on the left, the details side panel on the right;
+   one column below 1024px (summary, details, sections). */
+
+.memos-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'summary'
+    'side'
+    'main';
+  gap: 16px;
+  align-items: start;
+}
+
+.memos-detail__summary {
+  grid-area: summary;
+}
+
+.memos-detail__side {
+  grid-area: side;
+  min-width: 0;
+}
+
+.memos-detail__main {
+  grid-area: main;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-  padding: 4px 12px 0;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
 }
 
-.memos-pager__size {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+@media (min-width: 1024px) {
+  .memos-detail {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      'summary side'
+      'main side';
+    column-gap: 20px;
+  }
+}
+
+.memos-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 4px 12px;
+  padding: 4px 0;
+}
+
+.memos-summary__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.memos-summary__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink-gray-9);
+  overflow-wrap: anywhere;
+}
+
+.memos-summary__meta {
+  margin: 0;
   font-size: 13px;
   color: var(--ink-gray-5);
 }
 
-.memos-pager__nav {
+.memos-summary__badges {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-left: auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 4px;
 }
 
-.memos-pager__range,
-.memos-pager__page {
-  font-size: 13px;
-  color: var(--ink-gray-6);
-  font-variant-numeric: tabular-nums;
+.memos-summary__amount {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
-.memos-pager__buttons {
+.memos-skeleton-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.memos-actions-row {
+  display: flex;
+  gap: 8px;
+}
+
+/* Memo box */
+.memos-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.memos-editor__input {
+  width: 100%;
+}
+
+.memos-editor__foot {
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
 }
 
-/* ---------- Memo sheet ---------- */
-
-.memos-sheet {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.memos-sheet__summary {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 6px;
-}
-
-.memos-sheet__summary > * + *::before {
-  content: '·';
-  margin-right: 6px;
-  color: var(--ink-gray-4);
-}
-
-.memos-sheet__section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.memos-sheet__heading {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ink-gray-9);
-}
-
-.memos-sheet__memo-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.memos-sheet__note {
+.memos-editor__written {
   font-size: 13px;
   color: var(--ink-gray-5);
-}
-
-.memos-sheet__error {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
 }
 
 /* The SMS exactly as it arrived: read-only, wrapped, selectable. */
@@ -226,6 +335,20 @@
   gap: 8px;
 }
 
+.memos-message__note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-gray-5);
+}
+
+.memos-message__error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* Details side panel: label/value rows, as on the transaction page. */
 .memos-fields {
   display: flex;
   flex-direction: column;
@@ -234,39 +357,35 @@
 
 .memos-field {
   display: grid;
-  grid-template-columns: 112px minmax(0, 1fr);
+  grid-template-columns: 104px minmax(0, 1fr);
   align-items: baseline;
-  gap: 8px;
+  gap: 12px;
+  min-height: 32px;
   padding: 6px 0;
 }
 
-.memos-field + .memos-field {
-  border-top: 1px solid var(--outline-gray-1);
-}
-
 .memos-field__label {
-  overflow: hidden;
+  margin: 0;
   font-size: 13px;
   color: var(--ink-gray-5);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .memos-field__value {
-  min-width: 0;
   margin: 0;
-  overflow-wrap: anywhere;
+  min-width: 0;
   font-size: 13px;
+  line-height: 1.45;
   color: var(--ink-gray-8);
+  overflow-wrap: anywhere;
+}
+
+.memos-field__value.is-mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
 }
 
 .memos-field__empty {
-  color: var(--ink-gray-4);
-}
-
-.memos-field__mono {
-  font-family: var(--font-mono);
-  font-size: 12px;
+  color: var(--ink-gray-5);
 }
 
 .memos-field__inline {
@@ -360,15 +479,12 @@
   color: var(--ink-gray-7);
 }
 
-/* ---------- Devices ---------- */
+/* ---------- Devices (the Security page's passkeys list) ---------- */
 
 .memos-devices {
-  margin: 0;
-  padding: 0;
   overflow: hidden;
   border: 1px solid var(--outline-gray-1);
   border-radius: var(--radius-5);
-  list-style: none;
 }
 
 .memos-device {
@@ -381,6 +497,11 @@
 
 .memos-device + .memos-device {
   border-top: 1px solid var(--outline-gray-1);
+}
+
+.memos-device__skeleton {
+  width: 60%;
+  height: 16px;
 }
 
 .memos-device__icon {
@@ -428,29 +549,89 @@
   gap: 8px;
 }
 
-/* ---------- Phones (pages/memos/MemosPhone.jsx) ----------
-   Phone-only markup, plus phone sizes for the shared sheet and dialogs.
-   A pinned search band with fluid segments, then the memos as rows. */
+/* ---------- Phones ----------
+   pages/memos/MemosPhone.jsx (the list), MemoDetailPhone.jsx (the record),
+   MemoFilterSheet.jsx, and phone sizes for the dialogs. */
 
 @media (max-width: 767.98px) {
+  /* List: search + Filter pinned, the period and its totals, the segments,
+     then ListView's phone rows. */
   .memos-m {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
   }
 
   .memos-m-toolbar .list-toolbar__filters {
     flex-direction: column;
+    flex-wrap: nowrap;
     align-items: stretch;
-    width: 100%;
+  }
+
+  .memos-m-toolbar__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .memos-m-search {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
   }
 
-  /* Four segments with a count at 375px: tighter pills. */
-  .memos-m-segments .ui-tab-buttons__pill {
+  .memos-m-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 4px;
+  }
+
+  .memos-m-summary__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 36px;
+  }
+
+  .memos-m-summary__title {
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--ink-gray-9);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .memos-m-summary__step {
+    display: flex;
+    flex-shrink: 0;
+    gap: 4px;
+    margin-right: -8px;
+  }
+
+  .memos-m-summary__reset {
+    flex-shrink: 0;
+    margin-right: -8px;
+  }
+
+  .memos-m-summary__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 0.3em;
+    min-height: 18px;
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--ink-gray-5);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Four segments with a count at 375px: tighter pills (as on People). */
+  .memos-m-segments.ui-tab-buttons--fluid .ui-tab-buttons__pill {
     padding-inline: 4px;
   }
 
@@ -458,56 +639,147 @@
     margin-left: 4px;
   }
 
-  .memos-m-title {
+  /* Rows: a 32px tile, then the text, so hairlines start at the text. */
+  .memos-m-list {
+    --ui-list-divider-inset: 44px;
+  }
+
+  .memos-m-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .memos-m-row__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .memos-m-row__title {
     display: flex;
     align-items: center;
     gap: 6px;
     min-width: 0;
   }
 
-  .memos-m-title__text {
+  .memos-m-row__payee {
     min-width: 0;
     overflow: hidden;
+    font-size: 16px;
+    line-height: 1.3;
+    color: var(--ink-gray-8);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .memos-m-title .ui-badge {
+  .memos-m-row__title .ui-badge {
     flex-shrink: 0;
   }
 
-  .memos-m-memo {
+  .memos-m-row__meta {
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--ink-gray-5);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .memos-m-row__memo {
     color: var(--ink-gray-7);
   }
 
-  .memos-m-add {
-    color: var(--ink-gray-4);
+  .memos-m-amount {
+    font-size: 16px;
+    font-weight: 500;
   }
 
-  .memos-m-skeleton {
-    display: inline-block;
+  /* Filter sheet: one field per row; Clear and "Show N results" share the
+     width, the main one last. */
+  .memos-m-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 4px 0 8px;
   }
 
-  .memos-m-more {
+  .memos-m-filters__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .memos-m-filter-sheet .ui-sheet__footer {
+    flex-wrap: nowrap;
+  }
+
+  .memos-m-filter-sheet .ui-sheet__footer > .ui-button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .memos-m-filter-sheet .ui-sheet__footer > .ui-button:last-child {
+    flex-grow: 2;
+  }
+
+  /* Record: one hero figure with a muted line, then the sections; Save is
+     in the bottom action bar. */
+  .memos-dm-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    margin-bottom: 28px;
+  }
+
+  .memos-dm-hero__who {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 12px;
+    width: 100%;
+    min-width: 0;
+    margin-bottom: 12px;
   }
 
-  .memos-m-more__count {
-    font-size: 13px;
+  .memos-dm-hero__title {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--ink-gray-9);
+    overflow-wrap: anywhere;
+  }
+
+  .memos-dm-hero__amount {
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+
+  .memos-dm-hero__meta {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.4;
     color: var(--ink-gray-5);
-    font-variant-numeric: tabular-nums;
   }
 
-  .memos-field {
-    grid-template-columns: 104px minmax(0, 1fr);
-    padding: 8px 0;
+  .memos-dm-hero__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 8px;
   }
 
-  .memos-field__label,
-  .memos-field__value {
+  .memos-editor__written,
+  .memos-message__note {
     font-size: 15px;
   }
 
@@ -515,11 +787,80 @@
     font-size: 13px;
   }
 
+  /* Details: long free text stacks under its label, left-aligned. */
+  .memos-dm-details .memos-dm-field--stack {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+  }
+
+  .memos-dm-details .memos-dm-field--stack .ui-mfield__value {
+    text-align: left;
+  }
+
+  .memos-dm-details .memos-dm-field--mono .ui-mfield__value {
+    font-family: var(--font-mono);
+    font-size: 14px;
+  }
+
+  .memos-dm-details .memos-field__inline {
+    justify-content: flex-end;
+  }
+
+  .memos-dm-skeleton__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 44px;
+    padding: 0 16px;
+  }
+
+  .memos-dm-skeleton__row + .memos-dm-skeleton__row {
+    border-top: 1px solid var(--outline-gray-1);
+  }
+
+  .memos-dm-missing {
+    padding-top: 64px;
+  }
+
+  /* Dialogs */
   .memos-pair__code {
     font-size: 30px;
   }
 
   .memos-pair__steps {
     font-size: 15px;
+  }
+
+  .memos-devices-m-icon {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-4);
+    background: var(--surface-base);
+    color: var(--ink-gray-7);
+  }
+
+  .memos-devices-m-skeleton {
+    overflow: hidden;
+    border-radius: var(--radius-7);
+    background: var(--surface-gray-1);
+  }
+
+  .memos-devices-m-skeleton__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 60px;
+    padding: 8px 16px;
+  }
+
+  .memos-devices-m-skeleton__text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
   }
 }
