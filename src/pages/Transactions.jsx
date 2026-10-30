@@ -27,9 +27,11 @@ import {
   Alert, Amount, Button, Combobox, ConfirmDialog, EmptyState, ErrorMessage, KeyboardShortcut,
   ListColumnsMenu, PageBody, PageHeader, Select, TabButtons, TextInput, toast,
 } from '../components/ui';
+import { useAccountNames, useAccounts } from '../hooks/useAccounts.js';
 import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
 import { useIsCompact } from '../styles/breakpoints.js';
 import { getCcLink, unlinkCcBillPayment } from '../services/cardsApi.js';
+import { accountName } from '../utils/accounts.js';
 import { cardTxnStatus, toCardTableRow } from '../utils/cardTransactionRow.jsx';
 import {
   parseTransactionsListParams,
@@ -98,8 +100,8 @@ export default function Transactions() {
   }, [navigate, searchParams]);
 
   // -- API state --
-  const [accounts, setAccounts] = useState([]);
-  const [accountsStatus, setAccountsStatus] = useState('');
+  const { error: accountsStatus } = useAccounts();
+  const accountNames = useAccountNames();
   const [friends, setFriends] = useState([]);
   const [friendsStatus, setFriendsStatus] = useState('');
   const [categories, setCategories] = useState([]);
@@ -153,20 +155,6 @@ export default function Transactions() {
   }, [filterTab, search, categoryFilter]);
 
   // -- Effects --
-  useEffect(() => {
-    (async () => {
-      setAccountsStatus('');
-      try {
-        const res = await apiFetch(`${API_BASE}/imports/accounts`);
-        if (!res.ok) throw new Error('Failed to fetch accounts');
-        const data = await res.json();
-        setAccounts(data.data || []);
-      } catch (error) {
-        setAccountsStatus(error.message || 'Failed to fetch accounts');
-      }
-    })();
-  }, []);
-
   useEffect(() => {
     (async () => {
       setFriendsStatus('');
@@ -595,8 +583,8 @@ export default function Transactions() {
   );
 
   const tableRows = useMemo(
-    () => sortedTransactions.map((row) => toBankTableRow(row, tagsByTransaction)),
-    [sortedTransactions, tagsByTransaction],
+    () => sortedTransactions.map((row) => toBankTableRow(row, tagsByTransaction, accountNames)),
+    [sortedTransactions, tagsByTransaction, accountNames],
   );
 
   const { tagsByTransaction: cardTags, assignCategory: assignCardCategory, openManage: openCardManage } = cardManager;
@@ -676,8 +664,10 @@ export default function Transactions() {
     <TransactionManageSheet
       transaction={friendTagsSheetRow}
       date={friendTagsSheetRow.transactionDate}
-      metaLine={[friendTagsSheetRow.accountNumber, friendTagsSheetRow.isManual ? 'Manual' : null]
-        .filter(Boolean).join(' · ')}
+      metaLine={[
+        accountName(friendTagsSheetRow.accountNumber, accountNames) || friendTagsSheetRow.accountNumber,
+        friendTagsSheetRow.isManual ? 'Manual' : null,
+      ].filter(Boolean).join(' · ')}
       amountIn={Number(friendTagsSheetRow.deposit || 0)}
       amountOut={Number(friendTagsSheetRow.withdrawal || 0)}
       categories={categories}
@@ -761,7 +751,7 @@ export default function Transactions() {
           onRangeChange={applyDateRange}
           monthOptions={monthOptions}
           selectedMonth={selectedMonth}
-          accounts={accounts}
+          accountNames={accountNames}
           account={rangeAccount}
           onAccountChange={setRangeAccount}
           categories={categories}
@@ -841,7 +831,7 @@ export default function Transactions() {
             <Select
               aria-label="Account"
               className="txns-filter"
-              options={accountOptions(accounts)}
+              options={accountOptions(accountNames)}
               value={rangeAccount}
               onChange={(e) => setRangeAccount(e.target.value)}
             />

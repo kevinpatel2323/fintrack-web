@@ -119,16 +119,6 @@ export function sliceWholeDays(rows, limit) {
   return list.slice(0, end);
 }
 
-/**
- * Short account hint for a phone row: "••6001" for an account number, the
- * name itself for a named account ("Wallet").
- */
-export function accountHint(accountNumber) {
-  const value = String(accountNumber ?? '').trim();
-  if (!value) return '';
-  return value.length > 4 && /\d{4}$/.test(value) ? `••${value.slice(-4)}` : value;
-}
-
 /** "Today", "Yesterday", "Wed, 21 Oct", or "Mon, 3 Nov 2025" outside this year. */
 export function formatDayLabel(dayKey, now = new Date()) {
   const [y, m, d] = String(dayKey).split('-').map(Number);

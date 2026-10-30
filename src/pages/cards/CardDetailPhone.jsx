@@ -7,6 +7,7 @@ import {
   PageBody, Sheet, Skeleton, TabButtons, Tabs, TextInput,
 } from '../../components/ui';
 import CardFace from '../../components/cards/CardFace.jsx';
+import LinkedAccount from '../../components/cards/LinkedAccount.jsx';
 import TransactionMobileList from '../../components/TransactionMobileList.jsx';
 import CardDetailsPhone from './CardDetailsPhone.jsx';
 import {
@@ -185,7 +186,7 @@ function Hero({ card, isCredit, due, cycleRange }) {
           <span className="carddm-hero__label">Spent this month</span>
           <Amount className="carddm-hero__amount" value={Number(card.thisMonthSpend ?? 0)} tone="inherit" />
           {card.linkedAccountNumber && (
-            <span className="carddm-hero__line">Linked to {card.linkedAccountNumber}</span>
+            <span className="carddm-hero__line">Linked to <LinkedAccount value={card.linkedAccountNumber} /></span>
           )}
         </div>
       </section>

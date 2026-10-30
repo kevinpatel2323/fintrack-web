@@ -19,7 +19,9 @@ import {
 } from '../components/ui';
 import { useIsCompact } from '../styles/breakpoints.js';
 import { getCcLink, unlinkCcBillPayment } from '../services/cardsApi.js';
+import { useAccountNames } from '../hooks/useAccounts.js';
 import { useCardTransactionManager } from '../hooks/useCardTransactionManager.js';
+import { accountName } from '../utils/accounts.js';
 import { cardTxnStatus, toCardTableRow } from '../utils/cardTransactionRow.jsx';
 import { calendarPath } from '../utils/calendarParams.js';
 import { transactionsListPath } from '../utils/transactionsListParams.js';
@@ -57,6 +59,7 @@ export default function TransactionDetail() {
     navigate(-1);
   };
 
+  const accountNames = useAccountNames();
   const [tx, setTx] = useState(location.state?.tx || null);
   const [txLoading, setTxLoading] = useState(!location.state?.tx);
   const [txError, setTxError] = useState(false);
@@ -353,7 +356,8 @@ export default function TransactionDetail() {
         title={title}
         transaction={tx}
         date={tx.transactionDate}
-        metaLine={[tx.accountNumber, tx.isManual ? 'Manual' : null].filter(Boolean).join(' · ')}
+        metaLine={[accountName(tx.accountNumber, accountNames) || tx.accountNumber, tx.isManual ? 'Manual' : null]
+          .filter(Boolean).join(' · ')}
         amountIn={deposit}
         amountOut={withdrawal}
         showCategory={false}

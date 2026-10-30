@@ -7,9 +7,10 @@ import {
 } from '../../components/ui';
 import { CategoryBars } from '../../components/charts';
 import { CategoryIcon } from '../../components/common/Category.jsx';
+import { useAccountNames } from '../../hooks/useAccounts.js';
 import {
-  OTHERS_KEY, UNCATEGORISED_KEY, balanceTotals, categoryRows, filterRecent, formatRangeLabel, matchPreset,
-  rangeDays, shortDate, signedAmount, transactionsLink,
+  OTHERS_KEY, UNCATEGORISED_KEY, accountTitle, balanceTotals, categoryRows, filterRecent, formatRangeLabel,
+  matchPreset, rangeDays, shortDate, signedAmount, transactionsLink,
 } from './dashboardModel.js';
 import {
   ACTIVITY_OPTIONS, ATTENTION_ICONS, DashboardError, RecentEmpty, TREND_DESCRIPTION, TREND_OPTIONS, TrendChart,
@@ -422,8 +423,12 @@ function TrendSection({ trends, loading }) {
 
 function AccountsSection({ accounts, loading }) {
   const list = accounts ?? [];
+  const accountNames = useAccountNames();
   return (
-    <MobileSection title="Accounts">
+    <MobileSection
+      title="Accounts"
+      action={!loading && list.length > 0 ? { label: 'View all', to: '/accounts' } : undefined}
+    >
       {loading ? (
         <RowsSkeleton rows={2} />
       ) : list.length === 0 ? (
@@ -437,14 +442,13 @@ function AccountsSection({ accounts, loading }) {
       ) : (
         <MobileList aria-label="Accounts">
           {list.map((a) => {
-            const last4 = String(a.accountNumber || '').slice(-4);
             const asOf = shortDate(a.lastTransactionDate, { withYear: true });
             const count = Number(a.transactionCount) || 0;
             return (
               <MobileListItem
                 key={a.accountId || a.accountNumber}
                 leading={<IconTile icon={Landmark} />}
-                title={`HDFC •• ${last4}`}
+                title={accountTitle(a.accountNumber, accountNames)}
                 subtitle={asOf ? `Balance as of ${asOf}` : 'No transactions yet'}
                 value={<Amount value={Number(a.currentBalance) || 0} tone="out" />}
                 valueSub={count > 0 ? `${count.toLocaleString('en-IN')} txns` : undefined}

@@ -4,6 +4,7 @@ import {
 import {
   bankName, cardTitle, dayLabel, formatPct, networkName, nextStatementText, ordinal,
 } from '../../components/cards/cardFormat.js';
+import LinkedAccount from '../../components/cards/LinkedAccount.jsx';
 
 const muted = (text) => <span className="carddm-muted">{text}</span>;
 
@@ -58,7 +59,9 @@ export default function CardDetailsPhone({ card, schedule, onEdit }) {
         </>
       ) : (
         <Group title="Account">
-          <MobileField label="Linked account">{card.linkedAccountNumber || muted('Not set')}</MobileField>
+          <MobileField label="Linked account">
+            {card.linkedAccountNumber ? <LinkedAccount value={card.linkedAccountNumber} /> : muted('Not set')}
+          </MobileField>
           <MobileField label="Daily limit">
             {card.dailyLimit != null ? <Amount value={Number(card.dailyLimit)} tone="inherit" /> : muted('Not set')}
           </MobileField>

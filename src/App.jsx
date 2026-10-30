@@ -13,6 +13,7 @@ import Calendar from './pages/Calendar.jsx';
 import Friends from './pages/Friends.jsx';
 import FriendDetail from './pages/FriendDetail.jsx';
 import Categories from './pages/Categories.jsx';
+import Accounts from './pages/Accounts.jsx';
 import Memos from './pages/Memos.jsx';
 import MemoDetail from './pages/MemoDetail.jsx';
 import Cards from './pages/Cards.jsx';
@@ -59,6 +60,7 @@ export default function App() {
               <Route path="/friends" element={<Friends />} />
               <Route path="/friends/:id" element={<FriendDetail />} />
               <Route path="/categories" element={<Categories />} />
+              <Route path="/accounts" element={<Accounts />} />
               <Route path="/memos" element={<Memos />} />
               <Route path="/memos/:id" element={<MemoDetail />} />
               <Route path="/cards" element={<Cards />} />

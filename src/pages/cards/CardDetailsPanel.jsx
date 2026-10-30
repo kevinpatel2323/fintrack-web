@@ -1,6 +1,7 @@
 import { Pencil } from 'lucide-react';
 import { Amount, Badge, Button, Progress } from '../../components/ui';
 import CardFace from '../../components/cards/CardFace.jsx';
+import LinkedAccount from '../../components/cards/LinkedAccount.jsx';
 import {
   bankName, cardTitle, dayLabel, formatPct, networkName, nextStatementText, ordinal,
 } from '../../components/cards/cardFormat.js';
@@ -85,7 +86,9 @@ export default function CardDetailsPanel({ card, schedule, onEdit }) {
         </>
       ) : (
         <Section title="Account">
-          <Field label="Linked account">{card.linkedAccountNumber || muted('Not set')}</Field>
+          <Field label="Linked account">
+            {card.linkedAccountNumber ? <LinkedAccount value={card.linkedAccountNumber} /> : muted('Not set')}
+          </Field>
           <Field label="Daily limit">
             {card.dailyLimit != null ? <Amount value={Number(card.dailyLimit)} tone="inherit" /> : muted('Not set')}
           </Field>

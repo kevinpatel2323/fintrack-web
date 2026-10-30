@@ -1,0 +1,94 @@
+/* Accounts page (/accounts) and its name dialog. Prefix: accts-. */
+
+.accts-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.accts-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.accts-intro {
+  max-width: 560px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-gray-5);
+}
+
+.accts-summary {
+  font-size: 13px;
+  color: var(--ink-gray-5);
+  white-space: nowrap;
+}
+
+.accts-holder {
+  min-width: 0;
+  color: var(--ink-gray-8);
+}
+
+.accts-unnamed {
+  color: var(--ink-gray-4);
+}
+
+/* The account number, in the list and the dialog's description. */
+.accts-number {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink-gray-7);
+}
+
+/* ---------- Name dialog ---------- */
+
+.accts-form {
+  display: grid;
+  gap: 12px;
+}
+
+/* ---------- Phone ---------- */
+
+.accts-m-page {
+  padding-top: 20px;
+}
+
+.accts-m-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-4);
+  background: var(--surface-base);
+  color: var(--ink-gray-7);
+}
+
+.accts-m-facts {
+  font-variant-numeric: tabular-nums;
+}
+
+.accts-m-skeleton {
+  overflow: hidden;
+  border-radius: var(--radius-7);
+  background: var(--surface-gray-1);
+}
+
+.accts-m-skeleton__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 8px 16px;
+}
+
+.accts-m-skeleton__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}

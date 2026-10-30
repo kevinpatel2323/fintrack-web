@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import {
   Checkbox, Dialog, ErrorMessage, FormControl, FormLabel, TabButtons, toast,
 } from './ui';
@@ -6,7 +6,9 @@ import CardMark from './cards/CardMark.jsx';
 import CardFace from './cards/CardFace.jsx';
 import { BANK_OPTIONS, NETWORK_OPTIONS } from './cards/cardFormat.js';
 import { CARD_PALETTES, createCard, updateCard } from '../services/cardsApi.js';
+import { useAccountNames } from '../hooks/useAccounts.js';
 import { refreshImportSchedule } from '../hooks/useImportSchedule.js';
+import { accountChoices, accountLast4, linkedAccountMatch } from '../utils/accounts.js';
 import { useIsCompact } from '../styles/breakpoints.js';
 import './cards/cards.css';
 
@@ -121,6 +123,19 @@ export default function CardFormModal({ initial = null, onClose, onSaved, open =
   };
   const set = (k) => (e) => setValue(k, e?.target ? e.target.value : e);
 
+  // Linked account: a bank account picked by its holder's name, or typed.
+  // Typed text that finds an account ("HDFC Savings ••4221") shows as that
+  // account, and is saved as typed until another is picked; text that finds
+  // none stays a choice of its own.
+  const accountNames = useAccountNames();
+  const linkedText = String(form.linkedAccountNumber ?? '').trim();
+  const linkedMatch = linkedAccountMatch(linkedText, accountNames);
+  const linkedAccountOptions = useMemo(() => {
+    const options = accountChoices(accountNames).filter((o) => accountLast4(o.value));
+    if (linkedText && !linkedMatch) options.unshift({ label: linkedText, value: linkedText });
+    return options;
+  }, [accountNames, linkedText, linkedMatch]);
+
   const submit = async (e) => {
     e.preventDefault();
     const errs = validate(form);
@@ -153,7 +168,7 @@ export default function CardFormModal({ initial = null, onClose, onSaved, open =
         payload.pointsBalance = form.pointsBalance === '' ? 0 : Number(form.pointsBalance);
         payload.pointsValue = form.pointsValue === '' ? 0 : Number(form.pointsValue);
       } else {
-        payload.linkedAccountNumber = form.linkedAccountNumber.trim() || null;
+        payload.linkedAccountNumber = String(form.linkedAccountNumber ?? '').trim() || null;
         payload.dailyLimit = form.dailyLimit === '' ? null : Number(form.dailyLimit);
         payload.atmLimit = form.atmLimit === '' ? null : Number(form.atmLimit);
       }
@@ -323,11 +338,16 @@ export default function CardFormModal({ initial = null, onClose, onSaved, open =
     ),
     linkedAccount: (
       <FormControl
+        type="combobox"
         label="Linked account"
-        value={form.linkedAccountNumber}
-        onChange={set('linkedAccountNumber')}
-        maxLength={50}
-        placeholder="HDFC Savings ••4221"
+        options={linkedAccountOptions}
+        value={linkedMatch || linkedText || null}
+        onChange={(value) => setValue('linkedAccountNumber', value ?? '')}
+        onCreate={(query) => setValue('linkedAccountNumber', query.trim().slice(0, 50))}
+        createLabel={(query) => `Use “${query.trim().slice(0, 50)}”`}
+        placeholder="Not set"
+        searchPlaceholder="Search accounts or type one"
+        clearable
       />
     ),
     dailyLimit: (

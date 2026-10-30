@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  accountHint,
   adjacentMonths,
   ccExpansionItems,
   countActiveFilters,
@@ -88,12 +87,6 @@ describe('day groups', () => {
     expect(sliceWholeDays(list, 2).map((r) => r.id)).toEqual([1, 2, 3]);
     expect(sliceWholeDays(list, 1).map((r) => r.id)).toEqual([1]);
     expect(sliceWholeDays(list, 10)).toBe(list);
-  });
-
-  it('shortens account numbers and keeps named accounts', () => {
-    expect(accountHint('99990000006001')).toBe('••6001');
-    expect(accountHint('Wallet')).toBe('Wallet');
-    expect(accountHint(null)).toBe('');
   });
 
   it('signs amounts by direction', () => {

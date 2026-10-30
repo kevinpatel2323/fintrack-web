@@ -52,7 +52,6 @@ export default function ImportPhone({
   onRevert,
   onRefreshImports,
   lastImport,
-  accounts,
   selectedAccount,
   onAccountChange,
 }) {
@@ -135,7 +134,6 @@ export default function ImportPhone({
           <StatementQueue />
           <LastBankImport
             lastImport={lastImport}
-            accounts={accounts}
             selectedAccount={selectedAccount}
             onAccountChange={onAccountChange}
           />

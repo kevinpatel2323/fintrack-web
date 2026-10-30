@@ -3,11 +3,14 @@ import {
   Button, Card, Dropdown, EmptyState, ErrorMessage, ListView, MobileSection, Spinner,
 } from '../../components/ui';
 import { useIsCompact } from '../../styles/breakpoints.js';
-import { accountLabel, fmtDate, fmtPeriod, fmtShortDate } from './format.js';
+import { useAccountNames } from '../../hooks/useAccounts.js';
+import { accountLabel } from '../../utils/accounts.js';
+import { fmtDate, fmtPeriod, fmtShortDate } from './format.js';
 
 /** The latest bank statement imports, each revertable. */
 export default function RecentImports({ imports, loading, error, revertingId, onRevert, onRefresh, className }) {
   const isMobile = useIsCompact();
+  const accountNames = useAccountNames();
   if (isMobile) {
     return (
       <RecentImportsPhone
@@ -28,12 +31,12 @@ export default function RecentImports({ imports, loading, error, revertingId, on
       width: 'minmax(140px, 2fr)',
       flex: true,
       sortable: true,
-      sortValue: (imp) => accountLabel(imp.accountNumber),
+      sortValue: (imp) => accountLabel(imp.accountNumber, accountNames),
       render: (imp) => {
         const skipped = imp.totalRows - imp.insertedRows;
         return (
           <span className="import-hist__account">
-            <span className="import-hist__name truncate">{accountLabel(imp.accountNumber)}</span>
+            <span className="import-hist__name truncate">{accountLabel(imp.accountNumber, accountNames)}</span>
             <span className="import-hist__file truncate" title={imp.filename || undefined}>
               {imp.filename || 'Unnamed file'}
             </span>
@@ -163,6 +166,7 @@ function EmptyImports({ error }) {
  * the page's dialog, as on desktop).
  */
 function RecentImportsPhone({ imports, loading, error, revertingId, onRevert, onRefresh }) {
+  const accountNames = useAccountNames();
   const columns = [
     {
       key: 'account',
@@ -170,12 +174,12 @@ function RecentImportsPhone({ imports, loading, error, revertingId, onRevert, on
       width: 'minmax(0, 1fr)',
       flex: true,
       sortable: true,
-      sortValue: (imp) => accountLabel(imp.accountNumber),
+      sortValue: (imp) => accountLabel(imp.accountNumber, accountNames),
       render: (imp) => {
         const skipped = imp.totalRows - imp.insertedRows;
         return (
           <span className="import-ph-hist">
-            <span className="import-ph-hist__title">{accountLabel(imp.accountNumber)}</span>
+            <span className="import-ph-hist__title">{accountLabel(imp.accountNumber, accountNames)}</span>
             <span className="import-ph-hist__sub">
               {fmtPeriod(imp.periodStart, imp.periodEnd)}
               {skipped > 0 ? ` · ${skipped} skipped` : ''}
@@ -231,7 +235,7 @@ function RecentImportsPhone({ imports, loading, error, revertingId, onRevert, on
           </span>
         ) : (
           <Dropdown
-            label={imp.filename || accountLabel(imp.accountNumber)}
+            label={imp.filename || accountLabel(imp.accountNumber, accountNames)}
             options={[
               {
                 label: 'Revert import',
@@ -245,7 +249,7 @@ function RecentImportsPhone({ imports, loading, error, revertingId, onRevert, on
               variant="ghost"
               size="md"
               icon={Ellipsis}
-              label={`Actions for ${accountLabel(imp.accountNumber)}, ${fmtPeriod(imp.periodStart, imp.periodEnd)}`}
+              label={`Actions for ${accountLabel(imp.accountNumber, accountNames)}, ${fmtPeriod(imp.periodStart, imp.periodEnd)}`}
             />
           </Dropdown>
         ),

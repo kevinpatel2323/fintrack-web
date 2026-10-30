@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, FileUp } from 'lucide-react';
 import { Button, ConfirmDialog, FileUploader, PageBody, PageHeader, toast } from '../components/ui';
 import StatementQueue from '../components/StatementQueue.jsx';
+import { refreshAccounts, useAccountNames } from '../hooks/useAccounts.js';
 import { refreshImportSchedule } from '../hooks/useImportSchedule.js';
 import { useIsCompact } from '../styles/breakpoints.js';
 import { API_BASE, apiErrorMessage, apiFetch } from '../services/http.js';
@@ -13,7 +14,8 @@ import ConfirmStep from './import/ConfirmStep.jsx';
 import RecentImports from './import/RecentImports.jsx';
 import LastBankImport from './import/LastBankImport.jsx';
 import ImportPhone from './import/ImportPhone.jsx';
-import { accountLabel, fmtDate, fmtPeriod, fmtShortDate, matchKey, plural } from './import/format.js';
+import { accountLabel, accountName } from '../utils/accounts.js';
+import { fmtDate, fmtPeriod, fmtShortDate, matchKey, plural } from './import/format.js';
 import './StatementImport.css';
 
 const ACCEPT = '.xlsx,.xls';
@@ -27,7 +29,7 @@ export default function StatementImport() {
   const navigate = useNavigate();
 
   const [lastImport, setLastImport] = useState(null);
-  const [accounts, setAccounts] = useState([]);
+  const accountNames = useAccountNames();
   const [selectedAccount, setSelectedAccount] = useState('');
   const [imports, setImports] = useState([]);
   const [importsLoading, setImportsLoading] = useState(false);
@@ -50,15 +52,6 @@ export default function StatementImport() {
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await apiFetch(`${API_BASE}/imports/accounts`);
-        if (res.ok) {
-          const data = await res.json();
-          setAccounts(Array.isArray(data) ? data : (data?.data ?? []));
-        }
-      } catch {}
-    })();
     loadHistory();
   }, []);
 
@@ -167,7 +160,7 @@ export default function StatementImport() {
       description: card
         ? `To ${card.nickname || card.name} •• ${card.last4}${merged}`
         : result.accountNumber
-          ? `To ${accountLabel(result.accountNumber)}`
+          ? `To ${accountLabel(result.accountNumber, accountNames)}`
           : undefined,
       action: card
         ? { label: 'View card', onClick: () => navigate(`/cards/${card.id}`) }
@@ -180,6 +173,8 @@ export default function StatementImport() {
       loadLastImport(selectedAccount),
       loadHistory(),
       refreshImportSchedule(),
+      // A first statement for an account adds the account.
+      refreshAccounts(),
     ]);
   }
 
@@ -252,11 +247,12 @@ export default function StatementImport() {
   const lastFour = (isCardStatement
     ? uploadPreview?.card?.last4
     : uploadPreview?.accountNumber?.slice(-4)) || '';
+  const holderName = isCardStatement ? null : accountName(uploadPreview?.accountNumber, accountNames);
   const destination = !uploadPreview
     ? ''
     : isCardStatement
       ? `${uploadPreview.card?.nickname || uploadPreview.card?.name || 'Card'} •• ${lastFour}`
-      : `HDFC Bank · Acct •• ${lastFour}`;
+      : `HDFC Bank · ${holderName || `Acct •• ${lastFour}`}`;
   const fileDetail = uploadPreview
     ? `${destination} · ${period} · ${plural(uploadPreview.totalParsed ?? previewRows.length, 'row', 'rows')} in file`
     : '';
@@ -310,7 +306,6 @@ export default function StatementImport() {
           onRevert={askRevert}
           onRefreshImports={loadHistory}
           lastImport={lastImport}
-          accounts={accounts}
           selectedAccount={selectedAccount}
           onAccountChange={setSelectedAccount}
         />
@@ -427,7 +422,6 @@ export default function StatementImport() {
               <StatementQueue />
               <LastBankImport
                 lastImport={lastImport}
-                accounts={accounts}
                 selectedAccount={selectedAccount}
                 onAccountChange={setSelectedAccount}
               />
@@ -446,7 +440,7 @@ export default function StatementImport() {
       >
         {revertTarget && (
           <p className="import-revert-detail">
-            {accountLabel(revertTarget.accountNumber)} · {fmtPeriod(revertTarget.periodStart, revertTarget.periodEnd)}
+            {accountLabel(revertTarget.accountNumber, accountNames)} · {fmtPeriod(revertTarget.periodStart, revertTarget.periodEnd)}
             {revertTarget.filename && (
               <>
                 <br />

@@ -22,6 +22,7 @@ npm test         # Vitest
 | `/cards`, `/cards/:id` | `pages/Cards.jsx`, `pages/CardDetail.jsx` | Card list and record page (`pages/cards/`, `components/cards/`) |
 | `/friends`, `/friends/:id` | `pages/Friends.jsx`, `pages/FriendDetail.jsx` | People and the friend ledger (`pages/people/`, `components/people/`) |
 | `/categories` | `pages/Categories.jsx` | Category list, month split, create/edit (`components/categories/`) |
+| `/accounts` | `pages/Accounts.jsx` | Bank accounts and the holder name each is shown by; a row opens the name dialog (`pages/accounts/`, API `/accounts`) |
 | `/memos` | `pages/Memos.jsx` | Bank SMS from the Fintrack Memos iPhone shortcut with the memo typed when each arrived, laid out like Transactions: search, All / No memo / Debit / Credit, the period (in the URL), Columns, Refresh; the memo is edited in place on each row; Connect iPhone (pairing code), Devices (revoke), Re-parse all. One request loads the period; the list filters, sorts and pages it (`pages/memos/`, API `/transaction-memos`) |
 | `/memos/:id` | `pages/MemoDetail.jsx` | Record page: the memo to write, the SMS as it arrived, what was read from it (side panel with the map link); Re-parse, Delete (`pages/memos/MemoDetailPhone.jsx` on phones) |
 | `/import` | `pages/StatementImport.jsx` | Upload → review → confirm (`pages/import/`) |

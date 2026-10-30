@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Amount, Badge, Progress, Skeleton } from '../../components/ui';
 import CardFace from '../../components/cards/CardFace.jsx';
+import LinkedAccount from '../../components/cards/LinkedAccount.jsx';
 import {
   bankName, cardTitle, dayLabel, dueBadge, formatPct, nextBill,
 } from '../../components/cards/cardFormat.js';
@@ -106,7 +107,7 @@ export default function CardTile({ card, schedule, due }) {
             <Amount className="cards-tile__amount" value={Number(card.thisMonthSpend || 0)} tone="inherit" />
           </div>
           {card.linkedAccountNumber && (
-            <p className="cards-tile__muted truncate">Linked to {card.linkedAccountNumber}</p>
+            <p className="cards-tile__muted truncate">Linked to <LinkedAccount value={card.linkedAccountNumber} /></p>
           )}
         </div>
       )}

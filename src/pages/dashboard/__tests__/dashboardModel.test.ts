@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { accountNameIndex } from '../../../utils/accounts.js';
 import {
   OTHERS_KEY,
   UNCATEGORISED_KEY,
+  accountTitle,
   attentionItems,
   balanceTotals,
   categoryRows,
@@ -196,5 +198,18 @@ describe('attentionItems', () => {
     const items = attentionItems({ dues: [], schedule: null, review: { friends }, breakdown: null, range });
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({ title: 'Review 3 older settlements', to: '/friends' });
+  });
+});
+
+describe('accountTitle', () => {
+  const names = accountNameIndex([{ accountNumber: '50100123456714', holderName: 'Kevin Patel' }]);
+
+  it('shows the holder name, else the bank and last four digits', () => {
+    expect(accountTitle('50100123456714', names)).toBe('Kevin Patel');
+    expect(accountTitle('50100555556001', names)).toBe('HDFC •• 6001');
+  });
+
+  it('shows a named-by-word account as it is, not its last letters', () => {
+    expect(accountTitle('Wallet', names)).toBe('Wallet');
   });
 });

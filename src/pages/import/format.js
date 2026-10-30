@@ -22,12 +22,6 @@ export function fmtPeriod(start, end) {
     : `${fmtDate(start)} → ${fmtDate(end)}`;
 }
 
-/** "Acct •• 6714" for a bank account number; anything else (e.g. "Wallet") as is. */
-export function accountLabel(accountNumber) {
-  if (!accountNumber) return '—';
-  return /^\d{5,}$/.test(accountNumber) ? `Acct •• ${accountNumber.slice(-4)}` : accountNumber;
-}
-
 export function isoDateMinusDays(isoDate, days) {
   if (!isoDate) return null;
   const d = new Date(isoDate + 'T12:00:00Z');

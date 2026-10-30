@@ -3,12 +3,12 @@ import {
   ArrowUpDown, ChevronLeft, ChevronRight, Ellipsis, Plus, RefreshCw, Search, SlidersHorizontal, Upload, X,
 } from 'lucide-react';
 import TransactionMobileList from '../components/TransactionMobileList.jsx';
+import { accountHint, accountName } from '../utils/accounts.js';
 import { transactionSortChoices } from '../components/TransactionTable.jsx';
 import { CategoryIcon } from '../components/common/Category.jsx';
 import ListToolbar, { useStickyHeight } from '../components/common/ListToolbar.jsx';
 import { TYPE_OPTIONS, TransactionFilterSheet } from '../components/transactions/TransactionFilters.jsx';
 import {
-  accountHint,
   adjacentMonths,
   formatMonthLong,
   formatRangeLabel,
@@ -88,7 +88,7 @@ export default function TransactionsPhone({
   onRangeChange,
   monthOptions,
   selectedMonth,
-  accounts,
+  accountNames,
   account,
   onAccountChange,
   categories,
@@ -167,7 +167,11 @@ export default function TransactionsPhone({
   }
   if (account) {
     chips.push(
-      <FilterChip key="account" label={`Account ${accountHint(account)}`} onRemove={() => onAccountChange('')} />,
+      <FilterChip
+        key="account"
+        label={accountName(account, accountNames) || `Account ${accountHint(account)}`}
+        onRemove={() => onAccountChange('')}
+      />,
     );
   }
   if (!isDefaultSort && sortChoice) {
@@ -348,7 +352,7 @@ export default function TransactionsPhone({
         rangeEnd={rangeEnd}
         onRangeChange={onRangeChange}
         monthOptions={monthOptions}
-        accounts={accounts}
+        accountNames={accountNames}
         account={account}
         onAccountChange={onAccountChange}
         categoryOptions={categoryFilterOptions}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, DateRangePicker, FormControl, FormLabel, Select, Sheet, TabButtons } from '../ui';
 import { categoryOptions } from '../common/Category.jsx';
+import { accountChoices } from '../../utils/accounts.js';
 import { getLast30DayRange } from '../../utils/dateUtils.js';
 import { getCurrentMonthRange, matchMonthValue } from './transactionListModel.js';
 import './transactions.css';
@@ -12,8 +13,9 @@ export const TYPE_OPTIONS = [
   { label: 'Earned', value: 'earned' },
 ];
 
-export function accountOptions(accounts) {
-  return [{ label: 'All accounts', value: '' }, ...(accounts || []).map((a) => ({ label: a, value: a }))];
+/** "All accounts", then each account by its holder's name (`accountNames` from `useAccountNames()`). */
+export function accountOptions(accountNames) {
+  return [{ label: 'All accounts', value: '' }, ...accountChoices(accountNames)];
 }
 
 /** Category filter choices: Uncategorised first, then each category with its tile. */
@@ -112,7 +114,7 @@ export function TransactionFilterSheet({
   rangeEnd,
   onRangeChange,
   monthOptions,
-  accounts,
+  accountNames,
   account,
   onAccountChange,
   categoryOptions,
@@ -177,7 +179,7 @@ export function TransactionFilterSheet({
           type="select"
           size="lg"
           label="Account"
-          options={accountOptions(accounts)}
+          options={accountOptions(accountNames)}
           value={account}
           onChange={(e) => onAccountChange(e.target.value)}
         />

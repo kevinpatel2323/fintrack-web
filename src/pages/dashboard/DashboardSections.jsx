@@ -9,8 +9,9 @@ import {
 import { BarChart, CategoryBars } from '../../components/charts';
 import { CategoryBadge } from '../../components/common/Category.jsx';
 import { categoryColor } from '../../utils/categoryColors.js';
+import { useAccountNames } from '../../hooks/useAccounts.js';
 import {
-  OTHERS_KEY, UNCATEGORISED_KEY, balanceTotals, categoryRows, comparisonLabel, filterRecent,
+  OTHERS_KEY, UNCATEGORISED_KEY, accountTitle, balanceTotals, categoryRows, comparisonLabel, filterRecent,
   formatRangeLabel, monthBounds, monthShort, shortDate, signedAmount, transactionsLink,
 } from './dashboardModel.js';
 
@@ -406,11 +407,18 @@ export function PeopleCard({ balances, loading, limit = 5 }) {
 
 /* ── Accounts ───────────────────────────────────────────────────────────── */
 
-/** Bank accounts with the balance from their latest transaction. */
+/** Bank accounts, by holder name, with the balance from their latest transaction. */
 export function AccountsCard({ accounts, loading }) {
   const list = accounts ?? [];
+  const accountNames = useAccountNames();
   return (
-    <Card as="section" padding="none" className="dash-accounts" title="Accounts">
+    <Card
+      as="section"
+      padding="none"
+      className="dash-accounts"
+      title="Accounts"
+      footer={!loading && list.length > 0 ? <ViewAll to="/accounts" /> : null}
+    >
       {loading ? (
         <RowsSkeleton rows={2} lead="square" twoLine />
       ) : list.length === 0 ? (
@@ -424,7 +432,6 @@ export function AccountsCard({ accounts, loading }) {
       ) : (
         <ul className="dash-list">
           {list.map((a) => {
-            const last4 = String(a.accountNumber || '').slice(-4);
             const asOf = shortDate(a.lastTransactionDate, { withYear: true });
             const count = Number(a.transactionCount) || 0;
             return (
@@ -433,7 +440,7 @@ export function AccountsCard({ accounts, loading }) {
                   <Landmark size={16} strokeWidth={1.5} aria-hidden />
                 </span>
                 <span className="dash-row-text">
-                  <span className="dash-row-title truncate">HDFC •• {last4}</span>
+                  <span className="dash-row-title truncate">{accountTitle(a.accountNumber, accountNames)}</span>
                   <span className="dash-row-meta truncate">
                     {asOf ? `Balance as of ${asOf}` : 'No transactions yet'}
                     {count > 0 ? ` · ${count.toLocaleString('en-IN')} transactions` : ''}

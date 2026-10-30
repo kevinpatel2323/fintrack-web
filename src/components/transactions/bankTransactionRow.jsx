@@ -1,9 +1,13 @@
 import { CreditCard } from 'lucide-react';
 import { Badge } from '../ui';
-import { accountHint, peopleFromTags } from './transactionListModel.js';
+import { accountHint } from '../../utils/accounts.js';
+import { peopleFromTags } from './transactionListModel.js';
 
-/** Maps a bank transaction into the shape TransactionTable renders. */
-export function toBankTableRow(row, tagsByTransaction = {}) {
+/**
+ * Maps a bank transaction into the shape TransactionTable renders.
+ * `accountNames` (from `useAccountNames()`) shows the account by its holder.
+ */
+export function toBankTableRow(row, tagsByTransaction = {}, accountNames) {
   const withdrawal = Number(row.withdrawal || 0);
   const deposit = Number(row.deposit || 0);
   const isIncome = deposit > 0;
@@ -30,9 +34,10 @@ export function toBankTableRow(row, tagsByTransaction = {}) {
     isIncome,
     expandable: Boolean(cc),
     // Phone-only extras (TransactionListRow): the row's subtitle reads
-    // "Category · ••6001", and a card bill payment carries a compact marker.
+    // "Category · Kevin Patel" (or "Category · ••6001" until the account is
+    // named), and a card bill payment carries a compact marker.
     // The UPI remark and narration stay on the transaction page.
-    mobileSubtitle: accountHint(row.accountNumber) || (row.isManual ? 'Manual' : null),
+    mobileSubtitle: accountHint(row.accountNumber, accountNames) || (row.isManual ? 'Manual' : null),
     mobileBadge: cc ? (
       <Badge size="sm" prefix={CreditCard} label={cc.cardLast4 ? `Bill ••${cc.cardLast4}` : 'Card bill'} title="Card bill payment" />
     ) : null,

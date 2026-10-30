@@ -4,6 +4,7 @@ import {
   Alert, Amount, Badge, Button, EmptyState, MobileField, MobileSection, PageBody, Progress, Skeleton,
 } from '../../components/ui';
 import CardFace from '../../components/cards/CardFace.jsx';
+import LinkedAccount from '../../components/cards/LinkedAccount.jsx';
 import {
   bankName, cardTitle, dayLabel, dueBadge, formatPct, nextBill, nextStatementText,
 } from '../../components/cards/cardFormat.js';
@@ -200,7 +201,7 @@ function PhoneCard({ card, schedule, due }) {
       ) : (
         card.linkedAccountNumber && (
           <div role="list" className="cardsm-card__facts" aria-label="Account">
-            <MobileField label="Linked to">{card.linkedAccountNumber}</MobileField>
+            <MobileField label="Linked to"><LinkedAccount value={card.linkedAccountNumber} /></MobileField>
           </div>
         )
       )}

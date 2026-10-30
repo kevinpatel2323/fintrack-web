@@ -2,6 +2,7 @@
 // the "Needs attention" items and small list shapes. No React, so they are
 // unit-tested in node (see __tests__/dashboardModel.test.ts).
 
+import { accountLast4, accountName } from '../../utils/accounts.js';
 import { formatLocalIsoDate, getLast30DayRange } from '../../utils/dateUtils.js';
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -101,6 +102,17 @@ export function shortDate(value, { withYear = false } = {}) {
   const d = isoToLocalDate(iso);
   const base = `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
   return withYear ? `${base} ${d.getFullYear()}` : base;
+}
+
+/**
+ * An account row's title: its holder's name, else "HDFC •• 6714" until it is
+ * named; the Wallet and the like as they are.
+ */
+export function accountTitle(accountNumber, accountNames) {
+  const name = accountName(accountNumber, accountNames);
+  if (name) return name;
+  const last4 = accountLast4(accountNumber);
+  return last4 ? `HDFC •• ${last4}` : String(accountNumber || '—');
 }
 
 /** First and last day of a `YYYY-MM` month. */

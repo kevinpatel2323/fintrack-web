@@ -1,5 +1,5 @@
 import {
-  ArrowLeftRight, CalendarDays, CreditCard, House, LayoutDashboard,
+  ArrowLeftRight, CalendarDays, CreditCard, House, Landmark, LayoutDashboard,
   NotebookPen, ShieldCheck, Tags, Upload, Users,
 } from 'lucide-react';
 import { useImportSchedule } from '../../hooks/useImportSchedule.js';
@@ -19,6 +19,7 @@ export const PRIMARY_NAV = [
 
 export const MANAGE_NAV = [
   { to: '/categories', label: 'Categories', icon: Tags },
+  { to: '/accounts', label: 'Accounts', icon: Landmark },
   { to: '/memos', label: 'Memos', icon: NotebookPen },
   { to: '/import', label: 'Import statements', icon: Upload },
   { to: '/security', label: 'Security', icon: ShieldCheck, authOnly: true },
@@ -38,7 +39,7 @@ export const MOBILE_TABS = [
 ];
 
 /** Pages under You on phones; their back button falls back to /you. */
-export const YOU_PATHS = ['/you', '/categories', '/memos', '/import', '/security'];
+export const YOU_PATHS = ['/you', '/categories', '/accounts', '/memos', '/import', '/security'];
 
 /** The tab bar shows on a tab's own page only; pushed pages get a back button instead. */
 export function isTabRoot(pathname) {

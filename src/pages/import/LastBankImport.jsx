@@ -1,17 +1,21 @@
 import { FileSpreadsheet, Info } from 'lucide-react';
 import { Alert, Card, EmptyState, MobileField, MobileList, MobileSection, Select } from '../../components/ui';
 import { useIsCompact } from '../../styles/breakpoints.js';
-import { accountLabel, fmtDate, fmtPeriod, isoDateMinusDays } from './format.js';
+import { useAccountNames } from '../../hooks/useAccounts.js';
+import { accountChoices, accountLabel } from '../../utils/accounts.js';
+import { fmtDate, fmtPeriod, isoDateMinusDays } from './format.js';
 
 /**
  * The newest bank statement import (for one account, or any), and where the
  * next download from the bank should start so no days fall in a gap.
  */
-export default function LastBankImport({ lastImport, accounts, selectedAccount, onAccountChange }) {
+export default function LastBankImport({ lastImport, selectedAccount, onAccountChange }) {
   // Two days of overlap: the bank's export day is often still settling, and
   // overlapping rows are skipped as duplicates anyway.
   const cutoff = lastImport?.periodEnd ? isoDateMinusDays(lastImport.periodEnd, 2) : null;
   const isMobile = useIsCompact();
+  const accountNames = useAccountNames();
+  const accounts = accountChoices(accountNames);
 
   const accountPicker =
     accounts.length > 1 ? (
@@ -21,7 +25,7 @@ export default function LastBankImport({ lastImport, accounts, selectedAccount, 
         aria-label="Account"
         value={selectedAccount}
         onChange={(e) => onAccountChange(e.target.value)}
-        options={[{ label: 'All accounts', value: '' }, ...accounts.map((a) => ({ label: accountLabel(a), value: a }))]}
+        options={[{ label: 'All accounts', value: '' }, ...accounts]}
       />
     ) : null;
 
@@ -33,7 +37,7 @@ export default function LastBankImport({ lastImport, accounts, selectedAccount, 
         {lastImport ? (
           <>
             <MobileList variant="inset" aria-label="Last bank import">
-              <MobileField label="Account">{accountLabel(lastImport.accountNumber)}</MobileField>
+              <MobileField label="Account">{accountLabel(lastImport.accountNumber, accountNames)}</MobileField>
               <MobileField label="Period">{fmtPeriod(lastImport.periodStart, lastImport.periodEnd)}</MobileField>
               <MobileField label="Imported on">{fmtDate(lastImport.uploadedAt)}</MobileField>
             </MobileList>
@@ -83,7 +87,7 @@ export default function LastBankImport({ lastImport, accounts, selectedAccount, 
       {lastImport ? (
         <div className="import-last__body">
           <div className="import-last__head">
-            <span className="import-last__account-name">{accountLabel(lastImport.accountNumber)}</span>
+            <span className="import-last__account-name">{accountLabel(lastImport.accountNumber, accountNames)}</span>
             <span className="import-muted">{fmtDate(lastImport.uploadedAt)}</span>
           </div>
           <div className="import-muted">{fmtPeriod(lastImport.periodStart, lastImport.periodEnd)}</div>

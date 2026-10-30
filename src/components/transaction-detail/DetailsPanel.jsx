@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { Amount, Card, Combobox, MobileField, MobileList, Spinner } from '../ui';
 import { categoryOptions } from '../common/Category.jsx';
+import { useAccountNames } from '../../hooks/useAccounts.js';
+import { accountName } from '../../utils/accounts.js';
 import { formatTxnDate } from './formatTxnDate.js';
 
 function Field({ label, children, mono = false }) {
@@ -15,9 +17,10 @@ function Field({ label, children, mono = false }) {
 /**
  * The facts the details show, worked out once for the desktop panel and the
  * phone list: the note, how it was paid, the raw statement line and the UPI
- * name when the title doesn't already show them, and the running balance.
+ * name when the title doesn't already show them, the account by its holder's
+ * name (its number, in mono, until it is named), and the running balance.
  */
-export function txnDetailFacts(tx, title) {
+export function txnDetailFacts(tx, title, accountNames) {
   const note = tx.upiDescription || tx.narration || '—';
   const method = tx.upiBank ? `UPI · ${tx.upiBank}` : tx.isManual ? 'Manual' : 'Bank';
   // The raw statement line, when the title and note don't already show it.
@@ -25,7 +28,9 @@ export function txnDetailFacts(tx, title) {
   const upiName = tx.upiName && tx.upiName !== title ? tx.upiName : null;
   const balance = tx.balance === null || tx.balance === undefined || tx.balance === '' ? NaN : Number(tx.balance);
   const showBalance = !tx.isManual && Number.isFinite(balance);
-  return { note, method, narration, upiName, balance, showBalance };
+  const holder = accountName(tx.accountNumber, accountNames);
+  const account = holder || tx.accountNumber || '—';
+  return { note, method, narration, upiName, account, accountIsNumber: !holder, balance, showBalance };
 }
 
 /**
@@ -34,7 +39,9 @@ export function txnDetailFacts(tx, title) {
  */
 export default function DetailsPanel({ tx, title, categories, onAssignCategory, categorySaving }) {
   const options = useMemo(() => categoryOptions(categories), [categories]);
-  const { note, method, narration, upiName, balance, showBalance } = txnDetailFacts(tx, title);
+  const accountNames = useAccountNames();
+  const { note, method, narration, upiName, account, accountIsNumber, balance, showBalance } =
+    txnDetailFacts(tx, title, accountNames);
 
   return (
     <Card as="aside" title="Details" className="txd-details">
@@ -61,7 +68,7 @@ export default function DetailsPanel({ tx, title, categories, onAssignCategory, 
         <Field label="Method">{method}</Field>
         {upiName && <Field label="UPI name">{upiName}</Field>}
         {narration && <Field label="Narration">{narration}</Field>}
-        <Field label="Account" mono>{tx.accountNumber || '—'}</Field>
+        <Field label="Account" mono={accountIsNumber}>{account}</Field>
         {showBalance && (
           <Field label="Balance">
             <Amount value={balance} decimals={2} tone="inherit" />
@@ -81,7 +88,9 @@ export default function DetailsPanel({ tx, title, categories, onAssignCategory, 
  * right-aligned column.
  */
 export function DetailsList({ tx, title, leading }) {
-  const { note, method, narration, upiName, balance, showBalance } = txnDetailFacts(tx, title);
+  const accountNames = useAccountNames();
+  const { note, method, narration, upiName, account, accountIsNumber, balance, showBalance } =
+    txnDetailFacts(tx, title, accountNames);
   // Short values stay on the label's line; long ones get the full width.
   const fit = (value) => (String(value).length > 24 ? 'txd-m-field--stack' : undefined);
   return (
@@ -92,7 +101,7 @@ export function DetailsList({ tx, title, leading }) {
       <MobileField label="Method">{method}</MobileField>
       {upiName && <MobileField label="UPI name" className={fit(upiName)}>{upiName}</MobileField>}
       {narration && <MobileField label="Narration" className={fit(narration)}>{narration}</MobileField>}
-      <MobileField label="Account" className="txd-m-field--mono">{tx.accountNumber || '—'}</MobileField>
+      <MobileField label="Account" className={accountIsNumber ? 'txd-m-field--mono' : undefined}>{account}</MobileField>
       {showBalance && (
         <MobileField label="Balance">
           <Amount value={balance} decimals={2} tone="inherit" />
